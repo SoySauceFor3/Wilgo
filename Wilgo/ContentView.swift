@@ -10,57 +10,192 @@ import SwiftData
 
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query private var items: [Item]
-
+    @Query(sort: \Habit.createdAt, order: .forward) private var habits: [Habit]
     var body: some View {
-        NavigationSplitView {
+        NavigationStack {
             List {
-                ForEach(items) { item in
-                    NavigationLink {
-                        Text("Item at \(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))")
-                    } label: {
-                        Text(item.timestamp, format: Date.FormatStyle(date: .numeric, time: .standard))
-                    }
+                ForEach(habits) { habit in
+                    HabitRowView(habit: habit)
                 }
-                .onDelete(perform: deleteItems)
+                .onDelete(perform: deleteHabits)
             }
-#if os(macOS)
-            .navigationSplitViewColumnWidth(min: 180, ideal: 200)
-#endif
+            .listStyle(.insetGrouped)
+            .navigationTitle("Habits")
             .toolbar {
-#if os(iOS)
                 ToolbarItem(placement: .navigationBarTrailing) {
                     EditButton()
                 }
-#endif
-                ToolbarItem {
-                    Button(action: addItem) {
-                        Label("Add Item", systemImage: "plus")
-                    }
-                }
             }
-        } detail: {
-            Text("Select an item")
         }
     }
 
-    private func addItem() {
-        withAnimation {
-            let newItem = Item(timestamp: Date())
-            modelContext.insert(newItem)
-        }
+    /// Formats a `Date` that represents a time-of-day into a short string like "6:00 AM".
+    private func formattedTime(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return formatter.string(from: date)
     }
 
-    private func deleteItems(offsets: IndexSet) {
+    private func deleteHabits(offsets: IndexSet) {
         withAnimation {
             for index in offsets {
-                modelContext.delete(items[index])
+                modelContext.delete(habits[index])
             }
         }
     }
 }
 
+private struct HabitRowView: View {
+    @Bindable var habit: Habit
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            // Top line: status + title
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Circle()
+                    .fill(habit.isCompleted ? Color.green : Color.gray.opacity(0.6))
+                    .frame(width: 10, height: 10)
+
+                Text(habit.title)
+                    .font(.headline)
+                    .foregroundStyle(.primary)
+
+                Spacer()
+
+                if habit.isCompleted {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
+            }
+
+            // Second line: frequency / schedule
+            HStack(spacing: 4) {
+                Label("Schedule", systemImage: "calendar")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text("\(habit.frequencyCount)× \(habit.frequencyPeriod.rawValue.lowercased())")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            // Third line: golden window
+            HStack(spacing: 4) {
+                Label("Window", systemImage: "sun.max")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text("\(formattedTime(from: habit.idealWindowStart)) – \(formattedTime(from: habit.idealWindowEnd))")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            // Fourth line: skip credits + proof-of-work
+            HStack(spacing: 8) {
+                HStack(spacing: 4) {
+                    Label("Skip", systemImage: "arrow.uturn.left")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    Text("\(habit.skipCreditCount) / \(habit.skipCreditPeriod.rawValue.lowercased())")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Text(habit.proofOfWorkType.rawValue)
+                    .font(.caption2)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .background(
+                        Capsule()
+                            .fill(Color.blue.opacity(0.1))
+                    )
+                    .foregroundStyle(.blue)
+            }
+        }
+        .padding(.vertical, 4)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                habit.isCompleted.toggle()
+            }
+        }
+    }
+
+    private func formattedTime(from date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return formatter.string(from: date)
+    }
+}
+
 #Preview {
-    ContentView()
-        .modelContainer(for: Item.self, inMemory: true)
+    let container = try! ModelContainer(for: Habit.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+    let ctx = container.mainContext
+
+    let calendar = Calendar.current
+
+    let samples: [Habit] = [
+        Habit(
+            title: "Workout",
+            frequencyCount: 1,
+            frequencyPeriod: .daily,
+            idealWindowStart: calendar.date(from: DateComponents(hour: 6, minute: 0)) ?? Date(),
+            idealWindowEnd: calendar.date(from: DateComponents(hour: 8, minute: 0)) ?? Date(),
+            skipCreditCount: 5,
+            skipCreditPeriod: .monthly,
+            proofOfWorkType: .manual
+        ),
+        Habit(
+            title: "Read 30 mins 📚",
+            frequencyCount: 1,
+            frequencyPeriod: .daily,
+            idealWindowStart: calendar.date(from: DateComponents(hour: 9, minute: 0)) ?? Date(),
+            idealWindowEnd: calendar.date(from: DateComponents(hour: 11, minute: 0)) ?? Date(),
+            skipCreditCount: 1,
+            skipCreditPeriod: .daily,
+            proofOfWorkType: .manual
+        ),
+        Habit(
+            title: "Drink 2L Water 💧",
+            frequencyCount: 1,
+            frequencyPeriod: .daily,
+            idealWindowStart: calendar.date(from: DateComponents(hour: 12, minute: 0)) ?? Date(),
+            idealWindowEnd: calendar.date(from: DateComponents(hour: 14, minute: 0)) ?? Date(),
+            skipCreditCount: 1,
+            skipCreditPeriod: .daily,
+            proofOfWorkType: .manual
+        ),
+        Habit(
+            title: "Meditate 10 mins 🧘",
+            frequencyCount: 1,
+            frequencyPeriod: .daily,
+            idealWindowStart: calendar.date(from: DateComponents(hour: 15, minute: 0)) ?? Date(),
+            idealWindowEnd: calendar.date(from: DateComponents(hour: 17, minute: 0)) ?? Date(),
+            skipCreditCount: 1,
+            skipCreditPeriod: .daily,
+            proofOfWorkType: .manual
+        ),
+        Habit(
+            title: "No social media after 9 PM 📵",
+            frequencyCount: 1,
+            frequencyPeriod: .daily,
+            idealWindowStart: calendar.date(from: DateComponents(hour: 21, minute: 0)) ?? Date(),
+            idealWindowEnd: calendar.date(from: DateComponents(hour: 23, minute: 0)) ?? Date(),
+            skipCreditCount: 1,
+            skipCreditPeriod: .daily,
+            proofOfWorkType: .manual
+        ),
+    ]
+
+    for habit in samples {
+        ctx.insert(habit)
+    }
+
+    return ContentView()
+        .modelContainer(container)
 }

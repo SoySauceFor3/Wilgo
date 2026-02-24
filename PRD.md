@@ -14,7 +14,7 @@
 
 Each habit is defined by these parameters:
 
-- **Frequency:** Times per day/week (MVP: 1/day).
+- **Frequency:** Times per day/week 
 - **Ideal Window:** e.g., 5 PM – 8 PM (The "Golden Hours").
 - **Soft Deadline:** 12 AM (When a Skip Credit is automatically burned).
 - **Monthly Budget:** e.g., 5 Skip Credits per month.
