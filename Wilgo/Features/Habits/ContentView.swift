@@ -66,20 +66,11 @@ private struct HabitRowView: View {
         VStack(alignment: .leading, spacing: 6) {
             // Top line: status + title
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Circle()
-                    .fill(habit.isCompleted ? Color.green : Color.gray.opacity(0.6))
-                    .frame(width: 10, height: 10)
-
                 Text(habit.title)
                     .font(.headline)
                     .foregroundStyle(.primary)
 
                 Spacer()
-
-                if habit.isCompleted {
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                }
             }
 
             // Second line: frequency / schedule
@@ -131,11 +122,6 @@ private struct HabitRowView: View {
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
-        .onTapGesture {
-            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                habit.isCompleted.toggle()
-            }
-        }
     }
 
     private func formattedTime(from date: Date) -> String {

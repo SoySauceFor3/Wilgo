@@ -64,6 +64,7 @@ struct StageView: View {
 // MARK: - Primary card (in-window habit)
 
 private struct PrimaryHabitCard: View {
+    @Environment(\.modelContext) private var modelContext
     @Bindable var habit: Habit
 
     var body: some View {
@@ -94,7 +95,11 @@ private struct PrimaryHabitCard: View {
             HStack(spacing: 12) {
                 Button {
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                        habit.isCompleted = true
+                        let checkIn = HabitCheckIn(
+                            habit: habit,
+                            status: .completed
+                        )
+                        modelContext.insert(checkIn)
                     }
                 } label: {
                     Label("Done", systemImage: "checkmark.circle.fill")
@@ -103,10 +108,18 @@ private struct PrimaryHabitCard: View {
                 }
                 .buttonStyle(.borderedProminent)
                 .tint(.green)
-                .disabled(habit.isCompleted)
 
                 Button {
-                    burnCredit()
+                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                        // TODO: handle skipCreditCount == 0 case
+                        guard habit.skipCreditCount > 0 else { return }
+
+                        let checkIn = HabitCheckIn(
+                            habit: habit,
+                            status: .skipped
+                        )
+                        modelContext.insert(checkIn)
+                    }
                 } label: {
                     Label("Burn credit", systemImage: "flame")
                         .frame(maxWidth: .infinity)
@@ -135,14 +148,6 @@ private struct PrimaryHabitCard: View {
                         .stroke(style.color.opacity(0.3), lineWidth: 1)
                 )
         )
-    }
-
-    private func burnCredit() {
-        withAnimation {
-            if habit.skipCreditCount > 0 {
-                habit.skipCreditCount -= 1
-            }
-        }
     }
 }
 

@@ -29,11 +29,6 @@ final class Habit {
     @Relationship(deleteRule: .cascade, inverse: \HabitCheckIn.habit)
     var checkIns: [HabitCheckIn] = []
 
-    /// Whether this habit has been completed for the current check-in context.
-    /// This is intentionally simple for now and can later be replaced with a
-    /// proper per-day completion history.
-    var isCompleted: Bool
-
     /// How often the habit must be completed (e.g. 3× per week)
     var frequencyCount: Int
     var frequencyPeriod: Period
@@ -58,7 +53,6 @@ final class Habit {
     init(
         title: String,
         createdAt: Date = .now,
-        isCompleted: Bool = false,
         frequencyCount: Int,
         frequencyPeriod: Period,
         idealWindowStart: Date,
@@ -69,7 +63,6 @@ final class Habit {
     ) {
         self.title = title
         self.createdAt = createdAt
-        self.isCompleted = isCompleted
         self.frequencyCount = frequencyCount
         self.frequencyPeriod = frequencyPeriod
         self.idealWindowStart = idealWindowStart
