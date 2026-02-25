@@ -11,6 +11,8 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Habit.createdAt, order: .forward) private var habits: [Habit]
+    @State private var isPresentingAddHabit: Bool = false
+
     var body: some View {
         NavigationStack {
             List {
@@ -22,9 +24,20 @@ struct ContentView: View {
             .listStyle(.insetGrouped)
             .navigationTitle("Habits")
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        isPresentingAddHabit = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
                     EditButton()
                 }
+            }
+            .sheet(isPresented: $isPresentingAddHabit) {
+                AddHabitView()
             }
         }
     }
