@@ -25,6 +25,10 @@ final class Habit {
     var title: String
     var createdAt: Date
 
+    /// Historical completion / skip records for this habit.
+    @Relationship(deleteRule: .cascade, inverse: \HabitCheckIn.habit)
+    var checkIns: [HabitCheckIn] = []
+
     /// Whether this habit has been completed for the current check-in context.
     /// This is intentionally simple for now and can later be replaced with a
     /// proper per-day completion history.
@@ -41,10 +45,6 @@ final class Habit {
     /// End of the ideal completion window ("Golden Hours") represented as a `Date`
     /// on an arbitrary reference day, using only its time components.
     var idealWindowEnd: Date
-
-    // TODO: I will add this to global settings.
-    // /// Deadline after which a Skip Credit is automatically burned (e.g. 12 AM) as time-of-day
-    // var softDeadline: DateComponents
 
     /// Number of allowed skips within the budget period
     var skipCreditCount: Int
