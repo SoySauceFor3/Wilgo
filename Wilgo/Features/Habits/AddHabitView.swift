@@ -1,46 +1,34 @@
-//
-//  AddHabitView.swift
-//  Wilgo
-//
-//  Created by Cursor AI on 2/25/26.
-//
-
 import SwiftUI
 import SwiftData
+
+private struct SlotWindow: Identifiable {
+    let id = UUID()
+    var start: Date
+    var end: Date
+}
 
 struct AddHabitView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
     @State private var title: String = ""
-    @State private var frequencyCount: Int = 1
-    @State private var frequencyPeriod: Period = .daily
-    @State private var idealWindowStart: Date
-    @State private var idealWindowEnd: Date
+    @State private var timesPerDay: Int = 1
+    @State private var slotWindows: [SlotWindow]
     @State private var skipCreditCount: Int = 1
     @State private var skipCreditPeriod: Period = .weekly
     @State private var proofOfWorkType: ProofOfWorkType = .manual
 
-    init() {
+    private static func defaultWindow() -> (start: Date, end: Date) {
         let calendar = Calendar.current
         let now = Date()
+        let start = calendar.date(bySettingHour: 6, minute: 0, second: 0, of: now) ?? now
+        let end = calendar.date(bySettingHour: 8, minute: 0, second: 0, of: now) ?? now
+        return (start, end)
+    }
 
-        let defaultStart = calendar.date(
-            bySettingHour: 6,
-            minute: 0,
-            second: 0,
-            of: now
-        ) ?? now
-
-        let defaultEnd = calendar.date(
-            bySettingHour: 8,
-            minute: 0,
-            second: 0,
-            of: now
-        ) ?? now
-
-        _idealWindowStart = State(initialValue: defaultStart)
-        _idealWindowEnd = State(initialValue: defaultEnd)
+    init() {
+        let (start, end) = AddHabitView.defaultWindow()
+        _slotWindows = State(initialValue: [SlotWindow(start: start, end: end)])
     }
 
     var body: some View {
@@ -49,30 +37,35 @@ struct AddHabitView: View {
                 Section("Basics") {
                     TextField("Title", text: $title)
 
-                    Picker("Frequency period", selection: $frequencyPeriod) {
-                        ForEach([Period.daily, .weekly, .monthly], id: \.self) { period in
-                            Text(period.rawValue)
-                                .tag(period)
-                        }
-                    }
-
-                    Stepper(value: $frequencyCount, in: 1...21) {
-                        Text("Frequency: \(frequencyCount)× \(frequencyPeriod.rawValue.lowercased())")
+                    Stepper(value: $timesPerDay, in: 1...21) {
+                        Text("Times per day: \(timesPerDay)")
                     }
                 }
 
-                Section("Golden window") {
-                    DatePicker(
-                        "Start",
-                        selection: $idealWindowStart,
-                        displayedComponents: .hourAndMinute
-                    )
-
-                    DatePicker(
-                        "End",
-                        selection: $idealWindowEnd,
-                        displayedComponents: .hourAndMinute
-                    )
+                Section("Ideal windows") {
+                    ForEach(Array(slotWindows.enumerated()), id: \.element.id) { index, _ in
+                        Section("Slot \(index + 1)") {
+                            DatePicker(
+                                "Start",
+                                selection: startBinding(for: index),
+                                displayedComponents: .hourAndMinute
+                            )
+                            DatePicker(
+                                "End",
+                                selection: endBinding(for: index),
+                                displayedComponents: .hourAndMinute
+                            )
+                        }
+                    }
+                }
+                .onChange(of: timesPerDay) { _, newCount in
+                    let (defaultStart, defaultEnd) = Self.defaultWindow()
+                    if slotWindows.count < newCount {
+                        let toAdd = newCount - slotWindows.count
+                        slotWindows.append(contentsOf: (0..<toAdd).map { _ in SlotWindow(start: defaultStart, end: defaultEnd) })
+                    } else if slotWindows.count > newCount {
+                        slotWindows = Array(slotWindows.prefix(newCount))
+                    }
                 }
 
                 Section("Skip credits") {
@@ -119,30 +112,60 @@ struct AddHabitView: View {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
+    private func startBinding(for index: Int) -> Binding<Date> {
+        Binding(
+            get: { slotWindows[index].start },
+            set: { newValue in
+                var copy = slotWindows
+                copy[index].start = newValue
+                slotWindows = copy
+            }
+        )
+    }
+
+    private func endBinding(for index: Int) -> Binding<Date> {
+        Binding(
+            get: { slotWindows[index].end },
+            set: { newValue in
+                var copy = slotWindows
+                copy[index].end = newValue
+                slotWindows = copy
+            }
+        )
+    }
+
     private func saveHabit() {
+        var slots: [HabitSlot] = []
+        for (i, window) in slotWindows.enumerated() {
+            let slot = HabitSlot(
+                start: window.start,
+                end: window.end,
+                sortOrder: i
+            )
+            modelContext.insert(slot)
+            slots.append(slot)
+        }
+
         let habit = Habit(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-            frequencyCount: frequencyCount,
-            frequencyPeriod: frequencyPeriod,
-            idealWindowStart: idealWindowStart,
-            idealWindowEnd: idealWindowEnd,
+            slots: slots,
             skipCreditCount: skipCreditCount,
             skipCreditPeriod: skipCreditPeriod,
             proofOfWorkType: proofOfWorkType
         )
 
         modelContext.insert(habit)
+        print(habit)
         dismiss()
     }
 }
 
 #Preview {
     let container = try! ModelContainer(
-        for: Habit.self,
+        for: Habit.self, HabitSlot.self, HabitCheckIn.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
-
-    return AddHabitView()
+    AddHabitView()
         .modelContainer(container)
 }
 

@@ -73,24 +73,24 @@ private struct HabitRowView: View {
                 Spacer()
             }
 
-            // Second line: frequency / schedule
+            // Second line: schedule (N× daily)
             HStack(spacing: 4) {
                 Label("Schedule", systemImage: "calendar")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text("\(habit.frequencyCount)× \(habit.frequencyPeriod.rawValue.lowercased())")
+                Text("\(habit.timesPerDay)× daily")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
 
-            // Third line: golden window
+            // Third line: ideal windows (one per slot)
             HStack(spacing: 4) {
-                Label("Window", systemImage: "sun.max")
+                Label("Windows", systemImage: "sun.max")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text("\(formattedTime(from: habit.idealWindowStart)) – \(formattedTime(from: habit.idealWindowEnd))")
+                Text(slotWindowsSummary(habit))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -102,7 +102,7 @@ private struct HabitRowView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    Text("\(habit.skipCreditCount) / \(habit.skipCreditPeriod.rawValue.lowercased())")
+                    Text("\(habit.skipCreditCount) / \(habit.skipCreditPeriod.rawValue)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -130,71 +130,45 @@ private struct HabitRowView: View {
         formatter.dateStyle = .none
         return formatter.string(from: date)
     }
+
+    private func slotWindowsSummary(_ habit: Habit) -> String {
+        let sorted = HabitScheduling.sortedSlots(for: habit)
+        return sorted.map { "\(formattedTime(from: $0.start))–\(formattedTime(from: $0.end))" }.joined(separator: ", ")
+    }
 }
 
-#Preview {
-    let container = try! ModelContainer(for: Habit.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
+private func makePreviewContainerWithSamples() throws -> ModelContainer {
+    let container = try ModelContainer(
+        for: Habit.self, HabitSlot.self, HabitCheckIn.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
     let ctx = container.mainContext
-
     let calendar = Calendar.current
 
-    let samples: [Habit] = [
-        Habit(
-            title: "Workout",
-            frequencyCount: 1,
-            frequencyPeriod: .daily,
-            idealWindowStart: calendar.date(from: DateComponents(hour: 6, minute: 0)) ?? Date(),
-            idealWindowEnd: calendar.date(from: DateComponents(hour: 8, minute: 0)) ?? Date(),
-            skipCreditCount: 5,
-            skipCreditPeriod: .monthly,
-            proofOfWorkType: .manual
-        ),
-        Habit(
-            title: "Read 30 mins 📚",
-            frequencyCount: 1,
-            frequencyPeriod: .daily,
-            idealWindowStart: calendar.date(from: DateComponents(hour: 9, minute: 0)) ?? Date(),
-            idealWindowEnd: calendar.date(from: DateComponents(hour: 11, minute: 0)) ?? Date(),
-            skipCreditCount: 1,
-            skipCreditPeriod: .daily,
-            proofOfWorkType: .manual
-        ),
-        Habit(
-            title: "Drink 2L Water 💧",
-            frequencyCount: 1,
-            frequencyPeriod: .daily,
-            idealWindowStart: calendar.date(from: DateComponents(hour: 12, minute: 0)) ?? Date(),
-            idealWindowEnd: calendar.date(from: DateComponents(hour: 14, minute: 0)) ?? Date(),
-            skipCreditCount: 1,
-            skipCreditPeriod: .daily,
-            proofOfWorkType: .manual
-        ),
-        Habit(
-            title: "Meditate 10 mins 🧘",
-            frequencyCount: 1,
-            frequencyPeriod: .daily,
-            idealWindowStart: calendar.date(from: DateComponents(hour: 15, minute: 0)) ?? Date(),
-            idealWindowEnd: calendar.date(from: DateComponents(hour: 17, minute: 0)) ?? Date(),
-            skipCreditCount: 1,
-            skipCreditPeriod: .daily,
-            proofOfWorkType: .manual
-        ),
-        Habit(
-            title: "No social media after 9 PM 📵",
-            frequencyCount: 1,
-            frequencyPeriod: .daily,
-            idealWindowStart: calendar.date(from: DateComponents(hour: 21, minute: 0)) ?? Date(),
-            idealWindowEnd: calendar.date(from: DateComponents(hour: 23, minute: 0)) ?? Date(),
-            skipCreditCount: 1,
-            skipCreditPeriod: .daily,
-            proofOfWorkType: .manual
-        ),
-    ]
+    func slot(_ h1: Int, _ m1: Int, _ h2: Int, _ m2: Int, order: Int) -> HabitSlot {
+        HabitSlot(
+            start: calendar.date(from: DateComponents(hour: h1, minute: m1)) ?? Date(),
+            end: calendar.date(from: DateComponents(hour: h2, minute: m2)) ?? Date(),
+            sortOrder: order
+        )
+    }
 
+    let samples: [Habit] = [
+        Habit(title: "Workout", slots: [slot(6, 0, 8, 0, order: 0), slot(8, 0, 10, 0, order: 1)], skipCreditCount: 5, skipCreditPeriod: .monthly, proofOfWorkType: .manual),
+        Habit(title: "Read 30 mins 📚", slots: [slot(9, 0, 11, 0, order: 0)], skipCreditCount: 1, skipCreditPeriod: .daily, proofOfWorkType: .manual),
+        Habit(title: "Drink 2L Water 💧", slots: [slot(12, 0, 14, 0, order: 0)], skipCreditCount: 1, skipCreditPeriod: .daily, proofOfWorkType: .manual),
+        Habit(title: "Meditate 10 mins 🧘", slots: [slot(15, 0, 17, 0, order: 0)], skipCreditCount: 1, skipCreditPeriod: .daily, proofOfWorkType: .manual),
+        Habit(title: "No social media after 9 PM 📵", slots: [slot(21, 0, 23, 0, order: 0)], skipCreditCount: 1, skipCreditPeriod: .daily, proofOfWorkType: .manual),
+    ]
     for habit in samples {
         ctx.insert(habit)
     }
+    return container
+}
 
-    return ContentView()
-        .modelContainer(container)
+struct ContentView_Previews: PreviewProvider {
+    static var previews: some View {
+        ContentView()
+            .modelContainer(try! makePreviewContainerWithSamples())
+    }
 }
