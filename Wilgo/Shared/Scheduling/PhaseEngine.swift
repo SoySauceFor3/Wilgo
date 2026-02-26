@@ -3,12 +3,13 @@
 //  Wilgo
 //
 //  Phase and pressure-spectrum logic for habits. Used by Stage view and (later) notifications.
+//  Works per slot (one ideal window per occurrence).
 //
 
 import Foundation
 import SwiftUI
 
-/// Current phase of a habit in the pressure spectrum.
+/// Current phase of a habit slot in the pressure spectrum.
 enum HabitPhase: String {
     case gentle     // Inside ideal window
     case judgmental // Past window, before critical period
@@ -25,9 +26,9 @@ struct PhaseStyle {
     static func forPhase(_ phase: HabitPhase) -> PhaseStyle {
         switch phase {
         case .gentle:
-            return PhaseStyle(color: .green, toneMessage: "Now’s a great time.", urgency: 1)
+            return PhaseStyle(color: .green, toneMessage: "Now's a great time.", urgency: 1)
         case .judgmental:
-            return PhaseStyle(color: .orange, toneMessage: "Window’s closing. Still doable.", urgency: 2)
+            return PhaseStyle(color: .orange, toneMessage: "Window's closing. Still doable.", urgency: 2)
         case .critical:
             return PhaseStyle(color: .red, toneMessage: "Last call. Do it or burn a credit.", urgency: 3)
         case .settled:
@@ -53,24 +54,22 @@ struct PhaseConfig {
 
 enum PhaseEngine {
 
-    /// Returns the current phase for the habit at `now`, and the style to use in UI.
-    static func phaseAndStyle(for habit: Habit, now: Date = Date()) -> (HabitPhase, PhaseStyle) {
-        let phase = phase(for: habit, now: now)
+    /// Returns the current phase for the habit's slot at `now`, and the style to use in UI.
+    static func phaseAndStyle(for habit: Habit, slot: HabitSlot, now: Date = Date()) -> (HabitPhase, PhaseStyle) {
+        let phase = phase(for: habit, slot: slot, now: now)
         return (phase, PhaseStyle.forPhase(phase))
     }
 
-    /// Returns the current phase for the habit at `now`.
-    static func phase(for habit: Habit, now: Date = Date()) -> HabitPhase {
+    /// Returns the current phase for the habit's slot at `now`.
+    static func phase(for habit: Habit, slot: HabitSlot, now: Date = Date()) -> HabitPhase {
         let calendar = HabitScheduling.calendar
-        let windowStart = HabitScheduling.windowStartToday(for: habit)
-        let windowEnd = HabitScheduling.windowEndToday(for: habit)
+        let windowStart = HabitScheduling.windowStartToday(for: slot)
+        let windowEnd = HabitScheduling.windowEndToday(for: slot)
         let softDeadline = HabitScheduling.softDeadline(for: habit, now: now)
 
-        // Handle window that crosses midnight (e.g. 22:00–01:00)
         let windowEndsTomorrow = windowEnd <= windowStart
         let effectiveWindowEnd: Date
         if windowEndsTomorrow && now < windowStart {
-            // Before window start: "yesterday's" end was earlier today
             effectiveWindowEnd = windowEnd
         } else if windowEndsTomorrow {
             effectiveWindowEnd = calendar.date(byAdding: .day, value: 1, to: windowEnd) ?? windowEnd

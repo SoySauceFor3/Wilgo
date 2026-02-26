@@ -1,155 +1,190 @@
-//
-//  StageView.swift
-//  Wilgo
-//
-//  Page 1: The Stage — dynamic dashboard highlighting the in-window habit with phase-based styling.
+//  The Stage — dynamic dashboard highlighting the in-window habit with phase-based styling.
+//  Schedule: N× daily; each slot has its own ideal window.
 //
 
 import SwiftUI
 import SwiftData
+import Combine
 
 struct StageView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Habit.createdAt, order: .forward) private var habits: [Habit]
+    /// Updates every minute so the Stage re-renders as time passes (current/upcoming/missed change).
+    @State private var timeTick: Date = Date()
 
-    /// Primary habit to feature: in gentle, judgmental, or critical phase; earliest soft deadline first.
-    private var primaryHabit: Habit? {
-        let now = Date()
-        let active = habits.filter { habit in
-            let phase = PhaseEngine.phase(for: habit, now: now)
-            return phase == .gentle || phase == .judgmental || phase == .critical
+    /// All (habit, slot) pairs whose window currently covers `now` and have no check-in today.
+    private var currentHabitSlots: [(Habit, HabitSlot)] {
+        let now = timeTick
+        var result: [(Habit, HabitSlot)] = []
+
+        for habit in habits {
+            let sorted = HabitScheduling.sortedSlots(for: habit)
+            for slot in sorted where HabitScheduling.isInWindowNow(slot, now: now) {
+                if hasCheckInForSlotToday(habit, slotIndex: slot.sortOrder, now: now) { continue }
+                result.append((habit, slot))
+            }
         }
-        return active.min(by: { HabitScheduling.softDeadline(for: $0, now: now) < HabitScheduling.softDeadline(for: $1, now: now) })
+
+        // Sort by fraction of window remaining: time left / full window length.
+        result.sort { lhs, rhs in
+            let leftSlot = lhs.1
+            let rightSlot = rhs.1
+
+            let leftStart = HabitScheduling.windowStartToday(for: leftSlot)
+            let leftEnd = HabitScheduling.windowEndToday(for: leftSlot)
+            let rightStart = HabitScheduling.windowStartToday(for: rightSlot)
+            let rightEnd = HabitScheduling.windowEndToday(for: rightSlot)
+
+            let leftDuration = max(leftEnd.timeIntervalSince(leftStart), 1)
+            let rightDuration = max(rightEnd.timeIntervalSince(rightStart), 1)
+
+            let leftRemaining = max(leftEnd.timeIntervalSince(now), 0)
+            let rightRemaining = max(rightEnd.timeIntervalSince(now), 0)
+
+            let leftRatio = leftRemaining / leftDuration
+            let rightRatio = rightRemaining / rightDuration
+
+            return leftRatio < rightRatio
+        }
+
+        return result
     }
 
-    /// Upcoming habits (window start still later today), sorted by window start.
-    private var upcomingHabits: [Habit] {
-        let now = Date()
-        return habits
-            .filter { HabitScheduling.isUpcomingToday($0, now: now) }
-            .sorted { HabitScheduling.windowStartToday(for: $0) < HabitScheduling.windowStartToday(for: $1) }
+    /// Upcoming (habit, slot) pairs whose window starts within the next 8 hours and have no check-in today.
+    private var upcomingHabitSlots: [(Habit, HabitSlot)] {
+        let now = timeTick
+        let cutoff = now.addingTimeInterval(8 * 60 * 60)
+        var result: [(Habit, HabitSlot)] = []
+
+        for habit in habits {
+            let sorted = HabitScheduling.sortedSlots(for: habit)
+            for slot in sorted {
+                let start = HabitScheduling.windowStartToday(for: slot)
+                guard start > now, start <= cutoff else { continue }
+                if hasCheckInForSlotToday(habit, slotIndex: slot.sortOrder, now: now) { continue }
+                result.append((habit, slot))
+            }
+        }
+
+        result.sort { HabitScheduling.windowStartToday(for: $0.1) < HabitScheduling.windowStartToday(for: $1.1) }
+        return result
+    }
+
+    /// Missed (window passed) and skipped slots for today, where it's still before the soft deadline.
+    private var missedOrSkippedSlots: [MissedOrSkippedSlot] {
+        let now = timeTick
+        let calendar = Calendar.current
+        var items: [MissedOrSkippedSlot] = []
+
+        for habit in habits {
+            let softDeadline = HabitScheduling.softDeadline(for: habit, now: now)
+            guard now < softDeadline else { continue }
+
+            let sortedSlots = HabitScheduling.sortedSlots(for: habit)
+
+            for slot in sortedSlots {
+                let todaysCheckIns = habit.checkIns.filter {
+                    $0.slotIndex == slot.sortOrder && calendar.isDate($0.createdAt, inSameDayAs: now)
+                }
+
+                if let checkIn = todaysCheckIns.first {
+                    if checkIn.status == .skipped {
+                        items.append(MissedOrSkippedSlot(habit: habit, slot: slot, status: .skipped))
+                    }
+                    continue
+                }
+
+                let phase = PhaseEngine.phase(for: habit, slot: slot, now: now)
+                if phase == .judgmental || phase == .critical {
+                    items.append(MissedOrSkippedSlot(habit: habit, slot: slot, status: nil))
+                }
+            }
+        }
+
+        items.sort { lhs, rhs in
+            let leftPhase = PhaseEngine.phase(for: lhs.habit, slot: lhs.slot, now: now)
+            let rightPhase = PhaseEngine.phase(for: rhs.habit, slot: rhs.slot, now: now)
+
+            let leftUrgency = PhaseStyle.forPhase(leftPhase).urgency
+            let rightUrgency = PhaseStyle.forPhase(rightPhase).urgency
+
+            if leftUrgency != rightUrgency {
+                return leftUrgency > rightUrgency
+            }
+
+            let leftEnd = HabitScheduling.windowEndToday(for: lhs.slot)
+            let rightEnd = HabitScheduling.windowEndToday(for: rhs.slot)
+
+            return leftEnd < rightEnd
+        }
+
+        return items
+    }
+
+    private func hasCheckInForSlotToday(_ habit: Habit, slotIndex: Int, now: Date) -> Bool {
+        let cal = Calendar.current
+        return habit.checkIns.contains { cal.isDate($0.createdAt, inSameDayAs: now) && $0.slotIndex == slotIndex }
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    if let habit = primaryHabit {
-                        PrimaryHabitCard(habit: habit)
-                    } else {
-                        EmptyStageCard()
-                    }
-
-                    if !upcomingHabits.isEmpty {
+                    if !currentHabitSlots.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Upcoming today")
+                            Text("Current")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(upcomingHabits) { habit in
-                                UpcomingHabitRow(habit: habit)
+                            ForEach(currentHabitSlots, id: \.1.id) { habit, slot in
+                                CurrentHabitRow(habit: habit, slot: slot)
                             }
                         }
+                    }
+
+                    if !upcomingHabitSlots.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Upcoming (next 8 hours)")
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 4)
+
+                            ForEach(upcomingHabitSlots, id: \.1.id) { habit, slot in
+                                UpcomingHabitRow(habit: habit, slot: slot)
+                            }
+                        }
+                    }
+
+                    if !missedOrSkippedSlots.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Missed / skipped today")
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 4)
+
+                            ForEach(missedOrSkippedSlots, id: \.slot.id) { item in
+                                MissedOrSkippedHabitRow(item: item)
+                            }
+                        }
+                    }
+
+                    if currentHabitSlots.isEmpty && upcomingHabitSlots.isEmpty && missedOrSkippedSlots.isEmpty {
+                        EmptyStageCard()
                     }
                 }
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Stage")
+            .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { _ in
+                timeTick = Date()
+            }
         }
     }
 }
 
-// MARK: - Primary card (in-window habit)
 
-private struct PrimaryHabitCard: View {
-    @Environment(\.modelContext) private var modelContext
-    @Bindable var habit: Habit
-
-    var body: some View {
-        let (_, style) = PhaseEngine.phaseAndStyle(for: habit)
-
-        VStack(alignment: .leading, spacing: 20) {
-            // Mascot area placeholder
-            RoundedRectangle(cornerRadius: 12)
-                .fill(style.color.opacity(0.15))
-                .frame(height: 80)
-                .overlay {
-                    Image(systemName: "sparkles")
-                        .font(.system(size: 36))
-                        .foregroundStyle(style.color)
-                }
-
-            VStack(alignment: .leading, spacing: 8) {
-                Text(habit.title)
-                    .font(.title2)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(.primary)
-
-                Text(style.toneMessage)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            HStack(spacing: 12) {
-                Button {
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                        let checkIn = HabitCheckIn(
-                            habit: habit,
-                            status: .completed
-                        )
-                        modelContext.insert(checkIn)
-                    }
-                } label: {
-                    Label("Done", systemImage: "checkmark.circle.fill")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(.green)
-
-                Button {
-                    withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                        // TODO: handle skipCreditCount == 0 case
-                        guard habit.skipCreditCount > 0 else { return }
-
-                        let checkIn = HabitCheckIn(
-                            habit: habit,
-                            status: .skipped
-                        )
-                        modelContext.insert(checkIn)
-                    }
-                } label: {
-                    Label("Burn credit", systemImage: "flame")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                }
-                .buttonStyle(.bordered)
-                .tint(style.color)
-                .disabled(habit.skipCreditCount <= 0)
-            }
-
-            HStack {
-                Text("Skip credits:")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("\(habit.skipCreditCount) left")
-                    .font(.caption)
-                    .fontWeight(.medium)
-            }
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(style.color.opacity(0.08))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(style.color.opacity(0.3), lineWidth: 1)
-                )
-        )
-    }
-}
 
 // MARK: - Empty state
 
@@ -159,7 +194,7 @@ private struct EmptyStageCard: View {
             Image(systemName: "moon.zzz")
                 .font(.system(size: 48))
                 .foregroundStyle(.secondary)
-            Text("No habit in window right now")
+            Text("Nothing on stage right now")
                 .font(.headline)
                 .foregroundStyle(.secondary)
             Text("Add habits and set their ideal times to see them here.")
@@ -176,105 +211,106 @@ private struct EmptyStageCard: View {
     }
 }
 
-// MARK: - Upcoming row
-
-private struct UpcomingHabitRow: View {
-    let habit: Habit
-
-    private func formattedTime(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-        return formatter.string(from: date)
-    }
-
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text(habit.title)
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-                Text("\(formattedTime(from: habit.idealWindowStart)) – \(formattedTime(from: habit.idealWindowEnd))")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer()
-        }
-        .padding(12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(Color(.secondarySystemGroupedBackground))
-        )
-    }
-}
 
 // MARK: - Previews
 
-#Preview("Stage with multiple habits") {
-    let container = try! ModelContainer(for: Habit.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-    let ctx = container.mainContext
-    let calendar = Calendar.current
+private enum StagePreviewFactory {
+    static var multipleHabits: some View {
+        let container = try! ModelContainer(
+            for: Habit.self, HabitSlot.self, HabitCheckIn.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let ctx = container.mainContext
+        let calendar = Calendar.current
 
-    let habit1 = Habit(
-        title: "habit 1",
-        frequencyCount: 1,
-        frequencyPeriod: .daily,
-        idealWindowStart: calendar.date(from: DateComponents(hour: 0, minute: 0)) ?? Date(),
-        idealWindowEnd: calendar.date(from: DateComponents(hour: 10, minute: 0)) ?? Date(),
-        skipCreditCount: 5,
-        skipCreditPeriod: .monthly,
-        proofOfWorkType: .manual
-    )
-    let habit2 = Habit(
-        title: "habit 2",
-        frequencyCount: 1,
-        frequencyPeriod: .daily,
-        idealWindowStart: calendar.date(from: DateComponents(hour: 3, minute: 0)) ?? Date(),
-        idealWindowEnd: calendar.date(from: DateComponents(hour: 4, minute: 30)) ?? Date(),
-        skipCreditCount: 3,
-        skipCreditPeriod: .weekly,
-        proofOfWorkType: .manual
-    )
-    let habit3 = Habit(
-        title: "habit 3",
-        frequencyCount: 1,
-        frequencyPeriod: .daily,
-        idealWindowStart: calendar.date(from: DateComponents(hour: 4, minute: 0)) ?? Date(),
-        idealWindowEnd: calendar.date(from: DateComponents(hour: 5, minute: 30)) ?? Date(),
-        skipCreditCount: 2,
-        skipCreditPeriod: .weekly,
-        proofOfWorkType: .manual
-    )
+        func slot(_ h1: Int, _ m1: Int, _ h2: Int, _ m2: Int, order: Int) -> HabitSlot {
+            HabitSlot(
+                start: calendar.date(from: DateComponents(hour: h1, minute: m1)) ?? Date(),
+                end: calendar.date(from: DateComponents(hour: h2, minute: m2)) ?? Date(),
+                sortOrder: order
+            )
+        }
 
-    ctx.insert(habit1)
-    ctx.insert(habit2)
-    ctx.insert(habit3)
+        let habit1 = Habit(
+            title: "habit 1",
+            slots: [slot(4, 0, 5, 0, order: 0)],
+            skipCreditCount: 5,
+            skipCreditPeriod: .monthly,
+            proofOfWorkType: .manual
+        )
+        let habit2 = Habit(
+            title: "habit 2",
+            slots: [slot(4, 0, 6, 30, order: 0)],
+            skipCreditCount: 3,
+            skipCreditPeriod: .weekly,
+            proofOfWorkType: .manual
+        )
+        let habit3 = Habit(
+            title: "habit 3",
+            slots: [slot(6, 0, 7, 30, order: 0)],
+            skipCreditCount: 2,
+            skipCreditPeriod: .weekly,
+            proofOfWorkType: .manual
+        )
+        habit1.slots.forEach { $0.habit = habit1; ctx.insert($0) }
+        habit2.slots.forEach { $0.habit = habit2; ctx.insert($0) }
+        habit3.slots.forEach { $0.habit = habit3; ctx.insert($0) }
+        ctx.insert(habit1)
+        ctx.insert(habit2)
+        ctx.insert(habit3)
 
-    return StageView()
-        .modelContainer(container)
+        return StageView()
+            .modelContainer(container)
+    }
+
+    static var singleHabit: some View {
+        let container = try! ModelContainer(
+            for: Habit.self, HabitSlot.self, HabitCheckIn.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let ctx = container.mainContext
+        let calendar = Calendar.current
+        let slot = HabitSlot(
+            start: calendar.date(from: DateComponents(hour: 0, minute: 0)) ?? Date(),
+            end: calendar.date(from: DateComponents(hour: 0, minute: 10)) ?? Date(),
+            sortOrder: 0
+        )
+        let habit = Habit(
+            title: "Workout",
+            slots: [slot],
+            skipCreditCount: 5,
+            skipCreditPeriod: .monthly,
+            proofOfWorkType: .manual
+        )
+        slot.habit = habit
+        ctx.insert(slot)
+        ctx.insert(habit)
+
+        return StageView()
+            .modelContainer(container)
+    }
+
+    static var empty: some View {
+        StageView()
+            .modelContainer(
+                try! ModelContainer(
+                    for: Habit.self, HabitSlot.self, HabitCheckIn.self,
+                    configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+                )
+            )
+    }
 }
 
+#Preview("Stage with multiple habits") {
+    StagePreviewFactory.multipleHabits
+}
 
 #Preview("Stage with 1 habit") {
-    let container = try! ModelContainer(for: Habit.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true))
-    let ctx = container.mainContext
-    let calendar = Calendar.current
-    let habit = Habit(
-        title: "Workout",
-        frequencyCount: 1,
-        frequencyPeriod: .daily,
-        idealWindowStart: calendar.date(from: DateComponents(hour: 0, minute: 0)) ?? Date(),
-        idealWindowEnd: calendar.date(from: DateComponents(hour: 0, minute: 10)) ?? Date(),
-        skipCreditCount: 5,
-        skipCreditPeriod: .monthly,
-        proofOfWorkType: .manual
-    )
-    ctx.insert(habit)
-    return StageView()
-        .modelContainer(container)
+    StagePreviewFactory.singleHabit
 }
 
 #Preview("Stage empty") {
-    StageView()
-        .modelContainer(try! ModelContainer(for: Habit.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+    StagePreviewFactory.empty
 }
+
+

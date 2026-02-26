@@ -1,8 +1,5 @@
-//
-//  HabitScheduling.swift
-//  Wilgo
-//
 //  Reusable scheduling and "today" time helpers for habits.
+//  Schedule is N× daily only (for now); each occurrence has one slot with its own ideal window.
 //
 
 import Foundation
@@ -21,6 +18,14 @@ enum HabitScheduling {
             second: 0,
             of: Date()
         ) ?? Date()
+    }
+
+    /// Slots for a habit, sorted by window start time today (by sortOrder then idealWindowStart).
+    static func sortedSlots(for habit: Habit) -> [HabitSlot] {
+        habit.slots.sorted { s1, s2 in
+            if s1.sortOrder != s2.sortOrder { return s1.sortOrder < s2.sortOrder }
+            return today(at: s1.start) < today(at: s2.start)
+        }
     }
 
     /// Soft deadline for "today": end of day (e.g. midnight as start of next day).
@@ -48,25 +53,49 @@ enum HabitScheduling {
         todaySoftDeadline()
     }
 
-    /// Window start on the current reference day (for sorting upcoming).
-    static func windowStartToday(for habit: Habit) -> Date {
-        today(at: habit.idealWindowStart)
+    /// Window start on the current day for a slot.
+    static func windowStartToday(for slot: HabitSlot) -> Date {
+        today(at: slot.start)
     }
 
-    /// Window end on the current reference day.
-    static func windowEndToday(for habit: Habit) -> Date {
-        today(at: habit.idealWindowEnd)
+    /// Window end on the current day for a slot.
+    static func windowEndToday(for slot: HabitSlot) -> Date {
+        today(at: slot.end)
     }
 
-    /// Whether this habit's window start is still later today (for "upcoming" list).
-    static func isUpcomingToday(_ habit: Habit, now: Date = Date()) -> Bool {
-        let windowStart = windowStartToday(for: habit)
-        let windowEnd = windowEndToday(for: habit)
+    /// Whether this slot's window start is still later today (for "upcoming" list).
+    static func isUpcomingSlot(_ slot: HabitSlot, now: Date = Date()) -> Bool {
+        let windowStart = windowStartToday(for: slot)
+        let windowEnd = windowEndToday(for: slot)
         if windowEnd <= windowStart {
-            // Crosses midnight: "upcoming" if we're before window start or in early part of next day
             return now < windowStart
         }
         return now < windowStart
+    }
+
+    /// Whether `now` falls inside this slot's window today.
+    static func isInWindowNow(_ slot: HabitSlot, now: Date = Date()) -> Bool {
+        let windowStart = windowStartToday(for: slot)
+        let windowEnd = windowEndToday(for: slot)
+        if windowEnd <= windowStart {
+            return now >= windowStart || now <= windowEnd
+        }
+        return now >= windowStart && now <= windowEnd
+    }
+
+    /// Index in habit.slots (by sortOrder) for the slot whose window contains `now`, or nil if none.
+    static func currentSlotIndex(for habit: Habit, now: Date = Date()) -> Int? {
+        let sorted = sortedSlots(for: habit)
+        guard let idx = sorted.firstIndex(where: { isInWindowNow($0, now: now) }) else { return nil }
+        return sorted[idx].sortOrder
+    }
+
+    /// First slot (by time) whose window starts after `now` today and hasn't been checked in today.
+    static func nextUpcomingSlotIndex(for habit: Habit, now: Date, hasCheckInForSlot: (Int) -> Bool) -> Int? {
+        let sorted = sortedSlots(for: habit)
+        return sorted.first { slot in
+            isUpcomingSlot(slot, now: now) && !hasCheckInForSlot(slot.sortOrder)
+        }?.sortOrder
     }
 
     /// Start of the critical window before today's soft deadline.
@@ -79,4 +108,3 @@ enum HabitScheduling {
         ) ?? softDeadline
     }
 }
-
