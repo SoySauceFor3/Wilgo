@@ -1,6 +1,6 @@
 # 📝 Project Doc: Wilgo (MVP)
 
-**Tagline:** *The Sassy Digital Bestie that manages your laziness.*
+**Tagline:** _The Sassy Digital Bestie that manages your laziness._
 
 ## 1. Core Philosophy
 
@@ -14,7 +14,7 @@
 
 Each habit is defined by these parameters:
 
-- **Frequency:** Times per day/week 
+- **Frequency:** Times per day/week
 - **Ideal Window:** e.g., 5 PM – 8 PM (The "Golden Hours").
 - **Soft Deadline:** 12 AM (When a Skip Credit is automatically burned).
 - **Monthly Budget:** e.g., 5 Skip Credits per month.
@@ -28,23 +28,23 @@ Wilgo’s personality and UI evolve throughout the day for each task (assuming t
 
 1. **Phase 1: Gentle (5 PM - 8 PM)**
 
-- *UI:* Green/Positive.
-- *Tone:* Encouraging. "Do it now, be free later."
+- _UI:_ Green/Positive.
+- _Tone:_ Encouraging. "Do it now, be free later."
 
 1. **Phase 2: Judgmental (8 PM - 10 PM)**
 
-- *UI:* Orange/Sassy.
-- *Tone:* Sarcastic. "Still on the couch? Classic you."
+- _UI:_ Orange/Sassy.
+- _Tone:_ Sarcastic. "Still on the couch? Classic you."
 
 1. **Phase 3: Critical (10 PM - 12 AM)**
 
-- *UI:* Red/Aggressive.
-- *Tone:* Urgent. "Last chance before we burn a credit, boss."
+- _UI:_ Red/Aggressive.
+- _Tone:_ Urgent. "Last chance before we burn a credit, boss."
 
 1. **Phase 4: The Settlement (12 AM)**
 
-- *Auto-Action:* If task = Incomplete, `SkipCredits -= 1`.
-- *Next Morning:* "Debt notification" sent at 10 AM.
+- _Auto-Action:_ If task = Incomplete, `SkipCredits -= 1`.
+- _Next Morning:_ "Debt notification" sent at 10 AM.
 
 ---
 
@@ -71,7 +71,7 @@ Wilgo’s personality and UI evolve throughout the day for each task (assuming t
 
 ### Interactive Notification Area
 
-to show the message and reminder etc on the face. 
+to show the message and reminder etc on the face.
 
 ---
 
@@ -85,7 +85,14 @@ to show the message and reminder etc on the face.
 - `HealthKit` for workout detection.
 - `iOS Shortcuts` for "App Open" triggers (e.g., WeChat monitoring).
 
----
+# Problem to solve
 
----
+我还没想明白对于一天多次，或者weekly monthly的task 怎么做reminder window。
+可以思考几个use case：
 
+1. 站起来，护眼时间，喝水
+2. 和爷爷奶奶打电话
+
+me大思考了一下我觉得说到底这类应该是说明gap period的类型。比如对于我来说，站起来就是上次站起来之后1个小时。和爷爷奶奶打电话也是上次打电话之后1个月。所以我们回头可以做一下这个！这个应该看overdue时间吧！就是gap/overdue时间来做priority算法。
+
+普通类型比如every day，或者every some weekday，几次，应该每次给一个“ideal window”？其实我也不是很了解。。毕竟人类需要的reminder类型很多很杂，比如“说不定有人就想要一个事一个ideal window中做两次”？但是不如！我们就先这样弄，然后再说？也不应该为了1%的usecase来弄的很复杂，是吧。。。
