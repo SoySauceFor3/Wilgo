@@ -9,17 +9,18 @@ import SwiftUI
 struct StageView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Habit.createdAt, order: .forward) private var habits: [Habit]
+    @Query private var snoozedSlots: [SnoozedSlot]
     /// Updates every minute so the Stage re-renders as time passes (current/upcoming/missed change).
     @State private var timeTick: Date = Date()
 
     /// All (habit, slot) pairs whose window currently covers `now` and have not finished all the completes yet.
     private var currentHabitSlots: [(Habit, HabitSlot)] {
         let now = timeTick
+        let psychDay = HabitScheduling.todayPsychDay(now: now)
+        let todaysSnoozes = snoozedSlots.filter { $0.psychDay == psychDay && $0.resolvedAt == nil }
         var result: [(Habit, HabitSlot)] = []
 
-        // we just need to calculate the number of checkins and minus this from the total number of slots.
         for habit in habits {
-            let psychDay = HabitScheduling.todayPsychDay(now: now)
             let todaysCheckIns = habit.checkIns.filter { $0.pyschDay == psychDay }
             let slots = habit.slots.sorted()
             let n = todaysCheckIns.count
@@ -27,6 +28,10 @@ struct StageView: View {
                 // Consider only slots from (n) onward (0-based), so n+1th is at index n
                 let remainingSlots = slots.dropFirst(n)
                 for slot in remainingSlots {
+                    // If this specific slot was snoozed for today, skip it from "current".
+                    if todaysSnoozes.contains(where: { $0.habit == habit && $0.slot == slot }) {
+                        continue
+                    }
                     let start = HabitScheduling.windowStartToday(for: slot)
                     let end = HabitScheduling.windowEndToday(for: slot)
                     if start <= now && now <= end {
@@ -96,34 +101,49 @@ struct StageView: View {
     private var missedSlots: [MissedHabit] {
         let now = timeTick
         let psychDay = HabitScheduling.todayPsychDay(now: now)
+        let todaysSnoozes = snoozedSlots.filter { $0.psychDay == psychDay && $0.resolvedAt == nil }
         var result: [MissedHabit] = []
 
         for habit in habits {
             let slots = habit.slots.sorted()
+            guard !slots.isEmpty else { continue }
 
-            // Slots whose window has fully ended before "now".
-            let endedSlots = slots.filter { slot in
-                HabitScheduling.windowEndToday(for: slot) <= now
-            }
+            // All check-ins for today (completions only).
+            let todaysCheckIns = habit.checkIns
+                .filter { $0.pyschDay == psychDay }
 
-            guard !endedSlots.isEmpty else { continue }
-
-            let todaysCheckIns = habit.checkIns.filter { $0.pyschDay == psychDay }
             let completedCount = todaysCheckIns.count
-            let totalSlotsSoFar = endedSlots.count
-            let missedCount = max(totalSlotsSoFar - completedCount, 0)
+
+            var missedCount = 0
+            var latestMissedSlot: HabitSlot?
+
+            for (index, slot) in slots.enumerated() {
+                let windowEnd = HabitScheduling.windowEndToday(for: slot)
+
+                // Slots before completedCount are treated as done.
+                if index < completedCount {
+                    continue
+                }
+
+                let isSnoozed = todaysSnoozes.contains { $0.habit === habit && $0.slot === slot }
+
+                if isSnoozed || windowEnd <= now {
+                    missedCount += 1
+                    latestMissedSlot = slot
+                }
+            }
 
             guard missedCount > 0 else { continue }
 
-            // Use the latest-ended slot for "overdue" display.
-            guard let latestSlot = endedSlots.last else { continue }
-            let latestEnd = HabitScheduling.windowEndToday(for: latestSlot)
-            let overdueBy = max(now.timeIntervalSince(latestEnd), 0)
+            // Use the latest missed slot (by time in the schedule) for "overdue" display.
+            guard let displaySlot = latestMissedSlot else { continue }
+            let latestEnd = HabitScheduling.windowEndToday(for: displaySlot)
+            let overdueBy = now.timeIntervalSince(latestEnd)
 
             result.append(
                 MissedHabit(
                     habit: habit,
-                    slot: latestSlot,
+                    slot: displaySlot,
                     completedCount: completedCount,
                     missedCount: missedCount,
                     overdueBy: overdueBy

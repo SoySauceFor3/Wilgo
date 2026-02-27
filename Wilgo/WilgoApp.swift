@@ -13,6 +13,9 @@ struct WilgoApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Habit.self,
+            HabitSlot.self,
+            HabitCheckIn.self,
+            SnoozedSlot.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 

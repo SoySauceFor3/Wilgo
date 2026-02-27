@@ -30,5 +30,10 @@ struct MainTabView: View {
 
 #Preview {
     MainTabView()
-        .modelContainer(try! ModelContainer(for: Habit.self, configurations: ModelConfiguration(isStoredInMemoryOnly: true)))
+        .modelContainer(
+            try! ModelContainer(
+                for: Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self,
+                configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+            )
+        )
 }

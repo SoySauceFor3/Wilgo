@@ -25,19 +25,21 @@ struct MissedHabitRow: View {
         formatter.maximumUnitCount = 2
 
         let interval = item.overdueBy
-        guard interval > 0,
-            let components = formatter.string(from: interval)
-        else {
-            return "just now overdue"
+        guard let components = formatter.string(from: abs(interval)) else {
+            return "Invalid interval"
+        }
+        if interval < 0 {
+            return "still in snoozed window, have \(components) to complete"
+        } else {
+            return "\(components) overdue from last slot"
         }
 
-        return "\(components) overdue"
     }
 
     private var statusText: String {
         let totalSoFar = item.completedCount + item.missedCount
         return
-            "\(item.completedCount)/\(totalSoFar) done, \(item.missedCount) missed · \(overdueText)"
+            "\(item.completedCount)/\(totalSoFar) done · \(overdueText)"
     }
 
     var body: some View {
@@ -94,7 +96,34 @@ struct MissedHabit {
             slot: slot,
             completedCount: 1,
             missedCount: 2,
-            overdueBy: 60 * 60
+            overdueBy: Date().timeIntervalSince(Date().addingTimeInterval(-60 * 60))
+        )
+    )
+    .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self], inMemory: true)
+    .padding()
+}
+
+#Preview("Future, but snoozed") {
+    let calendar = Calendar.current
+    let today = Date()
+    let start = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: today) ?? today
+    let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: today) ?? today
+
+    let slot = HabitSlot(start: start, end: end)
+    let habit = Habit(
+        title: "Morning reading",
+        slots: [slot],
+        skipCreditCount: 3,
+        skipCreditPeriod: .weekly
+    )
+
+    MissedHabitRow(
+        item: MissedHabit(
+            habit: habit,
+            slot: slot,
+            completedCount: 1,
+            missedCount: 2,
+            overdueBy: Date().timeIntervalSince(Date().addingTimeInterval(60 * 60))
         )
     )
     .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self], inMemory: true)

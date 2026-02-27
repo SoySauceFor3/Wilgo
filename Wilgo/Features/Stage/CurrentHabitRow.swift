@@ -5,7 +5,6 @@ struct CurrentHabitRow: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var habit: Habit
     let slot: HabitSlot
-    @State private var isShowingSnoozeNotImplementedAlert = false
 
     private func formattedTime(_ date: Date) -> String {
         let formatter = DateFormatter()
@@ -65,7 +64,11 @@ struct CurrentHabitRow: View {
 
                 Button {
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                        isShowingSnoozeNotImplementedAlert = true
+                        let snooze = SnoozedSlot(
+                            habit: habit,
+                            slot: slot
+                        )
+                        modelContext.insert(snooze)
                     }
                 } label: {
                     Label("Snooze", systemImage: "flame")
@@ -91,14 +94,6 @@ struct CurrentHabitRow: View {
             RoundedRectangle(cornerRadius: 16)
                 .fill(style.color.opacity(0.08))
         )
-        .alert(
-            "Not implemented yet",
-            isPresented: $isShowingSnoozeNotImplementedAlert
-        ) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            Text("Snoozing this reminder window isn't implemented yet.")
-        }
     }
 }
 
