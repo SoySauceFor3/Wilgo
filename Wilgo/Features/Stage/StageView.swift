@@ -86,14 +86,54 @@ struct StageView: View {
             }
         }
 
-        result.sort { $0.1 < $1.1 }
+        result.sort { lhs, rhs in
+            lhs.1 < rhs.1
+        }
         return result
     }
 
-    /// TODO: Because I plan to change how "skipped" is represented, so temporarily disable this feature.
-    /// Missed (window passed) and skipped slots for today, where it's still before the end of the day.
-    private var missedOrSkippedSlots: [MissedOrSkippedSlot] {
-        return []
+    /// Habits with at least one slot whose window has already ended today but hasn't been checked in.
+    private var missedSlots: [MissedHabit] {
+        let now = timeTick
+        let psychDay = HabitScheduling.todayPsychDay(now: now)
+        var result: [MissedHabit] = []
+
+        for habit in habits {
+            let slots = habit.slots.sorted()
+
+            // Slots whose window has fully ended before "now".
+            let endedSlots = slots.filter { slot in
+                HabitScheduling.windowEndToday(for: slot) <= now
+            }
+
+            guard !endedSlots.isEmpty else { continue }
+
+            let todaysCheckIns = habit.checkIns.filter { $0.pyschDay == psychDay }
+            let completedCount = todaysCheckIns.count
+            let totalSlotsSoFar = endedSlots.count
+            let missedCount = max(totalSlotsSoFar - completedCount, 0)
+
+            guard missedCount > 0 else { continue }
+
+            // Use the latest-ended slot for "overdue" display.
+            guard let latestSlot = endedSlots.last else { continue }
+            let latestEnd = HabitScheduling.windowEndToday(for: latestSlot)
+            let overdueBy = max(now.timeIntervalSince(latestEnd), 0)
+
+            result.append(
+                MissedHabit(
+                    habit: habit,
+                    slot: latestSlot,
+                    completedCount: completedCount,
+                    missedCount: missedCount,
+                    overdueBy: overdueBy
+                )
+            )
+        }
+
+        // Show the most overdue habits first.
+        result.sort { $0.overdueBy > $1.overdueBy }
+        return result
     }
 
     var body: some View {
@@ -126,21 +166,21 @@ struct StageView: View {
                         }
                     }
 
-                    if !missedOrSkippedSlots.isEmpty {
+                    if !missedSlots.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Missed / skipped today")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(missedOrSkippedSlots, id: \.slot.id) { item in
-                                MissedOrSkippedHabitRow(item: item)
+                            ForEach(missedSlots, id: \.slot.id) { item in
+                                MissedHabitRow(item: item)
                             }
                         }
                     }
 
                     if currentHabitSlots.isEmpty && upcomingHabitSlots.isEmpty
-                        && missedOrSkippedSlots.isEmpty
+                        && missedSlots.isEmpty
                     {
                         EmptyStageCard()
                     }

@@ -1,11 +1,11 @@
-
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct CurrentHabitRow: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var habit: Habit
     let slot: HabitSlot
+    @State private var isShowingSnoozeNotImplementedAlert = false
 
     private func formattedTime(_ date: Date) -> String {
         let formatter = DateFormatter()
@@ -52,7 +52,6 @@ struct CurrentHabitRow: View {
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                         let checkIn = HabitCheckIn(
                             habit: habit,
-                            status: .completed
                         )
                         modelContext.insert(checkIn)
                     }
@@ -66,15 +65,10 @@ struct CurrentHabitRow: View {
 
                 Button {
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                        guard habit.skipCreditCount > 0 else { return }
-                        let checkIn = HabitCheckIn(
-                            habit: habit,
-                            status: .skipped
-                        )
-                        modelContext.insert(checkIn)
+                        isShowingSnoozeNotImplementedAlert = true
                     }
                 } label: {
-                    Label("Burn credit", systemImage: "flame")
+                    Label("Snooze", systemImage: "flame")
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 10)
                 }
@@ -97,6 +91,14 @@ struct CurrentHabitRow: View {
             RoundedRectangle(cornerRadius: 16)
                 .fill(style.color.opacity(0.08))
         )
+        .alert(
+            "Not implemented yet",
+            isPresented: $isShowingSnoozeNotImplementedAlert
+        ) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("Snoozing this reminder window isn't implemented yet.")
+        }
     }
 }
 
@@ -160,8 +162,10 @@ struct CurrentHabitRow: View {
 #Preview("Critical (late in day)") {
     let calendar = Calendar.current
     let now = Date()
-    let startComponents = calendar.dateComponents([.hour, .minute], from: now.addingTimeInterval(-5 * 60 * 60))
-    let endComponents = calendar.dateComponents([.hour, .minute], from: now.addingTimeInterval(-4 * 60 * 60))
+    let startComponents = calendar.dateComponents(
+        [.hour, .minute], from: now.addingTimeInterval(-5 * 60 * 60))
+    let endComponents = calendar.dateComponents(
+        [.hour, .minute], from: now.addingTimeInterval(-4 * 60 * 60))
     let start = calendar.date(from: startComponents) ?? now
     let end = calendar.date(from: endComponents) ?? now
 

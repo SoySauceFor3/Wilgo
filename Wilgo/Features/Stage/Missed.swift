@@ -1,7 +1,9 @@
-import SwiftUI
+import Foundation
 import SwiftData
-struct MissedOrSkippedHabitRow: View {
-    let item: MissedOrSkippedSlot
+import SwiftUI
+
+struct MissedHabitRow: View {
+    let item: MissedHabit
 
     private func formattedTime(_ date: Date) -> String {
         let formatter = DateFormatter()
@@ -16,26 +18,26 @@ struct MissedOrSkippedHabitRow: View {
         return "\(formattedTime(start)) – \(formattedTime(end))"
     }
 
-    private var statusText: String {
-        switch item.status {
-        case .some(.skipped):
-            return "Skipped (burned credit)"
-        case .some(.completed):
-            return "Completed"
-        case .none:
-            return "Window passed, still possible today"
+    private var overdueText: String {
+        let formatter = DateComponentsFormatter()
+        formatter.unitsStyle = .abbreviated
+        formatter.allowedUnits = [.hour, .minute]
+        formatter.maximumUnitCount = 2
+
+        let interval = item.overdueBy
+        guard interval > 0,
+            let components = formatter.string(from: interval)
+        else {
+            return "just now overdue"
         }
+
+        return "\(components) overdue"
     }
 
-    private var statusColor: Color {
-        switch item.status {
-        case .some(.skipped):
-            return .orange
-        case .some(.completed):
-            return .green
-        case .none:
-            return .red
-        }
+    private var statusText: String {
+        let totalSoFar = item.completedCount + item.missedCount
+        return
+            "\(item.completedCount)/\(totalSoFar) done, \(item.missedCount) missed · \(overdueText)"
     }
 
     var body: some View {
@@ -49,7 +51,7 @@ struct MissedOrSkippedHabitRow: View {
                     .foregroundStyle(.secondary)
                 Text(statusText)
                     .font(.caption2)
-                    .foregroundStyle(statusColor)
+                    .foregroundStyle(.red)
             }
             Spacer()
         }
@@ -61,11 +63,15 @@ struct MissedOrSkippedHabitRow: View {
     }
 }
 
-struct MissedOrSkippedSlot {
+struct MissedHabit {
     let habit: Habit
     let slot: HabitSlot
-    /// nil = missed (no check-in), .skipped = intentionally skipped today.
-    let status: HabitCheckInStatus?
+    /// Number of check-ins today for this habit.
+    let completedCount: Int
+    /// Number of missed slots (ended before now without check-ins).
+    let missedCount: Int
+    /// How long ago the latest-ended missed slot finished.
+    let overdueBy: TimeInterval
 }
 
 #Preview("Missed") {
@@ -82,26 +88,15 @@ struct MissedOrSkippedSlot {
         skipCreditPeriod: .weekly
     )
 
-    MissedOrSkippedHabitRow(item: MissedOrSkippedSlot(habit: habit, slot: slot, status: nil))
-        .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self], inMemory: true)
-        .padding()
-}
-
-#Preview("Skipped") {
-    let calendar = Calendar.current
-    let today = Date()
-    let start = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: today) ?? today
-    let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: today) ?? today
-
-    let slot = HabitSlot(start: start, end: end)
-    let habit = Habit(
-        title: "Morning reading",
-        slots: [slot],
-        skipCreditCount: 3,
-        skipCreditPeriod: .weekly
+    MissedHabitRow(
+        item: MissedHabit(
+            habit: habit,
+            slot: slot,
+            completedCount: 1,
+            missedCount: 2,
+            overdueBy: 60 * 60
+        )
     )
-
-    MissedOrSkippedHabitRow(item: MissedOrSkippedSlot(habit: habit, slot: slot, status: .skipped))
-        .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self], inMemory: true)
-        .padding()
+    .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self], inMemory: true)
+    .padding()
 }

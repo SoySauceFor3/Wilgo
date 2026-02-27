@@ -9,7 +9,6 @@ import SwiftData
 
 enum HabitCheckInStatus: String, Codable {
     case completed
-    case skipped  // TODO: Going to remove it as this should belonged to a different entity.
 }
 
 @Model
@@ -17,7 +16,7 @@ final class HabitCheckIn {
     @Relationship var habit: Habit?
 
     /// Whether the habit was completed or intentionally skipped.
-    var status: HabitCheckInStatus
+    var status: HabitCheckInStatus = HabitCheckInStatus.completed
 
     /// Absolute creation time (treated as UTC ground truth).
     var createdAt: Date
@@ -31,11 +30,9 @@ final class HabitCheckIn {
 
     init(
         habit: Habit,
-        status: HabitCheckInStatus,
         createdAt: Date = .now
     ) {
         self.habit = habit
-        self.status = status
         self.createdAt = createdAt
 
         // Capture context for later streak / "which day" logic.
