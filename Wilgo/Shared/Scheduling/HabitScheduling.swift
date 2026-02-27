@@ -8,6 +8,9 @@ import Foundation
 enum HabitScheduling {
     static let calendar = Calendar.current
     static let config = PhaseConfig.default
+    /// Hour of day when a "habit day" starts (0 = midnight). 
+    /// TODO: Can be made user-configurable later.
+    static let dayStartHourOffset: Int = 0
 
     /// Resolves a habit's time-of-day `Date` to today's date with that time.
     static func today(at timeOfDay: Date) -> Date {
@@ -26,6 +29,22 @@ enum HabitScheduling {
             if s1.sortOrder != s2.sortOrder { return s1.sortOrder < s2.sortOrder }
             return today(at: s1.start) < today(at: s2.start)
         }
+    }
+
+    /// Logical "psychological day" for a given moment, using the specified time zone and day-start offset.
+    /// The result is a Date pinned to the start of that psychological day.
+    static func psychDay(
+        for utcTime: Date,
+        timeZoneIdentifier: String = TimeZone.current.identifier,
+        dayStartHourOffset: Int = dayStartHourOffset
+    ) -> Date {
+        var cal = calendar
+        cal.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? calendar.timeZone
+
+        // Shift back by the day-start offset before taking the calendar day.
+        let shifted = utcTime.addingTimeInterval(TimeInterval(-dayStartHourOffset * 60 * 60))
+        let comps = cal.dateComponents([.year, .month, .day], from: shifted)
+        return cal.date(from: comps) ?? utcTime
     }
 
     /// Soft deadline for "today": end of day (e.g. midnight as start of next day).
