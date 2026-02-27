@@ -132,8 +132,7 @@ private struct HabitRowView: View {
     }
 
     private func slotWindowsSummary(_ habit: Habit) -> String {
-        let sorted = HabitScheduling.sortedSlots(for: habit)
-        return sorted.map { "\(formattedTime(from: $0.start))–\(formattedTime(from: $0.end))" }.joined(separator: ", ")
+        return habit.slots.map { "\(formattedTime(from: $0.start))–\(formattedTime(from: $0.end))" }.joined(separator: ", ")
     }
 }
 
@@ -145,20 +144,19 @@ private func makePreviewContainerWithSamples() throws -> ModelContainer {
     let ctx = container.mainContext
     let calendar = Calendar.current
 
-    func slot(_ h1: Int, _ m1: Int, _ h2: Int, _ m2: Int, order: Int) -> HabitSlot {
+    func slot(_ h1: Int, _ m1: Int, _ h2: Int, _ m2: Int) -> HabitSlot {
         HabitSlot(
             start: calendar.date(from: DateComponents(hour: h1, minute: m1)) ?? Date(),
-            end: calendar.date(from: DateComponents(hour: h2, minute: m2)) ?? Date(),
-            sortOrder: order
+            end: calendar.date(from: DateComponents(hour: h2, minute: m2)) ?? Date()
         )
     }
 
     let samples: [Habit] = [
-        Habit(title: "Workout", slots: [slot(6, 0, 8, 0, order: 0), slot(8, 0, 10, 0, order: 1)], skipCreditCount: 5, skipCreditPeriod: .monthly, proofOfWorkType: .manual),
-        Habit(title: "Read 30 mins 📚", slots: [slot(9, 0, 11, 0, order: 0)], skipCreditCount: 1, skipCreditPeriod: .daily, proofOfWorkType: .manual),
-        Habit(title: "Drink 2L Water 💧", slots: [slot(12, 0, 14, 0, order: 0)], skipCreditCount: 1, skipCreditPeriod: .daily, proofOfWorkType: .manual),
-        Habit(title: "Meditate 10 mins 🧘", slots: [slot(15, 0, 17, 0, order: 0)], skipCreditCount: 1, skipCreditPeriod: .daily, proofOfWorkType: .manual),
-        Habit(title: "No social media after 9 PM 📵", slots: [slot(21, 0, 23, 0, order: 0)], skipCreditCount: 1, skipCreditPeriod: .daily, proofOfWorkType: .manual),
+        Habit(title: "Workout", slots: [slot(6, 0, 8, 0), slot(8, 0, 10, 0)], skipCreditCount: 5, skipCreditPeriod: .monthly, proofOfWorkType: .manual),
+        Habit(title: "Read 30 mins 📚", slots: [slot(9, 0, 11, 0)], skipCreditCount: 1, skipCreditPeriod: .daily, proofOfWorkType: .manual),
+        Habit(title: "Drink 2L Water 💧", slots: [slot(12, 0, 14, 0)], skipCreditCount: 1, skipCreditPeriod: .daily, proofOfWorkType: .manual),
+        Habit(title: "Meditate 10 mins 🧘", slots: [slot(15, 0, 17, 0)], skipCreditCount: 1, skipCreditPeriod: .daily, proofOfWorkType: .manual),
+        Habit(title: "No social media after 9 PM 📵", slots: [slot(21, 0, 23, 0)], skipCreditCount: 1, skipCreditPeriod: .daily, proofOfWorkType: .manual),
     ]
     for habit in samples {
         ctx.insert(habit)

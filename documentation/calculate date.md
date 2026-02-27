@@ -30,7 +30,7 @@ We will:
     - `timeZoneIdentifier`
     - a configurable `dayStartHourOffset` (e.g. 0 for midnight, 3 for “day starts at 3am”).
 
-We **keep slots** (`HabitSlot` with `start`, `end`, `sortOrder`) and, for now, we **keep `slotIndex` on `HabitCheckIn`** (one check-in per slot index) so the existing Stage / phase logic continues to work. Separately, for daily progress / streaks / lateness UX, we will use `habitDay` and (later) time-based pairing between slots and check-ins.
+We keep slots (`HabitSlot` with `start`, `end`) and **do not store a per-slot index on `HabitCheckIn`**. For daily progress / streaks / lateness UX, we use the psychological day (`pyschDay`) and time-based greedy pairing between slots and check-ins.
 
 ### Rationale
 
@@ -52,7 +52,7 @@ We **keep slots** (`HabitSlot` with `start`, `end`, `sortOrder`) and, for now, w
 
 ### Implementation snapshot
 
-- `**HabitCheckIn`**:
+- `**HabitCheckIn`:
   - Existing:
     - `habit: Habit?`
     - `slotIndex: Int`
@@ -61,7 +61,7 @@ We **keep slots** (`HabitSlot` with `start`, `end`, `sortOrder`) and, for now, w
   - New:
     - `timeZoneIdentifier: String` (defaults to `TimeZone.current.identifier`).
     - `habitDay: Date` (computed via `HabitScheduling.habitDay` at init).
-- `**HabitScheduling**`:
+- `**HabitScheduling`\*\*:
   - `dayStartHourOffset: Int = 0` (placeholder; later configurable per user).
   - `habitDay(for:timeZoneIdentifier:dayStartHourOffset:)`:
     - Uses the specified time zone.
@@ -76,3 +76,6 @@ We **keep slots** (`HabitSlot` with `start`, `end`, `sortOrder`) and, for now, w
   - which are overdue,
   - and how late they are, in a way that matches the motivational model we want.
 
+# TODOs
+
+- [] The customized start of a day is not supported or handled.

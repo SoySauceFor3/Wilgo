@@ -52,7 +52,6 @@ struct CurrentHabitRow: View {
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                         let checkIn = HabitCheckIn(
                             habit: habit,
-                            slotIndex: slot.sortOrder,
                             status: .completed
                         )
                         modelContext.insert(checkIn)
@@ -70,7 +69,6 @@ struct CurrentHabitRow: View {
                         guard habit.skipCreditCount > 0 else { return }
                         let checkIn = HabitCheckIn(
                             habit: habit,
-                            slotIndex: slot.sortOrder,
                             status: .skipped
                         )
                         modelContext.insert(checkIn)
@@ -108,7 +106,7 @@ struct CurrentHabitRow: View {
     let start = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: today) ?? today
     let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: today) ?? today
 
-    let slot = HabitSlot(start: start, end: end, sortOrder: 0)
+    let slot = HabitSlot(start: start, end: end)
     let habit = Habit(
         title: "Morning reading",
         slots: [slot],
@@ -127,7 +125,7 @@ struct CurrentHabitRow: View {
     let start = calendar.date(byAdding: .minute, value: -30, to: now) ?? now
     let end = calendar.date(byAdding: .minute, value: 30, to: now) ?? now
 
-    let slot = HabitSlot(start: start, end: end, sortOrder: 0)
+    let slot = HabitSlot(start: start, end: end)
     let habit = Habit(
         title: "Gentle: read 10 pages",
         slots: [slot],
@@ -146,7 +144,7 @@ struct CurrentHabitRow: View {
     let start = calendar.date(byAdding: .hour, value: -3, to: now) ?? now
     let end = calendar.date(byAdding: .hour, value: -2, to: now) ?? now
 
-    let slot = HabitSlot(start: start, end: end, sortOrder: 0)
+    let slot = HabitSlot(start: start, end: end)
     let habit = Habit(
         title: "Judgmental: afternoon walk",
         slots: [slot],
@@ -167,7 +165,7 @@ struct CurrentHabitRow: View {
     let start = calendar.date(from: startComponents) ?? now
     let end = calendar.date(from: endComponents) ?? now
 
-    let slot = HabitSlot(start: start, end: end, sortOrder: 0)
+    let slot = HabitSlot(start: start, end: end)
     let habit = Habit(
         title: "Critical: submit report",
         slots: [slot],
@@ -186,7 +184,7 @@ struct CurrentHabitRow: View {
     let start = calendar.date(byAdding: .hour, value: 3, to: now) ?? now
     let end = calendar.date(byAdding: .hour, value: 4, to: now) ?? now
 
-    let slot = HabitSlot(start: start, end: end, sortOrder: 0)
+    let slot = HabitSlot(start: start, end: end)
     let habit = Habit(
         title: "Settled: late workout",
         slots: [slot],

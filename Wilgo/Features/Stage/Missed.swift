@@ -74,7 +74,7 @@ struct MissedOrSkippedSlot {
     let start = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: today) ?? today
     let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: today) ?? today
 
-    let slot = HabitSlot(start: start, end: end, sortOrder: 0)
+    let slot = HabitSlot(start: start, end: end)
     let habit = Habit(
         title: "Morning reading",
         slots: [slot],
@@ -93,7 +93,7 @@ struct MissedOrSkippedSlot {
     let start = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: today) ?? today
     let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: today) ?? today
 
-    let slot = HabitSlot(start: start, end: end, sortOrder: 0)
+    let slot = HabitSlot(start: start, end: end)
     let habit = Habit(
         title: "Morning reading",
         slots: [slot],

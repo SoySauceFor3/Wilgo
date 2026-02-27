@@ -24,19 +24,30 @@ final class HabitSlot {
     var start: Date
     /// End of this slot's ideal window (time-of-day only).
     var end: Date
-    /// Order of this slot in the day (0 = first, 1 = second, …).
-    var sortOrder: Int
 
     @Relationship var habit: Habit?
 
     init(
         start: Date,
-        end: Date,
-        sortOrder: Int
+        end: Date
     ) {
         self.start = start
         self.end = end
-        self.sortOrder = sortOrder
+    }
+}
+
+extension HabitSlot: Comparable {
+    static func < (lhs: HabitSlot, rhs: HabitSlot) -> Bool {
+        if lhs.start == rhs.start {
+            return HabitScheduling.today(at: lhs.end) < HabitScheduling.today(at: rhs.end)
+        } else {
+            return HabitScheduling.today(at: lhs.start) < HabitScheduling.today(at: rhs.start)
+        }
+    }
+
+    static func == (lhs: HabitSlot, rhs: HabitSlot) -> Bool {
+        lhs.start == rhs.start &&
+        lhs.end == rhs.end
     }
 }
 
@@ -47,11 +58,11 @@ final class Habit {
     var title: String
     var createdAt: Date
 
-    /// Historical completion / skip records for this habit (per slot, see HabitCheckIn.slotIndex).
+    /// Historical completion / skip records for this habit.
     @Relationship(deleteRule: .cascade, inverse: \HabitCheckIn.habit)
     var checkIns: [HabitCheckIn] = []
 
-    /// N× daily: each slot has its own ideal window. Order by HabitSlot.sortOrder.
+    /// N× daily: each slot has its own ideal window.
     @Relationship(deleteRule: .cascade, inverse: \HabitSlot.habit)
     var slots: [HabitSlot] = []
 

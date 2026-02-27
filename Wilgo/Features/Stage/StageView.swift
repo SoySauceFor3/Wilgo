@@ -2,9 +2,9 @@
 //  Schedule: N× daily; each slot has its own ideal window.
 //
 
-import SwiftUI
-import SwiftData
 import Combine
+import SwiftData
+import SwiftUI
 
 struct StageView: View {
     @Environment(\.modelContext) private var modelContext
@@ -12,16 +12,28 @@ struct StageView: View {
     /// Updates every minute so the Stage re-renders as time passes (current/upcoming/missed change).
     @State private var timeTick: Date = Date()
 
-    /// All (habit, slot) pairs whose window currently covers `now` and have no check-in today.
+    /// All (habit, slot) pairs whose window currently covers `now` and have not finished all the completes yet.
     private var currentHabitSlots: [(Habit, HabitSlot)] {
         let now = timeTick
         var result: [(Habit, HabitSlot)] = []
 
+        // we just need to calculate the number of checkins and minus this from the total number of slots.
         for habit in habits {
-            let sorted = HabitScheduling.sortedSlots(for: habit)
-            for slot in sorted where HabitScheduling.isInWindowNow(slot, now: now) {
-                if hasCheckInForSlotToday(habit, slotIndex: slot.sortOrder, now: now) { continue }
-                result.append((habit, slot))
+            let psychDay = HabitScheduling.todayPsychDay(now: now)
+            let todaysCheckIns = habit.checkIns.filter { $0.pyschDay == psychDay }
+            let slots = habit.slots.sorted()
+            let n = todaysCheckIns.count
+            if n < slots.count {
+                // Consider only slots from (n) onward (0-based), so n+1th is at index n
+                let remainingSlots = slots.dropFirst(n)
+                for slot in remainingSlots {
+                    let start = HabitScheduling.windowStartToday(for: slot)
+                    let end = HabitScheduling.windowEndToday(for: slot)
+                    if start <= now && now <= end {
+                        result.append((habit, slot))
+                        break  // Only first such slot
+                    }
+                }
             }
         }
 
@@ -50,80 +62,38 @@ struct StageView: View {
         return result
     }
 
-    /// Upcoming (habit, slot) pairs whose window starts within the next 8 hours and have no check-in today.
+    /// Upcoming (habit, slot) pairs whose window starts later and have not.
     private var upcomingHabitSlots: [(Habit, HabitSlot)] {
         let now = timeTick
-        let cutoff = now.addingTimeInterval(8 * 60 * 60)
         var result: [(Habit, HabitSlot)] = []
 
         for habit in habits {
-            let sorted = HabitScheduling.sortedSlots(for: habit)
-            for slot in sorted {
-                let start = HabitScheduling.windowStartToday(for: slot)
-                guard start > now, start <= cutoff else { continue }
-                if hasCheckInForSlotToday(habit, slotIndex: slot.sortOrder, now: now) { continue }
-                result.append((habit, slot))
+            let psychDay = HabitScheduling.todayPsychDay(now: now)
+            let todaysCheckIns = habit.checkIns.filter { $0.pyschDay == psychDay }
+            let slots = habit.slots.sorted()
+            let n = todaysCheckIns.count
+            if n < slots.count {
+                // Consider only slots from (n) onward (0-based), so n+1th is at index n
+                let remainingSlots = slots.dropFirst(n)
+                for slot in remainingSlots {
+                    let start = HabitScheduling.windowStartToday(for: slot)
+
+                    if now <= start {
+                        result.append((habit, slot))
+                        break  // Only first such slot
+                    }
+                }
             }
         }
 
-        result.sort { HabitScheduling.windowStartToday(for: $0.1) < HabitScheduling.windowStartToday(for: $1.1) }
+        result.sort { $0.1 < $1.1 }
         return result
     }
 
-    /// Missed (window passed) and skipped slots for today, where it's still before the soft deadline.
+    /// TODO: Because I plan to change how "skipped" is represented, so temporarily disable this feature.
+    /// Missed (window passed) and skipped slots for today, where it's still before the end of the day.
     private var missedOrSkippedSlots: [MissedOrSkippedSlot] {
-        let now = timeTick
-        let calendar = Calendar.current
-        var items: [MissedOrSkippedSlot] = []
-
-        for habit in habits {
-            let softDeadline = HabitScheduling.softDeadline(for: habit, now: now)
-            guard now < softDeadline else { continue }
-
-            let sortedSlots = HabitScheduling.sortedSlots(for: habit)
-
-            for slot in sortedSlots {
-                let todaysCheckIns = habit.checkIns.filter {
-                    $0.slotIndex == slot.sortOrder && calendar.isDate($0.createdAt, inSameDayAs: now)
-                }
-
-                if let checkIn = todaysCheckIns.first {
-                    if checkIn.status == .skipped {
-                        items.append(MissedOrSkippedSlot(habit: habit, slot: slot, status: .skipped))
-                    }
-                    continue
-                }
-
-                let phase = PhaseEngine.phase(for: habit, slot: slot, now: now)
-                if phase == .judgmental || phase == .critical {
-                    items.append(MissedOrSkippedSlot(habit: habit, slot: slot, status: nil))
-                }
-            }
-        }
-
-        items.sort { lhs, rhs in
-            let leftPhase = PhaseEngine.phase(for: lhs.habit, slot: lhs.slot, now: now)
-            let rightPhase = PhaseEngine.phase(for: rhs.habit, slot: rhs.slot, now: now)
-
-            let leftUrgency = PhaseStyle.forPhase(leftPhase).urgency
-            let rightUrgency = PhaseStyle.forPhase(rightPhase).urgency
-
-            if leftUrgency != rightUrgency {
-                return leftUrgency > rightUrgency
-            }
-
-            let leftEnd = HabitScheduling.windowEndToday(for: lhs.slot)
-            let rightEnd = HabitScheduling.windowEndToday(for: rhs.slot)
-
-            return leftEnd < rightEnd
-        }
-
-        return items
-    }
-
-    private func hasCheckInForSlotToday(_ habit: Habit, slotIndex: Int, now: Date) -> Bool {
-        let cal = Calendar.current
-        return habit.checkIns.contains { cal.isDate($0.createdAt, inSameDayAs: now) && $0.slotIndex == slotIndex }
+        return []
     }
 
     var body: some View {
@@ -145,7 +115,7 @@ struct StageView: View {
 
                     if !upcomingHabitSlots.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Upcoming (next 8 hours)")
+                            Text("Upcoming")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
@@ -169,7 +139,9 @@ struct StageView: View {
                         }
                     }
 
-                    if currentHabitSlots.isEmpty && upcomingHabitSlots.isEmpty && missedOrSkippedSlots.isEmpty {
+                    if currentHabitSlots.isEmpty && upcomingHabitSlots.isEmpty
+                        && missedOrSkippedSlots.isEmpty
+                    {
                         EmptyStageCard()
                     }
                 }
@@ -183,8 +155,6 @@ struct StageView: View {
         }
     }
 }
-
-
 
 // MARK: - Empty state
 
@@ -211,7 +181,6 @@ private struct EmptyStageCard: View {
     }
 }
 
-
 // MARK: - Previews
 
 private enum StagePreviewFactory {
@@ -223,38 +192,46 @@ private enum StagePreviewFactory {
         let ctx = container.mainContext
         let calendar = Calendar.current
 
-        func slot(_ h1: Int, _ m1: Int, _ h2: Int, _ m2: Int, order: Int) -> HabitSlot {
+        func slot(_ h1: Int, _ m1: Int, _ h2: Int, _ m2: Int) -> HabitSlot {
             HabitSlot(
                 start: calendar.date(from: DateComponents(hour: h1, minute: m1)) ?? Date(),
-                end: calendar.date(from: DateComponents(hour: h2, minute: m2)) ?? Date(),
-                sortOrder: order
+                end: calendar.date(from: DateComponents(hour: h2, minute: m2)) ?? Date()
             )
         }
 
         let habit1 = Habit(
             title: "habit 1",
-            slots: [slot(4, 0, 5, 0, order: 0)],
+            slots: [slot(23, 0, 23, 10)],
             skipCreditCount: 5,
             skipCreditPeriod: .monthly,
             proofOfWorkType: .manual
         )
         let habit2 = Habit(
             title: "habit 2",
-            slots: [slot(4, 0, 6, 30, order: 0)],
+            slots: [slot(23, 1, 23, 59)],
             skipCreditCount: 3,
             skipCreditPeriod: .weekly,
             proofOfWorkType: .manual
         )
         let habit3 = Habit(
             title: "habit 3",
-            slots: [slot(6, 0, 7, 30, order: 0)],
+            slots: [slot(23, 0, 23, 30)],
             skipCreditCount: 2,
             skipCreditPeriod: .weekly,
             proofOfWorkType: .manual
         )
-        habit1.slots.forEach { $0.habit = habit1; ctx.insert($0) }
-        habit2.slots.forEach { $0.habit = habit2; ctx.insert($0) }
-        habit3.slots.forEach { $0.habit = habit3; ctx.insert($0) }
+        habit1.slots.forEach {
+            $0.habit = habit1
+            ctx.insert($0)
+        }
+        habit2.slots.forEach {
+            $0.habit = habit2
+            ctx.insert($0)
+        }
+        habit3.slots.forEach {
+            $0.habit = habit3
+            ctx.insert($0)
+        }
         ctx.insert(habit1)
         ctx.insert(habit2)
         ctx.insert(habit3)
@@ -272,8 +249,7 @@ private enum StagePreviewFactory {
         let calendar = Calendar.current
         let slot = HabitSlot(
             start: calendar.date(from: DateComponents(hour: 0, minute: 0)) ?? Date(),
-            end: calendar.date(from: DateComponents(hour: 0, minute: 10)) ?? Date(),
-            sortOrder: 0
+            end: calendar.date(from: DateComponents(hour: 0, minute: 10)) ?? Date()
         )
         let habit = Habit(
             title: "Workout",
@@ -312,5 +288,3 @@ private enum StagePreviewFactory {
 #Preview("Stage empty") {
     StagePreviewFactory.empty
 }
-
-

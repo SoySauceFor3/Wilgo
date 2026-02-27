@@ -135,20 +135,20 @@ struct AddHabitView: View {
     }
 
     private func saveHabit() {
-        var slots: [HabitSlot] = []
-        for (i, window) in slotWindows.enumerated() {
+        let slots: [HabitSlot] = slotWindows.map { window in
             let slot = HabitSlot(
                 start: window.start,
-                end: window.end,
-                sortOrder: i
+                end: window.end
             )
             modelContext.insert(slot)
-            slots.append(slot)
+            return slot
         }
+        // this uses the Comparable conformance for HabitSlot in @Wilgo/Shared/Models/Habit.swift.
+        let sortedSlots = slots.sorted()
 
         let habit = Habit(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-            slots: slots,
+            slots: sortedSlots,
             skipCreditCount: skipCreditCount,
             skipCreditPeriod: skipCreditPeriod,
             proofOfWorkType: proofOfWorkType

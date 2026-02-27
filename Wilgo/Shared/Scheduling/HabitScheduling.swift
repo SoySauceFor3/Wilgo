@@ -8,7 +8,7 @@ import Foundation
 enum HabitScheduling {
     static let calendar = Calendar.current
     static let config = PhaseConfig.default
-    /// Hour of day when a "habit day" starts (0 = midnight). 
+    /// Hour of day when a "habit day" starts (0 = midnight).
     /// TODO: Can be made user-configurable later.
     static let dayStartHourOffset: Int = 0
 
@@ -21,14 +21,6 @@ enum HabitScheduling {
             second: 0,
             of: Date()
         ) ?? Date()
-    }
-
-    /// Slots for a habit, sorted by window start time today (by sortOrder then idealWindowStart).
-    static func sortedSlots(for habit: Habit) -> [HabitSlot] {
-        habit.slots.sorted { s1, s2 in
-            if s1.sortOrder != s2.sortOrder { return s1.sortOrder < s2.sortOrder }
-            return today(at: s1.start) < today(at: s2.start)
-        }
     }
 
     /// Logical "psychological day" for a given moment, using the specified time zone and day-start offset.
@@ -72,49 +64,21 @@ enum HabitScheduling {
         todaySoftDeadline()
     }
 
+    /// TODO: Remove it.
     /// Window start on the current day for a slot.
     static func windowStartToday(for slot: HabitSlot) -> Date {
         today(at: slot.start)
     }
 
+    /// TODO: Remove it.
     /// Window end on the current day for a slot.
     static func windowEndToday(for slot: HabitSlot) -> Date {
         today(at: slot.end)
     }
 
-    /// Whether this slot's window start is still later today (for "upcoming" list).
-    static func isUpcomingSlot(_ slot: HabitSlot, now: Date = Date()) -> Bool {
-        let windowStart = windowStartToday(for: slot)
-        let windowEnd = windowEndToday(for: slot)
-        if windowEnd <= windowStart {
-            return now < windowStart
-        }
-        return now < windowStart
-    }
-
-    /// Whether `now` falls inside this slot's window today.
-    static func isInWindowNow(_ slot: HabitSlot, now: Date = Date()) -> Bool {
-        let windowStart = windowStartToday(for: slot)
-        let windowEnd = windowEndToday(for: slot)
-        if windowEnd <= windowStart {
-            return now >= windowStart || now <= windowEnd
-        }
-        return now >= windowStart && now <= windowEnd
-    }
-
-    /// Index in habit.slots (by sortOrder) for the slot whose window contains `now`, or nil if none.
-    static func currentSlotIndex(for habit: Habit, now: Date = Date()) -> Int? {
-        let sorted = sortedSlots(for: habit)
-        guard let idx = sorted.firstIndex(where: { isInWindowNow($0, now: now) }) else { return nil }
-        return sorted[idx].sortOrder
-    }
-
-    /// First slot (by time) whose window starts after `now` today and hasn't been checked in today.
-    static func nextUpcomingSlotIndex(for habit: Habit, now: Date, hasCheckInForSlot: (Int) -> Bool) -> Int? {
-        let sorted = sortedSlots(for: habit)
-        return sorted.first { slot in
-            isUpcomingSlot(slot, now: now) && !hasCheckInForSlot(slot.sortOrder)
-        }?.sortOrder
+    /// Convenient "today" psychological day for now (using current time zone).
+    static func todayPsychDay(now: Date = Date()) -> Date {
+        psychDay(for: now)
     }
 
     /// Start of the critical window before today's soft deadline.
