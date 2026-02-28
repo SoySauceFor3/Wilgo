@@ -8,6 +8,9 @@
 
 /* Begin PBXBuildFile section */
 		701EBDC82F4E386C0060F5B6 /* Inject in Frameworks */ = {isa = PBXBuildFile; productRef = 701EBDC72F4E386C0060F5B6 /* Inject */; };
+		701EBE7A2F5348DA0060F5B6 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 701EBE792F5348DA0060F5B6 /* WidgetKit.framework */; };
+		701EBE7C2F5348DA0060F5B6 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 701EBE7B2F5348DA0060F5B6 /* SwiftUI.framework */; };
+		701EBE892F5348DC0060F5B6 /* NowExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 701EBE772F5348DA0060F5B6 /* NowExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -25,12 +28,36 @@
 			remoteGlobalIDString = 701EBD942F4CDF320060F5B6;
 			remoteInfo = Wilgo;
 		};
+		701EBE872F5348DC0060F5B6 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 701EBD8D2F4CDF320060F5B6 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 701EBE762F5348DA0060F5B6;
+			remoteInfo = NowExtension;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		701EBE8E2F5348DC0060F5B6 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				701EBE892F5348DC0060F5B6 /* NowExtension.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		701EBD952F4CDF320060F5B6 /* Wilgo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Wilgo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		701EBDA62F4CDF360060F5B6 /* WilgoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WilgoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		701EBDB02F4CDF360060F5B6 /* WilgoUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WilgoUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		701EBE772F5348DA0060F5B6 /* NowExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = NowExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		701EBE792F5348DA0060F5B6 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
+		701EBE7B2F5348DA0060F5B6 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -40,6 +67,13 @@
 				Info.plist,
 			);
 			target = 701EBD942F4CDF320060F5B6 /* Wilgo */;
+		};
+		701EBE8D2F5348DC0060F5B6 /* Exceptions for "Now" folder in "NowExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 701EBE762F5348DA0060F5B6 /* NowExtension */;
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
@@ -60,6 +94,14 @@
 		701EBDB32F4CDF360060F5B6 /* WilgoUITests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = WilgoUITests;
+			sourceTree = "<group>";
+		};
+		701EBE7D2F5348DA0060F5B6 /* Now */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				701EBE8D2F5348DC0060F5B6 /* Exceptions for "Now" folder in "NowExtension" target */,
+			);
+			path = Now;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -87,6 +129,15 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		701EBE742F5348DA0060F5B6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				701EBE7C2F5348DA0060F5B6 /* SwiftUI.framework in Frameworks */,
+				701EBE7A2F5348DA0060F5B6 /* WidgetKit.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -96,6 +147,8 @@
 				701EBD972F4CDF320060F5B6 /* Wilgo */,
 				701EBDA92F4CDF360060F5B6 /* WilgoTests */,
 				701EBDB32F4CDF360060F5B6 /* WilgoUITests */,
+				701EBE7D2F5348DA0060F5B6 /* Now */,
+				701EBE782F5348DA0060F5B6 /* Frameworks */,
 				701EBD962F4CDF320060F5B6 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -106,8 +159,18 @@
 				701EBD952F4CDF320060F5B6 /* Wilgo.app */,
 				701EBDA62F4CDF360060F5B6 /* WilgoTests.xctest */,
 				701EBDB02F4CDF360060F5B6 /* WilgoUITests.xctest */,
+				701EBE772F5348DA0060F5B6 /* NowExtension.appex */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		701EBE782F5348DA0060F5B6 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				701EBE792F5348DA0060F5B6 /* WidgetKit.framework */,
+				701EBE7B2F5348DA0060F5B6 /* SwiftUI.framework */,
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -120,10 +183,12 @@
 				701EBD912F4CDF320060F5B6 /* Sources */,
 				701EBD922F4CDF320060F5B6 /* Frameworks */,
 				701EBD932F4CDF320060F5B6 /* Resources */,
+				701EBE8E2F5348DC0060F5B6 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				701EBE882F5348DC0060F5B6 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				701EBD972F4CDF320060F5B6 /* Wilgo */,
@@ -182,6 +247,28 @@
 			productReference = 701EBDB02F4CDF360060F5B6 /* WilgoUITests.xctest */;
 			productType = "com.apple.product-type.bundle.ui-testing";
 		};
+		701EBE762F5348DA0060F5B6 /* NowExtension */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 701EBE8A2F5348DC0060F5B6 /* Build configuration list for PBXNativeTarget "NowExtension" */;
+			buildPhases = (
+				701EBE732F5348DA0060F5B6 /* Sources */,
+				701EBE742F5348DA0060F5B6 /* Frameworks */,
+				701EBE752F5348DA0060F5B6 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				701EBE7D2F5348DA0060F5B6 /* Now */,
+			);
+			name = NowExtension;
+			packageProductDependencies = (
+			);
+			productName = NowExtension;
+			productReference = 701EBE772F5348DA0060F5B6 /* NowExtension.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -202,6 +289,9 @@
 					701EBDAF2F4CDF360060F5B6 = {
 						CreatedOnToolsVersion = 26.2;
 						TestTargetID = 701EBD942F4CDF320060F5B6;
+					};
+					701EBE762F5348DA0060F5B6 = {
+						CreatedOnToolsVersion = 26.2;
 					};
 				};
 			};
@@ -225,6 +315,7 @@
 				701EBD942F4CDF320060F5B6 /* Wilgo */,
 				701EBDA52F4CDF360060F5B6 /* WilgoTests */,
 				701EBDAF2F4CDF360060F5B6 /* WilgoUITests */,
+				701EBE762F5348DA0060F5B6 /* NowExtension */,
 			);
 		};
 /* End PBXProject section */
@@ -245,6 +336,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		701EBDAE2F4CDF360060F5B6 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		701EBE752F5348DA0060F5B6 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -275,6 +373,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		701EBE732F5348DA0060F5B6 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -287,6 +392,11 @@
 			isa = PBXTargetDependency;
 			target = 701EBD942F4CDF320060F5B6 /* Wilgo */;
 			targetProxy = 701EBDB12F4CDF360060F5B6 /* PBXContainerItemProxy */;
+		};
+		701EBE882F5348DC0060F5B6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 701EBE762F5348DA0060F5B6 /* NowExtension */;
+			targetProxy = 701EBE872F5348DC0060F5B6 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -593,6 +703,71 @@
 			};
 			name = Release;
 		};
+		701EBE8B2F5348DC0060F5B6 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = K2M4MKG2K6;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Now/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Now;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = xyz.soysaucefor3.Wilgo.Now;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		701EBE8C2F5348DC0060F5B6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = K2M4MKG2K6;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Now/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = Now;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = xyz.soysaucefor3.Wilgo.Now;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SKIP_INSTALL = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -628,6 +803,15 @@
 			buildConfigurations = (
 				701EBDC22F4CDF360060F5B6 /* Debug */,
 				701EBDC32F4CDF360060F5B6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		701EBE8A2F5348DC0060F5B6 /* Build configuration list for PBXNativeTarget "NowExtension" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				701EBE8B2F5348DC0060F5B6 /* Debug */,
+				701EBE8C2F5348DC0060F5B6 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
