@@ -4,75 +4,94 @@
 //
 
 import ActivityKit
-import WidgetKit
 import SwiftUI
+import WidgetKit
 
 struct NowAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
-        // Dynamic stateful properties about your activity go here!
-        var emoji: String
-    }
+        /// First current habit's title (empty when no habit in window).
+        var habitTitle: String
+        /// Current slot time range, e.g. "9:00 AM – 11:00 AM".
+        var slotTimeText: String
 
-    // Fixed non-changing properties about your activity go here!
-    var name: String
+        /// Only start or update the Live Activity when this is true (habit + slot set).
+        public var hasCurrentHabit: Bool {
+            !habitTitle.isEmpty && !slotTimeText.isEmpty
+        }
+    }
 }
 
 struct NowLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: NowAttributes.self) { context in
-            // Lock screen/banner UI goes here
-            VStack {
-                Text("Hello \(context.state.emoji)")
+            let _ = precondition(
+                context.state.hasCurrentHabit,
+                "Live Activity must only be started when there is a current habit (habitTitle and slotTimeText must be set)."
+            )
+            return HStack(spacing: 12) {
+                Image(systemName: "sparkles")
+                    .font(.title2)
+                    .foregroundStyle(.tint)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(context.state.habitTitle)
+                        .font(.headline)
+                        .lineLimit(1)
+                    Text(context.state.slotTimeText)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
             }
-            .activityBackgroundTint(Color.cyan)
-            .activitySystemActionForegroundColor(Color.black)
-
+            .padding(.vertical, 4)
+            .activityBackgroundTint(Color(.systemFill))
+            .activitySystemActionForegroundColor(Color.primary)
         } dynamicIsland: { context in
-            DynamicIsland {
-                // Expanded UI goes here.  Compose the expanded UI through
-                // various regions, like leading/trailing/center/bottom
+            let _ = precondition(
+                context.state.hasCurrentHabit,
+                "Live Activity must only be started when there is a current habit (habitTitle and slotTimeText must be set)."
+            )
+            return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
-                    Text("Leading")
+                    Image(systemName: "sparkles")
+                        .foregroundStyle(.tint)
                 }
-                DynamicIslandExpandedRegion(.trailing) {
-                    Text("Trailing")
-                }
-                DynamicIslandExpandedRegion(.bottom) {
-                    Text("Bottom \(context.state.emoji)")
-                    // more content
+                DynamicIslandExpandedRegion(.center) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(context.state.habitTitle)
+                            .font(.subheadline.weight(.semibold))
+                            .lineLimit(1)
+                        Text(context.state.slotTimeText)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
                 }
             } compactLeading: {
-                Text("L")
+                Image(systemName: "sparkles")
+                    .font(.caption)
             } compactTrailing: {
-                Text("T \(context.state.emoji)")
+                Text(context.state.habitTitle)
+                    .font(.caption)
+                    .lineLimit(1)
             } minimal: {
-                Text(context.state.emoji)
+                Image(systemName: "sparkles")
             }
-            .widgetURL(URL(string: "http://www.apple.com"))
-            .keylineTint(Color.red)
+            .keylineTint(Color.accentColor)
         }
     }
 }
 
-extension NowAttributes {
-    fileprivate static var preview: NowAttributes {
-        NowAttributes(name: "World")
+extension NowAttributes.ContentState {
+    fileprivate static var withHabit: NowAttributes.ContentState {
+        NowAttributes.ContentState(
+            habitTitle: "Morning reading",
+            slotTimeText: "9:00 AM – 11:00 AM"
+        )
     }
 }
 
-extension NowAttributes.ContentState {
-    fileprivate static var smiley: NowAttributes.ContentState {
-        NowAttributes.ContentState(emoji: "😀")
-     }
-     
-     fileprivate static var starEyes: NowAttributes.ContentState {
-         NowAttributes.ContentState(emoji: "🤩")
-     }
-}
-
-#Preview("Notification", as: .content, using: NowAttributes.preview) {
-   NowLiveActivity()
+#Preview("Live Activity", as: .content, using: NowAttributes()) {
+    NowLiveActivity()
 } contentStates: {
-    NowAttributes.ContentState.smiley
-    NowAttributes.ContentState.starEyes
+    NowAttributes.ContentState.withHabit
 }
