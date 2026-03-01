@@ -2,6 +2,7 @@
 //  Schedule: N× daily; each slot has its own ideal window.
 //
 
+import ActivityKit
 import Combine
 import SwiftData
 import SwiftUI
@@ -65,6 +66,44 @@ struct StageView: View {
         }
 
         return result
+    }
+
+    /// Content state for the Live Activity: first current habit and slot, or nil when none.
+    private var firstLiveActivityContentState: NowAttributes.ContentState? {
+        guard let (habit, slot) = currentHabitSlots.first else { return nil }
+        return NowAttributes.ContentState(
+            habitTitle: habit.title,
+            slotTimeText: Self.slotTimeText(for: slot)
+        )
+    }
+
+    private static func slotTimeText(for slot: HabitSlot) -> String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        let start = HabitScheduling.windowStartToday(for: slot)
+        let end = HabitScheduling.windowEndToday(for: slot)
+        return "\(formatter.string(from: start)) – \(formatter.string(from: end))"
+    }
+
+    private func syncLiveActivity() {
+        Task {
+            if let state = firstLiveActivityContentState, state.hasCurrentHabit {
+                if let activity = Activity<NowAttributes>.activities.first {
+                    await activity.update(ActivityContent(state: state, staleDate: nil))
+                } else {
+                    _ = try?  Activity.request(
+                        attributes: NowAttributes(),
+                        content: ActivityContent(state: state, staleDate: nil),
+                        pushType: nil
+                    )
+                }
+            } else {
+                for activity in Activity<NowAttributes>.activities {
+                    await activity.end(nil, dismissalPolicy: .immediate)
+                }
+            }
+        }
     }
 
     /// Upcoming (habit, slot) pairs whose window starts later and have not.
@@ -212,6 +251,8 @@ struct StageView: View {
             .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { _ in
                 timeTick = Date()
             }
+            .onAppear { syncLiveActivity() }
+            .onChange(of: firstLiveActivityContentState) { _, _ in syncLiveActivity() }
         }
     }
 }
