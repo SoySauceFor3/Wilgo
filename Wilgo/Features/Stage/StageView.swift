@@ -14,85 +14,22 @@ struct StageView: View {
     /// Updates every minute so the Stage re-renders as time passes (current/upcoming/missed change).
     @State private var timeTick: Date = Date()
 
-    /// All (habit, slot) pairs whose window currently covers `now` and have not finished all the completes yet.
-    private var currentHabitSlots: [(Habit, HabitSlot)] {
-        let now = timeTick
-        let psychDay = HabitScheduling.todayPsychDay(now: now)
-        let todaysSnoozes = snoozedSlots.filter { $0.psychDay == psychDay && $0.resolvedAt == nil }
-        var result: [(Habit, HabitSlot)] = []
-
-        for habit in habits {
-            let todaysCheckIns = habit.checkIns.filter { $0.pyschDay == psychDay }
-            let slots = habit.slots.sorted()
-            let n = todaysCheckIns.count
-            if n < slots.count {
-                // Consider only slots from (n) onward (0-based), so n+1th is at index n
-                let remainingSlots = slots.dropFirst(n)
-                for slot in remainingSlots {
-                    // If this specific slot was snoozed for today, skip it from "current".
-                    if todaysSnoozes.contains(where: { $0.habit == habit && $0.slot == slot }) {
-                        continue
-                    }
-                    let start = HabitScheduling.windowStartToday(for: slot)
-                    let end = HabitScheduling.windowEndToday(for: slot)
-                    if start <= now && now <= end {
-                        result.append((habit, slot))
-                        break  // Only first such slot
-                    }
-                }
-            }
-        }
-
-        // Sort by fraction of window remaining: time left / full window length.
-        result.sort { lhs, rhs in
-            let leftSlot = lhs.1
-            let rightSlot = rhs.1
-
-            let leftStart = HabitScheduling.windowStartToday(for: leftSlot)
-            let leftEnd = HabitScheduling.windowEndToday(for: leftSlot)
-            let rightStart = HabitScheduling.windowStartToday(for: rightSlot)
-            let rightEnd = HabitScheduling.windowEndToday(for: rightSlot)
-
-            let leftDuration = max(leftEnd.timeIntervalSince(leftStart), 1)
-            let rightDuration = max(rightEnd.timeIntervalSince(rightStart), 1)
-
-            let leftRemaining = max(leftEnd.timeIntervalSince(now), 0)
-            let rightRemaining = max(rightEnd.timeIntervalSince(now), 0)
-
-            let leftRatio = leftRemaining / leftDuration
-            let rightRatio = rightRemaining / rightDuration
-
-            return leftRatio < rightRatio
-        }
-
-        return result
-    }
-
-    /// Content state for the Live Activity: first current habit and slot, or nil when none.
-    private var firstLiveActivityContentState: NowAttributes.ContentState? {
-        guard let (habit, slot) = currentHabitSlots.first else { return nil }
-        return NowAttributes.ContentState(
-            habitTitle: habit.title,
-            slotTimeText: Self.slotTimeText(for: slot)
+    private var stageState: StageState {
+        StageEngine.makeState(
+            habits: habits,
+            snoozedSlots: snoozedSlots,
+            now: timeTick
         )
     }
 
-    private static func slotTimeText(for slot: HabitSlot) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-        let start = HabitScheduling.windowStartToday(for: slot)
-        let end = HabitScheduling.windowEndToday(for: slot)
-        return "\(formatter.string(from: start)) – \(formatter.string(from: end))"
-    }
-
     private func syncLiveActivity() {
+        let contentState = stageState.firstLiveActivityContentState
         Task {
-            if let state = firstLiveActivityContentState, state.hasCurrentHabit {
+            if let state = contentState, state.hasCurrentHabit {
                 if let activity = Activity<NowAttributes>.activities.first {
                     await activity.update(ActivityContent(state: state, staleDate: nil))
                 } else {
-                    _ = try?  Activity.request(
+                    _ = try? Activity.request(
                         attributes: NowAttributes(),
                         content: ActivityContent(state: state, staleDate: nil),
                         pushType: nil
@@ -106,140 +43,51 @@ struct StageView: View {
         }
     }
 
-    /// Upcoming (habit, slot) pairs whose window starts later and have not.
-    private var upcomingHabitSlots: [(Habit, HabitSlot)] {
-        let now = timeTick
-        var result: [(Habit, HabitSlot)] = []
-
-        for habit in habits {
-            let psychDay = HabitScheduling.todayPsychDay(now: now)
-            let todaysCheckIns = habit.checkIns.filter { $0.pyschDay == psychDay }
-            let slots = habit.slots.sorted()
-            let n = todaysCheckIns.count
-            if n < slots.count {
-                // Consider only slots from (n) onward (0-based), so n+1th is at index n
-                let remainingSlots = slots.dropFirst(n)
-                for slot in remainingSlots {
-                    let start = HabitScheduling.windowStartToday(for: slot)
-
-                    if now <= start {
-                        result.append((habit, slot))
-                        break  // Only first such slot
-                    }
-                }
-            }
-        }
-
-        result.sort { lhs, rhs in
-            lhs.1 < rhs.1
-        }
-        return result
-    }
-
-    /// Habits with at least one slot whose window has already ended today but hasn't been checked in.
-    private var missedSlots: [MissedHabit] {
-        let now = timeTick
-        let psychDay = HabitScheduling.todayPsychDay(now: now)
-        let todaysSnoozes = snoozedSlots.filter { $0.psychDay == psychDay && $0.resolvedAt == nil }
-        var result: [MissedHabit] = []
-
-        for habit in habits {
-            let slots = habit.slots.sorted()
-            guard !slots.isEmpty else { continue }
-
-            // All check-ins for today (completions only).
-            let todaysCheckIns = habit.checkIns
-                .filter { $0.pyschDay == psychDay }
-
-            let completedCount = todaysCheckIns.count
-
-            var missedCount = 0
-            var latestMissedSlot: HabitSlot?
-
-            for (index, slot) in slots.enumerated() {
-                let windowEnd = HabitScheduling.windowEndToday(for: slot)
-
-                // Slots before completedCount are treated as done.
-                if index < completedCount {
-                    continue
-                }
-
-                let isSnoozed = todaysSnoozes.contains { $0.habit === habit && $0.slot === slot }
-
-                if isSnoozed || windowEnd <= now {
-                    missedCount += 1
-                    latestMissedSlot = slot
-                }
-            }
-
-            guard missedCount > 0 else { continue }
-
-            // Use the latest missed slot (by time in the schedule) for "overdue" display.
-            guard let displaySlot = latestMissedSlot else { continue }
-            let latestEnd = HabitScheduling.windowEndToday(for: displaySlot)
-            let overdueBy = now.timeIntervalSince(latestEnd)
-
-            result.append(
-                MissedHabit(
-                    habit: habit,
-                    slot: displaySlot,
-                    completedCount: completedCount,
-                    missedCount: missedCount,
-                    overdueBy: overdueBy
-                )
-            )
-        }
-
-        // Show the most overdue habits first.
-        result.sort { $0.overdueBy > $1.overdueBy }
-        return result
-    }
-
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    if !currentHabitSlots.isEmpty {
+                    if !stageState.currentHabitSlots.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Current")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(currentHabitSlots, id: \.1.id) { habit, slot in
+                            ForEach(stageState.currentHabitSlots, id: \.1.id) { habit, slot in
                                 CurrentHabitRow(habit: habit, slot: slot)
                             }
                         }
                     }
 
-                    if !upcomingHabitSlots.isEmpty {
+                    if !stageState.upcomingHabitSlots.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Upcoming")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(upcomingHabitSlots, id: \.1.id) { habit, slot in
+                            ForEach(stageState.upcomingHabitSlots, id: \.1.id) { habit, slot in
                                 UpcomingHabitRow(habit: habit, slot: slot)
                             }
                         }
                     }
 
-                    if !missedSlots.isEmpty {
+                    if !stageState.missedSlots.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Missed / skipped today")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(missedSlots, id: \.slot.id) { item in
+                            ForEach(stageState.missedSlots, id: \.slot.id) { item in
                                 MissedHabitRow(item: item)
                             }
                         }
                     }
 
-                    if currentHabitSlots.isEmpty && upcomingHabitSlots.isEmpty
-                        && missedSlots.isEmpty
+                    if stageState.currentHabitSlots.isEmpty && stageState.upcomingHabitSlots.isEmpty
+                        && stageState.missedSlots.isEmpty
                     {
                         EmptyStageCard()
                     }
@@ -252,7 +100,7 @@ struct StageView: View {
                 timeTick = Date()
             }
             .onAppear { syncLiveActivity() }
-            .onChange(of: firstLiveActivityContentState) { _, _ in syncLiveActivity() }
+            .onChange(of: stageState.firstLiveActivityContentState) { _, _ in syncLiveActivity() }
         }
     }
 }

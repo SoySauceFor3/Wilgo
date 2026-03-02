@@ -5,8 +5,8 @@
 //  Created by Xinya Yang on 2/24/26.
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 @main
 struct WilgoApp: App {
