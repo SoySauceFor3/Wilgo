@@ -2,12 +2,12 @@
 //  Schedule: N× daily; each slot has its own ideal window.
 //
 
-import ActivityKit
 import SwiftData
 import SwiftUI
 
 struct StageView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(LiveActivityManager.self) private var liveActivityManager
     @Query(sort: \Habit.createdAt, order: .forward) private var habits: [Habit]
     @Query private var snoozedSlots: [SnoozedSlot]
     /// Advances to the current time at each slot boundary so the Stage re-renders precisely when state changes.
@@ -19,45 +19,6 @@ struct StageView: View {
             snoozedSlots: snoozedSlots,
             now: timeTick
         )
-    }
-
-    /// The earliest upcoming slot boundary (windowStart or windowEnd) across all habits.
-    /// The task keyed on this date will wake up exactly when the Stage state needs to change,
-    /// rather than on an arbitrary 60-second cadence that can lag behind slot start times.
-    private var nextTransitionDate: Date {
-        let now = timeTick
-        var candidates: [Date] = []
-        for habit in habits {
-            for slot in habit.slots {
-                let start = HabitScheduling.windowStartToday(for: slot)
-                let end = HabitScheduling.windowEndToday(for: slot)
-                if start > now { candidates.append(start) }
-                if end > now { candidates.append(end) }
-            }
-        }
-        // Fall back to a 60-second poll when there are no more transitions today.
-        return candidates.min() ?? now.addingTimeInterval(60)
-    }
-
-    private func syncLiveActivity() {
-        let contentState = stageState.firstLiveActivityContentState
-        Task {
-            if let state = contentState, state.hasCurrentHabit {
-                if let activity = Activity<NowAttributes>.activities.first {
-                    await activity.update(ActivityContent(state: state, staleDate: nil))
-                } else {
-                    _ = try? Activity.request(
-                        attributes: NowAttributes(),
-                        content: ActivityContent(state: state, staleDate: nil),
-                        pushType: nil
-                    )
-                }
-            } else {
-                for activity in Activity<NowAttributes>.activities {
-                    await activity.end(nil, dismissalPolicy: .immediate)
-                }
-            }
-        }
     }
 
     var body: some View {
@@ -113,8 +74,8 @@ struct StageView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Stage")
-            .task(id: nextTransitionDate) {
-                let target = nextTransitionDate
+            .task(id: stageState.nextTransitionDate) {
+                let target = stageState.nextTransitionDate
                 let delay = target.timeIntervalSince(Date())
                 if delay > 0 {
                     try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
@@ -123,9 +84,10 @@ struct StageView: View {
             }
             .onAppear {
                 timeTick = Date()
-                syncLiveActivity()
             }
-            .onChange(of: stageState.firstLiveActivityContentState) { _, _ in syncLiveActivity() }
+            .onChange(of: stageState.firstLiveActivityContentState) { _, _ in
+                liveActivityManager.sync()
+            }
         }
     }
 }

@@ -5,6 +5,11 @@ struct StageState {
     let upcomingHabitSlots: [(Habit, HabitSlot)]
     let missedSlots: [MissedHabit]
     let firstLiveActivityContentState: NowAttributes.ContentState?
+    /// Window end of the first current habit slot — used as the live activity stale date.
+    let firstLiveActivityStaleDate: Date?
+    /// The earliest upcoming slot boundary (windowStart or windowEnd). Used to schedule
+    /// the next UI tick and the next live activity sync wake-up.
+    let nextTransitionDate: Date
 }
 
 enum StageEngine {
@@ -34,12 +39,16 @@ enum StageEngine {
             psychDay: psychDay
         )
         let contentState = makeFirstLiveActivityContentState(from: current)
+        let staleDate = current.first.map { HabitScheduling.windowEndToday(for: $0.1) }
+        let nextTransition = computeNextTransitionDate(habits: habits, now: now)
 
         return StageState(
             currentHabitSlots: current,
             upcomingHabitSlots: upcoming,
             missedSlots: missed,
-            firstLiveActivityContentState: contentState
+            firstLiveActivityContentState: contentState,
+            firstLiveActivityStaleDate: staleDate,
+            nextTransitionDate: nextTransition
         )
     }
 
@@ -195,6 +204,23 @@ enum StageEngine {
         // Show the most overdue habits first.
         result.sort { $0.overdueBy > $1.overdueBy }
         return result
+    }
+
+    // MARK: - Transition date
+
+    /// Earliest upcoming windowStart or windowEnd across all habits' slots.
+    /// Falls back to a 60-second poll when no transitions remain today.
+    static func computeNextTransitionDate(habits: [Habit], now: Date) -> Date {
+        var candidates: [Date] = []
+        for habit in habits {
+            for slot in habit.slots {
+                let start = HabitScheduling.windowStartToday(for: slot)
+                let end = HabitScheduling.windowEndToday(for: slot)
+                if start > now { candidates.append(start) }
+                if end > now { candidates.append(end) }
+            }
+        }
+        return candidates.min() ?? now.addingTimeInterval(60)
     }
 
     // MARK: - Live activity helpers
