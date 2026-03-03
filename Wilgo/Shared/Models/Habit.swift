@@ -72,6 +72,9 @@ final class Habit {
     var skipCreditPeriod: Period
     /// How completion is verified.
     var proofOfWorkType: ProofOfWorkType
+    /// What the user owes if skip credits are exhausted (e.g. "Give robaroba 20 RMB").
+    /// Nil means no punishment is set.
+    var punishment: String?
 
     init(
         title: String,
@@ -79,7 +82,8 @@ final class Habit {
         slots: [HabitSlot],
         skipCreditCount: Int,
         skipCreditPeriod: Period,
-        proofOfWorkType: ProofOfWorkType = .manual
+        proofOfWorkType: ProofOfWorkType = .manual,
+        punishment: String? = nil
     ) {
         self.title = title
         self.createdAt = createdAt
@@ -87,6 +91,7 @@ final class Habit {
         self.skipCreditCount = skipCreditCount
         self.skipCreditPeriod = skipCreditPeriod
         self.proofOfWorkType = proofOfWorkType
+        self.punishment = punishment
     }
 
     /// Times per day (N× daily). Convenience for display.

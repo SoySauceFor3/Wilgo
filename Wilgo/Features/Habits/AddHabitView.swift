@@ -17,6 +17,7 @@ struct AddHabitView: View {
     @State private var skipCreditCount: Int = 1
     @State private var skipCreditPeriod: Period = .weekly
     @State private var proofOfWorkType: ProofOfWorkType = .manual
+    @State private var punishment: String = ""
 
     private static func defaultWindow() -> (start: Date, end: Date) {
         let calendar = Calendar.current
@@ -79,6 +80,15 @@ struct AddHabitView: View {
                     Stepper(value: $skipCreditCount, in: 0...30) {
                         Text("Skip credits: \(skipCreditCount)")
                     }
+                }
+
+                Section {
+                    TextField("e.g. Give robaroba 20 RMB", text: $punishment, axis: .vertical)
+                        .lineLimit(2...4)
+                } header: {
+                    Text("Punishment if credits run out")
+                } footer: {
+                    Text("Leave blank for no punishment.")
                 }
 
                 Section("Proof of work") {
@@ -146,12 +156,14 @@ struct AddHabitView: View {
         // this uses the Comparable conformance for HabitSlot in @Wilgo/Shared/Models/Habit.swift.
         let sortedSlots = slots.sorted()
 
+        let trimmedPunishment = punishment.trimmingCharacters(in: .whitespacesAndNewlines)
         let habit = Habit(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             slots: sortedSlots,
             skipCreditCount: skipCreditCount,
             skipCreditPeriod: skipCreditPeriod,
-            proofOfWorkType: proofOfWorkType
+            proofOfWorkType: proofOfWorkType,
+            punishment: trimmedPunishment.isEmpty ? nil : trimmedPunishment
         )
 
         modelContext.insert(habit)
