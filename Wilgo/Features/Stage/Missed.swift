@@ -3,6 +3,7 @@ import SwiftData
 import SwiftUI
 
 struct MissedHabitRow: View {
+    @Environment(\.modelContext) private var modelContext
     let item: MissedHabit
 
     private func formattedTime(_ date: Date) -> String {
@@ -43,7 +44,7 @@ struct MissedHabitRow: View {
     }
 
     var body: some View {
-        HStack {
+        HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(item.habit.title)
                     .font(.subheadline)
@@ -56,6 +57,18 @@ struct MissedHabitRow: View {
                     .foregroundStyle(.red)
             }
             Spacer()
+            Button {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    let checkIn = HabitCheckIn(habit: item.habit)
+                    modelContext.insert(checkIn)
+                }
+            } label: {
+                Label("Done", systemImage: "checkmark.circle.fill")
+                    .padding(.vertical, 8)
+                    .padding(.horizontal, 4)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(.green)
         }
         .padding(12)
         .background(

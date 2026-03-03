@@ -10,6 +10,9 @@ struct StageView: View {
     @Environment(LiveActivityManager.self) private var liveActivityManager
     @Query(sort: \Habit.createdAt, order: .forward) private var habits: [Habit]
     @Query private var snoozedSlots: [SnoozedSlot]
+    /// Observed only to force a re-render when check-ins are inserted/deleted,
+    /// since @Query for Habit does not re-fire on child relationship changes.
+    @Query private var checkIns: [HabitCheckIn]
     /// Advances to the current time at each slot boundary so the Stage re-renders precisely when state changes.
     @State private var timeTick: Date = Date()
 
