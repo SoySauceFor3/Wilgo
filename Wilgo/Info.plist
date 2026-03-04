@@ -6,7 +6,12 @@
 	<true/>
 	<key>UIBackgroundModes</key>
 	<array>
+		<string>fetch</string>
 		<string>remote-notification</string>
+	</array>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>wilgo.morning-report-scheduler</string>
 	</array>
 </dict>
 </plist>
