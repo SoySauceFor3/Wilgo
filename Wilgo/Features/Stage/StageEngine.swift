@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 
 struct StageState {
     let currentHabitSlots: [(Habit, HabitSlot)]
@@ -229,9 +230,13 @@ enum StageEngine {
         from currentHabitSlots: [(Habit, HabitSlot)]
     ) -> NowAttributes.ContentState? {
         guard let (habit, slot) = currentHabitSlots.first else { return nil }
+        let habitId = habit.persistentModelID.encoded()
+        let slotId = slot.persistentModelID.encoded()
         return NowAttributes.ContentState(
             habitTitle: habit.title,
-            slotTimeText: slotTimeText(for: slot)
+            slotTimeText: slotTimeText(for: slot),
+            habitId: habitId,
+            slotId: slotId
         )
     }
 

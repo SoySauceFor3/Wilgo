@@ -14,19 +14,51 @@ struct NowLiveActivity: Widget {
                 context.state.hasCurrentHabit,
                 "Live Activity must only be started when there is a current habit (habitTitle and slotTimeText must be set)."
             )
-            return HStack(spacing: 12) {
-                Image(systemName: "sparkles")
-                    .font(.title2)
-                    .foregroundStyle(.tint)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(context.state.habitTitle)
-                        .font(.headline)
-                        .lineLimit(1)
-                    Text(context.state.slotTimeText)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+            return VStack(spacing: 8) {
+                HStack(spacing: 12) {
+                    Image(systemName: "sparkles")
+                        .font(.title2)
+                        .foregroundStyle(.tint)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(context.state.habitTitle)
+                            .font(.headline)
+                            .lineLimit(1)
+                        Text(context.state.slotTimeText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer(minLength: 0)
                 }
-                Spacer(minLength: 0)
+
+                HStack(spacing: 8) {
+                    Link(destination: doneURL(habitId: context.state.habitId)) {
+                        Label("Done", systemImage: "checkmark.circle.fill")
+                            .font(.subheadline.weight(.medium))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(
+                                Color.green.opacity(0.2), in: RoundedRectangle(cornerRadius: 8)
+                            )
+                            .foregroundStyle(.green)
+                    }
+
+                    Link(
+                        destination: snoozeURL(
+                            habitId: context.state.habitId,
+                            slotId: context.state.slotId
+                        )
+                    ) {
+                        Label("Snooze", systemImage: "flame")
+                            .font(.subheadline.weight(.medium))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(
+                                Color.orange.opacity(0.2),
+                                in: RoundedRectangle(cornerRadius: 8)
+                            )
+                            .foregroundStyle(Color.orange)
+                    }
+                }
             }
             .padding(.vertical, 4)
             .activityBackgroundTint(Color(.systemFill))
@@ -52,6 +84,37 @@ struct NowLiveActivity: Widget {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
+                DynamicIslandExpandedRegion(.bottom) {
+                    HStack(spacing: 8) {
+                        Link(destination: doneURL(habitId: context.state.habitId)) {
+                            Label("Done", systemImage: "checkmark.circle.fill")
+                                .font(.caption.weight(.medium))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 6)
+                                .background(
+                                    Color.green.opacity(0.2), in: RoundedRectangle(cornerRadius: 8)
+                                )
+                                .foregroundStyle(.green)
+                        }
+
+                        Link(
+                            destination: snoozeURL(
+                                habitId: context.state.habitId,
+                                slotId: context.state.slotId
+                            )
+                        ) {
+                            Label("Snooze", systemImage: "flame")
+                                .font(.caption.weight(.medium))
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 6)
+                                .background(
+                                    Color.orange.opacity(0.2),
+                                    in: RoundedRectangle(cornerRadius: 8)
+                                )
+                                .foregroundStyle(Color.orange)
+                        }
+                    }
+                }
             } compactLeading: {
                 Image(systemName: "sparkles")
                     .font(.caption)
@@ -65,13 +128,36 @@ struct NowLiveActivity: Widget {
             .keylineTint(Color.accentColor)
         }
     }
+
+    // MARK: - URL helpers
+
+    private func doneURL(habitId: String) -> URL {
+        var components = URLComponents()
+        components.scheme = "wilgo"
+        components.host = "done"
+        components.queryItems = [URLQueryItem(name: "habitId", value: habitId)]
+        return components.url ?? URL(string: "wilgo://done")!
+    }
+
+    private func snoozeURL(habitId: String, slotId: String) -> URL {
+        var components = URLComponents()
+        components.scheme = "wilgo"
+        components.host = "snooze"
+        components.queryItems = [
+            URLQueryItem(name: "habitId", value: habitId),
+            URLQueryItem(name: "slotId", value: slotId),
+        ]
+        return components.url ?? URL(string: "wilgo://snooze")!
+    }
 }
 
 extension NowAttributes.ContentState {
     fileprivate static var withHabit: NowAttributes.ContentState {
         NowAttributes.ContentState(
             habitTitle: "Morning reading",
-            slotTimeText: "9:00 AM – 11:00 AM"
+            slotTimeText: "9:00 AM – 11:00 AM",
+            habitId: "",
+            slotId: ""
         )
     }
 }
