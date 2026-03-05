@@ -12,12 +12,15 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Habit.createdAt, order: .forward) private var habits: [Habit]
     @State private var isPresentingAddHabit: Bool = false
+    @State private var habitBeingEdited: Habit?
 
     var body: some View {
         NavigationStack {
             List {
                 ForEach(habits) { habit in
                     HabitRowView(habit: habit)
+                        .contentShape(Rectangle())
+                        .onTapGesture { habitBeingEdited = habit }
                 }
                 .onDelete(perform: deleteHabits)
             }
@@ -38,6 +41,9 @@ struct ContentView: View {
             }
             .sheet(isPresented: $isPresentingAddHabit) {
                 AddHabitView()
+            }
+            .sheet(item: $habitBeingEdited) { habit in
+                EditHabitView(habit: habit)
             }
         }
     }
