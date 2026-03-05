@@ -19,7 +19,7 @@ enum StageEngine {
         snoozedSlots: [SnoozedSlot],
         now: Date
     ) -> StageState {
-        let psychDay = HabitScheduling.todayPsychDay(now: now)
+        let psychDay = HabitScheduling.psychDay(for: now)
         let todaysSnoozes = snoozedSlots.filter { $0.psychDay == psychDay && $0.resolvedAt == nil }
 
         let current = computeCurrentHabitSlots(

@@ -81,7 +81,7 @@ enum MorningReportService {
             guard granted else { return }
 
             let cal = HabitScheduling.calendar
-            let today = HabitScheduling.todayPsychDay(now: now)
+            let today = HabitScheduling.psychDay(for: now)
             let yesterday = cal.date(byAdding: .day, value: -1, to: today) ?? today
 
             center.removePendingNotificationRequests(

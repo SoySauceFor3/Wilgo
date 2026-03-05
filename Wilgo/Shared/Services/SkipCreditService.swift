@@ -44,7 +44,7 @@ enum SkipCreditService {
     static func creditsUsed(for habit: Habit, now: Date = .now) -> Int {
         let cal = HabitScheduling.calendar
         let start = periodStart(for: habit, now: now)
-        let today = HabitScheduling.todayPsychDay(now: now)
+        let today = HabitScheduling.psychDay(for: now)
 
         var burned = 0
         var day = start

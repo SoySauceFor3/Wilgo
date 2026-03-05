@@ -1,6 +1,5 @@
 //  Reusable scheduling and "today" time helpers for habits.
 //  Schedule is N× daily only (for now); each occurrence has one slot with its own ideal window.
-//
 
 import Foundation
 
@@ -8,7 +7,7 @@ import Foundation
 enum HabitScheduling {
     static let calendar = Calendar.current
 
-    /// Hour of day when a "habit day" starts. Reads live from UserDefaults so it
+    /// Hour of day when a "psych day" starts. Reads live from UserDefaults so it
     /// always reflects the value the user last set in Settings without a restart.
     static var dayStartHourOffset: Int {
         let stored = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
@@ -16,15 +15,40 @@ enum HabitScheduling {
         return stored
     }
 
-    /// Resolves a habit's time-of-day `Date` to today's date with that time.
-    static func today(at timeOfDay: Date) -> Date {
-        let comps = calendar.dateComponents([.hour, .minute], from: timeOfDay)
+    /// Resolves a habit's time-of-day `Date` to its concrete `Date` within the
+    /// current psychDay, accounting for `dayStartHourOffset`.
+    ///
+    /// Example: `dayStartHourOffset` = 14 (2 pm). The logical day runs Jan 1 2 pm → Jan 2 2 pm.
+    /// Passing a 2 am time-of-day while the real clock reads Jan 1 returns Jan 2 02:00,
+    /// because 2 am sits in the overnight tail of that same psych day.
+    ///
+    /// With the default offset of 0 this behaves identically to stamping the time on today.
+    static func today(
+        at timeOfDay: Date,  // Only take hour and minute from this
+        now: Date = Date(),
+        dayStartHourOffset: Int = dayStartHourOffset
+    ) -> Date {
+        // Calendar date on which the current psychDay *started*.
+        // If we haven't reached the day-start hour yet, the psych day began yesterday.
+        let psychDay = psychDay(for: now)
+
+        // Times >= offset fall on the psych-day-start calendar date.
+        // Times < offset are in the overnight tail and fall on the following calendar date.
+        let timeHour = calendar.component(.hour, from: timeOfDay)
+        let timeMinute = calendar.component(.minute, from: timeOfDay)
+        let baseDate: Date
+        if timeHour >= dayStartHourOffset {
+            baseDate = psychDay
+        } else {
+            baseDate = calendar.date(byAdding: .day, value: 1, to: psychDay)!
+        }
+
         return calendar.date(
-            bySettingHour: comps.hour ?? 0,
-            minute: comps.minute ?? 0,
+            bySettingHour: timeHour,
+            minute: timeMinute,
             second: 0,
-            of: Date()
-        ) ?? Date()
+            of: baseDate
+        ) ?? baseDate
     }
 
     /// Logical "psychological day" for a given moment, using the specified time zone and day-start offset.
@@ -32,7 +56,7 @@ enum HabitScheduling {
     static func psychDay(
         for utcTime: Date,
         timeZoneIdentifier: String = TimeZone.current.identifier,
-        dayStartHourOffset: Int = dayStartHourOffset
+        dayStartHourOffset: Int = Self.dayStartHourOffset
     ) -> Date {
         var cal = calendar
         cal.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? calendar.timeZone
@@ -43,20 +67,17 @@ enum HabitScheduling {
         return cal.date(from: comps) ?? utcTime
     }
 
-    /// TODO: Remove it.
-    /// Window start on the current day for a slot.
+    /// Window start on the current calendar day for a slot.
+    /// Used for real-time comparisons ("is now within this slot's window?"), not for
+    /// determining which psychological day an event belongs to.
     static func windowStartToday(for slot: HabitSlot) -> Date {
         today(at: slot.start)
     }
 
-    /// TODO: Remove it.
-    /// Window end on the current day for a slot.
+    /// Window end on the current calendar day for a slot.
+    /// Used for real-time comparisons ("is now within this slot's window?"), not for
+    /// determining which psychological day an event belongs to.
     static func windowEndToday(for slot: HabitSlot) -> Date {
         today(at: slot.end)
-    }
-
-    /// Convenient "today" psychological day for now (using current time zone).
-    static func todayPsychDay(now: Date = Date()) -> Date {
-        psychDay(for: now)
     }
 }
