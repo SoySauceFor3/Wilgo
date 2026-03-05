@@ -129,13 +129,14 @@ enum StageEngine {
 
         for habit in habits {
             guard !habit.slots.isEmpty else { continue }
+            let psychDay = HabitScheduling.psychDay(for: now)
 
-            let completedCount = habit.completedCount(now: now)
+            let completedCount = habit.completedCount(for: psychDay)
 
             var missedCount = 0
             var latestMissedSlot: HabitSlot?
 
-            for slot in habit.remainingSlots(now: now) {
+            for slot in habit.unfinishedSlots(for: psychDay) {
                 let isSnoozed = todaysSnoozes.contains { $0.habit === habit && $0.slot === slot }
 
                 if isSnoozed || slot.endToday <= now {

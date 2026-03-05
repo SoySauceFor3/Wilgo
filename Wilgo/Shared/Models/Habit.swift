@@ -131,30 +131,36 @@ final class Habit {
 // MARK: - Slot queries
 
 extension Habit {
-    func completedCount(now: Date) -> Int {
-        let psychDay = HabitScheduling.psychDay(for: now)
+    /// Number of check-ins on the given psychological day.
+    func completedCount(for psychDay: Date) -> Int {
         return checkIns.filter { $0.psychDay == psychDay }.count
     }
 
-    /// Slots not yet completed today (psychological day of now), in schedule order.
-    func remainingSlots(now: Date) -> [HabitSlot] {
-        return Array(slots.sorted().dropFirst(completedCount(now: now)))
+    /// Slots not yet completed on the given psychological day, in order.
+    func unfinishedSlots(for psychDay: Date) -> [HabitSlot] {
+        return Array(slots.sorted().dropFirst(completedCount(for: psychDay)))
     }
 
-    func unfinishedToday(now: Date) -> Bool {
-        !remainingSlots(now: now).isEmpty
+    /// Whether the habit has any unfinished slots on the given psychological day.
+    func hasUnfinishedSlots(for psychDay: Date) -> Bool {
+        !unfinishedSlots(for: psychDay).isEmpty
     }
 
     /// The first remaining slot whose window contains `now`, skipping snoozed ones.
-    func firstCurrentSlot(now: Date, excluding snoozed: [SnoozedSlot]) -> HabitSlot? {
-        remainingSlots(now: now).first { slot in
+    func firstCurrentSlot(
+        now: Date = HabitScheduling.now(),
+        excluding snoozed: [SnoozedSlot]
+    ) -> HabitSlot? {
+        let psychDay = HabitScheduling.psychDay(for: now)
+        return unfinishedSlots(for: psychDay).first { slot in
             !snoozed.contains { $0.habit === self && $0.slot === slot }
                 && slot.startToday <= now && now <= slot.endToday
         }
     }
 
     /// The first remaining slot that hasn't started yet.
-    func firstFutureSlot(now: Date) -> HabitSlot? {
-        remainingSlots(now: now).first { now <= $0.startToday }
+    func firstFutureSlot(now: Date = HabitScheduling.now()) -> HabitSlot? {
+        let psychDay = HabitScheduling.psychDay(for: now)
+        return unfinishedSlots(for: psychDay).first { now <= $0.startToday }
     }
 }

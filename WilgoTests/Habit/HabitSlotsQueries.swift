@@ -79,20 +79,19 @@ struct HabitSlotsQueriesTests {
     @Suite("Habit — completedCount")
     final class HabitCompletedCountTests {
 
-        // Reference point: Wednesday March 5 2026 10:00 local time.
-        let now = date(year: 2026, month: 3, day: 5, hour: 10)
-
         // Captured before init() overwrites it — restored in deinit.
         private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
         init() { UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey) }
         deinit { UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey) }
+
+        let psychDay = date(year: 2026, month: 3, day: 5)
 
         @Test("no check-ins → 0")
         @MainActor func noCheckIns() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
             let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
-            #expect(habit.completedCount(now: now) == 0)
+            #expect(habit.completedCount(for: psychDay) == 0)
         }
 
         @Test("one check-in on the same psych day → 1")
@@ -102,7 +101,7 @@ struct HabitSlotsQueriesTests {
             let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
             ctx.insert(
                 HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 9)))
-            #expect(habit.completedCount(now: now) == 1)
+            #expect(habit.completedCount(for: psychDay) == 1)
         }
 
         @Test("two check-ins on the same psych day → 2")
@@ -119,7 +118,7 @@ struct HabitSlotsQueriesTests {
                 HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 7)))
             ctx.insert(
                 HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 14)))
-            #expect(habit.completedCount(now: now) == 2)
+            #expect(habit.completedCount(for: psychDay) == 2)
         }
 
         @Test("check-in on a different psych day is not counted")
@@ -129,7 +128,7 @@ struct HabitSlotsQueriesTests {
             let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
             ctx.insert(
                 HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 4, hour: 9)))
-            #expect(habit.completedCount(now: now) == 0)
+            #expect(habit.completedCount(for: psychDay) == 0)
         }
 
         @Test("only today's check-ins count when mixed with other days")
@@ -146,24 +145,24 @@ struct HabitSlotsQueriesTests {
                 HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 4, hour: 9)))  // yesterday
             ctx.insert(
                 HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 9)))  // today
-            #expect(habit.completedCount(now: now) == 1)
+            #expect(habit.completedCount(for: psychDay) == 1)
         }
     }
 
-    // MARK: - remainingSlots
+    // MARK: - unfinishedSlots
     //
     // Drops the first completedCount(now:) slots from the sorted slot list.
     // Sort order is by startToday (resolved using the real clock), but relative order
     // between two distinct hours is stable regardless of when tests run.
 
-    @Suite("Habit — remainingSlots")
-    final class HabitRemainingSlotsTests {
-
-        let now = date(year: 2026, month: 3, day: 5, hour: 10)
+    @Suite("Habit — unfinishedSlots")
+    final class HabitUnfinishedSlotsTests {
 
         private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
         init() { UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey) }
         deinit { UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey) }
+
+        let psychDay = date(year: 2026, month: 3, day: 5)
 
         @Test("no check-ins → all slots returned")
         @MainActor func noCheckInsAllSlots() throws {
@@ -175,7 +174,7 @@ struct HabitSlotsQueriesTests {
                     makeSlot(startHour: 7, endHour: 8),
                     makeSlot(startHour: 14, endHour: 15),
                 ])
-            #expect(habit.remainingSlots(now: now).count == 2)
+            #expect(habit.unfinishedSlots(for: psychDay).count == 2)
         }
 
         @Test("slots are returned in ascending time order")
@@ -186,7 +185,7 @@ struct HabitSlotsQueriesTests {
             let afternoon = makeSlot(startHour: 14, endHour: 15)
             let morning = makeSlot(startHour: 7, endHour: 8)
             let habit = makeHabit(in: ctx, slots: [afternoon, morning])
-            let remaining = habit.remainingSlots(now: now)
+            let remaining = habit.unfinishedSlots(for: psychDay)
             #expect(remaining.count == 2)
             // The morning slot (hour 7) must sort before the afternoon slot (hour 14).
             let firstHour = Calendar.current.component(.hour, from: remaining[0].start)
@@ -206,7 +205,7 @@ struct HabitSlotsQueriesTests {
                 ])
             ctx.insert(
                 HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 7)))
-            let remaining = habit.remainingSlots(now: now)
+            let remaining = habit.unfinishedSlots(for: psychDay)
             #expect(remaining.count == 1)
             // Only the afternoon slot should remain.
             #expect(Calendar.current.component(.hour, from: remaining[0].start) == 14)
@@ -226,7 +225,7 @@ struct HabitSlotsQueriesTests {
                 HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 7)))
             ctx.insert(
                 HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 14)))
-            #expect(habit.remainingSlots(now: now).isEmpty)
+            #expect(habit.unfinishedSlots(for: psychDay).isEmpty)
         }
 
         @Test("no slots → empty")
@@ -234,7 +233,7 @@ struct HabitSlotsQueriesTests {
             let container = try makeContainer()
             let ctx = container.mainContext
             let habit = makeHabit(in: ctx)
-            #expect(habit.remainingSlots(now: now).isEmpty)
+            #expect(habit.unfinishedSlots(for: psychDay).isEmpty)
         }
 
         @Test("check-in on a different psych day does not reduce remaining count")
@@ -244,27 +243,27 @@ struct HabitSlotsQueriesTests {
             let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
             ctx.insert(
                 HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 4, hour: 9)))
-            #expect(habit.remainingSlots(now: now).count == 1)
+            #expect(habit.unfinishedSlots(for: psychDay).count == 1)
         }
     }
 
-    // MARK: - unfinishedToday
+    // MARK: - hasUnfinishedSlots
 
-    @Suite("Habit — unfinishedToday")
+    @Suite("Habit — hasUnfinishedSlots")
     final class HabitUnfinishedTodayTests {
-
-        let now = date(year: 2026, month: 3, day: 5, hour: 10)
 
         private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
         init() { UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey) }
         deinit { UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey) }
+
+        let psychDay = date(year: 2026, month: 3, day: 5)
 
         @Test("no check-ins → true")
         @MainActor func noCheckInsIsUnfinished() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
             let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
-            #expect(habit.unfinishedToday(now: now) == true)
+            #expect(habit.hasUnfinishedSlots(for: psychDay) == true)
         }
 
         @Test("partial completion → true")
@@ -279,7 +278,7 @@ struct HabitSlotsQueriesTests {
                 ])
             ctx.insert(
                 HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 7)))
-            #expect(habit.unfinishedToday(now: now) == true)
+            #expect(habit.hasUnfinishedSlots(for: psychDay) == true)
         }
 
         @Test("all slots completed → false")
@@ -289,7 +288,7 @@ struct HabitSlotsQueriesTests {
             let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
             ctx.insert(
                 HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 9)))
-            #expect(habit.unfinishedToday(now: now) == false)
+            #expect(habit.hasUnfinishedSlots(for: psychDay) == false)
         }
 
         @Test("no slots → false (nothing to do)")
@@ -297,7 +296,7 @@ struct HabitSlotsQueriesTests {
             let container = try makeContainer()
             let ctx = container.mainContext
             let habit = makeHabit(in: ctx)
-            #expect(habit.unfinishedToday(now: now) == false)
+            #expect(habit.hasUnfinishedSlots(for: psychDay) == false)
         }
     }
 
