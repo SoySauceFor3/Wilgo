@@ -45,11 +45,11 @@ final class LiveActivityManager {
     /// Call this whenever habit data changes while the app is on screen.
     /// (Calling it on `scenePhase == .active` is not necessary because the monitoring loop already runs in the background, but just a cheap safety net.)
     func sync() {
-        let state = currentState()
+        let update = currentLiveActivityUpdate()
         Task {  // The reason it wraps apply in a Task {} is that apply is async (it calls into ActivityKit, which is asynchronous), but sync() itself is not async
             await apply(
-                contentState: state.firstLiveActivityContentState,
-                staleDate: state.firstLiveActivityStaleDate)
+                contentState: update.contentState,
+                staleDate: update.staleDate)
         }
     }
 
@@ -61,12 +61,12 @@ final class LiveActivityManager {
         monitoringTask?.cancel()
         monitoringTask = Task {
             while !Task.isCancelled {
-                let state = self.currentState()
+                let update = self.currentLiveActivityUpdate()
                 await self.apply(
-                    contentState: state.firstLiveActivityContentState,
-                    staleDate: state.firstLiveActivityStaleDate)
+                    contentState: update.contentState,
+                    staleDate: update.staleDate)
 
-                let delay = max(state.nextTransitionDate.timeIntervalSince(Date()), 1)  // ensures we never sleep for 0 or negative seconds
+                let delay = max(update.nextTransitionDate.timeIntervalSince(Date()), 1)  // ensures we never sleep for 0 or negative seconds
                 try? await Task.sleep(for: .seconds(delay))
             }
         }
@@ -74,10 +74,10 @@ final class LiveActivityManager {
 
     // MARK: - Helpers
 
-    private func currentState() -> StageState {
+    private func currentLiveActivityUpdate() -> LiveActivityUpdate {
         let habits = (try? modelContext.fetch(FetchDescriptor<Habit>())) ?? []
         let snoozedSlots = (try? modelContext.fetch(FetchDescriptor<SnoozedSlot>())) ?? []
-        return StageEngine.makeState(habits: habits, snoozedSlots: snoozedSlots, now: Date())
+        return StageEngine.makeLiveActivityUpdate(habits: habits, snoozedSlots: snoozedSlots, now: Date())
     }
 
     // takes the computed state and tells iOS what to actually show (or not show) on the Lock Screen.

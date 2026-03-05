@@ -13,6 +13,13 @@ struct StageState {
     let nextTransitionDate: Date
 }
 
+/// Minimal state needed by LiveActivityManager — avoids computing upcoming/missed rows.
+struct LiveActivityUpdate {
+    let contentState: NowAttributes.ContentState?
+    let staleDate: Date?
+    let nextTransitionDate: Date
+}
+
 enum StageEngine {
     static func makeState(
         habits: [Habit],
@@ -50,6 +57,26 @@ enum StageEngine {
             firstLiveActivityContentState: contentState,
             firstLiveActivityStaleDate: staleDate,
             nextTransitionDate: nextTransition
+        )
+    }
+
+    static func makeLiveActivityUpdate(
+        habits: [Habit],
+        snoozedSlots: [SnoozedSlot],
+        now: Date
+    ) -> LiveActivityUpdate {
+        let psychDay = HabitScheduling.psychDay(for: now)
+        let todaysSnoozes = snoozedSlots.filter { $0.psychDay == psychDay && $0.resolvedAt == nil }
+        let current = computeCurrentHabitSlots(
+            habits: habits,
+            todaysSnoozes: todaysSnoozes,
+            now: now,
+            psychDay: psychDay
+        )
+        return LiveActivityUpdate(
+            contentState: makeFirstLiveActivityContentState(from: current),
+            staleDate: current.first.map { $0.1.endToday },
+            nextTransitionDate: computeNextTransitionDate(habits: habits, now: now)
         )
     }
 
