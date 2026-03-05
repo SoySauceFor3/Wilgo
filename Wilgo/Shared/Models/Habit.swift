@@ -36,6 +36,14 @@ final class HabitSlot {
     }
 }
 
+extension HabitSlot {
+    /// Start of the slot as psychDay of now.
+    var startToday: Date { HabitScheduling.today(at: start) }
+
+    /// End of the slot of psychDay of now.
+    var endToday: Date { HabitScheduling.today(at: end) }
+}
+
 extension HabitSlot: Comparable {
     static func < (lhs: HabitSlot, rhs: HabitSlot) -> Bool {
         if lhs.start == rhs.start {

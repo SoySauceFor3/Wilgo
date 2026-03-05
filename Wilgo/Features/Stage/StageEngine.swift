@@ -40,7 +40,7 @@ enum StageEngine {
             psychDay: psychDay
         )
         let contentState = makeFirstLiveActivityContentState(from: current)
-        let staleDate = current.first.map { HabitScheduling.windowEndToday(for: $0.1) }
+        let staleDate = current.first.map { $0.1.endToday }
         let nextTransition = computeNextTransitionDate(habits: habits, now: now)
 
         return StageState(
@@ -77,8 +77,8 @@ enum StageEngine {
                     if todaysSnoozes.contains(where: { $0.habit == habit && $0.slot == slot }) {
                         continue
                     }
-                    let start = HabitScheduling.windowStartToday(for: slot)
-                    let end = HabitScheduling.windowEndToday(for: slot)
+                    let start = slot.startToday
+                    let end = slot.endToday
                     if start <= now && now <= end {
                         result.append((habit, slot))
                         break  // Only first such slot
@@ -92,10 +92,10 @@ enum StageEngine {
             let leftSlot = lhs.1
             let rightSlot = rhs.1
 
-            let leftStart = HabitScheduling.windowStartToday(for: leftSlot)
-            let leftEnd = HabitScheduling.windowEndToday(for: leftSlot)
-            let rightStart = HabitScheduling.windowStartToday(for: rightSlot)
-            let rightEnd = HabitScheduling.windowEndToday(for: rightSlot)
+            let leftStart = leftSlot.startToday
+            let leftEnd = leftSlot.endToday
+            let rightStart = rightSlot.startToday
+            let rightEnd = rightSlot.endToday
 
             let leftDuration = max(leftEnd.timeIntervalSince(leftStart), 1)
             let rightDuration = max(rightEnd.timeIntervalSince(rightStart), 1)
@@ -129,7 +129,7 @@ enum StageEngine {
                 // Consider only slots from (n) onward (0-based), so n+1th is at index n
                 let remainingSlots = slots.dropFirst(n)
                 for slot in remainingSlots {
-                    let start = HabitScheduling.windowStartToday(for: slot)
+                    let start = slot.startToday
 
                     if now <= start {
                         result.append((habit, slot))
@@ -169,7 +169,7 @@ enum StageEngine {
             var latestMissedSlot: HabitSlot?
 
             for (index, slot) in slots.enumerated() {
-                let windowEnd = HabitScheduling.windowEndToday(for: slot)
+                let windowEnd = slot.endToday
 
                 // Slots before completedCount are treated as done.
                 if index < completedCount {
@@ -188,7 +188,7 @@ enum StageEngine {
 
             // Use the latest missed slot (by time in the schedule) for "overdue" display.
             guard let displaySlot = latestMissedSlot else { continue }
-            let latestEnd = HabitScheduling.windowEndToday(for: displaySlot)
+            let latestEnd = displaySlot.endToday
             let overdueBy = now.timeIntervalSince(latestEnd)
 
             result.append(
@@ -215,8 +215,8 @@ enum StageEngine {
         var candidates: [Date] = []
         for habit in habits {
             for slot in habit.slots {
-                let start = HabitScheduling.windowStartToday(for: slot)
-                let end = HabitScheduling.windowEndToday(for: slot)
+                let start = slot.startToday
+                let end = slot.endToday
                 if start > now { candidates.append(start) }
                 if end > now { candidates.append(end) }
             }
@@ -244,8 +244,8 @@ enum StageEngine {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         formatter.dateStyle = .none
-        let start = HabitScheduling.windowStartToday(for: slot)
-        let end = HabitScheduling.windowEndToday(for: slot)
+        let start = slot.startToday
+        let end = slot.endToday
         return "\(formatter.string(from: start)) – \(formatter.string(from: end))"
     }
 }

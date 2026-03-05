@@ -67,17 +67,4 @@ enum HabitScheduling {
         return cal.date(from: comps) ?? utcTime
     }
 
-    /// Window start on the current calendar day for a slot.
-    /// Used for real-time comparisons ("is now within this slot's window?"), not for
-    /// determining which psychological day an event belongs to.
-    static func windowStartToday(for slot: HabitSlot) -> Date {
-        today(at: slot.start)
-    }
-
-    /// Window end on the current calendar day for a slot.
-    /// Used for real-time comparisons ("is now within this slot's window?"), not for
-    /// determining which psychological day an event belongs to.
-    static func windowEndToday(for slot: HabitSlot) -> Date {
-        today(at: slot.end)
-    }
 }

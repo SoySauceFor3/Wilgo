@@ -14,8 +14,8 @@ struct MissedHabitRow: View {
     }
 
     private var timeRangeText: String {
-        let start = HabitScheduling.windowStartToday(for: item.slot)
-        let end = HabitScheduling.windowEndToday(for: item.slot)
+        let start = item.slot.startToday
+        let end = item.slot.endToday
         return "\(formattedTime(start)) – \(formattedTime(end))"
     }
 
