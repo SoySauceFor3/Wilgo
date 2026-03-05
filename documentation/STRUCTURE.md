@@ -2,11 +2,11 @@
 
 Code is organized **by feature/screen**, with shared domain code in `Shared/`:
 
-| Folder        | Purpose | Example contents |
-|---------------|---------|------------------|
-| **App**       | App entry point / root wiring | `WilgoApp.swift` (`@main`, `ModelContainer`) |
+| Folder        | Purpose                                | Example contents                                     |
+| ------------- | -------------------------------------- | ---------------------------------------------------- |
+| **App**       | App entry point / root wiring          | `WilgoApp.swift` (`@main`, `ModelContainer`)         |
 | **Features/** | User-facing screens grouped by feature | `Features/Habits`, `Features/Stage`, `Features/Root` |
-| **Shared/**   | Cross-feature domain code | `Shared/Models`, `Shared/Scheduling` |
+| **Shared/**   | Cross-feature domain code              | `Shared/Models`, `Shared/Scheduling`                 |
 
 - **Assets, Info.plist** stay at the root of `Wilgo/`.
 - Xcode uses a **synchronized root group** for `Wilgo`, so new files and folders under `Wilgo/` are picked up automatically; no need to add them by hand in the project.
@@ -29,7 +29,7 @@ Code is organized **by feature/screen**, with shared domain code in `Shared/`:
 
 - **Shared/Scheduling**
   - `PhaseEngine.swift` – phase/pressure logic and UI styling used by Stage (and later notifications).
-  - `HabitScheduling.swift` – reusable “today” time-window and soft-deadline helpers for habits.
+  - `HabitScheduling.swift` – reusable “today” time-window helpers for habits.
 
 ## iOS/Swift conventions (feature-first)
 

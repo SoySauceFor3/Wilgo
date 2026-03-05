@@ -20,25 +20,20 @@ struct CurrentHabitRow: View {
     }
 
     var body: some View {
-        let (_, style) = PhaseEngine.phaseAndStyle(for: habit, slot: slot)
-
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 12) {
                 RoundedRectangle(cornerRadius: 8)
-                    .fill(style.color.opacity(0.2))
+                    .fill(Color.accentColor.opacity(0.2))
                     .frame(width: 44, height: 44)
                     .overlay {
                         Image(systemName: "sparkles")
                             .font(.system(size: 22))
-                            .foregroundStyle(style.color)
+                            .foregroundStyle(Color.accentColor)
                     }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(habit.title)
                         .font(.headline)
-                    Text(style.toneMessage)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
                     Text(timeRangeText)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
@@ -76,7 +71,6 @@ struct CurrentHabitRow: View {
                         .padding(.vertical, 10)
                 }
                 .buttonStyle(.bordered)
-                .tint(style.color)
                 .disabled(habit.skipCreditCount <= 0)
             }
 
@@ -92,7 +86,7 @@ struct CurrentHabitRow: View {
         .padding(16)
         .background(
             RoundedRectangle(cornerRadius: 16)
-                .fill(style.color.opacity(0.08))
+                .fill(Color.accentColor.opacity(0.08))
         )
     }
 }

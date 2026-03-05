@@ -7,7 +7,6 @@ import Foundation
 /// Shared scheduling and calendar utilities for habits.
 enum HabitScheduling {
     static let calendar = Calendar.current
-    static let config = PhaseConfig.default
 
     /// Hour of day when a "habit day" starts. Reads live from UserDefaults so it
     /// always reflects the value the user last set in Settings without a restart.
@@ -44,23 +43,6 @@ enum HabitScheduling {
         return cal.date(from: comps) ?? utcTime
     }
 
-    /// Soft deadline for "today": the day-start hour on the next calendar day.
-    /// e.g. if day starts at midnight (0), deadline is 12:00 AM tomorrow.
-    ///      if day starts at 6 AM, deadline is 6:00 AM tomorrow.
-    static func todaySoftDeadline() -> Date {
-        let tomorrow = calendar.date(
-            byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())
-        ) ?? Date()
-        return calendar.date(
-            bySettingHour: dayStartHourOffset, minute: 0, second: 0, of: tomorrow
-        ) ?? tomorrow
-    }
-
-    /// Soft deadline used for ordering (e.g. pick "earliest deadline" among active habits).
-    static func softDeadline(for habit: Habit, now: Date = Date()) -> Date {
-        todaySoftDeadline()
-    }
-
     /// TODO: Remove it.
     /// Window start on the current day for a slot.
     static func windowStartToday(for slot: HabitSlot) -> Date {
@@ -76,15 +58,5 @@ enum HabitScheduling {
     /// Convenient "today" psychological day for now (using current time zone).
     static func todayPsychDay(now: Date = Date()) -> Date {
         psychDay(for: now)
-    }
-
-    /// Start of the critical window before today's soft deadline.
-    static func criticalStart(now: Date = Date()) -> Date {
-        let softDeadline = todaySoftDeadline()
-        return calendar.date(
-            byAdding: .hour,
-            value: -Int(config.criticalWindowHours),
-            to: softDeadline
-        ) ?? softDeadline
     }
 }

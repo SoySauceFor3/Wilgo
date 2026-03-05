@@ -16,7 +16,7 @@ Each habit is defined by these parameters:
 
 - **Frequency:** Times per day/week
 - **Ideal Window:** e.g., 5 PM – 8 PM (The "Golden Hours").
-- **Soft Deadline:** 12 AM (When a Skip Credit is automatically burned).
+- **Customizable Day Start Hour** e.g. 8AM (When a Skip Credit is automatically burned) - This is now a global setting value.
 - **Monthly Budget:** e.g., 5 Skip Credits per month.
 - **Proof of Work Type:** `Manual (MVP)`, `Notion API (later)`, or `HealthKit(later)`.
 
@@ -24,7 +24,7 @@ Each habit is defined by these parameters:
 
 ## 3. The Behavior Cycle (The "Pressure Spectrum")
 
-Wilgo’s personality and UI evolve throughout the day for each task (assuming the window is set as 5-8 pm, and deadline at 12am):
+Wilgo’s personality and UI evolve throughout the day for each task (assuming the window is set as 5-8 pm, and day start hour at 12am):
 
 1. **Phase 1: Gentle (5 PM - 8 PM)**
 
@@ -65,7 +65,7 @@ Wilgo’s personality and UI evolve throughout the day for each task (assuming t
 
 ### **Page 3: Configuration (Setup)**
 
-- **Time Settings:** Pick start/end/deadline times.
+- **Time Settings:** Pick start/end/dayStart times.
 - **API Connect:** Input fields for Notion API Key/Page ID or GitHub username.
 - **Penalty Note:** A text area to record the "bet" (e.g., "I owe my friend $50").
 
