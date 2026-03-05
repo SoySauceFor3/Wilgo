@@ -26,7 +26,7 @@ final class SnoozedSlot {
     init(
         habit: Habit,
         slot: HabitSlot,
-        createdAt: Date = .now
+        createdAt: Date = HabitScheduling.now()
     ) {
         self.habit = habit
         self.slot = slot

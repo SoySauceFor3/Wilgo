@@ -7,6 +7,10 @@ import Foundation
 enum HabitScheduling {
     static let calendar = Calendar.current
 
+    /// Returns the current date. Override in tests to freeze time.
+    /// Production code must never call `Date()` directly — use `HabitScheduling.now()` instead.
+    static var now: () -> Date = { Date() }
+
     /// Hour of day when a "psych day" starts. Reads live from UserDefaults so it
     /// always reflects the value the user last set in Settings without a restart.
     static var dayStartHourOffset: Int {
@@ -25,12 +29,12 @@ enum HabitScheduling {
     /// With the default offset of 0 this behaves identically to stamping the time on today.
     static func today(
         at timeOfDay: Date,  // Only take hour and minute from this
-        now: Date = Date(),
+        now: Date = now(),
         dayStartHourOffset: Int = dayStartHourOffset
     ) -> Date {
         // Calendar date on which the current psychDay *started*.
         // If we haven't reached the day-start hour yet, the psych day began yesterday.
-        let psychDay = psychDay(for: now)
+        let psychDay = psychDay(for: now, dayStartHourOffset: dayStartHourOffset)
 
         // Times >= offset fall on the psych-day-start calendar date.
         // Times < offset are in the overnight tail and fall on the following calendar date.
@@ -56,7 +60,7 @@ enum HabitScheduling {
     static func psychDay(
         for utcTime: Date,
         timeZoneIdentifier: String = TimeZone.current.identifier,
-        dayStartHourOffset: Int = Self.dayStartHourOffset
+        dayStartHourOffset: Int = dayStartHourOffset
     ) -> Date {
         var cal = calendar
         cal.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? calendar.timeZone
