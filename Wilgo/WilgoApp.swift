@@ -62,16 +62,18 @@ struct WilgoApp: App {
             }
             Task { @MainActor in
                 let habits = (try? WilgoApp.sharedModelContainer.mainContext.fetch(FetchDescriptor<Habit>())) ?? []
-                MorningReportService.handleBackgroundTask(for: habits)
+                let dayStartHour = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
+                MorningReportService.handleBackgroundTask(for: habits, dayStartHour: dayStartHour)
                 refreshTask.setTaskCompleted(success: true)
             }
         }
 
         liveActivityManager = LiveActivityManager(modelContext: Self.sharedModelContainer.mainContext)
 
-        // Bootstrap: queue the first 8 AM wakeup. After it fires once,
-        // handleBackgroundTask re-schedules it each day automatically.
-        MorningReportService.scheduleBackgroundTask()
+        // Bootstrap: queue the morning-report wakeup at the user's preferred day-start hour.
+        // After it fires once, handleBackgroundTask re-schedules it each day automatically.
+        let dayStartHour = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
+        MorningReportService.scheduleBackgroundTask(dayStartHour: dayStartHour)
     }
 
     var body: some Scene {
@@ -87,7 +89,8 @@ struct WilgoApp: App {
             if newPhase == .active {
                 liveActivityManager.sync()
                 // Watchdog: re-queue in case iOS skipped a BGTask fire.
-                MorningReportService.scheduleBackgroundTask()
+                let dayStartHour = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
+                MorningReportService.scheduleBackgroundTask(dayStartHour: dayStartHour)
             }
         }
     }

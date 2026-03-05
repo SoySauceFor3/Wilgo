@@ -8,9 +8,14 @@ import Foundation
 enum HabitScheduling {
     static let calendar = Calendar.current
     static let config = PhaseConfig.default
-    /// Hour of day when a "habit day" starts (0 = midnight).
-    /// TODO: Can be made user-configurable later.
-    static let dayStartHourOffset: Int = 0
+
+    /// Hour of day when a "habit day" starts. Reads live from UserDefaults so it
+    /// always reflects the value the user last set in Settings without a restart.
+    static var dayStartHourOffset: Int {
+        let stored = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
+        // integer(forKey:) returns 0 when the key is absent, which is our desired default.
+        return stored
+    }
 
     /// Resolves a habit's time-of-day `Date` to today's date with that time.
     static func today(at timeOfDay: Date) -> Date {
@@ -39,24 +44,16 @@ enum HabitScheduling {
         return cal.date(from: comps) ?? utcTime
     }
 
-    /// Soft deadline for "today": end of day (e.g. midnight as start of next day).
+    /// Soft deadline for "today": the day-start hour on the next calendar day.
+    /// e.g. if day starts at midnight (0), deadline is 12:00 AM tomorrow.
+    ///      if day starts at 6 AM, deadline is 6:00 AM tomorrow.
     static func todaySoftDeadline() -> Date {
-        var day = calendar.startOfDay(for: Date())
-        if config.softDeadlineHour >= 24 {
-            day = calendar.date(byAdding: .day, value: 1, to: day) ?? day
-            return calendar.date(
-                bySettingHour: 0,
-                minute: config.softDeadlineMinute,
-                second: 0,
-                of: day
-            ) ?? day
-        }
+        let tomorrow = calendar.date(
+            byAdding: .day, value: 1, to: calendar.startOfDay(for: Date())
+        ) ?? Date()
         return calendar.date(
-            bySettingHour: config.softDeadlineHour,
-            minute: config.softDeadlineMinute,
-            second: 0,
-            of: day
-        ) ?? day
+            bySettingHour: dayStartHourOffset, minute: 0, second: 0, of: tomorrow
+        ) ?? tomorrow
     }
 
     /// Soft deadline used for ordering (e.g. pick "earliest deadline" among active habits).

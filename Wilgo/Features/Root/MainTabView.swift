@@ -24,6 +24,12 @@ struct MainTabView: View {
                     Label("Habits", systemImage: "list.bullet")
                 }
                 .tag(1)
+
+            SettingsView()
+                .tabItem {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .tag(2)
         }
     }
 }
