@@ -169,7 +169,7 @@ enum StageEngine {
 
     // MARK: - Transition date
 
-    /// Earliest upcoming windowStart or windowEnd across all habits' slots.
+    /// Earliest upcoming windowStart, windowEnd, or psychDay boundary across all habits' slots.
     /// Falls back to a 60-second poll when no transitions remain today.
     static func computeNextTransitionDate(habits: [Habit], now: Date) -> Date {
         var candidates: [Date] = []
@@ -180,6 +180,16 @@ enum StageEngine {
                 if start > now { candidates.append(start) }
                 if end > now { candidates.append(end) }
             }
+        }
+        // Wake up exactly at the next psychDay boundary so the Stage resets on time
+        // even when no slot transitions remain in the current day.
+        let currentPsychDayBase = HabitScheduling.psychDay(for: now)
+        if let nextPsychDayBase = HabitScheduling.calendar.date(
+            byAdding: .day, value: 1, to: currentPsychDayBase)
+        {
+            let nextPsychDayStart = nextPsychDayBase.addingTimeInterval(
+                TimeInterval(HabitScheduling.dayStartHourOffset * 3_600))
+            if nextPsychDayStart > now { candidates.append(nextPsychDayStart) }
         }
         return candidates.min() ?? now.addingTimeInterval(60)
     }
