@@ -58,7 +58,7 @@ enum MorningReportService {
     {
         let used = SkipCreditService.creditsUsed(for: habit, now: missedDay)
         let remaining = SkipCreditService.creditsRemaining(for: habit, now: missedDay)
-        let label = SkipCreditService.periodLabel(for: habit.skipCreditPeriod, now: missedDay)
+        let label = SkipCreditService.periodLabel(for: habit, now: missedDay)
         let content = UNMutableNotificationContent()
         content.sound = .default
 
