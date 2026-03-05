@@ -33,18 +33,15 @@ enum StageEngine {
             habits: habits,
             todaysSnoozes: todaysSnoozes,
             now: now,
-            psychDay: psychDay
         )
         let upcoming = computeUpcomingHabitSlots(
             habits: habits,
             now: now,
-            psychDay: psychDay
         )
         let missed = computeMissedSlots(
             habits: habits,
             todaysSnoozes: todaysSnoozes,
             now: now,
-            psychDay: psychDay
         )
         let contentState = makeFirstLiveActivityContentState(from: current)
         let staleDate = current.first.map { $0.1.endToday }
@@ -71,7 +68,6 @@ enum StageEngine {
             habits: habits,
             todaysSnoozes: todaysSnoozes,
             now: now,
-            psychDay: psychDay
         )
         return LiveActivityUpdate(
             contentState: makeFirstLiveActivityContentState(from: current),
@@ -85,33 +81,14 @@ enum StageEngine {
     private static func computeCurrentHabitSlots(
         habits: [Habit],
         todaysSnoozes: [SnoozedSlot],
-        now: Date,
-        psychDay: Date
+        now: Date
     ) -> [(Habit, HabitSlot)] {
-        print("computeCurrentHabitSlots called, psychDay: \(psychDay), now: \(now)")
-        var result: [(Habit, HabitSlot)] = []
-
-        for habit in habits {
-            let todaysCheckIns = habit.checkIns.filter { $0.psychDay == psychDay }
-            let slots = habit.slots.sorted()
-            let n = todaysCheckIns.count
-
-            if n < slots.count {
-                // Consider only slots from (n) onward (0-based), so n+1th is at index n
-                let remainingSlots = slots.dropFirst(n)
-                for slot in remainingSlots {
-                    // If this specific slot was snoozed for today, skip it from "current".
-                    if todaysSnoozes.contains(where: { $0.habit == habit && $0.slot == slot }) {
-                        continue
-                    }
-                    let start = slot.startToday
-                    let end = slot.endToday
-                    if start <= now && now <= end {
-                        result.append((habit, slot))
-                        break  // Only first such slot
-                    }
-                }
-            }
+        var result = habits.compactMap { habit -> (Habit, HabitSlot)? in
+            guard
+                let slot = habit.firstCurrentSlot(
+                    now: now, excluding: todaysSnoozes)
+            else { return nil }
+            return (habit, slot)
         }
 
         // Sort by fraction of window remaining: time left / full window length.
@@ -129,32 +106,15 @@ enum StageEngine {
 
     private static func computeUpcomingHabitSlots(
         habits: [Habit],
-        now: Date,
-        psychDay: Date
+        now: Date
     ) -> [(Habit, HabitSlot)] {
-        var result: [(Habit, HabitSlot)] = []
-
-        for habit in habits {
-            let todaysCheckIns = habit.checkIns.filter { $0.psychDay == psychDay }
-            let slots = habit.slots.sorted()
-            let n = todaysCheckIns.count
-            if n < slots.count {
-                // Consider only slots from (n) onward (0-based), so n+1th is at index n
-                let remainingSlots = slots.dropFirst(n)
-                for slot in remainingSlots {
-                    let start = slot.startToday
-
-                    if now <= start {
-                        result.append((habit, slot))
-                        break  // Only first such slot
-                    }
-                }
-            }
+        var result = habits.compactMap { habit -> (Habit, HabitSlot)? in
+            guard let slot = habit.firstFutureSlot(now: now)
+            else { return nil }
+            return (habit, slot)
         }
 
-        result.sort { lhs, rhs in
-            lhs.1 < rhs.1
-        }
+        result.sort { $0.1 < $1.1 }
         return result
     }
 
@@ -163,35 +123,22 @@ enum StageEngine {
     private static func computeMissedSlots(
         habits: [Habit],
         todaysSnoozes: [SnoozedSlot],
-        now: Date,
-        psychDay: Date
+        now: Date
     ) -> [MissedHabit] {
         var result: [MissedHabit] = []
 
         for habit in habits {
-            let slots = habit.slots.sorted()
-            guard !slots.isEmpty else { continue }
+            guard !habit.slots.isEmpty else { continue }
 
-            // All check-ins for today (completions only).
-            let todaysCheckIns = habit.checkIns
-                .filter { $0.psychDay == psychDay }
-
-            let completedCount = todaysCheckIns.count
+            let completedCount = habit.completedCount(now: now)
 
             var missedCount = 0
             var latestMissedSlot: HabitSlot?
 
-            for (index, slot) in slots.enumerated() {
-                let windowEnd = slot.endToday
-
-                // Slots before completedCount are treated as done.
-                if index < completedCount {
-                    continue
-                }
-
+            for slot in habit.remainingSlots(now: now) {
                 let isSnoozed = todaysSnoozes.contains { $0.habit === habit && $0.slot === slot }
 
-                if isSnoozed || windowEnd <= now {
+                if isSnoozed || slot.endToday <= now {
                     missedCount += 1
                     latestMissedSlot = slot
                 }
@@ -247,18 +194,9 @@ enum StageEngine {
         let slotId = slot.persistentModelID.encoded()
         return NowAttributes.ContentState(
             habitTitle: habit.title,
-            slotTimeText: slotTimeText(for: slot),
+            slotTimeText: slot.slotTimeText,
             habitId: habitId,
             slotId: slotId
         )
-    }
-
-    private static func slotTimeText(for slot: HabitSlot) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-        let start = slot.startToday
-        let end = slot.endToday
-        return "\(formatter.string(from: start)) – \(formatter.string(from: end))"
     }
 }

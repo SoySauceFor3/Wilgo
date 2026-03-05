@@ -42,6 +42,13 @@ extension HabitSlot {
 
     /// End of the slot of psychDay of now.
     var endToday: Date { HabitScheduling.today(at: end) }
+
+    var slotTimeText: String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return "\(formatter.string(from: start)) – \(formatter.string(from: end))"
+    }
 }
 
 extension HabitSlot: Comparable {
@@ -119,4 +126,35 @@ final class Habit {
 
     /// Times per day (N× daily). Convenience for display.
     var timesPerDay: Int { slots.count }
+}
+
+// MARK: - Slot queries
+
+extension Habit {
+    func completedCount(now: Date) -> Int {
+        let psychDay = HabitScheduling.psychDay(for: now)
+        return checkIns.filter { $0.psychDay == psychDay }.count
+    }
+
+    /// Slots not yet completed today (psychological day of now), in schedule order.
+    func remainingSlots(now: Date) -> [HabitSlot] {
+        return Array(slots.sorted().dropFirst(completedCount(now: now)))
+    }
+
+    func unfinishedToday(now: Date) -> Bool {
+        !remainingSlots(now: now).isEmpty
+    }
+
+    /// The first remaining slot whose window contains `now`, skipping snoozed ones.
+    func firstCurrentSlot(now: Date, excluding snoozed: [SnoozedSlot]) -> HabitSlot? {
+        remainingSlots(now: now).first { slot in
+            !snoozed.contains { $0.habit === self && $0.slot === slot }
+                && slot.startToday <= now && now <= slot.endToday
+        }
+    }
+
+    /// The first remaining slot that hasn't started yet.
+    func firstFutureSlot(now: Date) -> HabitSlot? {
+        remainingSlots(now: now).first { now <= $0.startToday }
+    }
 }
