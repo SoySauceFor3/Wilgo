@@ -1,5 +1,6 @@
 import BackgroundTasks
 import Foundation
+import SwiftData
 import UserNotifications
 
 /// Delivers the "morning report" notification by waking the app at 8 AM via BGAppRefreshTask.
@@ -106,9 +107,6 @@ enum MorningReportService {
     }
 
     private static func notificationID(for habit: Habit) -> String {
-        let slug = habit.title
-            .lowercased()
-            .replacingOccurrences(of: " ", with: "-")
-        return "wilgo.morning-report.\(slug)"
+        return "wilgo.morning-report.\(habit.persistentModelID.encoded())"
     }
 }
