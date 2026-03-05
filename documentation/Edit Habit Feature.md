@@ -11,20 +11,20 @@ and why.
 
 ## Field-by-field edit semantics
 
-| Field                      | Effect on save                                                          |
-| -------------------------- | ----------------------------------------------------------------------- |
-| `title`                    | Immediate. No effect on credit accounting.                              |
-| Slot time windows          | Immediate. Affects which windows are shown in Stage today.              |
-| `timesPerDay` (slot count) | **Resets the period anchor to today** — see rule fields below.          |
-| `skipCreditCount`          | **Resets the period anchor to today** — see rule fields below.          |
-| `skipCreditPeriod`         | **Resets the period anchor to today** — see rule fields below.          |
-| `punishment`               | Immediate. Purely informational.                                        |
-| `proofOfWorkType`          | Immediate. No effect on credit accounting.                              |
+| Field                      | Effect on save                                                 |
+| -------------------------- | -------------------------------------------------------------- |
+| `title`                    | Immediate. No effect on credit accounting.                     |
+| Slot time windows          | Immediate. Affects which windows are shown in Stage today.     |
+| `timesPerDay` (slot count) | **Resets the period anchor to today** — see rule fields below. |
+| `skipCreditCount`          | **Resets the period anchor to today** — see rule fields below. |
+| `skipCreditPeriod`         | **Resets the period anchor to today** — see rule fields below. |
+| `punishment`               | Immediate. Purely informational.                               |
+| `proofOfWorkType`          | Immediate. No effect on credit accounting.                     |
 
 The three fields `timesPerDay`, `skipCreditCount`, and `skipCreditPeriod` are collectively
 called **rule fields**. Any change to any of them resets the period anchor to today. The
-edit form shows a neutral info note when a rule field has changed: *"Changing rules starts
-a fresh period from today."*
+edit form shows a neutral info note when a rule field has changed: _"Changing rules starts
+a fresh period from today."_
 
 #### Why all three rule fields reset the period
 
@@ -102,7 +102,7 @@ We decided **not** to store a timestamped history of habit configuration changes
 
 This was discussed in the context of a future history visualization (heatmap or ring
 diagram). For a heatmap showing raw check-in counts per day, no goal/config history is
-needed — `HabitCheckIn.pyschDay` is sufficient. For ring diagrams (progress toward a
+needed — `HabitCheckIn.psychDay` is sufficient. For ring diagrams (progress toward a
 period goal), a `HabitConfigSnapshot` model would be needed.
 
 We deferred this because:

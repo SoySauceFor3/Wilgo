@@ -49,7 +49,7 @@ enum SkipCreditService {
         var burned = 0
         var day = start
         while day < today {
-            let completions = habit.checkIns.filter { $0.pyschDay == day }.count
+            let completions = habit.checkIns.filter { $0.psychDay == day }.count
             burned += max(0, habit.slots.count - completions)
 
             guard let next = cal.date(byAdding: .day, value: 1, to: day) else { break }

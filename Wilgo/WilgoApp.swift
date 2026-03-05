@@ -61,14 +61,18 @@ struct WilgoApp: App {
                 return
             }
             Task { @MainActor in
-                let habits = (try? WilgoApp.sharedModelContainer.mainContext.fetch(FetchDescriptor<Habit>())) ?? []
-                let dayStartHour = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
+                let habits =
+                    (try? WilgoApp.sharedModelContainer.mainContext.fetch(FetchDescriptor<Habit>()))
+                    ?? []
+                let dayStartHour = UserDefaults.standard.integer(
+                    forKey: AppSettings.dayStartHourKey)
                 MorningReportService.handleBackgroundTask(for: habits, dayStartHour: dayStartHour)
                 refreshTask.setTaskCompleted(success: true)
             }
         }
 
-        liveActivityManager = LiveActivityManager(modelContext: Self.sharedModelContainer.mainContext)
+        liveActivityManager = LiveActivityManager(
+            modelContext: Self.sharedModelContainer.mainContext)
 
         // Bootstrap: queue the morning-report wakeup at the user's preferred day-start hour.
         // After it fires once, handleBackgroundTask re-schedules it each day automatically.
@@ -89,7 +93,8 @@ struct WilgoApp: App {
             if newPhase == .active {
                 liveActivityManager.sync()
                 // Watchdog: re-queue in case iOS skipped a BGTask fire.
-                let dayStartHour = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
+                let dayStartHour = UserDefaults.standard.integer(
+                    forKey: AppSettings.dayStartHourKey)
                 MorningReportService.scheduleBackgroundTask(dayStartHour: dayStartHour)
             }
         }
@@ -115,7 +120,9 @@ struct WilgoApp: App {
                 let habitId = PersistentIdentifier.decode(from: habitIdStr)
             else { return }
             let habits = (try? context.fetch(FetchDescriptor<Habit>())) ?? []
-            guard let habit = habits.first(where: { $0.persistentModelID == habitId }) else { return }
+            guard let habit = habits.first(where: { $0.persistentModelID == habitId }) else {
+                return
+            }
             context.insert(HabitCheckIn(habit: habit))
             liveActivityManager.sync()
 
@@ -127,9 +134,13 @@ struct WilgoApp: App {
                 let slotId = PersistentIdentifier.decode(from: slotIdStr)
             else { return }
             let habits = (try? context.fetch(FetchDescriptor<Habit>())) ?? []
-            guard let habit = habits.first(where: { $0.persistentModelID == habitId }) else { return }
+            guard let habit = habits.first(where: { $0.persistentModelID == habitId }) else {
+                return
+            }
             let allSlots = (try? context.fetch(FetchDescriptor<HabitSlot>())) ?? []
-            guard let slot = allSlots.first(where: { $0.persistentModelID == slotId }) else { return }
+            guard let slot = allSlots.first(where: { $0.persistentModelID == slotId }) else {
+                return
+            }
             guard habit.skipCreditCount > 0 else { return }
             context.insert(SnoozedSlot(habit: habit, slot: slot))
             liveActivityManager.sync()

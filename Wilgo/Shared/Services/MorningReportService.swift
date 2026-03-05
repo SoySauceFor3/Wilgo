@@ -89,7 +89,7 @@ enum MorningReportService {
 
             for habit in habits {
                 // Only notify if yesterday was a miss.
-                let completions = habit.checkIns.filter { $0.pyschDay == yesterday }.count
+                let completions = habit.checkIns.filter { $0.psychDay == yesterday }.count
                 guard completions < habit.slots.count else { continue }
 
                 let content = notificationContent(for: habit, missedDay: yesterday)

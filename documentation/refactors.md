@@ -24,9 +24,9 @@ Line 63 has `print("computeCurrentHabitSlots called...")` that should be removed
 
 ## Typo — SwiftData Schema
 
-**5. `pyschDay` → `psychDay`**
+**5. `psychDay` → `psychDay`**
 
-`HabitCheckIn.pyschDay` is a misspelling used consistently everywhere (`StageEngine`, check-in creation, etc.). It needs a SwiftData `VersionedSchema` + `SchemaMigrationPlan` to rename the stored column safely — can't just rename the property or existing data will break.
+`HabitCheckIn.psychDay` is a misspelling used consistently everywhere (`StageEngine`, check-in creation, etc.). It needs a SwiftData `VersionedSchema` + `SchemaMigrationPlan` to rename the stored column safely — can't just rename the property or existing data will break.
 
 ---
 
@@ -82,7 +82,7 @@ The Habits list is still named `ContentView` — the Xcode default. This makes n
 | 2   | Credits never decrement           | Core feature broken      | Medium  |
 | 3   | `resolvedAt` never set            | Logic gap                | Low     |
 | 4   | Debug `print()`                   | Noise                    | Trivial |
-| 5   | `pyschDay` typo                   | Schema migration needed  | Medium  |
+| 5   | `psychDay` typo                   | Schema migration needed  | Medium  |
 | 6   | `Now.swift` dead code             | Confusion                | Trivial |
 | 7   | `Item.swift` dead code            | Extra SwiftData table    | Trivial |
 | 8   | `Calendar.current` captured       | Timezone bug             | Low     |

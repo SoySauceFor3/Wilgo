@@ -65,7 +65,7 @@ enum StageEngine {
         var result: [(Habit, HabitSlot)] = []
 
         for habit in habits {
-            let todaysCheckIns = habit.checkIns.filter { $0.pyschDay == psychDay }
+            let todaysCheckIns = habit.checkIns.filter { $0.psychDay == psychDay }
             let slots = habit.slots.sorted()
             let n = todaysCheckIns.count
 
@@ -122,7 +122,7 @@ enum StageEngine {
         var result: [(Habit, HabitSlot)] = []
 
         for habit in habits {
-            let todaysCheckIns = habit.checkIns.filter { $0.pyschDay == psychDay }
+            let todaysCheckIns = habit.checkIns.filter { $0.psychDay == psychDay }
             let slots = habit.slots.sorted()
             let n = todaysCheckIns.count
             if n < slots.count {
@@ -161,7 +161,7 @@ enum StageEngine {
 
             // All check-ins for today (completions only).
             let todaysCheckIns = habit.checkIns
-                .filter { $0.pyschDay == psychDay }
+                .filter { $0.psychDay == psychDay }
 
             let completedCount = todaysCheckIns.count
 
