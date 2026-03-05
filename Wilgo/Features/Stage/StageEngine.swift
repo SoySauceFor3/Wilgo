@@ -88,26 +88,12 @@ enum StageEngine {
         }
 
         // Sort by fraction of window remaining: time left / full window length.
-        result.sort { lhs, rhs in
-            let leftSlot = lhs.1
-            let rightSlot = rhs.1
-
-            let leftStart = leftSlot.startToday
-            let leftEnd = leftSlot.endToday
-            let rightStart = rightSlot.startToday
-            let rightEnd = rightSlot.endToday
-
-            let leftDuration = max(leftEnd.timeIntervalSince(leftStart), 1)
-            let rightDuration = max(rightEnd.timeIntervalSince(rightStart), 1)
-
-            let leftRemaining = max(leftEnd.timeIntervalSince(now), 0)
-            let rightRemaining = max(rightEnd.timeIntervalSince(now), 0)
-
-            let leftRatio = leftRemaining / leftDuration
-            let rightRatio = rightRemaining / rightDuration
-
-            return leftRatio < rightRatio
+        let remainingFraction = { (slot: HabitSlot) -> Double in
+            let duration = max(slot.endToday.timeIntervalSince(slot.startToday), 1)
+            let remaining = max(slot.endToday.timeIntervalSince(now), 0)
+            return remaining / duration
         }
+        result.sort { remainingFraction($0.1) < remainingFraction($1.1) }
 
         return result
     }
