@@ -6,21 +6,21 @@ import SwiftData
 import SwiftUI
 
 struct StageView: View {
-    @Environment(\.modelContext) private var modelContext
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(LiveActivityManager.self) private var liveActivityManager
     @Query(sort: \Habit.createdAt, order: .forward) private var habits: [Habit]
     @Query private var snoozedSlots: [SnoozedSlot]
     /// Observed only to force a re-render when check-ins are inserted/deleted,
     /// since @Query for Habit does not re-fire on child relationship changes.
     @Query private var checkIns: [HabitCheckIn]
-    /// Advances to the current time at each slot boundary so the Stage re-renders precisely when state changes.
-    @State private var timeTick: Date = Date()
+
+    /// actually change the value of it will trigger a rerender.
+    @State private var rewrite = false
 
     private var stageState: StageState {
         StageEngine.makeState(
             habits: habits,
             snoozedSlots: snoozedSlots,
-            now: timeTick
         )
     }
 
@@ -77,16 +77,20 @@ struct StageView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Stage")
-            .task(id: stageState.nextTransitionDate) {
-                let target = stageState.nextTransitionDate
-                let delay = target.timeIntervalSince(Date())
+            .task(id: rewrite) {
+                let delay = stageState.nextTransitionDate.timeIntervalSince(Date())
                 if delay > 0 {
-                    try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+                    try? await Task.sleep(until: .now + .seconds(delay), clock: .continuous)
                 }
-                timeTick = Date()
+                rewrite.toggle()
             }
             .onAppear {
-                timeTick = Date()
+                rewrite.toggle()
+            }
+            .onChange(of: scenePhase) { _, phase in
+                // When the app is brought back to the foreground, force a re-render.
+                // Not very necessary, just a safety net.
+                if phase == .active { rewrite.toggle() }
             }
             .onChange(of: stageState.firstLiveActivityContentState) { _, _ in
                 liveActivityManager.sync()

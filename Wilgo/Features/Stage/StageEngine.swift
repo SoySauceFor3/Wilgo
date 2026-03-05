@@ -24,7 +24,7 @@ enum StageEngine {
     static func makeState(
         habits: [Habit],
         snoozedSlots: [SnoozedSlot],
-        now: Date
+        now: Date = Date()
     ) -> StageState {
         let psychDay = HabitScheduling.psychDay(for: now)
         let todaysSnoozes = snoozedSlots.filter { $0.psychDay == psychDay && $0.resolvedAt == nil }
