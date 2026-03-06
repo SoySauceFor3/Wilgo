@@ -10,37 +10,6 @@ enum ProofOfWorkType: String, Codable {
     // case healthKit = "HealthKit"
 }
 
-// MARK: - Cycle (reset schedule)
-
-/// The kind of reset cycle, without any anchor data. Used as the Picker selection type.
-enum CycleKind: String, CaseIterable, Codable {
-    case daily = "Daily"
-    case weekly = "Weekly"
-    case monthly = "Monthly"
-}
-
-/// How often the habit's skip-credit budget resets, with the anchor baked in.
-///
-/// - `.daily`:              resets at midnight every day; no anchor needed.
-/// - `.weekly(weekday:)`:   resets on the given Calendar weekday (1 = Sun … 7 = Sat).
-/// - `.monthly(day:)`:      resets on the given day-of-month (1–31), clamped for short months.
-enum Cycle: Codable, Equatable, Hashable {
-    case daily
-    case weekly(weekday: Int)
-    case monthly(day: Int)
-
-    var kind: CycleKind {
-        switch self {
-        case .daily: return .daily
-        case .weekly: return .weekly
-        case .monthly: return .monthly
-        }
-    }
-
-    /// Human-readable label, matches the old `Period.rawValue` usage.
-    var label: String { kind.rawValue }
-}
-
 // MARK: - HabitSlot (one ideal window per occurrence, for N× daily)
 
 @Model
