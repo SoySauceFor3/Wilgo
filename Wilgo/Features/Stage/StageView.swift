@@ -17,59 +17,62 @@ struct StageView: View {
     /// actually change the value of it will trigger a rerender.
     @State private var rewrite = false
 
-    private var stageState: StageState {
-        StageEngine.makeState(
-            habits: habits,
-            snoozedSlots: snoozedSlots,
-        )
+    private var current: [(Habit, HabitSlot)] {
+        HabitAndSlot.current(habits: habits, snoozedSlots: snoozedSlots, now: Date())
+    }
+
+    private var upcoming: [(Habit, HabitSlot)] {
+        HabitAndSlot.upcoming(habits: habits, now: Date())
+    }
+
+    private var missed: [MissedHabit] {
+        HabitAndSlot.missed(habits: habits, snoozedSlots: snoozedSlots, now: Date())
     }
 
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    if !stageState.currentHabitSlots.isEmpty {
+                    if !current.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Current")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(stageState.currentHabitSlots, id: \.1.id) { habit, slot in
+                            ForEach(current, id: \.1.id) { habit, slot in
                                 CurrentHabitRow(habit: habit, slot: slot)
                             }
                         }
                     }
 
-                    if !stageState.upcomingHabitSlots.isEmpty {
+                    if !upcoming.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Upcoming")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(stageState.upcomingHabitSlots, id: \.1.id) { habit, slot in
+                            ForEach(upcoming, id: \.1.id) { habit, slot in
                                 UpcomingHabitRow(habit: habit, slot: slot)
                             }
                         }
                     }
 
-                    if !stageState.missedSlots.isEmpty {
+                    if !missed.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Missed / skipped today")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(stageState.missedSlots, id: \.slot.id) { item in
+                            ForEach(missed, id: \.slot.id) { item in
                                 MissedHabitRow(item: item)
                             }
                         }
                     }
 
-                    if stageState.currentHabitSlots.isEmpty && stageState.upcomingHabitSlots.isEmpty
-                        && stageState.missedSlots.isEmpty
-                    {
+                    if current.isEmpty && upcoming.isEmpty && missed.isEmpty {
                         EmptyStageCard()
                     }
                 }
@@ -78,7 +81,9 @@ struct StageView: View {
             .background(Color(.systemGroupedBackground))
             .navigationTitle("Stage")
             .task(id: rewrite) {
-                let delay = stageState.nextTransitionDate.timeIntervalSince(Date())
+                let nextTransitionDate = HabitAndSlot.nextTransitionDate(
+                    habits: habits, now: Date())
+                let delay = nextTransitionDate?.timeIntervalSince(Date()) ?? 60
                 if delay > 0 {
                     try? await Task.sleep(until: .now + .seconds(delay), clock: .continuous)
                 }
@@ -92,7 +97,8 @@ struct StageView: View {
                 // Not very necessary, just a safety net.
                 if phase == .active { rewrite.toggle() }
             }
-            .onChange(of: stageState.firstLiveActivityContentState) { _, _ in
+            .onChange(of: liveActivityManager.makeFirstLiveActivityContentState(from: current)) {
+                _, _ in
                 liveActivityManager.sync()
             }
         }

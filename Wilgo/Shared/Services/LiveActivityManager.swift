@@ -2,6 +2,13 @@ import ActivityKit
 import Foundation
 import SwiftData
 
+/// Minimal state needed by LiveActivityManager — avoids computing upcoming/missed rows.
+struct LiveActivityUpdate {
+    let contentState: NowAttributes.ContentState?
+    let staleDate: Date?
+    let nextTransitionDate: Date
+}
+
 /// Owns all Live Activity lifecycle operations (start / update / end).
 ///
 /// ## How it stays in sync
@@ -77,7 +84,7 @@ final class LiveActivityManager {
     private func currentLiveActivityUpdate() -> LiveActivityUpdate {
         let habits = (try? modelContext.fetch(FetchDescriptor<Habit>())) ?? []
         let snoozedSlots = (try? modelContext.fetch(FetchDescriptor<SnoozedSlot>())) ?? []
-        return StageEngine.makeLiveActivityUpdate(habits: habits, snoozedSlots: snoozedSlots, now: Date())
+        return makeLiveActivityUpdate(habits: habits, snoozedSlots: snoozedSlots, now: Date())
     }
 
     // takes the computed state and tells iOS what to actually show (or not show) on the Lock Screen.
@@ -98,5 +105,39 @@ final class LiveActivityManager {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
         }
+    }
+
+    private func makeLiveActivityUpdate(
+        habits: [Habit],
+        snoozedSlots: [SnoozedSlot],
+        now: Date
+    ) -> LiveActivityUpdate {
+        let psychDay = HabitScheduling.psychDay(for: now)
+        let todaysSnoozes = snoozedSlots.filter { $0.psychDay == psychDay && $0.resolvedAt == nil }
+        let current = HabitAndSlot.current(
+            habits: habits,
+            snoozedSlots: todaysSnoozes,  // TODO: CHECK!!!
+            now: now,
+        )
+        return LiveActivityUpdate(
+            contentState: makeFirstLiveActivityContentState(from: current),
+            staleDate: current.first.map { $0.1.endToday },
+            nextTransitionDate: HabitAndSlot.nextTransitionDate(habits: habits, now: now)
+                ?? now.addingTimeInterval(60)
+        )
+    }
+
+    func makeFirstLiveActivityContentState(
+        from currentHabitSlots: [(Habit, HabitSlot)]
+    ) -> NowAttributes.ContentState? {
+        guard let (habit, slot) = currentHabitSlots.first else { return nil }
+        let habitId = habit.persistentModelID.encoded()
+        let slotId = slot.persistentModelID.encoded()
+        return NowAttributes.ContentState(
+            habitTitle: habit.title,
+            slotTimeText: slot.slotTimeText,
+            habitId: habitId,
+            slotId: slotId
+        )
     }
 }
