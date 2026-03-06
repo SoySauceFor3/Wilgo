@@ -48,6 +48,7 @@ struct CurrentHabitRow: View {
                             habit: habit,
                         )
                         modelContext.insert(checkIn)
+                        habit.checkIns.append(checkIn)  // keep inverse in sync immediately, as inverse relationship propogation takes time.
                     }
                 } label: {
                     Label("Done", systemImage: "checkmark.circle.fill")
