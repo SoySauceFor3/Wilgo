@@ -100,7 +100,7 @@ struct MissedHabit {
         title: "Morning reading",
         slots: [slot],
         skipCreditCount: 3,
-        skipCreditPeriod: .weekly
+        cycle: .weekly(weekday: 2)
     )
 
     MissedHabitRow(
@@ -127,7 +127,7 @@ struct MissedHabit {
         title: "Morning reading",
         slots: [slot],
         skipCreditCount: 3,
-        skipCreditPeriod: .weekly
+        cycle: .weekly(weekday: 2)
     )
 
     MissedHabitRow(

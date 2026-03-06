@@ -11,29 +11,29 @@ struct EditHabitView: View {
     @State private var timesPerDay: Int
     @State private var slotWindows: [SlotWindow]
     @State private var skipCreditCount: Int
-    @State private var skipCreditPeriod: Period
+    @State private var cycle: Cycle
     @State private var proofOfWorkType: ProofOfWorkType
     @State private var punishment: String
 
     /// Snapshot of rule values at open time, used to detect if any rule changed.
     private let originalTimesPerDay: Int
     private let originalSkipCreditCount: Int
-    private let originalSkipCreditPeriod: Period
+    private let originalCycle: Cycle
 
     init(habit: Habit) {
         self.habit = habit
 
-        _title            = State(initialValue: habit.title)
-        _timesPerDay      = State(initialValue: habit.slots.count)
-        _slotWindows      = State(initialValue: habit.slots.sorted().map { SlotWindow(start: $0.start, end: $0.end) })
-        _skipCreditCount  = State(initialValue: habit.skipCreditCount)
-        _skipCreditPeriod = State(initialValue: habit.skipCreditPeriod)
-        _proofOfWorkType  = State(initialValue: habit.proofOfWorkType)
-        _punishment       = State(initialValue: habit.punishment ?? "")
+        _title           = State(initialValue: habit.title)
+        _timesPerDay     = State(initialValue: habit.slots.count)
+        _slotWindows     = State(initialValue: habit.slots.sorted().map { SlotWindow(start: $0.start, end: $0.end) })
+        _skipCreditCount = State(initialValue: habit.skipCreditCount)
+        _cycle           = State(initialValue: habit.cycle)
+        _proofOfWorkType = State(initialValue: habit.proofOfWorkType)
+        _punishment      = State(initialValue: habit.punishment ?? "")
 
-        originalTimesPerDay      = habit.slots.count
-        originalSkipCreditCount  = habit.skipCreditCount
-        originalSkipCreditPeriod = habit.skipCreditPeriod
+        originalTimesPerDay     = habit.slots.count
+        originalSkipCreditCount = habit.skipCreditCount
+        originalCycle           = habit.cycle
     }
 
     var body: some View {
@@ -44,10 +44,10 @@ struct EditHabitView: View {
                     timesPerDay: $timesPerDay,
                     slotWindows: $slotWindows,
                     skipCreditCount: $skipCreditCount,
-                    skipCreditPeriod: $skipCreditPeriod,
+                    cycle: $cycle,
                     proofOfWorkType: $proofOfWorkType,
                     punishment: $punishment,
-                    rulesChangedNote: anyRuleChanged ? "Changing rules starts a fresh period from today." : nil
+                    rulesChangedNote: anyRuleChanged ? "Changing rules starts a fresh cycle from today." : nil
                 )
             }
             .navigationTitle("Edit Habit")
@@ -70,12 +70,12 @@ struct EditHabitView: View {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    /// True when any rule field (timesPerDay, skipCreditCount, skipCreditPeriod) changed.
-    /// Rule changes reset the period anchor to today — see documentation/Edit Habit Feature.md.
+    /// True when any rule field (timesPerDay, skipCreditCount, cycle) changed.
+    /// Rule changes re-anchor the cycle to today so the new rules start from a clean slate.
     private var anyRuleChanged: Bool {
         timesPerDay     != originalTimesPerDay     ||
         skipCreditCount != originalSkipCreditCount ||
-        skipCreditPeriod != originalSkipCreditPeriod
+        cycle           != originalCycle
     }
 
     // MARK: - Save
@@ -84,17 +84,23 @@ struct EditHabitView: View {
         // Apply scalar field changes.
         habit.title           = title.trimmingCharacters(in: .whitespacesAndNewlines)
         habit.skipCreditCount = skipCreditCount
-        habit.skipCreditPeriod = skipCreditPeriod
         habit.proofOfWorkType = proofOfWorkType
         let trimmed           = punishment.trimmingCharacters(in: .whitespacesAndNewlines)
         habit.punishment      = trimmed.isEmpty ? nil : trimmed
 
-        // Any change to a rule field signals a new commitment — reset the period
-        // anchor to today so the new rules apply from a clean slate.
+        // Any change to a rule field signals a new commitment — re-anchor the cycle
+        // to today so the new rules apply from a clean slate.
         // See documentation/Edit Habit Feature.md for rationale.
+        var resolvedCycle = cycle
         if anyRuleChanged {
-            habit.periodAnchor = .now
+            let cal = Calendar.current
+            switch cycle {
+            case .daily:             break
+            case .weekly:            resolvedCycle = .weekly(weekday: cal.component(.weekday, from: .now))
+            case .monthly:           resolvedCycle = .monthly(day: cal.component(.day, from: .now))
+            }
         }
+        habit.cycle = resolvedCycle
 
         // Replace slots only if the count or any window changed.
         let newWindows = slotWindows
@@ -130,7 +136,7 @@ struct EditHabitView: View {
         title: "Morning reading",
         slots: [slot],
         skipCreditCount: 3,
-        skipCreditPeriod: .weekly
+        cycle: .weekly(weekday: 2)
     )
     container.mainContext.insert(habit)
     return EditHabitView(habit: habit)

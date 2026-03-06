@@ -110,38 +110,35 @@ struct SkipCreditPeriodMathTests {
         init() { UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey) }
         deinit { UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey) }
 
-        private func weeklyHabit(anchor: Date) -> Habit {
-            Habit(
-                title: "x", createdAt: anchor, slots: [], skipCreditCount: 0,
-                skipCreditPeriod: .weekly)
+        private func weeklyHabit(anchorWeekday: Int) -> Habit {
+            Habit(title: "x", slots: [], skipCreditCount: 0, cycle: .weekly(weekday: anchorWeekday))
         }
 
         @Test("now is the anchor weekday → period starts today (daysBack = 0)")
         func anchorWeekdayIsToday() {
-            // anchor = Thu Mar 5, now = Thu Mar 5 → daysBack = (5−5+7)%7 = 0 → start = Mar 5
+            // anchor = Thu (weekday 5), now = Thu Mar 5 → daysBack = (5−5+7)%7 = 0 → start = Mar 5
             let thursday = date(year: 2026, month: 3, day: 5)
-            let habit = weeklyHabit(anchor: thursday)
+            let habit = weeklyHabit(anchorWeekday: 5)
             #expect(SkipCredit.periodStart(for: habit, now: thursday) == thursday)
         }
 
         @Test("anchor weekday falls earlier this week → period started mid-week")
         func anchorWeekdayEarlierThisWeek() {
-            // anchor = Mon Mar 2 (weekday 2), now = Thu Mar 5 (weekday 5)
+            // anchor = Mon (weekday 2), now = Thu Mar 5 (weekday 5)
             // daysBack = (5−2+7)%7 = 3 → start = Mar 5 − 3 = Mar 2
             let monday = date(year: 2026, month: 3, day: 2)
             let thursday = date(year: 2026, month: 3, day: 5)
-            let habit = weeklyHabit(anchor: monday)
+            let habit = weeklyHabit(anchorWeekday: 2)
             #expect(SkipCredit.periodStart(for: habit, now: thursday) == monday)
         }
 
         @Test("anchor weekday falls later in the week → period started previous week")
         func anchorWeekdayLaterInWeek() {
-            // anchor = Fri Mar 6 (weekday 6), now = Thu Mar 5 (weekday 5)
+            // anchor = Fri (weekday 6), now = Thu Mar 5 (weekday 5)
             // daysBack = (5−6+7)%7 = 6 → start = Mar 5 − 6 = Feb 27 (also a Friday)
-            let friday = date(year: 2026, month: 3, day: 6)
             let thursday = date(year: 2026, month: 3, day: 5)
             let prevFriday = date(year: 2026, month: 2, day: 27)
-            let habit = weeklyHabit(anchor: friday)
+            let habit = weeklyHabit(anchorWeekday: 6)
             #expect(SkipCredit.periodStart(for: habit, now: thursday) == prevFriday)
         }
 
@@ -149,11 +146,11 @@ struct SkipCreditPeriodMathTests {
             "now is exactly one week past the anchor weekday → lands on anchor weekday in the same week as now"
         )
         func nowOneWeekPastAnchor() {
-            // anchor = Thu Mar 5, now = Mon Mar 9
+            // anchor = Thu (weekday 5), now = Mon Mar 9
             // daysBack = (2−5+7)%7 = 4 → start = Mar 9 − 4 = Mar 5
             let thursday = date(year: 2026, month: 3, day: 5)
             let monday = date(year: 2026, month: 3, day: 9)
-            let habit = weeklyHabit(anchor: thursday)
+            let habit = weeklyHabit(anchorWeekday: 5)
             #expect(SkipCredit.periodStart(for: habit, now: monday) == thursday)
         }
 
@@ -161,32 +158,30 @@ struct SkipCreditPeriodMathTests {
             "anchor on Sunday (weekday 1), now is Saturday (weekday 7) → 6 days back, crosses start of month"
         )
         func anchorSundayNowSaturday() {
-            // anchor = Sun Mar 1 (weekday 1), now = Sat Mar 7 (weekday 7)
+            // anchor = Sun (weekday 1), now = Sat Mar 7 (weekday 7)
             // daysBack = (7−1+7)%7 = 6 → start = Mar 7 − 6 = Mar 1
             let sunday = date(year: 2026, month: 3, day: 1)
             let saturday = date(year: 2026, month: 3, day: 7)
-            let habit = weeklyHabit(anchor: sunday)
+            let habit = weeklyHabit(anchorWeekday: 1)
             #expect(SkipCredit.periodStart(for: habit, now: saturday) == sunday)
         }
 
         @Test("period start rolls back across a month boundary")
         func periodStartCrossesMonthBoundary() {
-            // anchor = Sat Mar 7 (weekday 7), now = Fri Mar 6 (weekday 6)
+            // anchor = Sat (weekday 7), now = Fri Mar 6 (weekday 6)
             // daysBack = (6−7+7)%7 = 6 → start = Mar 6 − 6 = Feb 28 (Saturday)
-            let saturday = date(year: 2026, month: 3, day: 7)
             let friday = date(year: 2026, month: 3, day: 6)
             let prevSaturday = date(year: 2026, month: 2, day: 28)
-            let habit = weeklyHabit(anchor: saturday)
+            let habit = weeklyHabit(anchorWeekday: 7)
             #expect(SkipCredit.periodStart(for: habit, now: friday) == prevSaturday)
         }
 
         @Test("period end is always exactly 7 days after period start")
         func periodSpanIsSevenDays() {
             let cal = HabitScheduling.calendar
-            // anchor = Wed Mar 4, now = Sat Mar 7
-            let anchor = date(year: 2026, month: 3, day: 4)
+            // anchor = Wed (weekday 4), now = Sat Mar 7
             let now = date(year: 2026, month: 3, day: 7)
-            let habit = weeklyHabit(anchor: anchor)
+            let habit = weeklyHabit(anchorWeekday: 4)
             let start = SkipCredit.periodStart(for: habit, now: now)
             let end = SkipCredit.periodEnd(for: habit, now: now)
             let diff = cal.dateComponents([.day], from: start, to: end).day!
@@ -208,16 +203,14 @@ struct SkipCreditPeriodMathTests {
         init() { UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey) }
         deinit { UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey) }
 
-        private func monthlyHabit(anchor: Date) -> Habit {
-            Habit(
-                title: "x", createdAt: anchor, slots: [], skipCreditCount: 0,
-                skipCreditPeriod: .monthly)
+        private func monthlyHabit(anchorDay: Int) -> Habit {
+            Habit(title: "x", slots: [], skipCreditCount: 0, cycle: .monthly(day: anchorDay))
         }
 
         @Test("today matches the anchor day → period starts today")
         func anchorDayIsToday() {
             let march5 = date(year: 2026, month: 3, day: 5)
-            let habit = monthlyHabit(anchor: march5)
+            let habit = monthlyHabit(anchorDay: 5)
             #expect(SkipCredit.periodStart(for: habit, now: march5) == march5)
         }
 
@@ -226,51 +219,47 @@ struct SkipCreditPeriodMathTests {
             // anchor day = 1, today = Mar 5 → candidate Mar 1 ≤ Mar 5 → return Mar 1
             let march1 = date(year: 2026, month: 3, day: 1)
             let march5 = date(year: 2026, month: 3, day: 5)
-            let habit = monthlyHabit(anchor: march1)
+            let habit = monthlyHabit(anchorDay: 1)
             #expect(SkipCredit.periodStart(for: habit, now: march5) == march1)
         }
 
         @Test("today is before the anchor day → period started in the previous month")
         func anchorDayLaterInMonth() {
             // anchor day = 20, today = Mar 5 → candidate Mar 20 > Mar 5 → fallback Feb 20
-            let march20 = date(year: 2026, month: 3, day: 20)
             let march5 = date(year: 2026, month: 3, day: 5)
             let feb20 = date(year: 2026, month: 2, day: 20)
-            let habit = monthlyHabit(anchor: march20)
+            let habit = monthlyHabit(anchorDay: 20)
             #expect(SkipCredit.periodStart(for: habit, now: march5) == feb20)
         }
 
         @Test(
             "anchor day 31, today = Feb 15 → candidate clamps to Feb 28 > Feb 15 → fallback Jan 31")
         func anchorDay31TodayFeb15() {
-            let march31 = date(year: 2026, month: 3, day: 31)
             let feb15 = date(year: 2026, month: 2, day: 15)
             let jan31 = date(year: 2026, month: 1, day: 31)
-            let habit = monthlyHabit(anchor: march31)
+            let habit = monthlyHabit(anchorDay: 31)
             #expect(SkipCredit.periodStart(for: habit, now: feb15) == jan31)
         }
 
         @Test("anchor day 31, today = Feb 28 → candidate clamps to Feb 28 ≤ Feb 28 → return Feb 28")
         func anchorDay31TodayFeb28() {
-            let march31 = date(year: 2026, month: 3, day: 31)
             let feb28 = date(year: 2026, month: 2, day: 28)
-            let habit = monthlyHabit(anchor: march31)
+            let habit = monthlyHabit(anchorDay: 31)
             #expect(SkipCredit.periodStart(for: habit, now: feb28) == feb28)
         }
 
         @Test("anchor day 31, today = Mar 15 → candidate Mar 31 > Mar 15 → fallback Feb 28")
         func anchorDay31TodayMar15() {
-            let march31 = date(year: 2026, month: 3, day: 31)
             let march15 = date(year: 2026, month: 3, day: 15)
             let feb28 = date(year: 2026, month: 2, day: 28)
-            let habit = monthlyHabit(anchor: march31)
+            let habit = monthlyHabit(anchorDay: 31)
             #expect(SkipCredit.periodStart(for: habit, now: march15) == feb28)
         }
 
         @Test("anchor day 31, today = Mar 31 → candidate Mar 31 ≤ Mar 31 → return Mar 31")
         func anchorDay31TodayMar31() {
             let march31 = date(year: 2026, month: 3, day: 31)
-            let habit = monthlyHabit(anchor: march31)
+            let habit = monthlyHabit(anchorDay: 31)
             #expect(SkipCredit.periodStart(for: habit, now: march31) == march31)
         }
 
@@ -281,7 +270,7 @@ struct SkipCreditPeriodMathTests {
             // anchor day = 15, today Jan 10 → candidate Jan 15 > Jan 10 → fallback Dec 15 2025
             let dec15 = date(year: 2025, month: 12, day: 15)
             let jan10 = date(year: 2026, month: 1, day: 10)
-            let habit = monthlyHabit(anchor: dec15)
+            let habit = monthlyHabit(anchorDay: 15)
             #expect(SkipCredit.periodStart(for: habit, now: jan10) == dec15)
         }
     }
@@ -289,7 +278,7 @@ struct SkipCreditPeriodMathTests {
     // MARK: - nextMonthlyPeriodStart (via SkipCredit.periodEnd with a .monthly habit)
     //
     // Algorithm: advance currentPeriodStart by 1 calendar month, then clampedMonthDay.
-    // periodEnd(for:now:) = nextMonthlyPeriodStart(anchor: habit.periodAnchor, after: periodStart)
+    // periodEnd(for:now:) = nextMonthlyPeriodStart(anchorDay: habit.cycle.day, after: periodStart)
 
     @Suite("SkipCredit — nextMonthlyPeriodStart")
     final class NextMonthlyPeriodStartTests {
@@ -298,19 +287,16 @@ struct SkipCreditPeriodMathTests {
         init() { UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey) }
         deinit { UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey) }
 
-        private func monthlyHabit(anchor: Date) -> Habit {
-            Habit(
-                title: "x", createdAt: anchor, slots: [], skipCreditCount: 0,
-                skipCreditPeriod: .monthly)
+        private func monthlyHabit(anchorDay: Int) -> Habit {
+            Habit(title: "x", slots: [], skipCreditCount: 0, cycle: .monthly(day: anchorDay))
         }
 
         @Test("normal month: next period starts on the same day-of-month one month later")
         func normalMonthAdvancesOneMonth() {
-            // anchor = Mar 15, now = Mar 20 → periodStart = Mar 15 → next = Apr 15
-            let march15 = date(year: 2026, month: 3, day: 15)
+            // anchor day = 15, now = Mar 20 → periodStart = Mar 15 → next = Apr 15
             let march20 = date(year: 2026, month: 3, day: 20)
             let apr15 = date(year: 2026, month: 4, day: 15)
-            let habit = monthlyHabit(anchor: march15)
+            let habit = monthlyHabit(anchorDay: 15)
             #expect(SkipCredit.periodEnd(for: habit, now: march20) == apr15)
         }
 
@@ -319,33 +305,31 @@ struct SkipCreditPeriodMathTests {
             // nextMonth of Jan 31 = Feb 28 (calendar arithmetic); clampedMonthDay(31, Feb) = Feb 28
             let jan31 = date(year: 2026, month: 1, day: 31)
             let feb28 = date(year: 2026, month: 2, day: 28)
-            let habit = monthlyHabit(anchor: jan31)
+            let habit = monthlyHabit(anchorDay: 31)
             #expect(SkipCredit.periodEnd(for: habit, now: jan31) == feb28)
         }
 
         @Test("anchor day 31, period started Feb 28 → next period start = Mar 31")
         func nextFromFeb28IsMar31() {
-            // periodStart for anchor=Mar31, now=Feb28 → Feb 28 (clamp); next = Mar 31
-            let march31 = date(year: 2026, month: 3, day: 31)
+            // periodStart for anchorDay=31, now=Feb28 → Feb 28 (clamp); next = Mar 31
             let feb28 = date(year: 2026, month: 2, day: 28)
-            let habit = monthlyHabit(anchor: march31)
+            let march31 = date(year: 2026, month: 3, day: 31)
+            let habit = monthlyHabit(anchorDay: 31)
             #expect(SkipCredit.periodEnd(for: habit, now: feb28) == march31)
         }
 
         @Test("crosses year boundary: period started Dec 10 → next start = Jan 10")
         func nextPeriodCrossesYearBoundary() {
-            let dec10 = date(year: 2025, month: 12, day: 10)
             let dec15 = date(year: 2025, month: 12, day: 15)
             let jan10 = date(year: 2026, month: 1, day: 10)
-            let habit = monthlyHabit(anchor: dec10)
+            let habit = monthlyHabit(anchorDay: 10)
             #expect(SkipCredit.periodEnd(for: habit, now: dec15) == jan10)
         }
 
         @Test("period end is always strictly after period start")
         func periodEndIsAfterPeriodStart() {
-            let anchor = date(year: 2026, month: 3, day: 5)
             let now = date(year: 2026, month: 3, day: 10)
-            let habit = monthlyHabit(anchor: anchor)
+            let habit = monthlyHabit(anchorDay: 5)
             let start = SkipCredit.periodStart(for: habit, now: now)
             let end = SkipCredit.periodEnd(for: habit, now: now)
             #expect(end > start)

@@ -7,7 +7,7 @@ struct HabitFormFields: View {
     @Binding var timesPerDay: Int
     @Binding var slotWindows: [SlotWindow]
     @Binding var skipCreditCount: Int
-    @Binding var skipCreditPeriod: Period
+    @Binding var cycle: Cycle
     @Binding var proofOfWorkType: ProofOfWorkType
     @Binding var punishment: String
 
@@ -52,16 +52,19 @@ struct HabitFormFields: View {
             let (defaultStart, defaultEnd) = Self.defaultWindow()
             if slotWindows.count < newCount {
                 let toAdd = newCount - slotWindows.count
-                slotWindows.append(contentsOf: (0..<toAdd).map { _ in SlotWindow(start: defaultStart, end: defaultEnd) })
+                slotWindows.append(
+                    contentsOf: (0..<toAdd).map { _ in
+                        SlotWindow(start: defaultStart, end: defaultEnd)
+                    })
             } else if slotWindows.count > newCount {
                 slotWindows = Array(slotWindows.prefix(newCount))
             }
         }
 
         Section("Skip credits") {
-            Picker("Reset period", selection: $skipCreditPeriod) {
-                ForEach([Period.daily, .weekly, .monthly], id: \.self) { period in
-                    Text(period.rawValue).tag(period)
+            Picker("Reset cycle", selection: cycleKindBinding) {
+                ForEach(CycleKind.allCases, id: \.self) { kind in
+                    Text(kind.rawValue).tag(kind)
                 }
             }
 
@@ -89,11 +92,31 @@ struct HabitFormFields: View {
 
     // MARK: - Helpers
 
+    /// Maps the cycle binding to/from a CycleKind for the Picker.
+    /// When the kind changes, a new Cycle is constructed anchored to today(PsychDay).
+    private var cycleKindBinding: Binding<CycleKind> {
+        Binding(
+            get: { cycle.kind },
+            set: { newKind in
+                let cal = Calendar.current
+                let today = HabitScheduling.psychDay(for: .now)
+                switch newKind {
+                case .daily:
+                    cycle = .daily
+                case .weekly:
+                    cycle = .weekly(weekday: cal.component(.weekday, from: today))
+                case .monthly:
+                    cycle = .monthly(day: cal.component(.day, from: today))
+                }
+            }
+        )
+    }
+
     static func defaultWindow() -> (start: Date, end: Date) {
         let calendar = Calendar.current
         let now = Date()
         let start = calendar.date(bySettingHour: 6, minute: 0, second: 0, of: now) ?? now
-        let end   = calendar.date(bySettingHour: 8, minute: 0, second: 0, of: now) ?? now
+        let end = calendar.date(bySettingHour: 8, minute: 0, second: 0, of: now) ?? now
         return (start, end)
     }
 

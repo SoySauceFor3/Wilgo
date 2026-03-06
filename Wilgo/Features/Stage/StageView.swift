@@ -152,21 +152,21 @@ private enum StagePreviewFactory {
             title: "habit 1",
             slots: [slot(23, 0, 23, 10)],
             skipCreditCount: 5,
-            skipCreditPeriod: .monthly,
+            cycle: .monthly(day: 1),
             proofOfWorkType: .manual
         )
         let habit2 = Habit(
             title: "habit 2",
             slots: [slot(23, 1, 23, 59)],
             skipCreditCount: 3,
-            skipCreditPeriod: .weekly,
+            cycle: .weekly(weekday: 2),
             proofOfWorkType: .manual
         )
         let habit3 = Habit(
             title: "habit 3",
             slots: [slot(23, 0, 23, 30)],
             skipCreditCount: 2,
-            skipCreditPeriod: .weekly,
+            cycle: .weekly(weekday: 2),
             proofOfWorkType: .manual
         )
         habit1.slots.forEach {
@@ -204,7 +204,7 @@ private enum StagePreviewFactory {
             title: "Workout",
             slots: [slot],
             skipCreditCount: 5,
-            skipCreditPeriod: .monthly,
+            cycle: .monthly(day: 1),
             proofOfWorkType: .manual
         )
         slot.habit = habit

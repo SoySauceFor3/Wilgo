@@ -103,7 +103,7 @@ struct CurrentHabitRow: View {
         title: "Morning reading",
         slots: [slot],
         skipCreditCount: 3,
-        skipCreditPeriod: .weekly
+        cycle: .weekly(weekday: 2)
     )
 
     return CurrentHabitRow(habit: habit, slot: slot)
@@ -122,7 +122,7 @@ struct CurrentHabitRow: View {
         title: "Gentle: read 10 pages",
         slots: [slot],
         skipCreditCount: 3,
-        skipCreditPeriod: .weekly
+        cycle: .weekly(weekday: 2)
     )
 
     return CurrentHabitRow(habit: habit, slot: slot)
@@ -141,7 +141,7 @@ struct CurrentHabitRow: View {
         title: "Judgmental: afternoon walk",
         slots: [slot],
         skipCreditCount: 2,
-        skipCreditPeriod: .weekly
+        cycle: .weekly(weekday: 2)
     )
 
     return CurrentHabitRow(habit: habit, slot: slot)
@@ -164,7 +164,7 @@ struct CurrentHabitRow: View {
         title: "Critical: submit report",
         slots: [slot],
         skipCreditCount: 1,
-        skipCreditPeriod: .weekly
+        cycle: .weekly(weekday: 2)
     )
 
     return CurrentHabitRow(habit: habit, slot: slot)
@@ -183,7 +183,7 @@ struct CurrentHabitRow: View {
         title: "Settled: late workout",
         slots: [slot],
         skipCreditCount: 4,
-        skipCreditPeriod: .weekly
+        cycle: .weekly(weekday: 2)
     )
 
     return CurrentHabitRow(habit: habit, slot: slot)

@@ -38,7 +38,7 @@ private func makeHabit(
     title: String = "A",
     slots: [HabitSlot] = []
 ) -> Habit {
-    let habit = Habit(title: title, slots: slots, skipCreditCount: 0, skipCreditPeriod: .daily)
+    let habit = Habit(title: title, slots: slots, skipCreditCount: 0, cycle: .daily)
     ctx.insert(habit)
     for slot in slots { ctx.insert(slot) }
     return habit

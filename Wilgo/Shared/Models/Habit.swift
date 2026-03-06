@@ -10,10 +10,35 @@ enum ProofOfWorkType: String, Codable {
     // case healthKit = "HealthKit"
 }
 
-enum Period: String, Codable {
+// MARK: - Cycle (reset schedule)
+
+/// The kind of reset cycle, without any anchor data. Used as the Picker selection type.
+enum CycleKind: String, CaseIterable, Codable {
     case daily = "Daily"
     case weekly = "Weekly"
     case monthly = "Monthly"
+}
+
+/// How often the habit's skip-credit budget resets, with the anchor baked in.
+///
+/// - `.daily`:              resets at midnight every day; no anchor needed.
+/// - `.weekly(weekday:)`:   resets on the given Calendar weekday (1 = Sun … 7 = Sat).
+/// - `.monthly(day:)`:      resets on the given day-of-month (1–31), clamped for short months.
+enum Cycle: Codable, Equatable, Hashable {
+    case daily
+    case weekly(weekday: Int)
+    case monthly(day: Int)
+
+    var kind: CycleKind {
+        switch self {
+        case .daily: return .daily
+        case .weekly: return .weekly
+        case .monthly: return .monthly
+        }
+    }
+
+    /// Human-readable label, matches the old `Period.rawValue` usage.
+    var label: String { kind.rawValue }
 }
 
 // MARK: - HabitSlot (one ideal window per occurrence, for N× daily)
@@ -82,23 +107,15 @@ final class Habit {
 
     /// Number of allowed skips within the budget period.
     var skipCreditCount: Int
-    /// The period over which skip budget resets.
-    var skipCreditPeriod: Period
-
-    /// TODO: Verify that the timezone changes are handled correctly.
-    /// Anchor date that determines when each period begins.
+    /// TODO: Verify that hte timezone changes are handled correctly.
+    /// How often the skip-credit budget resets, with the anchor baked in.
     ///
-    /// - For **weekly**: the period resets on the same weekday as this date, every week.
-    /// - For **monthly**: the period resets on the same day-of-month as this date, every
-    ///   month, clamped to the last day of shorter months.
-    /// - For **daily**: ignored — daily always resets at midnight.
+    /// - `.daily`:           resets every midnight; no anchor.
+    /// - `.weekly(weekday)`: resets on the given Calendar weekday (1 = Sun … 7 = Sat).
+    /// - `.monthly(day)`:    resets on the given day-of-month (1–31), clamped for short months.
     ///
-    /// Set to `createdAt` for new habits. Updated to `Date.now` whenever `skipCreditPeriod`
-    /// is changed by the user, so the new period type starts fresh from today.
-    ///
-    /// `nil` for habits created before this field was introduced; `SkipCreditService`
-    /// falls back to `createdAt` when this is nil, preserving the same semantics.
-    var periodAnchor: Date  // Not adjusted by DayStartOffset
+    /// Set from the current calendar when the habit is created or when reset rules change.
+    var cycle: Cycle
     /// How completion is verified.
     var proofOfWorkType: ProofOfWorkType
     /// What the user owes if skip credits are exhausted (e.g. "Give robaroba 20 RMB").
@@ -110,7 +127,7 @@ final class Habit {
         createdAt: Date = .now,
         slots: [HabitSlot],
         skipCreditCount: Int,
-        skipCreditPeriod: Period,
+        cycle: Cycle,
         proofOfWorkType: ProofOfWorkType = .manual,
         punishment: String? = nil
     ) {
@@ -118,8 +135,7 @@ final class Habit {
         self.createdAt = createdAt
         self.slots = slots
         self.skipCreditCount = skipCreditCount
-        self.skipCreditPeriod = skipCreditPeriod
-        self.periodAnchor = createdAt
+        self.cycle = cycle
         self.proofOfWorkType = proofOfWorkType
         self.punishment = punishment
     }

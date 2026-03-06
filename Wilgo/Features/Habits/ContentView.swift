@@ -108,7 +108,7 @@ private struct HabitRowView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    Text("\(habit.skipCreditCount) / \(habit.skipCreditPeriod.rawValue)")
+                    Text("\(habit.skipCreditCount) / \(habit.cycle.label)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -158,11 +158,11 @@ private func makePreviewContainerWithSamples() throws -> ModelContainer {
     }
 
     let samples: [Habit] = [
-        Habit(title: "Workout", slots: [slot(6, 0, 8, 0), slot(8, 0, 10, 0)], skipCreditCount: 5, skipCreditPeriod: .monthly, proofOfWorkType: .manual),
-        Habit(title: "Read 30 mins 📚", slots: [slot(9, 0, 11, 0)], skipCreditCount: 1, skipCreditPeriod: .daily, proofOfWorkType: .manual),
-        Habit(title: "Drink 2L Water 💧", slots: [slot(12, 0, 14, 0)], skipCreditCount: 1, skipCreditPeriod: .daily, proofOfWorkType: .manual),
-        Habit(title: "Meditate 10 mins 🧘", slots: [slot(15, 0, 17, 0)], skipCreditCount: 1, skipCreditPeriod: .daily, proofOfWorkType: .manual),
-        Habit(title: "No social media after 9 PM 📵", slots: [slot(21, 0, 23, 0)], skipCreditCount: 1, skipCreditPeriod: .daily, proofOfWorkType: .manual),
+        Habit(title: "Workout", slots: [slot(6, 0, 8, 0), slot(8, 0, 10, 0)], skipCreditCount: 5, cycle: .monthly(day: 1), proofOfWorkType: .manual),
+        Habit(title: "Read 30 mins 📚", slots: [slot(9, 0, 11, 0)], skipCreditCount: 1, cycle: .daily, proofOfWorkType: .manual),
+        Habit(title: "Drink 2L Water 💧", slots: [slot(12, 0, 14, 0)], skipCreditCount: 1, cycle: .daily, proofOfWorkType: .manual),
+        Habit(title: "Meditate 10 mins 🧘", slots: [slot(15, 0, 17, 0)], skipCreditCount: 1, cycle: .daily, proofOfWorkType: .manual),
+        Habit(title: "No social media after 9 PM 📵", slots: [slot(21, 0, 23, 0)], skipCreditCount: 1, cycle: .daily, proofOfWorkType: .manual),
     ]
     for habit in samples {
         ctx.insert(habit)

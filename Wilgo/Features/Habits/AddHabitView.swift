@@ -1,5 +1,5 @@
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct AddHabitView: View {
     @Environment(\.modelContext) private var modelContext
@@ -9,7 +9,8 @@ struct AddHabitView: View {
     @State private var timesPerDay: Int = 1
     @State private var slotWindows: [SlotWindow]
     @State private var skipCreditCount: Int = 1
-    @State private var skipCreditPeriod: Period = .weekly
+    @State private var cycle: Cycle = .weekly(
+        weekday: Calendar.current.component(.weekday, from: HabitScheduling.psychDay(for: .now)))
     @State private var proofOfWorkType: ProofOfWorkType = .manual
     @State private var punishment: String = ""
 
@@ -26,7 +27,7 @@ struct AddHabitView: View {
                     timesPerDay: $timesPerDay,
                     slotWindows: $slotWindows,
                     skipCreditCount: $skipCreditCount,
-                    skipCreditPeriod: $skipCreditPeriod,
+                    cycle: $cycle,
                     proofOfWorkType: $proofOfWorkType,
                     punishment: $punishment
                 )
@@ -61,7 +62,7 @@ struct AddHabitView: View {
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             slots: sortedSlots,
             skipCreditCount: skipCreditCount,
-            skipCreditPeriod: skipCreditPeriod,
+            cycle: cycle,
             proofOfWorkType: proofOfWorkType,
             punishment: trimmedPunishment.isEmpty ? nil : trimmedPunishment
         )

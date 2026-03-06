@@ -6,20 +6,20 @@ enum SkipCredit {
 
     // MARK: - Period Boundaries
 
-    /// Start of the current budget period, anchored to `habit.periodAnchor`.
+    /// Start of the current budget period, derived from `habit.cycle`.
     ///
-    /// - **Daily**: start of today (midnight). Anchor is ignored.
-    /// - **Weekly**: most recent occurrence of `anchor`'s weekday on or before `now`.
-    /// - **Monthly**: most recent occurrence of `anchor`'s day-of-month on or before `now`,
-    ///   clamped to the last day of shorter months (e.g. anchor=31 → Feb 28/29).
+    /// - `.daily`:           start of today (midnight).
+    /// - `.weekly(weekday)`: most recent occurrence of that weekday on or before `now`.
+    /// - `.monthly(day)`:    most recent occurrence of that day-of-month on or before `now`,
+    ///   clamped to the last day of shorter months (e.g. day=31 → Feb 28/29).
     static func periodStart(for habit: Habit, now: Date = HabitScheduling.now()) -> Date {
-        switch habit.skipCreditPeriod {
+        switch habit.cycle {
         case .daily:
             return HabitScheduling.calendar.startOfDay(for: now)
-        case .weekly:
-            return weeklyPeriodStart(anchor: habit.periodAnchor, now: now)
-        case .monthly:
-            return monthlyPeriodStart(anchor: habit.periodAnchor, now: now)
+        case .weekly(let weekday):
+            return weeklyPeriodStart(anchorWeekday: weekday, now: now)
+        case .monthly(let day):
+            return monthlyPeriodStart(anchorDay: day, now: now)
         }
     }
 
@@ -27,10 +27,10 @@ enum SkipCredit {
     static func periodEnd(for habit: Habit, now: Date = .now) -> Date {
         let cal = HabitScheduling.calendar
         let start = periodStart(for: habit, now: now)
-        switch habit.skipCreditPeriod {
-        case .daily: return cal.date(byAdding: .day, value: 1, to: start) ?? start
-        case .weekly: return cal.date(byAdding: .weekOfYear, value: 1, to: start) ?? start
-        case .monthly: return nextMonthlyPeriodStart(anchor: habit.periodAnchor, after: start)
+        switch habit.cycle {
+        case .daily:   return cal.date(byAdding: .day, value: 1, to: start) ?? start
+        case .weekly:  return cal.date(byAdding: .weekOfYear, value: 1, to: start) ?? start
+        case .monthly(let day): return nextMonthlyPeriodStart(anchorDay: day, after: start)
         }
     }
 
@@ -75,7 +75,7 @@ enum SkipCredit {
     static func periodLabel(for habit: Habit, now: Date = .now) -> String {
         let fmt = DateFormatter()
         let start = periodStart(for: habit, now: now)
-        switch habit.skipCreditPeriod {
+        switch habit.cycle.kind {
         case .daily:
             fmt.dateFormat = "MMM d"
             return fmt.string(from: now)
@@ -90,24 +90,20 @@ enum SkipCredit {
 
     // MARK: - Private: Anchor-based period math
 
-    /// Most recent date on or before `now` whose weekday matches `anchor`'s weekday.
-    private static func weeklyPeriodStart(anchor: Date, now: Date) -> Date {
-        let anchorPsychDay = HabitScheduling.psychDay(for: anchor)
+    /// Most recent date on or before `now` whose weekday matches `anchorWeekday` (1 = Sun … 7 = Sat).
+    private static func weeklyPeriodStart(anchorWeekday: Int, now: Date) -> Date {
         let cal = HabitScheduling.calendar
-        let anchorWeekday = cal.component(.weekday, from: anchorPsychDay)
         let nowWeekday = cal.component(.weekday, from: cal.startOfDay(for: now))
         let daysBack = (nowWeekday - anchorWeekday + 7) % 7
         return cal.date(byAdding: .day, value: -daysBack, to: cal.startOfDay(for: now))
             ?? cal.startOfDay(for: now)
     }
 
-    /// Most recent date on or before `now` whose day-of-month matches `anchor`'s,
+    /// Most recent date on or before `now` whose day-of-month matches `anchorDay` (1–31),
     /// clamped to the last day of the relevant month.
-    private static func monthlyPeriodStart(anchor: Date, now: Date) -> Date {
+    private static func monthlyPeriodStart(anchorDay: Int, now: Date) -> Date {
         let cal = HabitScheduling.calendar
-        let anchorDay = cal.component(.day, from: anchor)
         let today = cal.startOfDay(for: now)
-        let todayDay = cal.component(.day, from: today)
 
         // Try this calendar month first.
         if let candidate = clampedMonthDay(anchorDay, inMonthOf: today, cal: cal),
@@ -138,10 +134,10 @@ enum SkipCredit {
     }
 
     /// Start of the monthly period that immediately follows `currentPeriodStart`.
-    private static func nextMonthlyPeriodStart(anchor: Date, after currentPeriodStart: Date) -> Date
+    private static func nextMonthlyPeriodStart(anchorDay: Int, after currentPeriodStart: Date)
+        -> Date
     {
         let cal = HabitScheduling.calendar
-        let anchorDay = HabitScheduling.calendar.component(.day, from: anchor)
         let nextMonth =
             cal.date(byAdding: .month, value: 1, to: currentPeriodStart) ?? currentPeriodStart
         return clampedMonthDay(anchorDay, inMonthOf: nextMonth, cal: cal) ?? nextMonth

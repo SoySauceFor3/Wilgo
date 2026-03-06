@@ -44,7 +44,7 @@ struct UpcomingHabitRow: View {
         title: "Morning reading",
         slots: [slot],
         skipCreditCount: 3,
-        skipCreditPeriod: .weekly
+        cycle: .weekly(weekday: 2)
     )
 
     return UpcomingHabitRow(habit: habit, slot: slot)
