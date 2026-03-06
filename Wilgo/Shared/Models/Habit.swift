@@ -98,7 +98,7 @@ final class Habit {
     ///
     /// `nil` for habits created before this field was introduced; `SkipCreditService`
     /// falls back to `createdAt` when this is nil, preserving the same semantics.
-    var periodAnchor: Date
+    var periodAnchor: Date  // Not adjusted by DayStartOffset
     /// How completion is verified.
     var proofOfWorkType: ProofOfWorkType
     /// What the user owes if skip credits are exhausted (e.g. "Give robaroba 20 RMB").

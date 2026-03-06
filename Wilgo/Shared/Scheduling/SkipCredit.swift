@@ -2,7 +2,7 @@ import Foundation
 
 /// Pure logic for computing skip-credit state for a habit.
 /// No UI, no SwiftData writes — just reads the model and does math.
-enum SkipCreditService {
+enum SkipCredit {
 
     // MARK: - Period Boundaries
 
@@ -12,7 +12,7 @@ enum SkipCreditService {
     /// - **Weekly**: most recent occurrence of `anchor`'s weekday on or before `now`.
     /// - **Monthly**: most recent occurrence of `anchor`'s day-of-month on or before `now`,
     ///   clamped to the last day of shorter months (e.g. anchor=31 → Feb 28/29).
-    static func periodStart(for habit: Habit, now: Date = .now) -> Date {
+    static func periodStart(for habit: Habit, now: Date = HabitScheduling.now()) -> Date {
         switch habit.skipCreditPeriod {
         case .daily:
             return HabitScheduling.calendar.startOfDay(for: now)
@@ -92,8 +92,9 @@ enum SkipCreditService {
 
     /// Most recent date on or before `now` whose weekday matches `anchor`'s weekday.
     private static func weeklyPeriodStart(anchor: Date, now: Date) -> Date {
+        let anchorPsychDay = HabitScheduling.psychDay(for: anchor)
         let cal = HabitScheduling.calendar
-        let anchorWeekday = cal.component(.weekday, from: anchor)
+        let anchorWeekday = cal.component(.weekday, from: anchorPsychDay)
         let nowWeekday = cal.component(.weekday, from: cal.startOfDay(for: now))
         let daysBack = (nowWeekday - anchorWeekday + 7) % 7
         return cal.date(byAdding: .day, value: -daysBack, to: cal.startOfDay(for: now))
