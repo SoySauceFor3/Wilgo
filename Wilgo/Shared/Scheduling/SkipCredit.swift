@@ -1,28 +1,18 @@
 import Foundation
 
-// MARK: - Skip credit accounting
-
 /// Pure logic for computing skip-credit state for a habit.
-/// No UI, no SwiftData writes — just reads the model and does math.
 enum SkipCredit {
-
-    // MARK: - Credit Accounting
-
-    /// Credits burned so far in the current period.
-    ///
-    /// A credit is burned for each **past** psychological day in the period where
+    /// A credit is burned for each psychological day in the period where
     /// the habit was not fully completed (completions < slots.count).
-    /// Today is excluded — it hasn't ended yet.
-    static func creditsUsed(for habit: Habit, now: Date = HabitScheduling.now()) -> Int {
+    /// PsychDay is inclusive end date.
+    static func creditsUsedInCycle(for habit: Habit, until psychDay: Date) -> Int {
         let cal = HabitScheduling.calendar
-        let start = habit.cycle.start()
-        let today = HabitScheduling.psychDay(for: now)
+        let start = habit.cycle.start(of: psychDay)
 
         var burned = 0
         var day = start
-        while day < today {
-            let completions = habit.checkIns.filter { $0.psychDay == day }.count
-            burned += max(0, habit.slots.count - completions)
+        while day <= psychDay {
+            burned += habit.unfinishedSlots(for: day).count
 
             guard let next = cal.date(byAdding: .day, value: 1, to: day) else { break }
             day = next
@@ -30,15 +20,40 @@ enum SkipCredit {
         return burned
     }
 
-    /// Credits still available in the current period (floor of 0).
-    static func creditsRemaining(for habit: Habit, now: Date = HabitScheduling.now()) -> Int {
-        max(0, habit.skipCreditCount - creditsUsed(for: habit, now: now))
+    /// Credits still available in the cycle of PsychDay, inclusively.
+    static func creditsRemaining(for habit: Habit, until psychDay: Date) -> Int {
+        max(0, habit.skipCreditCount - creditsUsedInCycle(for: habit, until: psychDay))
     }
 
-    /// True when credits are exhausted AND a punishment string has been set.
-    static func isInPunishment(for habit: Habit, now: Date = HabitScheduling.now()) -> Bool {
-        habit.punishment != nil && creditsUsed(for: habit, now: now) >= habit.skipCreditCount
+    // MARK: - Display
+
+    /// Compact one-line summary for a habit that was not fully completed on `psychDay`.
+    ///
+    /// Format: `<icon> <title> — <done>/<required> · <used>/<allowance>cr <delta>[· <punishment>]`
+    ///
+    /// - `❌` when nothing was completed; `⚠️` when partially completed.
+    /// - Delta is `+N` (N credits left) or `−N` (N over budget).
+    /// - Punishment appended only when credits are exhausted and a punishment is set.
+    ///
+    /// Example outputs:
+    /// ```
+    /// ❌ Exercise — 0/2 · 5/4cr −1 · Give robaroba 20 RMB
+    /// ⚠️ Reading — 1/2 · 2/3cr +1
+    /// ```
+    static func notificationLine(for habit: Habit, on psychDay: Date) -> String {
+        let completed = habit.completedCount(for: psychDay)
+        let required  = habit.slots.count
+        let used      = creditsUsedInCycle(for: habit, until: psychDay)
+        let allowance = habit.skipCreditCount
+        let remaining = creditsRemaining(for: habit, until: psychDay)
+
+        let icon  = completed == 0 ? "❌" : "⚠️"
+        let delta = used > allowance ? "−\(used - allowance)" : "+\(remaining)"
+
+        var line = "\(icon) \(habit.title) — \(completed)/\(required) · \(used)/\(allowance)cr \(delta)"
+        if remaining == 0, let punishment = habit.punishment {
+            line += " · \(punishment)"
+        }
+        return line
     }
-
-
 }

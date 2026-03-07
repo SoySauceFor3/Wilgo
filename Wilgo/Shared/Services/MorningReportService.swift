@@ -49,29 +49,47 @@ enum MorningReportService {
 
     // MARK: - Private
 
-    /// Builds the notification content for a habit that was missed on `missedDay`.
-    /// Credit state and period label are computed relative to `missedDay` so they always
-    /// reflect the period the miss actually occurred in (avoids period-boundary confusion).
-    /// Exposed internally so it can be unit-tested without touching UNUserNotificationCenter.
-    static func notificationContent(for habit: Habit, missedDay: Date)
-        -> UNMutableNotificationContent
+    static let summaryNotificationID = "wilgo.morning-report.summary"
+
+    /// Builds a single summary notification covering all habits for `yesterday`.
+    /// Returns `nil` if `habits` is empty.
+    /// Exposed internally for unit testing without touching UNUserNotificationCenter.
+    static func summaryNotificationContent(for habits: [Habit], missedOn yesterday: Date)
+        -> UNMutableNotificationContent?
     {
-        let used = SkipCredit.creditsUsed(for: habit, now: missedDay)
-        let remaining = SkipCredit.creditsRemaining(for: habit, now: missedDay)
-        let label = habit.cycle.label(of: missedDay)
+        guard !habits.isEmpty else { return nil }
+
+        let missed = habits.filter { $0.hasUnfinishedSlots(for: yesterday) }
+        let done = habits.filter { !$0.hasUnfinishedSlots(for: yesterday) }
+
         let content = UNMutableNotificationContent()
         content.sound = .default
 
-        if remaining == 0, let punishment = habit.punishment {
-            content.title = "\(habit.title) — No Credits Left"
-            content.body =
-                "All \(habit.skipCreditCount) credits used (\(label)). Don't forget: \(punishment)"
-        } else {
-            let word = used == 1 ? "credit" : "credits"
-            content.title = "\(habit.title) — Morning Report"
-            content.body =
-                "Missed yesterday. \(used) \(word) used this period (\(label)). \(remaining) remaining."
+        if missed.isEmpty {
+            content.title = "Yesterday: \(habits.count)/\(habits.count) done 🎉"
+            content.body = done.map { "✓ \($0.title)" }.joined(separator: " · ")
+            return content
         }
+
+        content.title = "Yesterday: \(done.count)/\(habits.count) done · \(missed.count) missed"
+
+        // Missed habits sorted by urgency: punishment first, then fewest credits left.
+        let sortedMissed = missed.sorted { a, b in
+            let aLeft = SkipCredit.creditsRemaining(for: a, until: yesterday)
+            let bLeft = SkipCredit.creditsRemaining(for: b, until: yesterday)
+            let aPunished = aLeft == 0 && a.punishment != nil
+            let bPunished = bLeft == 0 && b.punishment != nil
+            if aPunished != bPunished { return aPunished }
+            return aLeft < bLeft
+        }
+
+        var lines = sortedMissed.map { SkipCredit.notificationLine(for: $0, on: yesterday) }
+
+        if !done.isEmpty {
+            lines.append("✓ " + done.map(\.title).joined(separator: ", "))
+        }
+
+        content.body = lines.joined(separator: "\n")
         return content
     }
 
@@ -82,31 +100,20 @@ enum MorningReportService {
 
             let cal = HabitScheduling.calendar
             let today = HabitScheduling.psychDay(for: now)
-            let yesterday = cal.date(byAdding: .day, value: -1, to: today) ?? today
+            let yesterday = cal.date(byAdding: .day, value: -1, to: today)!
 
-            center.removePendingNotificationRequests(
-                withIdentifiers: habits.map { notificationID(for: $0) })
+            center.removePendingNotificationRequests(withIdentifiers: [summaryNotificationID])
 
-            for habit in habits {
-                // Only notify if yesterday was a miss.
-                let completions = habit.checkIns.filter { $0.psychDay == yesterday }.count
-                guard completions < habit.slots.count else { continue }
+            guard let content = summaryNotificationContent(for: habits, missedOn: yesterday)
+            else { return }
 
-                let content = notificationContent(for: habit, missedDay: yesterday)
-
-                // Deliver immediately from the background task.
-                let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-                let request = UNNotificationRequest(
-                    identifier: notificationID(for: habit),
-                    content: content,
-                    trigger: trigger
-                )
-                center.add(request)
-            }
+            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+            let request = UNNotificationRequest(
+                identifier: summaryNotificationID,
+                content: content,
+                trigger: trigger
+            )
+            center.add(request)
         }
-    }
-
-    private static func notificationID(for habit: Habit) -> String {
-        return "wilgo.morning-report.\(habit.persistentModelID.encoded())"
     }
 }
