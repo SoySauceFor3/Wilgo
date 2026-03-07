@@ -1,14 +1,7 @@
-//
-//  ContentView.swift
-//  Wilgo
-//
-//  Created by Xinya Yang on 2/24/26.
-//
-
-import SwiftUI
 import SwiftData
+import SwiftUI
 
-struct ContentView: View {
+struct ListHabitView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Habit.createdAt, order: .forward) private var habits: [Habit]
     @State private var isPresentingAddHabit: Bool = false
@@ -132,7 +125,8 @@ private struct HabitRowView: View {
     }
 
     private func slotWindowsSummary(_ habit: Habit) -> String {
-        return habit.slots.map { "\(formattedTime(from: $0.start))–\(formattedTime(from: $0.end))" }.joined(separator: ", ")
+        return habit.slots.map { "\(formattedTime(from: $0.start))–\(formattedTime(from: $0.end))" }
+            .joined(separator: ", ")
     }
 }
 
@@ -152,11 +146,21 @@ private func makePreviewContainerWithSamples() throws -> ModelContainer {
     }
 
     let samples: [Habit] = [
-        Habit(title: "Workout", slots: [slot(6, 0, 8, 0), slot(8, 0, 10, 0)], skipCreditCount: 5, cycle: .monthly(day: 1), proofOfWorkType: .manual),
-        Habit(title: "Read 30 mins 📚", slots: [slot(9, 0, 11, 0)], skipCreditCount: 1, cycle: .daily, proofOfWorkType: .manual),
-        Habit(title: "Drink 2L Water 💧", slots: [slot(12, 0, 14, 0)], skipCreditCount: 1, cycle: .daily, proofOfWorkType: .manual),
-        Habit(title: "Meditate 10 mins 🧘", slots: [slot(15, 0, 17, 0)], skipCreditCount: 1, cycle: .daily, proofOfWorkType: .manual),
-        Habit(title: "No social media after 9 PM 📵", slots: [slot(21, 0, 23, 0)], skipCreditCount: 1, cycle: .daily, proofOfWorkType: .manual),
+        Habit(
+            title: "Workout", slots: [slot(6, 0, 8, 0), slot(8, 0, 10, 0)], skipCreditCount: 5,
+            cycle: .monthly(day: 1), proofOfWorkType: .manual),
+        Habit(
+            title: "Read 30 mins 📚", slots: [slot(9, 0, 11, 0)], skipCreditCount: 1, cycle: .daily,
+            proofOfWorkType: .manual),
+        Habit(
+            title: "Drink 2L Water 💧", slots: [slot(12, 0, 14, 0)], skipCreditCount: 1,
+            cycle: .daily, proofOfWorkType: .manual),
+        Habit(
+            title: "Meditate 10 mins 🧘", slots: [slot(15, 0, 17, 0)], skipCreditCount: 1,
+            cycle: .daily, proofOfWorkType: .manual),
+        Habit(
+            title: "No social media after 9 PM 📵", slots: [slot(21, 0, 23, 0)], skipCreditCount: 1,
+            cycle: .daily, proofOfWorkType: .manual),
     ]
     for habit in samples {
         ctx.insert(habit)
@@ -164,9 +168,9 @@ private func makePreviewContainerWithSamples() throws -> ModelContainer {
     return container
 }
 
-struct ContentView_Previews: PreviewProvider {
+struct ListHabitView_Previews: PreviewProvider {
     static var previews: some View {
-        ContentView()
+        ListHabitView()
             .modelContainer(try! makePreviewContainerWithSamples())
     }
 }

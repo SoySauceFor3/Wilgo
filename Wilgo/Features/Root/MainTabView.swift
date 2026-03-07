@@ -5,8 +5,8 @@
 //  Top-level tab navigation: Stage (dynamic dashboard) and Habits (list).
 //
 
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct MainTabView: View {
     @State private var selectedTab: Int = 0
@@ -19,7 +19,7 @@ struct MainTabView: View {
                 }
                 .tag(0)
 
-            ContentView()
+            ListHabitView()
                 .tabItem {
                     Label("Habits", systemImage: "list.bullet")
                 }
