@@ -135,7 +135,7 @@ private struct EmptyStageCard: View {
 private enum StagePreviewFactory {
     static var multipleHabits: some View {
         let container = try! ModelContainer(
-            for: Habit.self, HabitSlot.self, HabitCheckIn.self,
+            for: Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         let ctx = container.mainContext
@@ -191,7 +191,7 @@ private enum StagePreviewFactory {
 
     static var singleHabit: some View {
         let container = try! ModelContainer(
-            for: Habit.self, HabitSlot.self, HabitCheckIn.self,
+            for: Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         let ctx = container.mainContext
@@ -219,7 +219,7 @@ private enum StagePreviewFactory {
         StageView()
             .modelContainer(
                 try! ModelContainer(
-                    for: Habit.self, HabitSlot.self, HabitCheckIn.self,
+                    for: Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self,
                     configurations: ModelConfiguration(isStoredInMemoryOnly: true)
                 )
             )

@@ -73,7 +73,7 @@ struct AddHabitView: View {
 
 #Preview {
     let container = try! ModelContainer(
-        for: Habit.self, HabitSlot.self, HabitCheckIn.self,
+        for: Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
     AddHabitView()

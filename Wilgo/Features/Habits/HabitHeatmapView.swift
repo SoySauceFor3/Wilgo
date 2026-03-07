@@ -364,9 +364,10 @@ struct HabitHeatmapView: View {
 /// Shared preview data factory. Internal so HabitDetailView previews can reuse it.
 enum HeatmapPreviewFactory {
     /// Habit created 10 weeks ago, 70 days of varied check-in history (goal = 2×/day).
-    static func richHistory() -> (ModelContainer, Habit) {
+    /// Returns only the container; use a preview wrapper with @Query to get a live Habit at render time.
+    static func richHistoryContainer() -> ModelContainer {
         let container = try! ModelContainer(
-            for: Habit.self, HabitSlot.self, HabitCheckIn.self,
+            for: Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         let ctx = container.mainContext
@@ -425,13 +426,14 @@ enum HeatmapPreviewFactory {
             }
         }
 
-        return (container, habit)
+        return container
     }
 
     /// Brand-new habit created today with no check-in history.
-    static func newHabit() -> (ModelContainer, Habit) {
+    /// Returns only the container; use a preview wrapper with @Query to get a live Habit at render time.
+    static func newHabitContainer() -> ModelContainer {
         let container = try! ModelContainer(
-            for: Habit.self, HabitSlot.self, HabitCheckIn.self,
+            for: Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         let cal = Calendar.current
@@ -442,22 +444,51 @@ enum HeatmapPreviewFactory {
         let habit = Habit(title: "Meditate", slots: [slot], skipCreditCount: 1, cycle: .daily)
         container.mainContext.insert(habit)
         container.mainContext.insert(slot)
-        return (container, habit)
+        return container
+    }
+}
+
+// MARK: - Preview helpers
+
+/// Fetches the first habit from the container at render time so the model reference stays valid
+/// after preview context resets. Use this for any preview that needs a single Habit (e.g. HabitDetailView).
+struct PreviewWithFirstHabit<Content: View>: View {
+    let container: ModelContainer
+    @ViewBuilder let content: (Habit) -> Content
+
+    var body: some View {
+        PreviewWithFirstHabitInner(content: content)
+            .modelContainer(container)
+    }
+}
+
+struct PreviewWithFirstHabitInner<Content: View>: View {
+    @Query private var habits: [Habit]
+    @ViewBuilder let content: (Habit) -> Content
+
+    var body: some View {
+        if let habit = habits.first {
+            content(habit)
+        } else {
+            Text("No habit")
+        }
     }
 }
 
 // MARK: - Previews
 
 #Preview("Rich history") {
-    let (container, habit) = HeatmapPreviewFactory.richHistory()
-    HabitHeatmapView(habit: habit)
-        .padding()
-        .modelContainer(container)
+    let container = HeatmapPreviewFactory.richHistoryContainer()
+    PreviewWithFirstHabit(container: container) { habit in
+        HabitHeatmapView(habit: habit)
+    }
+    .padding()
 }
 
 #Preview("New habit (no history)") {
-    let (container, habit) = HeatmapPreviewFactory.newHabit()
-    HabitHeatmapView(habit: habit)
-        .padding()
-        .modelContainer(container)
+    let container = HeatmapPreviewFactory.newHabitContainer()
+    PreviewWithFirstHabit(container: container) { habit in
+        HabitHeatmapView(habit: habit)
+    }
+    .padding()
 }

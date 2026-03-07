@@ -112,7 +112,7 @@ struct MissedHabit {
             overdueBy: Date().timeIntervalSince(Date().addingTimeInterval(-60 * 60))
         )
     )
-    .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self], inMemory: true)
+    .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true)
     .padding()
 }
 
@@ -139,6 +139,6 @@ struct MissedHabit {
             overdueBy: Date().timeIntervalSince(Date().addingTimeInterval(60 * 60))
         )
     )
-    .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self], inMemory: true)
+    .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true)
     .padding()
 }

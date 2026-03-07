@@ -95,17 +95,19 @@ struct HabitDetailView: View {
 // MARK: - Previews
 
 #Preview("Rich history") {
-    let (container, habit) = HeatmapPreviewFactory.richHistory()
-    NavigationStack {
-        HabitDetailView(habit: habit)
+    let container = HeatmapPreviewFactory.richHistoryContainer()
+    PreviewWithFirstHabit(container: container) { habit in
+        NavigationStack {
+            HabitDetailView(habit: habit)
+        }
     }
-    .modelContainer(container)
 }
 
 #Preview("New habit") {
-    let (container, habit) = HeatmapPreviewFactory.newHabit()
-    NavigationStack {
-        HabitDetailView(habit: habit)
+    let container = HeatmapPreviewFactory.newHabitContainer()
+    PreviewWithFirstHabit(container: container) { habit in
+        NavigationStack {
+            HabitDetailView(habit: habit)
+        }
     }
-    .modelContainer(container)
 }
