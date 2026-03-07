@@ -118,7 +118,9 @@ struct WilgoApp: App {
             guard let habit = habits.first(where: { $0.persistentModelID == habitId }) else {
                 return
             }
-            context.insert(HabitCheckIn(habit: habit))
+            let checkIn = HabitCheckIn(habit: habit)
+            context.insert(checkIn)
+            habit.checkIns.append(checkIn)  // keep inverse in sync immediately, as inverse relationship propogation takes time.
             liveActivityManager.sync()
 
         case "snooze":

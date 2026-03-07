@@ -61,6 +61,7 @@ struct MissedHabitRow: View {
                 withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                     let checkIn = HabitCheckIn(habit: item.habit)
                     modelContext.insert(checkIn)
+                    item.habit.checkIns.append(checkIn)  // keep inverse in sync immediately, as inverse relationship propogation takes time.
                 }
             } label: {
                 Label("Done", systemImage: "checkmark.circle.fill")
