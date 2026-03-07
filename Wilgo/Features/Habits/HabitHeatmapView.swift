@@ -132,7 +132,7 @@ struct HabitHeatmapView: View {
 
     private func cellColor(for day: HeatmapDayData) -> Color {
         if day.isFuture { return .clear }
-        if day.isBeforeCreation { return Color(.systemGray5) }
+        if day.isBeforeCreation { return Color(.systemGray4) }
 
         let goal = day.goal
         let count = day.completedCount
@@ -234,7 +234,7 @@ struct HabitHeatmapView: View {
         // Selected: normal fill, white selection ring on top.
         RoundedRectangle(cornerRadius: 2)
             .fill(day.isToday && !isSelected ? Color(.systemGray5) : semanticColor)
-            .opacity(day.isBeforeCreation ? 0.35 : 1.0)
+            .opacity(day.isBeforeCreation ? 0.7 : 1.0)
             .frame(width: cellSize, height: cellSize)
             .overlay {
                 if isSelected {
@@ -258,7 +258,7 @@ struct HabitHeatmapView: View {
         HStack(alignment: .top, spacing: 10) {
             // Colored dot matching the cell
             RoundedRectangle(cornerRadius: 2)
-                .fill(cellColor(for: day).opacity(day.isBeforeCreation ? 0.35 : 1.0))
+                .fill(cellColor(for: day).opacity(day.isBeforeCreation ? 0.7 : 1.0))
                 .frame(width: 9, height: 9)
                 .padding(.top, 3)
 
@@ -327,12 +327,18 @@ struct HabitHeatmapView: View {
 
     // MARK: Legend
 
+    private var naLegendColor: Color {
+        let base = Color(.systemGray4)
+        let opacity = 0.7
+        return base.opacity(opacity)
+    }
+
     private var legendView: some View {
         HStack(spacing: 8) {
             legendItem(
                 Color(.systemGray5), "Today",
                 borderColor: Color.primary.opacity(0.45))
-            legendItem(Color(.systemGray5).opacity(0.35), "N/A")
+            legendItem(naLegendColor, "N/A")
             legendItem(Color(hue: 0.02, saturation: 0.88, brightness: 0.80), "Missed")
             legendItem(Color(hue: 0.02, saturation: 0.40, brightness: 0.92), "Partial")
             legendItem(Color(hue: 0.37, saturation: 0.50, brightness: 0.72), "Goal")
