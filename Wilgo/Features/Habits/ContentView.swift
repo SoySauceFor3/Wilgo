@@ -12,7 +12,7 @@ struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Habit.createdAt, order: .forward) private var habits: [Habit]
     @State private var isPresentingAddHabit: Bool = false
-    @State private var habitBeingEdited: Habit?
+    @State private var habitForDetail: Habit?
 
     var body: some View {
         NavigationStack {
@@ -20,7 +20,7 @@ struct ContentView: View {
                 ForEach(habits) { habit in
                     HabitRowView(habit: habit)
                         .contentShape(Rectangle())
-                        .onTapGesture { habitBeingEdited = habit }
+                        .onTapGesture { habitForDetail = habit }
                 }
                 .onDelete(perform: deleteHabits)
             }
@@ -42,18 +42,12 @@ struct ContentView: View {
             .sheet(isPresented: $isPresentingAddHabit) {
                 AddHabitView()
             }
-            .sheet(item: $habitBeingEdited) { habit in
-                EditHabitView(habit: habit)
+            .sheet(item: $habitForDetail) { habit in
+                HabitDetailView(habit: habit)
+                    .presentationDetents([.fraction(0.65), .large])
+                    .presentationDragIndicator(.visible)
             }
         }
-    }
-
-    /// Formats a `Date` that represents a time-of-day into a short string like "6:00 AM".
-    private func formattedTime(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-        return formatter.string(from: date)
     }
 
     private func deleteHabits(offsets: IndexSet) {
