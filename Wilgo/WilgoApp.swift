@@ -53,7 +53,7 @@ struct WilgoApp: App {
         // BGTaskScheduler crashes if an identifier listed in BGTaskSchedulerPermittedIdentifiers
         // has no registered handler at the moment the system tries to dispatch it.
         BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: MorningReportService.backgroundTaskIdentifier,
+            forTaskWithIdentifier: DayStartReportService.backgroundTaskIdentifier,
             using: nil
         ) { task in
             guard let refreshTask = task as? BGAppRefreshTask else {
@@ -64,9 +64,7 @@ struct WilgoApp: App {
                 let habits =
                     (try? WilgoApp.sharedModelContainer.mainContext.fetch(FetchDescriptor<Habit>()))
                     ?? []
-                let dayStartHour = UserDefaults.standard.integer(
-                    forKey: AppSettings.dayStartHourKey)
-                MorningReportService.handleBackgroundTask(for: habits, dayStartHour: dayStartHour)
+                DayStartReportService.handleBackgroundTask(for: habits)
                 refreshTask.setTaskCompleted(success: true)
             }
         }
@@ -74,10 +72,9 @@ struct WilgoApp: App {
         liveActivityManager = LiveActivityManager(
             modelContext: Self.sharedModelContainer.mainContext)
 
-        // Bootstrap: queue the morning-report wakeup at the user's preferred day-start hour.
+        // Bootstrap: queue the day-start report wakeup at the user's preferred day-start hour.
         // After it fires once, handleBackgroundTask re-schedules it each day automatically.
-        let dayStartHour = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
-        MorningReportService.scheduleBackgroundTask(dayStartHour: dayStartHour)
+        DayStartReportService.scheduleBackgroundTask()
     }
 
     var body: some Scene {
@@ -93,9 +90,7 @@ struct WilgoApp: App {
             if newPhase == .active {
                 liveActivityManager.sync()
                 // Watchdog: re-queue in case iOS skipped a BGTask fire.
-                let dayStartHour = UserDefaults.standard.integer(
-                    forKey: AppSettings.dayStartHourKey)
-                MorningReportService.scheduleBackgroundTask(dayStartHour: dayStartHour)
+                DayStartReportService.scheduleBackgroundTask()
             }
         }
     }

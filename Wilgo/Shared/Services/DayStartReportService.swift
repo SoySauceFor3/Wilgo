@@ -3,28 +3,29 @@ import Foundation
 import SwiftData
 import UserNotifications
 
-/// Delivers the "morning report" notification by waking the app at 8 AM via BGAppRefreshTask.
+/// Delivers the "day-start report" notification by waking the app at the user's
+/// configured `dayStartHourOffset` via BGAppRefreshTask.
 ///
 /// ## Flow
 /// 1. `scheduleBackgroundTask()` — called on every app-active. Submits (or replaces)
-///    a BGAppRefreshTask targeting 8 AM today (or tomorrow if 8 AM has passed).
+///    a BGAppRefreshTask targeting the next day-start hour (today if not yet passed,
+///    otherwise tomorrow).
 ///
-/// 2. **BGAppRefreshTask fires at 8 AM** (background, no app open needed):
+/// 2. **BGAppRefreshTask fires at the day-start hour** (background, no app open needed):
 ///    `handleBackgroundTask(for:)` computes yesterday's miss data, posts notifications
-///    immediately, then re-schedules itself for the next 8 AM. Self-sustaining loop. -- are we really doing this itself?
+///    immediately, then re-schedules itself for the next day-start. Self-sustaining loop.
 ///
 /// 3. If the user opens the app instead of relying on the notification, the Stage view
 ///    shows the live credit state directly — no separate notification needed.
-enum MorningReportService {
+enum DayStartReportService {
 
-    static let defaultDayStartHour = 8
     static let backgroundTaskIdentifier = "wilgo.morning-report-scheduler"
 
     // MARK: - Public
 
-    /// Queue the 8 AM background wakeup. Safe to call on every app-active event.
+    /// Queue the background wakeup for the next day-start hour. Safe to call on every app-active event.
     static func scheduleBackgroundTask(
-        dayStartHour: Int = defaultDayStartHour,
+        dayStartHour: Int = HabitScheduling.dayStartHourOffset,
         now: Date = .now
     ) {
         let cal = HabitScheduling.calendar
@@ -40,7 +41,7 @@ enum MorningReportService {
     /// Called from the BGTask handler in WilgoApp: post notifications, then re-queue for tomorrow.
     static func handleBackgroundTask(
         for habits: [Habit],
-        dayStartHour: Int = defaultDayStartHour,
+        dayStartHour: Int = HabitScheduling.dayStartHourOffset,
         now: Date = .now
     ) {
         postNotifications(for: habits, now: now)
