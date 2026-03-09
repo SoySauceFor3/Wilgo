@@ -47,11 +47,14 @@ private func makeSlot(startHour: Int, endHour: Int) -> HabitSlot {
 private func makeHabit(
     in ctx: ModelContext,
     title: String = "A",
+    goalCountPerDay: Int = 1,
     slots: [HabitSlot] = [],
     skipCreditCount: Int = 0,
     cycle: Cycle = .daily
 ) -> Habit {
-    let habit = Habit(title: title, slots: slots, skipCreditCount: skipCreditCount, cycle: cycle, goalCountPerDay: slots.count)
+    let habit = Habit(
+        title: title, slots: slots, skipCreditCount: skipCreditCount, cycle: cycle,
+        goalCountPerDay: goalCountPerDay)
     ctx.insert(habit)
     for slot in slots { ctx.insert(slot) }
     return habit
@@ -245,10 +248,8 @@ struct HabitSlotsQueriesTests {
         }
     }
 
-    // MARK: - hasUnfinishedSlots
-
-    @Suite("Habit — hasUnfinishedSlots")
-    final class HabitUnfinishedTodayTests {
+    @Suite("Habit — hasMetDailyGoal")
+    final class HabitMetDailyGoalTests {
 
         private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
         init() { UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey) }
@@ -256,45 +257,55 @@ struct HabitSlotsQueriesTests {
 
         let psychDay = date(year: 2026, month: 3, day: 5)
 
-        @Test("no check-ins → true")
-        @MainActor func noCheckInsIsUnfinished() throws {
+        @Test("no check-ins → false")
+        @MainActor func noCheckInsIsNotMet() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
-            #expect(habit.hasUnfinishedSlots(for: psychDay) == true)
+            let habit = makeHabit(in: ctx, goalCountPerDay: 1)
+            #expect(habit.hasMetDailyGoal(for: psychDay) == false)
         }
 
-        @Test("partial completion → true")
+        @Test("partial completion → false")
         @MainActor func partialCompletionIsUnfinished() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
             let habit = makeHabit(
                 in: ctx,
-                slots: [
-                    makeSlot(startHour: 7, endHour: 8),
-                    makeSlot(startHour: 14, endHour: 15),
-                ])
+                goalCountPerDay: 2
+            )
             ctx.insert(
                 HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 7)))
-            #expect(habit.hasUnfinishedSlots(for: psychDay) == true)
+            #expect(habit.hasMetDailyGoal(for: psychDay) == false)
         }
 
-        @Test("all slots completed → false")
-        @MainActor func allCompletedIsFinished() throws {
+        @Test("dailyGoalIsMet, goalCountPerDay is 1")
+        @MainActor func dailyGoalIsMet() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
+            let habit = makeHabit(in: ctx, goalCountPerDay: 1)
             ctx.insert(
                 HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 9)))
-            #expect(habit.hasUnfinishedSlots(for: psychDay) == false)
+            #expect(habit.hasMetDailyGoal(for: psychDay) == true)
         }
 
-        @Test("no slots → false (nothing to do)")
-        @MainActor func noSlotsIsFinished() throws {
+        @Test("dailyGoalIsMet, goalCountPerDay is 2")
+        @MainActor func dailyGoalIsMetWithMultipleCheckIns() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx)
-            #expect(habit.hasUnfinishedSlots(for: psychDay) == false)
+            let habit = makeHabit(in: ctx, goalCountPerDay: 2)
+            ctx.insert(
+                HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 9)))
+            ctx.insert(
+                HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 10)))
+            #expect(habit.hasMetDailyGoal(for: psychDay) == true)
+        }
+
+        @Test("edge case, goalCountPerDay is 0 → true")
+        @MainActor func goalCountPerDayIs0IsMet() throws {
+            let container = try makeContainer()
+            let ctx = container.mainContext
+            let habit = makeHabit(in: ctx, goalCountPerDay: 0)
+            #expect(habit.hasMetDailyGoal(for: psychDay) == true)
         }
     }
 

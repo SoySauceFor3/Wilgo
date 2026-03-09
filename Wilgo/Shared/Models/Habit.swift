@@ -133,11 +133,6 @@ extension Habit {
         return Array(slots.sorted().dropFirst(completedCount(for: psychDay)))
     }
 
-    /// Whether the habit has any unfinished slots on the given psychological day.
-    func hasUnfinishedSlots(for psychDay: Date) -> Bool {
-        !unfinishedSlots(for: psychDay).isEmpty
-    }
-
     /// The first remaining slot whose window contains `now`, skipping snoozed ones.
     func firstCurrentSlot(
         now: Date = HabitScheduling.now(),
@@ -154,5 +149,10 @@ extension Habit {
     func firstFutureSlot(now: Date = HabitScheduling.now()) -> HabitSlot? {
         let psychDay = HabitScheduling.psychDay(for: now)
         return unfinishedSlots(for: psychDay).first { now <= $0.startToday }
+    }
+
+    func hasMetDailyGoal(for psychDay: Date) -> Bool {
+        print("hasMetDailyGoal: \(completedCount(for: psychDay)) >= \(goalCountPerDay)")
+        return completedCount(for: psychDay) >= goalCountPerDay
     }
 }

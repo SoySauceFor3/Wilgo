@@ -60,8 +60,8 @@ enum DayStartReportService {
     {
         guard !habits.isEmpty else { return nil }
 
-        let missed = habits.filter { $0.hasUnfinishedSlots(for: yesterday) }
-        let done = habits.filter { !$0.hasUnfinishedSlots(for: yesterday) }
+        let missed = habits.filter { !$0.hasMetDailyGoal(for: yesterday) }
+        let done = habits.filter { $0.hasMetDailyGoal(for: yesterday) }
 
         let content = UNMutableNotificationContent()
         content.sound = .default
