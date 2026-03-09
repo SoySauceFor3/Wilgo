@@ -108,7 +108,6 @@ extension Habit {
     }
 
     func hasMetDailyGoal(for psychDay: Date) -> Bool {
-        print("hasMetDailyGoal: \(completedCount(for: psychDay)) >= \(goalCountPerDay)")
         return completedCount(for: psychDay) >= goalCountPerDay
     }
 }

@@ -5,6 +5,7 @@ enum SkipCredit {
     /// A credit is burned for each psychological day in the period where
     /// the habit was not fully completed (completions < slots.count).
     /// PsychDay is inclusive end date.
+    /// NOTE: the current implementation allows extra check-ins beyond the goalCountPerDay to be used as skip credits.
     static func creditsUsedInCycle(for habit: Habit, until psychDay: Date) -> Int {
         let cal = HabitScheduling.calendar
         let start = habit.cycle.start(of: psychDay)
@@ -12,12 +13,12 @@ enum SkipCredit {
         var burned = 0
         var day = start
         while day <= psychDay {
-            burned += habit.unfinishedSlots(for: day).count
+            burned += habit.goalCountPerDay - habit.completedCount(for: day)
 
             guard let next = cal.date(byAdding: .day, value: 1, to: day) else { break }
             day = next
         }
-        return burned
+        return max(0, burned)
     }
 
     /// Credits still available in the cycle of PsychDay, inclusively.
@@ -42,16 +43,15 @@ enum SkipCredit {
     /// ```
     static func notificationLine(for habit: Habit, on psychDay: Date) -> String {
         let completed = habit.completedCount(for: psychDay)
-        let required  = habit.slots.count
-        let used      = creditsUsedInCycle(for: habit, until: psychDay)
+        let required = habit.goalCountPerDay
+        let used = creditsUsedInCycle(for: habit, until: psychDay)
         let allowance = habit.skipCreditCount
-        let remaining = creditsRemaining(for: habit, until: psychDay)
 
-        let icon  = completed == 0 ? "❌" : "⚠️"
-        let delta = used > allowance ? "−\(used - allowance)" : "+\(remaining)"
+        let icon = completed == 0 ? "❌" : "⚠️"
 
-        var line = "\(icon) \(habit.title) — \(completed)/\(required) · \(used)/\(allowance)cr \(delta)"
-        if remaining == 0, let punishment = habit.punishment {
+        var line =
+            "\(icon) \(habit.title) — \(completed)/\(required) checkIns · \(used)/\(allowance)cr used"
+        if used > allowance, let punishment = habit.punishment {
             line += " · \(punishment)"
         }
         return line
