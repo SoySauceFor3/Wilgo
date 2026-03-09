@@ -37,22 +37,56 @@ struct HabitFormFields: View {
                 .font(.footnote)
                 .foregroundStyle(.secondary)
 
-            ForEach(Array(slotWindows.enumerated()), id: \.element.id) { index, _ in
-                Section("Slot \(index + 1)") {
-                    DatePicker(
-                        "Start",
-                        selection: startBinding(for: index),
-                        displayedComponents: .hourAndMinute
-                    )
-                    DatePicker(
-                        "End",
-                        selection: endBinding(for: index),
-                        displayedComponents: .hourAndMinute
-                    )
+            ForEach(Array(slotWindows.enumerated()), id: \.element.id) { index, window in
+                HStack(spacing: 12) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Slot \(index + 1)")
+                            .font(.subheadline.weight(.semibold))
+
+                        HStack(spacing: 8) {
+                            DatePicker(
+                                "",
+                                selection: startBinding(for: index),
+                                displayedComponents: .hourAndMinute
+                            )
+                            .labelsHidden()
+
+                            Text("–")
+                                .foregroundStyle(.secondary)
+
+                            DatePicker(
+                                "",
+                                selection: endBinding(for: index),
+                                displayedComponents: .hourAndMinute
+                            )
+                            .labelsHidden()
+                        }
+                        .font(.footnote)
+
+                        if window.end < window.start {
+                            Text("Crosses midnight")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+
+                    Spacer()
+
+                    Button(role: .destructive) {
+                        slotWindows.remove(at: index)
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(.borderless)
                 }
+                .padding(10)
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color(.secondarySystemBackground))
+                )
             }
             Button {
-                let (defaultStart, defaultEnd) = Self.defaultWindow()
+                let (defaultStart, defaultEnd) = defaultWindowForNewSlot()
                 slotWindows.append(SlotWindow(start: defaultStart, end: defaultEnd))
             } label: {
                 Label("Add window", systemImage: "plus")
@@ -110,12 +144,19 @@ struct HabitFormFields: View {
         )
     }
 
-    static func defaultWindow() -> (start: Date, end: Date) {
-        let calendar = Calendar.current
+    static func defaultFirstWindow() -> (start: Date, end: Date) {
         let now = Date()
-        let start = calendar.date(bySettingHour: 6, minute: 0, second: 0, of: now) ?? now
-        let end = calendar.date(bySettingHour: 8, minute: 0, second: 0, of: now) ?? now
-        return (start, end)
+        let end = Calendar.current.date(byAdding: .hour, value: 1, to: now) ?? now
+        return (start: now, end: end)
+    }
+
+    private func defaultWindowForNewSlot() -> (start: Date, end: Date) {
+        if slotWindows.isEmpty {
+            return Self.defaultFirstWindow()
+        }
+
+        let last = slotWindows[slotWindows.count - 1]
+        return (last.start, last.end)
     }
 
     private func startBinding(for index: Int) -> Binding<Date> {

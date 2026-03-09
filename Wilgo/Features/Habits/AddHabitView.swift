@@ -15,7 +15,7 @@ struct AddHabitView: View {
     @State private var punishment: String = ""
 
     init() {
-        let (start, end) = HabitFormFields.defaultWindow()
+        let (start, end) = HabitFormFields.defaultFirstWindow()
         _slotWindows = State(initialValue: [SlotWindow(start: start, end: end)])
     }
 
