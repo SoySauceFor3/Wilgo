@@ -17,11 +17,11 @@ struct StageView: View {
     /// actually change the value of it will trigger a rerender.
     @State private var rewrite = false
 
-    private var current: [(Habit, HabitSlot)] {
+    private var current: [(Habit, Slot)] {
         HabitAndSlot.current(habits: habits, snoozedSlots: snoozedSlots, now: Date())
     }
 
-    private var upcoming: [(Habit, HabitSlot)] {
+    private var upcoming: [(Habit, Slot)] {
         HabitAndSlot.upcoming(habits: habits, now: Date())
     }
 
@@ -135,14 +135,14 @@ private struct EmptyStageCard: View {
 private enum StagePreviewFactory {
     static var multipleHabits: some View {
         let container = try! ModelContainer(
-            for: Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self,
+            for: Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         let ctx = container.mainContext
         let calendar = Calendar.current
 
-        func slot(_ h1: Int, _ m1: Int, _ h2: Int, _ m2: Int) -> HabitSlot {
-            HabitSlot(
+        func slot(_ h1: Int, _ m1: Int, _ h2: Int, _ m2: Int) -> Slot {
+            Slot(
                 start: calendar.date(from: DateComponents(hour: h1, minute: m1)) ?? Date(),
                 end: calendar.date(from: DateComponents(hour: h2, minute: m2)) ?? Date()
             )
@@ -194,12 +194,12 @@ private enum StagePreviewFactory {
 
     static var singleHabit: some View {
         let container = try! ModelContainer(
-            for: Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self,
+            for: Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         let ctx = container.mainContext
         let calendar = Calendar.current
-        let slot = HabitSlot(
+        let slot = Slot(
             start: calendar.date(from: DateComponents(hour: 0, minute: 0)) ?? Date(),
             end: calendar.date(from: DateComponents(hour: 0, minute: 10)) ?? Date()
         )
@@ -223,7 +223,7 @@ private enum StagePreviewFactory {
         StageView()
             .modelContainer(
                 try! ModelContainer(
-                    for: Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self,
+                    for: Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self,
                     configurations: ModelConfiguration(isStoredInMemoryOnly: true)
                 )
             )

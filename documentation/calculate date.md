@@ -30,7 +30,7 @@ We will:
     - `timeZoneIdentifier`
     - a configurable `dayStartHourOffset` (e.g. 0 for midnight, 3 for “day starts at 3am”).
 
-We keep slots (`HabitSlot` with `start`, `end`) and **do not store a per-slot index on `HabitCheckIn`**. For daily progress / streaks / lateness UX, we use the psychological day (`psychDay`) and time-based greedy pairing between slots and check-ins.
+We keep slots (`Slot` with `start`, `end`) and **do not store a per-slot index on `HabitCheckIn`**. For daily progress / streaks / lateness UX, we use the psychological day (`psychDay`) and time-based greedy pairing between slots and check-ins.
 
 ### Rationale
 

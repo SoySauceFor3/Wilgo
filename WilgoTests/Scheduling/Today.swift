@@ -18,7 +18,7 @@ private func date(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 
 }
 
 /// Returns a reference Date whose *only* meaningful fields are hour and minute —
-/// same as how HabitSlot stores its start/end times.
+/// same as how Slot stores its start/end times.
 private func timeOfDay(hour: Int, minute: Int = 0) -> Date {
     date(year: 2000, month: 1, day: 1, hour: hour, minute: minute)
 }

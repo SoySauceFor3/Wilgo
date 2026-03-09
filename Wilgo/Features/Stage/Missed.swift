@@ -81,7 +81,7 @@ struct MissedHabitRow: View {
 
 struct MissedHabit {
     let habit: Habit
-    let slot: HabitSlot
+    let slot: Slot
     /// Number of check-ins today for this habit.
     let completedCount: Int
     /// Number of missed slots (ended before now without check-ins).
@@ -96,7 +96,7 @@ struct MissedHabit {
     let start = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: today) ?? today
     let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: today) ?? today
 
-    let slot = HabitSlot(start: start, end: end)
+    let slot = Slot(start: start, end: end)
     let habit = Habit(
         title: "Morning reading",
         slots: [slot],
@@ -114,7 +114,9 @@ struct MissedHabit {
             overdueBy: Date().timeIntervalSince(Date().addingTimeInterval(-60 * 60))
         )
     )
-    .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true)
+    .modelContainer(
+        for: [Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
+    )
     .padding()
 }
 
@@ -124,7 +126,7 @@ struct MissedHabit {
     let start = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: today) ?? today
     let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: today) ?? today
 
-    let slot = HabitSlot(start: start, end: end)
+    let slot = Slot(start: start, end: end)
     let habit = Habit(
         title: "Morning reading",
         slots: [slot],
@@ -142,6 +144,8 @@ struct MissedHabit {
             overdueBy: Date().timeIntervalSince(Date().addingTimeInterval(60 * 60))
         )
     )
-    .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true)
+    .modelContainer(
+        for: [Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
+    )
     .padding()
 }

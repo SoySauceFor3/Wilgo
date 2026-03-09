@@ -132,14 +132,14 @@ private struct HabitRowView: View {
 
 private func makePreviewContainerWithSamples() throws -> ModelContainer {
     let container = try ModelContainer(
-        for: Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self,
+        for: Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
     let ctx = container.mainContext
     let calendar = Calendar.current
 
-    func slot(_ h1: Int, _ m1: Int, _ h2: Int, _ m2: Int) -> HabitSlot {
-        HabitSlot(
+    func slot(_ h1: Int, _ m1: Int, _ h2: Int, _ m2: Int) -> Slot {
+        Slot(
             start: calendar.date(from: DateComponents(hour: h1, minute: m1)) ?? Date(),
             end: calendar.date(from: DateComponents(hour: h2, minute: m2)) ?? Date()
         )

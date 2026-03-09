@@ -12,7 +12,7 @@ import SwiftData
 @Model
 final class SnoozedSlot {
     @Relationship var habit: Habit?
-    @Relationship var slot: HabitSlot?
+    @Relationship var slot: Slot?
 
     /// Absolute time when the snooze happened.
     var createdAt: Date
@@ -25,7 +25,7 @@ final class SnoozedSlot {
 
     init(
         habit: Habit,
-        slot: HabitSlot,
+        slot: Slot,
         createdAt: Date = HabitScheduling.now()
     ) {
         self.habit = habit
@@ -36,4 +36,3 @@ final class SnoozedSlot {
         self.psychDay = HabitScheduling.psychDay(for: createdAt, timeZoneIdentifier: tzId)
     }
 }
-

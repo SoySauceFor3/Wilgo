@@ -18,7 +18,7 @@ private func date(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 
 }
 
 /// A time-of-day reference date. Only hour and minute are meaningful — the same
-/// semantics HabitSlot uses for its start/end fields.
+/// semantics Slot uses for its start/end fields.
 private func timeOfDay(hour: Int, minute: Int = 0) -> Date {
     date(year: 2000, month: 1, day: 1, hour: hour, minute: minute)
 }
@@ -30,15 +30,15 @@ private func timeOfDay(hour: Int, minute: Int = 0) -> Date {
 /// SwiftData; if the container is released, any subsequent context operation crashes.
 @MainActor
 private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self])
+    let schema = Schema([Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self])
     let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
     return try ModelContainer(for: schema, configurations: [config])
 }
 
-/// Creates a HabitSlot (uninserted). Pass the slot to `makeHabit(in:slots:)` so the
+/// Creates a Slot (uninserted). Pass the slot to `makeHabit(in:slots:)` so the
 /// correct insertion order is always observed.
-private func makeSlot(startHour: Int, endHour: Int) -> HabitSlot {
-    HabitSlot(start: timeOfDay(hour: startHour), end: timeOfDay(hour: endHour))
+private func makeSlot(startHour: Int, endHour: Int) -> Slot {
+    Slot(start: timeOfDay(hour: startHour), end: timeOfDay(hour: endHour))
 }
 
 /// Creates a habit and inserts it and all its slots into `ctx`.
@@ -48,7 +48,7 @@ private func makeHabit(
     in ctx: ModelContext,
     title: String = "A",
     goalCountPerDay: Int = 1,
-    slots: [HabitSlot] = [],
+    slots: [Slot] = [],
     skipCreditCount: Int = 0,
     cycle: Cycle = .daily
 ) -> Habit {
@@ -76,7 +76,7 @@ private func makeHabit(
 // midnight of the local calendar day, regardless of the device's Settings value.
 
 @Suite("Habit slots queries", .serialized)
-struct HabitSlotsQueriesTests {
+struct SlotsQueriesTests {
     @Suite("Habit — completedCount")
     final class HabitCompletedCountTests {
 
@@ -331,7 +331,7 @@ struct HabitSlotsQueriesTests {
             HabitScheduling.now = savedNow
         }
 
-        private func wideSlot(startHour: Int = 0) -> HabitSlot {
+        private func wideSlot(startHour: Int = 0) -> Slot {
             makeSlot(startHour: startHour, endHour: 23)
         }
 

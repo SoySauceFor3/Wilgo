@@ -112,8 +112,8 @@ struct EditHabitView: View {
 
         if slotsChanged {
             for old in habit.slots { modelContext.delete(old) }
-            let newSlots: [HabitSlot] = newWindows.map { window in
-                let slot = HabitSlot(start: window.start, end: window.end)
+            let newSlots: [Slot] = newWindows.map { window in
+                let slot = Slot(start: window.start, end: window.end)
                 modelContext.insert(slot)
                 return slot
             }
@@ -126,11 +126,11 @@ struct EditHabitView: View {
 
 #Preview {
     let container = try! ModelContainer(
-        for: Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self,
+        for: Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
     let calendar = Calendar.current
-    let slot = HabitSlot(
+    let slot = Slot(
         start: calendar.date(from: DateComponents(hour: 6)) ?? Date(),
         end: calendar.date(from: DateComponents(hour: 8)) ?? Date()
     )

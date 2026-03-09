@@ -1,10 +1,9 @@
-
-import SwiftUI
 import SwiftData
+import SwiftUI
 
 struct UpcomingHabitRow: View {
     let habit: Habit
-    let slot: HabitSlot
+    let slot: Slot
 
     private func formattedTime(from date: Date) -> String {
         let formatter = DateFormatter()
@@ -39,7 +38,7 @@ struct UpcomingHabitRow: View {
     let start = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: today) ?? today
     let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: today) ?? today
 
-    let slot = HabitSlot(start: start, end: end)
+    let slot = Slot(start: start, end: end)
     let habit = Habit(
         title: "Morning reading",
         slots: [slot],
@@ -49,6 +48,8 @@ struct UpcomingHabitRow: View {
     )
 
     return UpcomingHabitRow(habit: habit, slot: slot)
-        .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true)
+        .modelContainer(
+            for: [Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
+        )
         .padding()
 }

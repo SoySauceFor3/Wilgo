@@ -128,9 +128,9 @@ final class LiveActivityManager {
     }
 
     func makeFirstLiveActivityContentState(
-        from currentHabitSlots: [(Habit, HabitSlot)]
+        from currentSlots: [(Habit, Slot)]
     ) -> NowAttributes.ContentState? {
-        guard let (habit, slot) = currentHabitSlots.first else { return nil }
+        guard let (habit, slot) = currentSlots.first else { return nil }
         let habitId = habit.persistentModelID.encoded()
         let slotId = slot.persistentModelID.encoded()
         return NowAttributes.ContentState(

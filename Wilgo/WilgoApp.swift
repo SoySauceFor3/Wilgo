@@ -32,7 +32,7 @@ struct WilgoApp: App {
     static let sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Habit.self,
-            HabitSlot.self,
+            Slot.self,
             HabitCheckIn.self,
             SnoozedSlot.self,
         ])
@@ -136,7 +136,7 @@ struct WilgoApp: App {
             guard let habit = habits.first(where: { $0.persistentModelID == habitId }) else {
                 return
             }
-            let allSlots = (try? context.fetch(FetchDescriptor<HabitSlot>())) ?? []
+            let allSlots = (try? context.fetch(FetchDescriptor<Slot>())) ?? []
             guard let slot = allSlots.first(where: { $0.persistentModelID == slotId }) else {
                 return
             }

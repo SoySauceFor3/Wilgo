@@ -51,8 +51,8 @@ struct AddHabitView: View {
     }
 
     private func saveHabit() {
-        let slots: [HabitSlot] = slotWindows.map { window in
-            let slot = HabitSlot(start: window.start, end: window.end)
+        let slots: [Slot] = slotWindows.map { window in
+            let slot = Slot(start: window.start, end: window.end)
             modelContext.insert(slot)
             return slot
         }
@@ -74,7 +74,7 @@ struct AddHabitView: View {
 
 #Preview {
     let container = try! ModelContainer(
-        for: Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self,
+        for: Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
     AddHabitView()

@@ -1,10 +1,8 @@
 import Foundation
 import SwiftData
 
-// MARK: - HabitSlot (one ideal window per occurrence, for N× daily)
-
 @Model
-final class HabitSlot {
+final class Slot {
     /// Start of this slot's ideal window (time-of-day only, arbitrary reference day).
     var start: Date
     /// End of this slot's ideal window (time-of-day only).
@@ -21,7 +19,7 @@ final class HabitSlot {
     }
 }
 
-extension HabitSlot {
+extension Slot {
     /// Start of the slot mapped onto the current psychological day.
     var startToday: Date { HabitScheduling.today(at: start) }
 
@@ -91,8 +89,8 @@ extension HabitSlot {
     }
 }
 
-extension HabitSlot: Comparable {
-    static func < (lhs: HabitSlot, rhs: HabitSlot) -> Bool {
+extension Slot: Comparable {
+    static func < (lhs: Slot, rhs: Slot) -> Bool {
         if lhs.start == rhs.start {
             return lhs.endToday < rhs.endToday
         } else {
@@ -100,7 +98,7 @@ extension HabitSlot: Comparable {
         }
     }
 
-    static func == (lhs: HabitSlot, rhs: HabitSlot) -> Bool {
+    static func == (lhs: Slot, rhs: Slot) -> Bool {
         lhs.start == rhs.start && lhs.end == rhs.end
     }
 }

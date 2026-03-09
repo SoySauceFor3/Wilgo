@@ -4,7 +4,7 @@ import SwiftUI
 struct CurrentHabitRow: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var habit: Habit
-    let slot: HabitSlot
+    let slot: Slot
 
     private func formattedTime(_ date: Date) -> String {
         let formatter = DateFormatter()
@@ -98,7 +98,7 @@ struct CurrentHabitRow: View {
     let start = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: today) ?? today
     let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: today) ?? today
 
-    let slot = HabitSlot(start: start, end: end)
+    let slot = Slot(start: start, end: end)
     let habit = Habit(
         title: "Morning reading",
         slots: [slot],
@@ -109,7 +109,7 @@ struct CurrentHabitRow: View {
 
     CurrentHabitRow(habit: habit, slot: slot)
         .modelContainer(
-            for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
+            for: [Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
         )
         .padding()
 }
@@ -120,7 +120,7 @@ struct CurrentHabitRow: View {
     let start = calendar.date(byAdding: .minute, value: -30, to: now) ?? now
     let end = calendar.date(byAdding: .minute, value: 30, to: now) ?? now
 
-    let slot = HabitSlot(start: start, end: end)
+    let slot = Slot(start: start, end: end)
     let habit = Habit(
         title: "Gentle: read 10 pages",
         slots: [slot],
@@ -131,7 +131,7 @@ struct CurrentHabitRow: View {
 
     CurrentHabitRow(habit: habit, slot: slot)
         .modelContainer(
-            for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
+            for: [Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
         )
         .padding()
 }
@@ -142,7 +142,7 @@ struct CurrentHabitRow: View {
     let start = calendar.date(byAdding: .hour, value: -3, to: now) ?? now
     let end = calendar.date(byAdding: .hour, value: -2, to: now) ?? now
 
-    let slot = HabitSlot(start: start, end: end)
+    let slot = Slot(start: start, end: end)
     let habit = Habit(
         title: "Judgmental: afternoon walk",
         slots: [slot],
@@ -153,7 +153,7 @@ struct CurrentHabitRow: View {
 
     return CurrentHabitRow(habit: habit, slot: slot)
         .modelContainer(
-            for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
+            for: [Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
         )
         .padding()
 }
@@ -168,7 +168,7 @@ struct CurrentHabitRow: View {
     let start = calendar.date(from: startComponents) ?? now
     let end = calendar.date(from: endComponents) ?? now
 
-    let slot = HabitSlot(start: start, end: end)
+    let slot = Slot(start: start, end: end)
     let habit = Habit(
         title: "Critical: submit report",
         slots: [slot],
@@ -179,7 +179,7 @@ struct CurrentHabitRow: View {
 
     return CurrentHabitRow(habit: habit, slot: slot)
         .modelContainer(
-            for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
+            for: [Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
         )
         .padding()
 }
@@ -190,7 +190,7 @@ struct CurrentHabitRow: View {
     let start = calendar.date(byAdding: .hour, value: 3, to: now) ?? now
     let end = calendar.date(byAdding: .hour, value: 4, to: now) ?? now
 
-    let slot = HabitSlot(start: start, end: end)
+    let slot = Slot(start: start, end: end)
     let habit = Habit(
         title: "Settled: late workout",
         slots: [slot],
@@ -201,7 +201,7 @@ struct CurrentHabitRow: View {
 
     return CurrentHabitRow(habit: habit, slot: slot)
         .modelContainer(
-            for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
+            for: [Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
         )
         .padding()
 }

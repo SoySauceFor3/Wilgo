@@ -22,8 +22,8 @@ final class Habit {
     var checkIns: [HabitCheckIn] = []
 
     /// N× daily: each slot has its own ideal window.
-    @Relationship(deleteRule: .cascade, inverse: \HabitSlot.habit)
-    var slots: [HabitSlot] = []
+    @Relationship(deleteRule: .cascade, inverse: \Slot.habit)
+    var slots: [Slot] = []
 
     /// Target number of completions per psychological day.
     /// If nil, defaults to `max(1, slots.count)` for backwards compatibility.
@@ -49,7 +49,7 @@ final class Habit {
     init(
         title: String,
         createdAt: Date = .now,
-        slots: [HabitSlot],
+        slots: [Slot],
         skipCreditCount: Int,
         cycle: Cycle,
         proofOfWorkType: ProofOfWorkType = .manual,
@@ -80,15 +80,15 @@ extension Habit {
     }
 
     /// Slots not yet completed on the given psychological day, in order.
-    func unfinishedSlots(for psychDay: Date) -> [HabitSlot] {
+    func unfinishedSlots(for psychDay: Date) -> [Slot] {
         return Array(slots.sorted().dropFirst(completedCount(for: psychDay)))
     }
 
     /// The first slot whose window overlaps with `now`, skipping excluded ones.
     func firstCurrentSlot(
         now: Date = HabitScheduling.now(),
-        excluding excluded: [HabitSlot]
-    ) -> HabitSlot? {
+        excluding excluded: [Slot]
+    ) -> Slot? {
         return slots.first(where: { slot in
             if excluded.contains(where: { $0 === slot }) {
                 return false
@@ -99,7 +99,7 @@ extension Habit {
     }
 
     /// The first remaining slot that hasn't started yet.
-    func firstFutureSlot(now: Date = HabitScheduling.now()) -> HabitSlot? {
+    func firstFutureSlot(now: Date = HabitScheduling.now()) -> Slot? {
         let psychDay = HabitScheduling.psychDay(for: now)
         return unfinishedSlots(for: psychDay).first(where: { now <= $0.startToday })
     }

@@ -6,7 +6,7 @@ import Testing
 // MARK: - Helpers
 
 /// A time-of-day reference date. Only hour and minute are meaningful — the same
-/// semantics HabitSlot uses for its start/end fields.
+/// semantics Slot uses for its start/end fields.
 private func timeOfDay(hour: Int, minute: Int = 0) -> Date {
     var comps = DateComponents()
     comps.year = 2000
@@ -28,7 +28,7 @@ struct SlotTests {
 
         @Test("contains — same-day window includes boundaries and interior")
         @MainActor func contains_sameDay_includesBoundariesAndInterior() throws {
-            let slot = HabitSlot(
+            let slot = Slot(
                 start: timeOfDay(hour: 9, minute: 0),
                 end: timeOfDay(hour: 11, minute: 0)
             )
@@ -40,7 +40,7 @@ struct SlotTests {
 
         @Test("contains — same-day window excludes outside times")
         @MainActor func contains_sameDay_excludesOutside() throws {
-            let slot = HabitSlot(
+            let slot = Slot(
                 start: timeOfDay(hour: 9, minute: 0),
                 end: timeOfDay(hour: 11, minute: 0)
             )
@@ -51,7 +51,7 @@ struct SlotTests {
 
         @Test("contains — cross-midnight window includes boundaries and interior")
         @MainActor func contains_crossMidnight_includesBoundariesAndInterior() throws {
-            let slot = HabitSlot(
+            let slot = Slot(
                 start: timeOfDay(hour: 23, minute: 0),
                 end: timeOfDay(hour: 1, minute: 0)
             )
@@ -63,7 +63,7 @@ struct SlotTests {
 
         @Test("contains — cross-midnight window excludes outside times")
         @MainActor func contains_crossMidnight_excludesOutside() throws {
-            let slot = HabitSlot(
+            let slot = Slot(
                 start: timeOfDay(hour: 23, minute: 0),
                 end: timeOfDay(hour: 1, minute: 0)
             )
@@ -77,7 +77,7 @@ struct SlotTests {
     struct SlotRemainingFractionTests {
         @Test("remainingFraction — same-day window fractions")
         @MainActor func remainingFraction_sameDay() throws {
-            let slot = HabitSlot(
+            let slot = Slot(
                 start: timeOfDay(hour: 10, minute: 0),
                 end: timeOfDay(hour: 11, minute: 0)
             )
@@ -92,7 +92,7 @@ struct SlotTests {
 
         @Test("remainingFraction — cross-midnight window fractions")
         @MainActor func remainingFraction_crossMidnight() throws {
-            let slot = HabitSlot(
+            let slot = Slot(
                 start: timeOfDay(hour: 23, minute: 0),
                 end: timeOfDay(hour: 1, minute: 0)
             )

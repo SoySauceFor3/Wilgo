@@ -23,20 +23,20 @@ private func timeOfDay(hour: Int, minute: Int = 0) -> Date {
 
 @MainActor
 private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self])
+    let schema = Schema([Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self])
     let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
     return try ModelContainer(for: schema, configurations: [config])
 }
 
-private func makeSlot(startHour: Int, endHour: Int) -> HabitSlot {
-    HabitSlot(start: timeOfDay(hour: startHour), end: timeOfDay(hour: endHour))
+private func makeSlot(startHour: Int, endHour: Int) -> Slot {
+    Slot(start: timeOfDay(hour: startHour), end: timeOfDay(hour: endHour))
 }
 
 @MainActor
 private func makeHabit(
     in ctx: ModelContext,
     title: String = "A",
-    slots: [HabitSlot] = []
+    slots: [Slot] = []
 ) -> Habit {
     let habit = Habit(
         title: title, slots: slots, skipCreditCount: 0, cycle: .daily, goalCountPerDay: 2)
@@ -71,7 +71,7 @@ struct HabitAndSlotTests {
             HabitScheduling.now = savedNow
         }
 
-        private func wideSlot(endHour: Int = 23) -> HabitSlot {
+        private func wideSlot(endHour: Int = 23) -> Slot {
             makeSlot(startHour: 0, endHour: endHour)
         }
 

@@ -6,10 +6,10 @@ enum HabitAndSlot {
         habits: [Habit],
         snoozedSlots: [SnoozedSlot],
         now: Date = HabitScheduling.now()
-    ) -> [(Habit, HabitSlot)] {
+    ) -> [(Habit, Slot)] {
         let psychDay = HabitScheduling.psychDay(for: now)
         let todaysSnoozes = snoozedSlots.filter { $0.psychDay == psychDay && $0.resolvedAt == nil }
-        var result = habits.compactMap { habit -> (Habit, HabitSlot)? in
+        var result = habits.compactMap { habit -> (Habit, Slot)? in
             if habit.hasMetDailyGoal(for: psychDay) { return nil }
             guard
                 let slot = habit.firstCurrentSlot(
@@ -28,8 +28,8 @@ enum HabitAndSlot {
     static func upcoming(
         habits: [Habit],
         now: Date = HabitScheduling.now()
-    ) -> [(Habit, HabitSlot)] {
-        var result = habits.compactMap { habit -> (Habit, HabitSlot)? in
+    ) -> [(Habit, Slot)] {
+        var result = habits.compactMap { habit -> (Habit, Slot)? in
             guard let slot = habit.firstFutureSlot(now: now)
             else { return nil }
             return (habit, slot)
@@ -56,7 +56,7 @@ enum HabitAndSlot {
             let completedCount = habit.completedCount(for: psychDay)
 
             var missedCount = 0
-            var latestMissedSlot: HabitSlot?
+            var latestMissedSlot: Slot?
 
             for slot in habit.unfinishedSlots(for: psychDay) {
                 let isSnoozed = todaysSnoozes.contains { $0.habit === habit && $0.slot === slot }
