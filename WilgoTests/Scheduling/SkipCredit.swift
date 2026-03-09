@@ -45,7 +45,8 @@ private func makeHabit(
         slots: slots,
         skipCreditCount: skipCreditCount,
         cycle: cycle,
-        punishment: punishment
+        punishment: punishment,
+        goalCountPerDay: slots.count
     )
     ctx.insert(habit)
     for slot in slots { ctx.insert(slot) }

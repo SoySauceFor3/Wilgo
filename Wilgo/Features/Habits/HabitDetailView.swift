@@ -41,7 +41,7 @@ struct HabitDetailView: View {
                 label: "All-time\ncheck-ins"
             )
             statTile(
-                value: "\(habit.timesPerDay)×",
+                value: "\(habit.goalCountPerDay)×",
                 label: "Daily\ngoal"
             )
             statTile(

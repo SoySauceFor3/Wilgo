@@ -72,7 +72,7 @@ private struct HabitRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text("\(habit.timesPerDay)× daily")
+                Text("\(habit.goalCountPerDay)× daily")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -148,19 +148,19 @@ private func makePreviewContainerWithSamples() throws -> ModelContainer {
     let samples: [Habit] = [
         Habit(
             title: "Workout", slots: [slot(6, 0, 8, 0), slot(8, 0, 10, 0)], skipCreditCount: 5,
-            cycle: .monthly(day: 1), proofOfWorkType: .manual),
+            cycle: .monthly(day: 1), proofOfWorkType: .manual, goalCountPerDay: 1),
         Habit(
             title: "Read 30 mins 📚", slots: [slot(9, 0, 11, 0)], skipCreditCount: 1, cycle: .daily,
-            proofOfWorkType: .manual),
+            proofOfWorkType: .manual, goalCountPerDay: 1),
         Habit(
             title: "Drink 2L Water 💧", slots: [slot(12, 0, 14, 0)], skipCreditCount: 1,
-            cycle: .daily, proofOfWorkType: .manual),
+            cycle: .daily, proofOfWorkType: .manual, goalCountPerDay: 1),
         Habit(
             title: "Meditate 10 mins 🧘", slots: [slot(15, 0, 17, 0)], skipCreditCount: 1,
-            cycle: .daily, proofOfWorkType: .manual),
+            cycle: .daily, proofOfWorkType: .manual, goalCountPerDay: 1),
         Habit(
             title: "No social media after 9 PM 📵", slots: [slot(21, 0, 23, 0)], skipCreditCount: 1,
-            cycle: .daily, proofOfWorkType: .manual),
+            cycle: .daily, proofOfWorkType: .manual, goalCountPerDay: 1),
     ]
     for habit in samples {
         ctx.insert(habit)

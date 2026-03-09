@@ -103,11 +103,14 @@ struct CurrentHabitRow: View {
         title: "Morning reading",
         slots: [slot],
         skipCreditCount: 3,
-        cycle: .weekly(weekday: 2)
+        cycle: .weekly(weekday: 2),
+        goalCountPerDay: 1
     )
 
-    return CurrentHabitRow(habit: habit, slot: slot)
-        .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true)
+    CurrentHabitRow(habit: habit, slot: slot)
+        .modelContainer(
+            for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
+        )
         .padding()
 }
 
@@ -122,11 +125,14 @@ struct CurrentHabitRow: View {
         title: "Gentle: read 10 pages",
         slots: [slot],
         skipCreditCount: 3,
-        cycle: .weekly(weekday: 2)
+        cycle: .weekly(weekday: 2),
+        goalCountPerDay: 1
     )
 
-    return CurrentHabitRow(habit: habit, slot: slot)
-        .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true)
+    CurrentHabitRow(habit: habit, slot: slot)
+        .modelContainer(
+            for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
+        )
         .padding()
 }
 
@@ -141,11 +147,14 @@ struct CurrentHabitRow: View {
         title: "Judgmental: afternoon walk",
         slots: [slot],
         skipCreditCount: 2,
-        cycle: .weekly(weekday: 2)
+        cycle: .weekly(weekday: 2),
+        goalCountPerDay: 1
     )
 
     return CurrentHabitRow(habit: habit, slot: slot)
-        .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true)
+        .modelContainer(
+            for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
+        )
         .padding()
 }
 
@@ -164,11 +173,14 @@ struct CurrentHabitRow: View {
         title: "Critical: submit report",
         slots: [slot],
         skipCreditCount: 1,
-        cycle: .weekly(weekday: 2)
+        cycle: .weekly(weekday: 2),
+        goalCountPerDay: 1
     )
 
     return CurrentHabitRow(habit: habit, slot: slot)
-        .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true)
+        .modelContainer(
+            for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
+        )
         .padding()
 }
 
@@ -183,10 +195,13 @@ struct CurrentHabitRow: View {
         title: "Settled: late workout",
         slots: [slot],
         skipCreditCount: 4,
-        cycle: .weekly(weekday: 2)
+        cycle: .weekly(weekday: 2),
+        goalCountPerDay: 1
     )
 
     return CurrentHabitRow(habit: habit, slot: slot)
-        .modelContainer(for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true)
+        .modelContainer(
+            for: [Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
+        )
         .padding()
 }

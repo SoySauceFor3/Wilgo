@@ -75,6 +75,8 @@ struct WilgoApp: App {
         // Bootstrap: queue the day-start report wakeup at the user's preferred day-start hour.
         // After it fires once, handleBackgroundTask re-schedules it each day automatically.
         DayStartReportService.scheduleBackgroundTask()
+
+        // migrateExistingHabitsIfNeeded()
     }
 
     var body: some Scene {
@@ -144,6 +146,32 @@ struct WilgoApp: App {
 
         default:
             break
+        }
+    }
+
+    /// One-off data migration for introducing `goalCountPerDay` on `Habit`.
+    ///
+    /// For existing habits on disk that predate this field, `goalCountPerDay` will
+    /// have the default `0`. For those, we backfill it to `max(1, slots.count)`
+    /// so behaviour matches the previous implicit "times per day" semantics.
+    private func migrateExistingHabitsIfNeeded() {
+        let context = Self.sharedModelContainer.mainContext
+        let descriptor = FetchDescriptor<Habit>()
+
+        // Best-effort migration: failures shouldn't crash the app.
+        guard let habits = try? context.fetch(descriptor) else { return }
+
+        var didChange = false
+        for habit in habits {
+            let inferred = max(1, habit.slots.count)
+            // Only update if we actually change the value, to avoid unnecessary writes.
+            habit.goalCountPerDay = inferred
+            didChange = true
+
+        }
+
+        if didChange, context.hasChanges {
+            try? context.save()
         }
     }
 }

@@ -6,7 +6,7 @@ struct AddHabitView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var title: String = ""
-    @State private var timesPerDay: Int = 1
+    @State private var goalCountPerDay: Int = 1
     @State private var slotWindows: [SlotWindow]
     @State private var skipCreditCount: Int = 1
     @State private var cycle: Cycle = .weekly(
@@ -24,7 +24,7 @@ struct AddHabitView: View {
             Form {
                 HabitFormFields(
                     title: $title,
-                    timesPerDay: $timesPerDay,
+                    goalCountPerDay: $goalCountPerDay,
                     slotWindows: $slotWindows,
                     skipCreditCount: $skipCreditCount,
                     cycle: $cycle,
@@ -64,7 +64,8 @@ struct AddHabitView: View {
             skipCreditCount: skipCreditCount,
             cycle: cycle,
             proofOfWorkType: proofOfWorkType,
-            punishment: trimmedPunishment.isEmpty ? nil : trimmedPunishment
+            punishment: trimmedPunishment.isEmpty ? nil : trimmedPunishment,
+            goalCountPerDay: goalCountPerDay
         )
         modelContext.insert(habit)
         dismiss()

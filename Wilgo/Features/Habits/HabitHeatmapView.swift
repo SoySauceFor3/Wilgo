@@ -58,7 +58,7 @@ struct HabitHeatmapView: View {
         let todayDate = today
         let createdDate = createdPsychDay
         let counts = completionsByDay
-        let goal = max(1, habit.timesPerDay)
+        let goal = max(1, habit.goalCountPerDay)
         let cal = Calendar.current
 
         // Snap to the Sunday that starts the current week.
@@ -381,24 +381,15 @@ enum HeatmapPreviewFactory {
 
         let createdAt =
             cal.date(byAdding: .day, value: -70, to: cal.startOfDay(for: Date())) ?? Date()
-        let slot1 = HabitSlot(
-            start: cal.date(from: DateComponents(hour: 6)) ?? Date(),
-            end: cal.date(from: DateComponents(hour: 8)) ?? Date()
-        )
-        let slot2 = HabitSlot(
-            start: cal.date(from: DateComponents(hour: 17)) ?? Date(),
-            end: cal.date(from: DateComponents(hour: 19)) ?? Date()
-        )
         let habit = Habit(
             title: "Morning Run",
             createdAt: createdAt,
-            slots: [slot1, slot2],
+            slots: [],
             skipCreditCount: 3,
-            cycle: .weekly(weekday: 2)
+            cycle: .weekly(weekday: 2),
+            goalCountPerDay: 2
         )
         ctx.insert(habit)
-        ctx.insert(slot1)
-        ctx.insert(slot2)
 
         let today = cal.startOfDay(for: Date())
         for dayOffset in 0..<70 {
@@ -442,14 +433,9 @@ enum HeatmapPreviewFactory {
             for: Habit.self, HabitSlot.self, HabitCheckIn.self, SnoozedSlot.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
-        let cal = Calendar.current
-        let slot = HabitSlot(
-            start: cal.date(from: DateComponents(hour: 8)) ?? Date(),
-            end: cal.date(from: DateComponents(hour: 9)) ?? Date()
-        )
-        let habit = Habit(title: "Meditate", slots: [slot], skipCreditCount: 1, cycle: .daily)
+        let habit = Habit(
+            title: "Meditate", slots: [], skipCreditCount: 1, cycle: .daily, goalCountPerDay: 2)
         container.mainContext.insert(habit)
-        container.mainContext.insert(slot)
         return container
     }
 }

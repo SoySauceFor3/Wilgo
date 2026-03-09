@@ -51,7 +51,7 @@ private func makeHabit(
     skipCreditCount: Int = 0,
     cycle: Cycle = .daily
 ) -> Habit {
-    let habit = Habit(title: title, slots: slots, skipCreditCount: skipCreditCount, cycle: cycle)
+    let habit = Habit(title: title, slots: slots, skipCreditCount: skipCreditCount, cycle: cycle, goalCountPerDay: slots.count)
     ctx.insert(habit)
     for slot in slots { ctx.insert(slot) }
     return habit

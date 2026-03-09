@@ -74,6 +74,10 @@ final class Habit {
     @Relationship(deleteRule: .cascade, inverse: \HabitSlot.habit)
     var slots: [HabitSlot] = []
 
+    /// Target number of completions per psychological day.
+    /// If nil, defaults to `max(1, slots.count)` for backwards compatibility.
+    var goalCountPerDay: Int
+
     /// Number of allowed skips within the budget period.
     var skipCreditCount: Int
     /// TODO: Verify that hte timezone changes are handled correctly.
@@ -98,19 +102,22 @@ final class Habit {
         skipCreditCount: Int,
         cycle: Cycle,
         proofOfWorkType: ProofOfWorkType = .manual,
-        punishment: String? = nil
+        punishment: String? = nil,
+        goalCountPerDay: Int
     ) {
         self.title = title
         self.createdAt = createdAt
         self.slots = slots
+        self.goalCountPerDay = goalCountPerDay
         self.skipCreditCount = skipCreditCount
         self.cycle = cycle
         self.proofOfWorkType = proofOfWorkType
         self.punishment = punishment
     }
 
-    /// Times per day (N× daily). Convenience for display.
-    var timesPerDay: Int { slots.count }
+    // // TODO: REmove it
+    // /// Times per day (N× daily). Convenience for display.
+    // var timesPerDay: Int { goalCountPerDay ?? max(1, slots.count) }
 }
 
 // MARK: - Slot queries

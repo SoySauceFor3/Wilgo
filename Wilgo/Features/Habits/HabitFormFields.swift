@@ -4,7 +4,7 @@ import SwiftUI
 /// Owns no SwiftData interactions — all state is passed in via bindings.
 struct HabitFormFields: View {
     @Binding var title: String
-    @Binding var timesPerDay: Int
+    @Binding var goalCountPerDay: Int
     @Binding var slotWindows: [SlotWindow]
     @Binding var skipCreditCount: Int
     @Binding var cycle: Cycle
@@ -27,12 +27,16 @@ struct HabitFormFields: View {
         Section("Basics") {
             TextField("Title", text: $title)
 
-            Stepper(value: $timesPerDay, in: 1...21) {
-                Text("Times per day: \(timesPerDay)")
+            Stepper(value: $goalCountPerDay, in: 1...21) {
+                Text("Goal per day: \(goalCountPerDay)")
             }
         }
 
         Section("Ideal windows") {
+            Text("Optional. Leave empty to allow any time of the day.")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+
             ForEach(Array(slotWindows.enumerated()), id: \.element.id) { index, _ in
                 Section("Slot \(index + 1)") {
                     DatePicker(
@@ -47,17 +51,11 @@ struct HabitFormFields: View {
                     )
                 }
             }
-        }
-        .onChange(of: timesPerDay) { _, newCount in
-            let (defaultStart, defaultEnd) = Self.defaultWindow()
-            if slotWindows.count < newCount {
-                let toAdd = newCount - slotWindows.count
-                slotWindows.append(
-                    contentsOf: (0..<toAdd).map { _ in
-                        SlotWindow(start: defaultStart, end: defaultEnd)
-                    })
-            } else if slotWindows.count > newCount {
-                slotWindows = Array(slotWindows.prefix(newCount))
+            Button {
+                let (defaultStart, defaultEnd) = Self.defaultWindow()
+                slotWindows.append(SlotWindow(start: defaultStart, end: defaultEnd))
+            } label: {
+                Label("Add window", systemImage: "plus")
             }
         }
 
