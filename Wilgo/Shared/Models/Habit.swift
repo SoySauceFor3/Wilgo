@@ -10,55 +10,6 @@ enum ProofOfWorkType: String, Codable {
     // case healthKit = "HealthKit"
 }
 
-// MARK: - HabitSlot (one ideal window per occurrence, for N× daily)
-
-@Model
-final class HabitSlot {
-    /// Start of this slot's ideal window (time-of-day only, arbitrary reference day).
-    var start: Date
-    /// End of this slot's ideal window (time-of-day only).
-    var end: Date
-
-    @Relationship var habit: Habit?
-
-    init(
-        start: Date,
-        end: Date
-    ) {
-        self.start = start
-        self.end = end
-    }
-}
-
-extension HabitSlot {
-    /// Start of the slot mapped onto the current psychological day.
-    var startToday: Date { HabitScheduling.today(at: start) }
-
-    /// End of the slot mapped onto the current psychological day.
-    var endToday: Date { HabitScheduling.today(at: end) }
-
-    var slotTimeText: String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-        return "\(formatter.string(from: start)) – \(formatter.string(from: end))"
-    }
-}
-
-extension HabitSlot: Comparable {
-    static func < (lhs: HabitSlot, rhs: HabitSlot) -> Bool {
-        if lhs.start == rhs.start {
-            return lhs.endToday < rhs.endToday
-        } else {
-            return lhs.startToday < rhs.startToday
-        }
-    }
-
-    static func == (lhs: HabitSlot, rhs: HabitSlot) -> Bool {
-        lhs.start == rhs.start && lhs.end == rhs.end
-    }
-}
-
 // MARK: - Habit
 
 @Model
@@ -125,7 +76,7 @@ final class Habit {
 extension Habit {
     /// Number of check-ins on the given psychological day.
     func completedCount(for psychDay: Date) -> Int {
-        return checkIns.filter { $0.psychDay == psychDay }.count
+        return checkIns.filter({ $0.psychDay == psychDay }).count
     }
 
     /// Slots not yet completed on the given psychological day, in order.
@@ -133,22 +84,24 @@ extension Habit {
         return Array(slots.sorted().dropFirst(completedCount(for: psychDay)))
     }
 
-    /// The first remaining slot whose window contains `now`, skipping snoozed ones.
+    /// The first slot whose window overlaps with `now`, skipping excluded ones.
     func firstCurrentSlot(
         now: Date = HabitScheduling.now(),
-        excluding snoozed: [SnoozedSlot]
+        excluding excluded: [HabitSlot]
     ) -> HabitSlot? {
-        let psychDay = HabitScheduling.psychDay(for: now)
-        return unfinishedSlots(for: psychDay).first { slot in
-            !snoozed.contains { $0.habit === self && $0.slot === slot }
-                && slot.startToday <= now && now <= slot.endToday
-        }
+        return slots.first(where: { slot in
+            if excluded.contains(where: { $0 === slot }) {
+                return false
+            }
+
+            return slot.contains(timeOfDay: now)
+        })
     }
 
     /// The first remaining slot that hasn't started yet.
     func firstFutureSlot(now: Date = HabitScheduling.now()) -> HabitSlot? {
         let psychDay = HabitScheduling.psychDay(for: now)
-        return unfinishedSlots(for: psychDay).first { now <= $0.startToday }
+        return unfinishedSlots(for: psychDay).first(where: { now <= $0.startToday })
     }
 
     func hasMetDailyGoal(for psychDay: Date) -> Bool {

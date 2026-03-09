@@ -38,7 +38,8 @@ private func makeHabit(
     title: String = "A",
     slots: [HabitSlot] = []
 ) -> Habit {
-    let habit = Habit(title: title, slots: slots, skipCreditCount: 0, cycle: .daily, goalCountPerDay: 2)
+    let habit = Habit(
+        title: title, slots: slots, skipCreditCount: 0, cycle: .daily, goalCountPerDay: 2)
     ctx.insert(habit)
     for slot in slots { ctx.insert(slot) }
     return habit
@@ -80,23 +81,24 @@ struct HabitAndSlotTests {
             #expect(result.isEmpty)
         }
 
-        @Test("habit with no slots → omitted")
-        @MainActor func habitWithNoSlotsOmitted() throws {
+        @Test("habits whose daily goal has been met → empty")
+        @MainActor func habitsWithMetDailyGoal() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx)
+            let habit = makeHabit(in: ctx, slots: [wideSlot()])
+            ctx.insert(HabitCheckIn(habit: habit, createdAt: HabitScheduling.now()))  // met daily goal
             let result = HabitAndSlot.current(habits: [habit], snoozedSlots: [])
             #expect(result.isEmpty)
         }
 
-        @Test("active slot (wide window) → habit included")
-        @MainActor func activeSlotIncluded() throws {
+        @Test("overlap with now → habit included")
+        @MainActor func overlapWithNowIncluded() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
             let habit = makeHabit(in: ctx, slots: [wideSlot()])
             let result = HabitAndSlot.current(habits: [habit], snoozedSlots: [])
             #expect(result.count == 1)
-            #expect(result[0].0 === habit)
+            #expect(result[0].0 === habit)  // habit is included
         }
 
         @Test("snoozed slot → habit excluded")
@@ -112,23 +114,6 @@ struct HabitAndSlotTests {
             #expect(result.isEmpty)
         }
 
-        @Test("first slot snoozed → second slot still active")
-        @MainActor func snoozedFirstSlotFallsBackToSecond() throws {
-            let container = try makeContainer()
-            let ctx = container.mainContext
-            let s1 = wideSlot(endHour: 22)
-            let s2 = wideSlot(endHour: 23)
-            let habit = makeHabit(in: ctx, slots: [s1, s2])
-            let snooze = SnoozedSlot(habit: habit, slot: s1)
-            ctx.insert(snooze)
-            let result = HabitAndSlot.current(
-                habits: [habit], snoozedSlots: [snooze])
-            #expect(result.count == 1)
-        }
-
-        // Sorting proof: remainingFraction(end=22) < remainingFraction(end=23) for any t > 0.
-        // (22-t)/22 < (23-t)/23 ↔ 23(22-t) < 22(23-t) ↔ -23t < -22t ↔ t > 0. ✓
-        // Slot ending at 22:00 is more urgent (less remaining fraction) than one ending at 23:00.
         @Test("more urgent slot (less remaining fraction) sorts first")
         @MainActor func sortsByRemainingFraction() throws {
             let container = try makeContainer()

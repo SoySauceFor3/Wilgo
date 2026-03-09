@@ -335,7 +335,7 @@ struct HabitSlotsQueriesTests {
             makeSlot(startHour: startHour, endHour: 23)
         }
 
-        @Test("slot in window, no snoozed → returned")
+        @Test("slot in window, no exclude → returned")
         @MainActor func slotInWindowReturned() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
@@ -345,57 +345,75 @@ struct HabitSlotsQueriesTests {
                     now: HabitScheduling.now(), excluding: []) != nil)
         }
 
-        @Test("only slot is snoozed → nil")
-        @MainActor func snoozedSlotReturnsNil() throws {
+        @Test("only slot is excluded → nil")
+        @MainActor func excludedSlotReturnsNil() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
             let s = wideSlot()
             let habit = makeHabit(in: ctx, slots: [s])
-            let snooze = SnoozedSlot(habit: habit, slot: s)
-            ctx.insert(snooze)
             #expect(
                 habit.firstCurrentSlot(
-                    now: HabitScheduling.now(), excluding: [snooze]) == nil)
+                    now: HabitScheduling.now(), excluding: [s]) == nil)
         }
 
-        @Test("first slot snoozed → second slot returned")
-        @MainActor func snoozedFirstSlotReturnsSecond() throws {
+        @Test("first slot excluded → second slot returned")
+        @MainActor func excludedFirstSlotReturnsSecond() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
             // s1 sorts before s2 (lower start hour). Both windows span wide.
             let s1 = wideSlot(startHour: 0)
             let s2 = wideSlot(startHour: 1)
             let habit = makeHabit(in: ctx, slots: [s1, s2])
-            let snooze = SnoozedSlot(habit: habit, slot: s1)
-            ctx.insert(snooze)
             let result = habit.firstCurrentSlot(
-                now: HabitScheduling.now(), excluding: [snooze])
+                now: HabitScheduling.now(), excluding: [s1])
             #expect(result != nil)
             #expect(result?.start == s2.start)
         }
 
-        @Test("no remaining slots (all completed today) → nil")
-        @MainActor func noRemainingSlots() throws {
+        @Test("slot on the same day, slot in window → returned")
+        @MainActor func slotOnSameDayInWindow() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx, slots: [wideSlot()])
-            ctx.insert(
-                HabitCheckIn(
-                    habit: habit, createdAt: HabitScheduling.now().addingTimeInterval(-1 * 60 * 60))
-            )
-            #expect(
-                habit.firstCurrentSlot(
-                    now: HabitScheduling.now(), excluding: []) == nil)
+            let s1 = makeSlot(startHour: 11, endHour: 13)
+            let habit = makeHabit(in: ctx, slots: [s1])
+            let result = habit.firstCurrentSlot(
+                now: HabitScheduling.now(), excluding: [])
+            #expect(result != nil)
+            #expect(result == s1)
         }
 
-        @Test("empty snoozed list does not exclude anything")
-        @MainActor func emptySnoozedList() throws {
+        @Test("slot on the same day, slot not in window,  → nil")
+        @MainActor func slotOnSameDayNotInWindow() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx, slots: [wideSlot()])
-            #expect(
-                habit.firstCurrentSlot(
-                    now: HabitScheduling.now(), excluding: []) != nil)
+            let s1 = makeSlot(startHour: 9, endHour: 10)
+            let habit = makeHabit(in: ctx, slots: [s1])
+            let result = habit.firstCurrentSlot(
+                now: HabitScheduling.now(), excluding: [])
+            #expect(result == nil)
+        }
+
+        @Test("slot cross midnight, slot in window, no exclude → returned")
+        @MainActor func crossMidnightSlotInWindow() throws {
+            let container = try makeContainer()
+            let ctx = container.mainContext
+            let s1 = makeSlot(startHour: 23, endHour: 13)
+            let habit = makeHabit(in: ctx, slots: [s1])
+            let result = habit.firstCurrentSlot(
+                now: HabitScheduling.now(), excluding: [])
+            #expect(result != nil)
+            #expect(result == s1)
+        }
+
+        @Test("slot cross midnight, slot not in window  → nil")
+        @MainActor func crossMidnightSlotNotInWindow() throws {
+            let container = try makeContainer()
+            let ctx = container.mainContext
+            let s1 = makeSlot(startHour: 23, endHour: 11)
+            let habit = makeHabit(in: ctx, slots: [s1])
+            let result = habit.firstCurrentSlot(
+                now: HabitScheduling.now(), excluding: [])
+            #expect(result == nil)
         }
     }
 

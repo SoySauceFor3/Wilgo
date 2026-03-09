@@ -1,6 +1,7 @@
 import Foundation
 
 enum HabitAndSlot {
+    // For each habit that has NOT yet met today's goal, return the first slot that overlaps with `now` skipping snoozed ones.
     static func current(
         habits: [Habit],
         snoozedSlots: [SnoozedSlot],
@@ -9,20 +10,17 @@ enum HabitAndSlot {
         let psychDay = HabitScheduling.psychDay(for: now)
         let todaysSnoozes = snoozedSlots.filter { $0.psychDay == psychDay && $0.resolvedAt == nil }
         var result = habits.compactMap { habit -> (Habit, HabitSlot)? in
+            if habit.hasMetDailyGoal(for: psychDay) { return nil }
             guard
                 let slot = habit.firstCurrentSlot(
-                    now: now, excluding: todaysSnoozes)
+                    now: now,
+                    excluding: todaysSnoozes.filter { $0.habit === habit }.compactMap { $0.slot })
             else { return nil }
             return (habit, slot)
         }
 
         // Sort by fraction of window remaining: time left / full window length.
-        let remainingFraction = { (slot: HabitSlot) -> Double in
-            let duration = max(slot.endToday.timeIntervalSince(slot.startToday), 1)
-            let remaining = max(slot.endToday.timeIntervalSince(now), 0)
-            return remaining / duration
-        }
-        result.sort { remainingFraction($0.1) < remainingFraction($1.1) }
+        result.sort { $0.1.remainingFraction(at: now) < $1.1.remainingFraction(at: now) }
 
         return result
     }
