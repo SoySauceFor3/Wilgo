@@ -19,23 +19,21 @@ enum HabitScheduling {
         return stored
     }
 
-    /// Resolves a habit's time-of-day `Date` to its concrete `Date` within the
+    /// Resolves a time-of-day `Date` to its concrete `Date` within the
     /// current psychDay, accounting for `dayStartHourOffset`.
     ///
-    /// Example: `dayStartHourOffset` = 14 (2 pm). The logical day runs Jan 1 2 pm → Jan 2 2 pm.
-    /// Passing a 2 am time-of-day while the real clock reads Jan 1 returns Jan 2 02:00,
+    /// Example: `dayStartHourOffset` = 14 (2 pm).
+    /// Passing a 2 am time-of-day on Jan 1 psychological day returns Jan 2 02:00,
     /// because 2 am sits in the overnight tail of that same psych day.
     ///
-    /// With the default offset of 0 this behaves identically to stamping the time on today.
-    static func today(
-        at timeOfDay: Date,  // Only take hour and minute from this
-        now: Date = now(),
+    /// With the default offset of 0 this behaves identically to stamping the time on psychDay.
+    static func resolve(
+        timeOfDay: Date,  // Only take hour and minute from this
+        psychDay: Date = psychDay(for: now()),
         dayStartHourOffset: Int = dayStartHourOffset
     ) -> Date {
-        // Calendar date on which the current psychDay *started*.
-        // If we haven't reached the day-start hour yet, the psych day began yesterday.
-        let psychDay = psychDay(for: now, dayStartHourOffset: dayStartHourOffset)
-
+        // Just to make sure psychDay is cleaned up.
+        let psychDay = calendar.startOfDay(for: psychDay)
         // Times >= offset fall on the psych-day-start calendar date.
         // Times < offset are in the overnight tail and fall on the following calendar date.
         let timeHour = calendar.component(.hour, from: timeOfDay)

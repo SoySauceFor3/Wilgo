@@ -21,10 +21,10 @@ final class Slot {
 
 extension Slot {
     /// Start of the slot mapped onto the current psychological day.
-    var startToday: Date { HabitScheduling.today(at: start) }
+    var startToday: Date { HabitScheduling.resolve(timeOfDay: start) }
 
     /// End of the slot mapped onto the current psychological day.
-    var endToday: Date { HabitScheduling.today(at: end) }
+    var endToday: Date { HabitScheduling.resolve(timeOfDay: end) }
 
     var slotTimeText: String {
         let formatter = DateFormatter()
