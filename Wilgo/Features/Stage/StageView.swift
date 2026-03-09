@@ -22,7 +22,7 @@ struct StageView: View {
     }
 
     private var upcoming: [(Habit, Slot)] {
-        HabitAndSlot.upcoming(habits: habits, now: Date())
+        HabitAndSlot.upcoming(habits: habits, after: Date())
     }
 
     private var missed: [MissedHabit] {

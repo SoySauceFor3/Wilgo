@@ -419,32 +419,30 @@ struct SlotsQueriesTests {
 
     // MARK: - firstFutureSlot
 
-    @Suite("Habit — firstFutureSlot")
-    final class HabitFirstFutureSlotTests {
-        // Frozen instant used as the injectable clock for the entire suite.
-        private static let fakeNow = date(year: 2000, month: 1, day: 1, hour: 12)
-
+    @Suite("Habit — firstSlotAfter")
+    final class HabitFirstSlotAfterTests {
         private let savedNow = HabitScheduling.now
         private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
 
         init() {
-            UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey)
-            HabitScheduling.now = { return HabitFirstFutureSlotTests.fakeNow }
+            UserDefaults.standard.set(9, forKey: AppSettings.dayStartHourKey)
         }
 
         deinit {
-            let savedNow = savedNow
+            // let savedNow = savedNow
             let savedOffset = savedOffset
             UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey)
-            HabitScheduling.now = savedNow
+            // HabitScheduling.now = savedNow
         }
 
         @Test("slot in the future → returned")
         @MainActor func futureSlotReturned() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 14, endHour: 15)])
-            #expect(habit.firstFutureSlot(now: HabitScheduling.now()) != nil)
+            let s1 = makeSlot(startHour: 14, endHour: 15)
+            let habit = makeHabit(in: ctx, slots: [s1])
+            let result = habit.firstSlotAfter(time: date(year: 2000, month: 1, day: 1, hour: 12))
+            #expect(result == s1)
         }
 
         @Test("earliest future slot returned when multiple slots exist")
@@ -454,17 +452,20 @@ struct SlotsQueriesTests {
             let s1 = makeSlot(startHour: 13, endHour: 8)
             let s2 = makeSlot(startHour: 14, endHour: 15)
             let habit = makeHabit(in: ctx, slots: [s2, s1])
-            let result = habit.firstFutureSlot(now: HabitScheduling.now())
-            #expect(result?.start == s1.start)
+            let result = habit.firstSlotAfter(time: date(year: 2000, month: 1, day: 1, hour: 12))
+            #expect(result == s1)
         }
 
-        @Test("all slots completed today → nil")
-        @MainActor func allCompletedReturnsNil() throws {
+        @Test("checkIns do not matter")
+        @MainActor func checkInsDoNotMatter() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
-            ctx.insert(HabitCheckIn(habit: habit, createdAt: HabitScheduling.now()))
-            #expect(habit.firstFutureSlot(now: HabitScheduling.now()) == nil)
+            let s1 = makeSlot(startHour: 15, endHour: 16)
+            let habit = makeHabit(in: ctx, slots: [s1])
+            ctx.insert(
+                HabitCheckIn(habit: habit, createdAt: date(year: 2000, month: 1, day: 1, hour: 12)))
+            let result = habit.firstSlotAfter(time: date(year: 2000, month: 1, day: 1, hour: 12))
+            #expect(result == s1)
         }
 
         @Test("no slots → nil")
@@ -472,21 +473,39 @@ struct SlotsQueriesTests {
             let container = try makeContainer()
             let ctx = container.mainContext
             let habit = makeHabit(in: ctx)
-            #expect(habit.firstFutureSlot(now: HabitScheduling.now()) == nil)
+            let result = habit.firstSlotAfter(time: date(year: 2000, month: 1, day: 1, hour: 12))
+            #expect(result == nil)
         }
 
-        @Test("completed slot is excluded from future candidates")
-        @MainActor func completedSlotExcluded() throws {
+        @Test("past slot is excluded")
+        @MainActor func pastSlotExcluded() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
             let morning = makeSlot(startHour: 7, endHour: 8)
             let afternoon = makeSlot(startHour: 14, endHour: 15)
             let habit = makeHabit(in: ctx, slots: [morning, afternoon])
-            // Complete the first occurrence (morning slot dropped from remainingSlots).
-            ctx.insert(HabitCheckIn(habit: habit, createdAt: HabitScheduling.now()))
-            // firstFutureSlot should now return afternoon, not morning.
-            let result = habit.firstFutureSlot(now: HabitScheduling.now())
-            #expect(result?.start == afternoon.start)
+            let result = habit.firstSlotAfter(time: date(year: 2000, month: 1, day: 1, hour: 12))
+            #expect(result == afternoon)
+        }
+
+        @Test("cross midnight slot but later in terms of the psych day")
+        @MainActor func crossMidnightSlotButLaterInTermsOfThePsychDay() throws {
+            let container = try makeContainer()
+            let ctx = container.mainContext
+            let morning = makeSlot(startHour: 7, endHour: 8)
+            let habit = makeHabit(in: ctx, slots: [morning])
+            let result = habit.firstSlotAfter(time: date(year: 2000, month: 1, day: 1, hour: 12))
+            #expect(result == morning)
+        }
+
+        @Test("cross midnight slot but not later in terms of the psych day")
+        @MainActor func crossMidnightSlotButNotLaterInTermsOfThePsychDay() throws {
+            let container = try makeContainer()
+            let ctx = container.mainContext
+            let morning = makeSlot(startHour: 10, endHour: 8)
+            let habit = makeHabit(in: ctx, slots: [morning])
+            let result = habit.firstSlotAfter(time: date(year: 2000, month: 1, day: 1, hour: 12))
+            #expect(result == nil)
         }
     }
 }

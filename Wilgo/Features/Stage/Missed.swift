@@ -14,9 +14,7 @@ struct MissedHabitRow: View {
     }
 
     private var timeRangeText: String {
-        let start = item.slot.startToday
-        let end = item.slot.endToday
-        return "\(formattedTime(start)) – \(formattedTime(end))"
+        return "\(formattedTime(item.slot.start)) – \(formattedTime(item.slot.end))"
     }
 
     private var overdueText: String {

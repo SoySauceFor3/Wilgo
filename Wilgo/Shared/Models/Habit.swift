@@ -98,10 +98,13 @@ extension Habit {
         })
     }
 
-    /// The first remaining slot that hasn't started yet.
-    func firstFutureSlot(now: Date = HabitScheduling.now()) -> Slot? {
-        let psychDay = HabitScheduling.psychDay(for: now)
-        return unfinishedSlots(for: psychDay).first(where: { now <= $0.startToday })
+    /// The first after time.
+    func firstSlotAfter(time: Date = HabitScheduling.now()) -> Slot? {
+        return slots.sorted().first(where: {
+            time
+                <= HabitScheduling.resolve(
+                    timeOfDay: $0.start, psychDay: HabitScheduling.psychDay(for: time))
+        })
     }
 
     func hasMetDailyGoal(for psychDay: Date) -> Bool {

@@ -1,7 +1,8 @@
 import Foundation
 
 enum HabitAndSlot {
-    // For each habit that has NOT yet met today's goal, return the first slot that overlaps with `now` skipping snoozed ones.
+    // For each habit that has NOT yet met today (psychological day)'s goal,
+    // return the first slot that overlaps with `now` skipping snoozed ones.
     static func current(
         habits: [Habit],
         snoozedSlots: [SnoozedSlot],
@@ -25,12 +26,15 @@ enum HabitAndSlot {
         return result
     }
 
+    // For each habit that has NOT yet met today (psychological day)'s goal,
+    // return the first slot that hasn't started yet.
     static func upcoming(
         habits: [Habit],
-        now: Date = HabitScheduling.now()
+        after time: Date
     ) -> [(Habit, Slot)] {
         var result = habits.compactMap { habit -> (Habit, Slot)? in
-            guard let slot = habit.firstFutureSlot(now: now)
+            if habit.hasMetDailyGoal(for: HabitScheduling.psychDay(for: time)) { return nil }
+            guard let slot = habit.firstSlotAfter(time: time)
             else { return nil }
             return (habit, slot)
         }
