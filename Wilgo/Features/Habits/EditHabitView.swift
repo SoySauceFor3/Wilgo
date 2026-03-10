@@ -84,6 +84,7 @@ struct EditHabitView: View {
     private func saveChanges() {
         // Apply scalar field changes.
         habit.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        habit.goalCountPerDay = goalCountPerDay
         habit.skipCreditCount = skipCreditCount
         habit.proofOfWorkType = proofOfWorkType
         let trimmed = punishment.trimmingCharacters(in: .whitespacesAndNewlines)
