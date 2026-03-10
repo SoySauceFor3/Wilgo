@@ -30,7 +30,7 @@ private func timeOfDay(hour: Int, minute: Int = 0) -> Date {
 /// SwiftData; if the container is released, any subsequent context operation crashes.
 @MainActor
 private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self])
+    let schema = Schema([Habit.self, Slot.self, HabitCheckIn.self])
     let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
     return try ModelContainer(for: schema, configurations: [config])
 }

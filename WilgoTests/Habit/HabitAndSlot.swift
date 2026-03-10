@@ -23,7 +23,7 @@ private func timeOfDay(hour: Int, minute: Int = 0) -> Date {
 
 @MainActor
 private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self])
+    let schema = Schema([Habit.self, Slot.self, HabitCheckIn.self])
     let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
     return try ModelContainer(for: schema, configurations: [config])
 }
@@ -79,7 +79,7 @@ struct HabitAndSlotTests {
 
         @Test("empty habits → empty")
         @MainActor func emptyHabits() throws {
-            let result = HabitAndSlot.current(habits: [], snoozedSlots: [])
+            let result = HabitAndSlot.current(habits: [])
             #expect(result.isEmpty)
         }
 
@@ -89,7 +89,7 @@ struct HabitAndSlotTests {
             let ctx = container.mainContext
             let habit = makeHabit(in: ctx, slots: [wideSlot()])
             ctx.insert(HabitCheckIn(habit: habit, createdAt: HabitScheduling.now()))  // met daily goal
-            let result = HabitAndSlot.current(habits: [habit], snoozedSlots: [])
+            let result = HabitAndSlot.current(habits: [habit])
             #expect(result.isEmpty)
         }
 
@@ -98,22 +98,9 @@ struct HabitAndSlotTests {
             let container = try makeContainer()
             let ctx = container.mainContext
             let habit = makeHabit(in: ctx, slots: [wideSlot()])
-            let result = HabitAndSlot.current(habits: [habit], snoozedSlots: [])
+            let result = HabitAndSlot.current(habits: [habit])
             #expect(result.count == 1)
             #expect(result[0].0 === habit)  // habit is included
-        }
-
-        @Test("snoozed slot → habit excluded")
-        @MainActor func snoozedSlotExcluded() throws {
-            let container = try makeContainer()
-            let ctx = container.mainContext
-            let s = wideSlot()
-            let habit = makeHabit(in: ctx, slots: [s])
-            let snooze = SnoozedSlot(habit: habit, slot: s)
-            ctx.insert(snooze)
-            let result = HabitAndSlot.current(
-                habits: [habit], snoozedSlots: [snooze])
-            #expect(result.isEmpty)
         }
 
         @Test("more urgent slot (less remaining fraction) sorts first")
@@ -122,8 +109,7 @@ struct HabitAndSlotTests {
             let ctx = container.mainContext
             let habitA = makeHabit(in: ctx, title: "A", slots: [wideSlot(endHour: 23)])
             let habitB = makeHabit(in: ctx, title: "B", slots: [wideSlot(endHour: 22)])
-            let result = HabitAndSlot.current(
-                habits: [habitA, habitB], snoozedSlots: [])
+            let result = HabitAndSlot.current(habits: [habitA, habitB])
             #expect(result.count == 2)
             #expect(result[0].0 === habitB)  // B (end=22) is more urgent
             #expect(result[1].0 === habitA)
@@ -223,124 +209,6 @@ struct HabitAndSlotTests {
             #expect(result[0] == (habit, morning))
         }
     }
-
-    // // MARK: - HabitAndSlot.missed
-    // //
-    // // `endToday` is computed against the real clock. Passing `now` one day ahead of
-    // // the real clock (`Date() + 86400`) guarantees every slot's endToday < now, making
-    // // all unfinished slots count as expired without relying on specific wall-clock hours.
-    // // Tests for snoozed-based misses use `now = Date()` with wide-window slots.
-
-    // @Suite("HabitAndSlot — missed")
-    // final class HabitAndSlotMissedTests {
-
-    //     private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
-    //     init() { UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey) }
-    //     deinit { UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey) }
-
-    //     /// A `now` one full day ahead of the real clock — every today-anchored endToday is
-    //     /// in the past relative to this, so unfinished slots are always expired.
-    //     private var tomorrow: Date { Date().addingTimeInterval(86_400) }
-
-    //     @Test("empty habits → empty")
-    //     @MainActor func emptyHabits() throws {
-    //         let result = HabitAndSlot.missed(habits: [], snoozedSlots: [], now: tomorrow)
-    //         #expect(result.isEmpty)
-    //     }
-
-    //     @Test("habit with no slots → omitted")
-    //     @MainActor func habitWithNoSlotsOmitted() throws {
-    //         let container = try makeContainer()
-    //         let ctx = container.mainContext
-    //         let habit = makeHabit(in: ctx)
-    //         let result = HabitAndSlot.missed(habits: [habit], snoozedSlots: [], now: tomorrow)
-    //         #expect(result.isEmpty)
-    //     }
-
-    //     @Test("expired slot → habit appears as missed with missedCount = 1")
-    //     @MainActor func expiredSlotIsMissed() throws {
-    //         let container = try makeContainer()
-    //         let ctx = container.mainContext
-    //         let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
-    //         let result = HabitAndSlot.missed(habits: [habit], snoozedSlots: [], now: tomorrow)
-    //         #expect(result.count == 1)
-    //         #expect(result[0].habit === habit)
-    //         #expect(result[0].missedCount == 1)
-    //     }
-
-    //     @Test("completed slot is not counted as missed")
-    //     @MainActor func completedSlotNotMissed() throws {
-    //         let container = try makeContainer()
-    //         let ctx = container.mainContext
-    //         let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
-    //         // Check in against real `now` so the psychDay matches.
-    //         ctx.insert(HabitCheckIn(habit: habit, createdAt: Date()))
-    //         let result = HabitAndSlot.missed(habits: [habit], snoozedSlots: [], now: tomorrow)
-    //         #expect(result.isEmpty)
-    //     }
-
-    //     @Test("two expired slots for one habit → missedCount = 2")
-    //     @MainActor func twoExpiredSlotsCount() throws {
-    //         let container = try makeContainer()
-    //         let ctx = container.mainContext
-    //         let habit = makeHabit(
-    //             in: ctx,
-    //             slots: [
-    //                 makeSlot(startHour: 7, endHour: 8),
-    //                 makeSlot(startHour: 14, endHour: 15),
-    //             ])
-    //         let result = HabitAndSlot.missed(habits: [habit], snoozedSlots: [], now: tomorrow)
-    //         #expect(result.count == 1)
-    //         #expect(result[0].missedCount == 2)
-    //     }
-
-    //     @Test("snoozed slot within active window → counted as missed")
-    //     @MainActor func snoozedSlotWithinWindowIsMissed() throws {
-    //         let container = try makeContainer()
-    //         let ctx = container.mainContext
-    //         // Wide window (0-23) is still active at any test-run time, so expiry doesn't apply.
-    //         // The snooze alone triggers missed.
-    //         let s = makeSlot(startHour: 0, endHour: 23)
-    //         let habit = makeHabit(in: ctx, slots: [s])
-    //         let snooze = SnoozedSlot(habit: habit, slot: s)
-    //         ctx.insert(snooze)
-    //         let result = HabitAndSlot.missed(habits: [habit], snoozedSlots: [snooze], now: Date())
-    //         #expect(result.count == 1)
-    //         #expect(result[0].missedCount == 1)
-    //     }
-
-    //     @Test("most overdue habit sorts first")
-    //     @MainActor func sortsByOverdueDurationDescending() throws {
-    //         let container = try makeContainer()
-    //         let ctx = container.mainContext
-    //         // Habit A ended at 8am, habit B ended at 10am — A is more overdue.
-    //         let habitA = makeHabit(in: ctx, title: "A", slots: [makeSlot(startHour: 7, endHour: 8)])
-    //         let habitB = makeHabit(
-    //             in: ctx, title: "B", slots: [makeSlot(startHour: 9, endHour: 10)])
-    //         let result = HabitAndSlot.missed(
-    //             habits: [habitA, habitB], snoozedSlots: [], now: tomorrow)
-    //         #expect(result.count == 2)
-    //         // A (overdue since 8am) has been missed longer than B (overdue since 10am).
-    //         #expect(result[0].habit === habitA)
-    //         #expect(result[1].habit === habitB)
-    //     }
-
-    //     @Test("overdueBy is non-negative")
-    //     @MainActor func overdueByIsNonNegative() throws {
-    //         let container = try makeContainer()
-    //         let ctx = container.mainContext
-    //         let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
-    //         let result = HabitAndSlot.missed(habits: [habit], snoozedSlots: [], now: tomorrow)
-    //         #expect(result[0].overdueBy >= 0)
-    //     }
-    // }
-
-    // MARK: - HabitAndSlot.nextTransitionDate
-    //
-    // With `dayStartHourOffset = 0` and a fixed past `now`, the next psychDay boundary
-    // is midnight of the calendar day after `now` — a deterministic, verifiable value.
-    // All slot startToday / endToday values (anchored to the real clock) exceed that
-    // boundary and cannot be the minimum candidate.
 
     @Suite("HabitAndSlot — nextTransitionDate")
     final class HabitAndSlotNextTransitionDateTests {

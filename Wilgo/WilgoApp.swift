@@ -34,7 +34,6 @@ struct WilgoApp: App {
             Habit.self,
             Slot.self,
             HabitCheckIn.self,
-            SnoozedSlot.self,
         ])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
@@ -97,8 +96,7 @@ struct WilgoApp: App {
 
     // MARK: - Deep link handling
 
-    /// Handles `wilgo://done?habitId=...` and `wilgo://snooze?habitId=...&slotId=...`
-    /// deep links produced by the Live Activity's Done / Snooze buttons.
+    /// Handles `wilgo://done?habitId=...` deep links produced by the Live Activity's Done button.
     private func handleDeepLink(_ url: URL) {
         guard url.scheme == "wilgo" else { return }
         let context = Self.sharedModelContainer.mainContext
@@ -121,25 +119,6 @@ struct WilgoApp: App {
             let checkIn = HabitCheckIn(habit: habit)
             context.insert(checkIn)
             habit.checkIns.append(checkIn)  // keep inverse in sync immediately, as inverse relationship propogation takes time.
-            liveActivityManager.sync()
-
-        case "snooze":
-            guard
-                let habitIdStr = queryValue("habitId"),
-                let slotIdStr = queryValue("slotId"),
-                let habitId = PersistentIdentifier.decode(from: habitIdStr),
-                let slotId = PersistentIdentifier.decode(from: slotIdStr)
-            else { return }
-            let habits = (try? context.fetch(FetchDescriptor<Habit>())) ?? []
-            guard let habit = habits.first(where: { $0.persistentModelID == habitId }) else {
-                return
-            }
-            let allSlots = (try? context.fetch(FetchDescriptor<Slot>())) ?? []
-            guard let slot = allSlots.first(where: { $0.persistentModelID == slotId }) else {
-                return
-            }
-            guard habit.skipCreditCount > 0 else { return }
-            context.insert(SnoozedSlot(habit: habit, slot: slot))
             liveActivityManager.sync()
 
         default:

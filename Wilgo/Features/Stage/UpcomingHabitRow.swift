@@ -42,7 +42,7 @@ struct UpcomingHabitRow: View {
 
     return UpcomingHabitRow(habit: habit, slots: [slot])
         .modelContainer(
-            for: [Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
+            for: [Habit.self, Slot.self, HabitCheckIn.self], inMemory: true
         )
         .padding()
 }

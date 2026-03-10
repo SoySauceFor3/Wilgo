@@ -373,7 +373,7 @@ enum HeatmapPreviewFactory {
     /// Returns only the container; use a preview wrapper with @Query to get a live Habit at render time.
     static func richHistoryContainer() -> ModelContainer {
         let container = try! ModelContainer(
-            for: Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self,
+            for: Habit.self, Slot.self, HabitCheckIn.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         let ctx = container.mainContext
@@ -430,7 +430,7 @@ enum HeatmapPreviewFactory {
     /// Returns only the container; use a preview wrapper with @Query to get a live Habit at render time.
     static func newHabitContainer() -> ModelContainer {
         let container = try! ModelContainer(
-            for: Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self,
+            for: Habit.self, Slot.self, HabitCheckIn.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         let habit = Habit(

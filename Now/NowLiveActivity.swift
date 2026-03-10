@@ -41,23 +41,6 @@ struct NowLiveActivity: Widget {
                             )
                             .foregroundStyle(.green)
                     }
-
-                    Link(
-                        destination: snoozeURL(
-                            habitId: context.state.habitId,
-                            slotId: context.state.slotId
-                        )
-                    ) {
-                        Label("Snooze", systemImage: "flame")
-                            .font(.subheadline.weight(.medium))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 8)
-                            .background(
-                                Color.orange.opacity(0.2),
-                                in: RoundedRectangle(cornerRadius: 8)
-                            )
-                            .foregroundStyle(Color.orange)
-                    }
                 }
             }
             .padding(.vertical, 4)
@@ -96,23 +79,6 @@ struct NowLiveActivity: Widget {
                                 )
                                 .foregroundStyle(.green)
                         }
-
-                        Link(
-                            destination: snoozeURL(
-                                habitId: context.state.habitId,
-                                slotId: context.state.slotId
-                            )
-                        ) {
-                            Label("Snooze", systemImage: "flame")
-                                .font(.caption.weight(.medium))
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 6)
-                                .background(
-                                    Color.orange.opacity(0.2),
-                                    in: RoundedRectangle(cornerRadius: 8)
-                                )
-                                .foregroundStyle(Color.orange)
-                        }
                     }
                 }
             } compactLeading: {
@@ -139,16 +105,6 @@ struct NowLiveActivity: Widget {
         return components.url ?? URL(string: "wilgo://done")!
     }
 
-    private func snoozeURL(habitId: String, slotId: String) -> URL {
-        var components = URLComponents()
-        components.scheme = "wilgo"
-        components.host = "snooze"
-        components.queryItems = [
-            URLQueryItem(name: "habitId", value: habitId),
-            URLQueryItem(name: "slotId", value: slotId),
-        ]
-        return components.url ?? URL(string: "wilgo://snooze")!
-    }
 }
 
 extension NowAttributes.ContentState {

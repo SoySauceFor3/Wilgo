@@ -21,7 +21,7 @@ struct LiveActivityUpdate {
 ///    lifetime of this object, which is the full lifetime of the app.
 ///
 /// 2. **Explicit `sync()` calls**: for changes that don't involve a time
-///    boundary — a user completing a habit, adding a snooze, etc. — callers
+///    boundary — a user completing a habit, etc. — callers
 ///    invoke `sync()` directly so the activity updates immediately without
 ///    waiting for the next boundary wake-up.
 ///
@@ -83,8 +83,7 @@ final class LiveActivityManager {
 
     private func currentLiveActivityUpdate() -> LiveActivityUpdate {
         let habits = (try? modelContext.fetch(FetchDescriptor<Habit>())) ?? []
-        let snoozedSlots = (try? modelContext.fetch(FetchDescriptor<SnoozedSlot>())) ?? []
-        return makeLiveActivityUpdate(habits: habits, snoozedSlots: snoozedSlots, now: Date())
+        return makeLiveActivityUpdate(habits: habits, now: Date())
     }
 
     // takes the computed state and tells iOS what to actually show (or not show) on the Lock Screen.
@@ -109,7 +108,6 @@ final class LiveActivityManager {
 
     private func makeLiveActivityUpdate(
         habits: [Habit],
-        snoozedSlots: [SnoozedSlot],
         now: Date
     ) -> LiveActivityUpdate {
         let current = HabitAndSlot.current(
