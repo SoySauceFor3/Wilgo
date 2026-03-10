@@ -1,6 +1,10 @@
 import SwiftData
 import SwiftUI
 
+// Shared heatmap layout constants so smaller views (e.g. stage row) stay aligned.
+private let habitHeatmapCellSize: CGFloat = 11
+private let habitHeatmapCellSpacing: CGFloat = 3
+
 // MARK: - Day data
 
 private struct HeatmapDayData {
@@ -20,8 +24,6 @@ struct HabitHeatmapView: View {
     @State private var selectedDay: HeatmapDayData? = nil
 
     private let weeksToShow = 26
-    private let cellSize: CGFloat = 11
-    private let cellSpacing: CGFloat = 3
     private let dowLabels = ["S", "M", "T", "W", "T", "F", "S"]
 
     // MARK: Derived data
@@ -131,62 +133,34 @@ struct HabitHeatmapView: View {
     // MARK: Color
 
     private func cellColor(for day: HeatmapDayData) -> Color {
-        if day.isFuture { return .clear }
-        if day.isBeforeCreation { return Color(.systemGray4) }
-
-        let goal = day.goal
-        let count = day.completedCount
-
-        switch count {
-        case 0:
-            // Most eye-catching — worst-day red
-            return Color(hue: 0.02, saturation: 0.88, brightness: 0.80)
-
-        case 1..<goal:
-            // Red scale: vivid at 1, fades to near-neutral approaching goal
-            let ratio = Double(count) / Double(goal)
-            return Color(
-                hue: 0.02,
-                saturation: 0.88 * (1 - ratio) + 0.15 * ratio,
-                brightness: 0.80 + 0.15 * ratio
-            )
-
-        default:
-            // Green scale: base green at goal, deepens with each extra check-in (up to +3)
-            let ratio = min(Double(count - goal) / 3.0, 1.0)
-            return Color(
-                hue: 0.37,
-                saturation: 0.50 + 0.42 * ratio,
-                brightness: 0.72 - 0.22 * ratio
-            )
-        }
+        habitHeatmapCellColor(for: day)
     }
 
     // MARK: Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: cellSpacing) {
+            HStack(alignment: .top, spacing: habitHeatmapCellSpacing) {
                 // Day-of-week labels — fixed outside the scroll view so they stay visible
-                VStack(spacing: cellSpacing) {
-                    Color.clear.frame(width: cellSize, height: 14)  // aligns with month row
+                VStack(spacing: habitHeatmapCellSpacing) {
+                    Color.clear.frame(width: habitHeatmapCellSize, height: 14)  // aligns with month row
                     ForEach(dowLabels.indices, id: \.self) { i in
                         Text(dowLabels[i])
                             .font(.system(size: 8, weight: .medium))
                             .foregroundStyle(.tertiary)
-                            .frame(width: cellSize, height: cellSize)
+                            .frame(width: habitHeatmapCellSize, height: habitHeatmapCellSize)
                     }
                 }
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: cellSpacing) {
+                    HStack(alignment: .top, spacing: habitHeatmapCellSpacing) {
                         ForEach(0..<weekColumns.count, id: \.self) { weekIdx in
-                            VStack(spacing: cellSpacing) {
+                            VStack(spacing: habitHeatmapCellSpacing) {
                                 // Fixed-width anchor keeps all columns equal-width.
                                 // Label is centered on the midpoint column of its month,
                                 // so it reads as centered over the month section.
                                 Color.clear
-                                    .frame(width: cellSize, height: 14)
+                                    .frame(width: habitHeatmapCellSize, height: 14)
                                     .overlay(alignment: .center) {
                                         if let label = monthLabelsByColumn[weekIdx] {
                                             Text(label)
@@ -200,7 +174,9 @@ struct HabitHeatmapView: View {
                                     if let day = weekColumns[weekIdx][dayIdx] {
                                         cellView(for: day)
                                     } else {
-                                        Color.clear.frame(width: cellSize, height: cellSize)
+                                        Color.clear.frame(
+                                            width: habitHeatmapCellSize,
+                                            height: habitHeatmapCellSize)
                                     }
                                 }
                             }
@@ -235,7 +211,7 @@ struct HabitHeatmapView: View {
         RoundedRectangle(cornerRadius: 2)
             .fill(day.isToday && !isSelected ? Color(.systemGray5) : semanticColor)
             .opacity(day.isBeforeCreation ? 0.7 : 1.0)
-            .frame(width: cellSize, height: cellSize)
+            .frame(width: habitHeatmapCellSize, height: habitHeatmapCellSize)
             .overlay {
                 if isSelected {
                     RoundedRectangle(cornerRadius: 2)
@@ -351,7 +327,7 @@ struct HabitHeatmapView: View {
         HStack(spacing: 4) {
             RoundedRectangle(cornerRadius: 2)
                 .fill(color)
-                .frame(width: cellSize, height: cellSize)
+                .frame(width: habitHeatmapCellSize, height: habitHeatmapCellSize)
                 .overlay {
                     if let bc = borderColor {
                         RoundedRectangle(cornerRadius: 2)
@@ -361,6 +337,102 @@ struct HabitHeatmapView: View {
             Text(label)
                 .font(.system(size: 9))
                 .foregroundStyle(.secondary)
+        }
+    }
+}
+
+// Shared heatmap color logic so mini rows can reuse exact semantics.
+private func habitHeatmapCellColor(for day: HeatmapDayData) -> Color {
+    if day.isFuture { return .clear }
+    if day.isBeforeCreation { return Color(.systemGray4) }
+
+    let goal = day.goal
+    let count = day.completedCount
+
+    switch count {
+    case 0:
+        // Most eye-catching — worst-day red
+        return Color(hue: 0.02, saturation: 0.88, brightness: 0.80)
+
+    case 1..<goal:
+        // Red scale: vivid at 1, fades to near-neutral approaching goal
+        let ratio = Double(count) / Double(goal)
+        return Color(
+            hue: 0.02,
+            saturation: 0.88 * (1 - ratio) + 0.15 * ratio,
+            brightness: 0.80 + 0.15 * ratio
+        )
+
+    default:
+        // Green scale: base green at goal, deepens with each extra check-in (up to +3)
+        let ratio = min(Double(count - goal) / 3.0, 1.0)
+        return Color(
+            hue: 0.37,
+            saturation: 0.50 + 0.42 * ratio,
+            brightness: 0.72 - 0.22 * ratio
+        )
+    }
+}
+
+// MARK: - Mini row for compact views (Stage row, etc.)
+
+struct MiniHabitHeatmapRow: View {
+    let habit: Habit
+    let daysToShow: Int
+
+    private var today: Date {
+        HabitScheduling.psychDay(for: HabitScheduling.now())
+    }
+
+    private var createdPsychDay: Date {
+        HabitScheduling.psychDay(for: habit.createdAt)
+    }
+
+    private var goal: Int {
+        max(1, habit.goalCountPerDay)
+    }
+
+    private var completionsByDay: [Date: Int] {
+        var dict: [Date: Int] = [:]
+        for ci in habit.checkIns {
+            dict[ci.psychDay, default: 0] += 1
+        }
+        return dict
+    }
+
+    private var days: [HeatmapDayData] {
+        let cal = HabitScheduling.calendar
+        let counts = completionsByDay
+        let goal = goal
+        return (0..<daysToShow).compactMap { offset in
+            guard let date = cal.date(byAdding: .day, value: -(daysToShow - 1 - offset), to: today)
+            else { return nil }
+            return HeatmapDayData(
+                date: date,
+                completedCount: counts[date] ?? 0,
+                goal: goal,
+                isBeforeCreation: date < createdPsychDay,
+                isFuture: date > today,
+                isToday: date == today
+            )
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: habitHeatmapCellSpacing) {
+            ForEach(Array(days.enumerated()), id: \.offset) { _, day in
+                let color = habitHeatmapCellColor(for: day)
+
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(day.isToday ? Color(.systemGray5) : color)
+                    .frame(width: habitHeatmapCellSize, height: habitHeatmapCellSize)
+                    .overlay {
+                        if day.isToday {
+                            RoundedRectangle(cornerRadius: 2)
+                                .stroke(color, lineWidth: 1.5)
+                        }
+                    }
+            }
         }
     }
 }
