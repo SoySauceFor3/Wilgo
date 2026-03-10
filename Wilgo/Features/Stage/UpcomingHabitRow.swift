@@ -3,14 +3,7 @@ import SwiftUI
 
 struct UpcomingHabitRow: View {
     let habit: Habit
-    let slot: Slot
-
-    private func formattedTime(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-        return formatter.string(from: date)
-    }
+    let slots: [Slot]
 
     var body: some View {
         HStack {
@@ -18,7 +11,7 @@ struct UpcomingHabitRow: View {
                 Text(habit.title)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                Text("\(formattedTime(from: slot.start)) – \(formattedTime(from: slot.end))")
+                Text(slots[0].slotTimeText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -47,7 +40,7 @@ struct UpcomingHabitRow: View {
         goalCountPerDay: 1
     )
 
-    return UpcomingHabitRow(habit: habit, slot: slot)
+    return UpcomingHabitRow(habit: habit, slots: [slot])
         .modelContainer(
             for: [Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
         )

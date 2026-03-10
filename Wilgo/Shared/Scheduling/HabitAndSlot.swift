@@ -1,29 +1,22 @@
 import Foundation
 
 enum HabitAndSlot {
-    // For each habit that has NOT yet met today (psychological day)'s goal,
-    // return the first slot that overlaps with `now` skipping snoozed ones.
     static func current(
         habits: [Habit],
-        snoozedSlots: [SnoozedSlot],
         now: Date = HabitScheduling.now()
-    ) -> [(Habit, Slot)] {
-        let psychDay = HabitScheduling.psychDay(for: now)
-        let todaysSnoozes = snoozedSlots.filter { $0.psychDay == psychDay && $0.resolvedAt == nil }
-        var result = habits.compactMap { habit -> (Habit, Slot)? in
-            if habit.hasMetDailyGoal(for: psychDay) { return nil }
-            guard
-                let slot = habit.firstCurrentSlot(
-                    now: now,
-                    excluding: todaysSnoozes.filter { $0.habit === habit }.compactMap { $0.slot })
-            else { return nil }
-            return (habit, slot)
+    ) -> [(Habit, [Slot])] {
+        let currentHabitAndSlots = habits.compactMap { habit -> (Habit, [Slot])? in
+            let stageStatus = habit.stageStatus(now: now)
+            if stageStatus.category == .current {
+                return (habit, stageStatus.nextUpSlots)
+            }
+            return nil
         }
 
-        // Sort by fraction of window remaining: time left / full window length.
-        result.sort { $0.1.remainingFraction(at: now) < $1.1.remainingFraction(at: now) }
-
-        return result
+        // sort currentHabitAndSlots by currentHabitAndSlots.nextUpSlots[0]'s fraction of remaining time
+        return currentHabitAndSlots.sorted {
+            $0.1[0].remainingFraction(at: now) < $1.1[0].remainingFraction(at: now)
+        }
     }
 
     // For each habit that has NOT yet met today (psychological day)'s goal,
@@ -31,67 +24,67 @@ enum HabitAndSlot {
     static func upcoming(
         habits: [Habit],
         after time: Date
-    ) -> [(Habit, Slot)] {
-        var result = habits.compactMap { habit -> (Habit, Slot)? in
-            if habit.hasMetDailyGoal(for: HabitScheduling.psychDay(for: time)) { return nil }
-            guard let slot = habit.firstSlotAfter(time: time)
-            else { return nil }
-            return (habit, slot)
+    ) -> [(Habit, [Slot])] {
+        let upcomingHabitAndSlots = habits.compactMap { habit -> (Habit, [Slot])? in
+            let stageStatus = habit.stageStatus(now: time)
+            if stageStatus.category == .future {
+                return (habit, stageStatus.nextUpSlots)
+            }
+            return nil
         }
 
-        result.sort { $0.1 < $1.1 }
-        return result
+        // sort upcomingHabitAndSlots by upcomingHabitAndSlots.nextUpSlots[0]
+        return upcomingHabitAndSlots.sorted {
+            if $0.1[0].start == $1.1[0].start {
+                return $0.1[0].end < $1.1[0].end
+            } else {
+                return $0.1[0].start < $1.1[0].start
+            }
+        }
     }
 
-    // TODO: I will move some of the logic here to the Missed View.
-    static func missed(
+    static func catchUp(
         habits: [Habit],
-        snoozedSlots: [SnoozedSlot],
         now: Date = HabitScheduling.now()
-    ) -> [MissedHabit] {
-        let psychDay = HabitScheduling.psychDay(for: now)
-        let todaysSnoozes = snoozedSlots.filter { $0.psychDay == psychDay && $0.resolvedAt == nil }
-
-        var result: [MissedHabit] = []
-
-        for habit in habits {
-            guard !habit.slots.isEmpty else { continue }
-
-            let completedCount = habit.completedCount(for: psychDay)
-
-            var missedCount = 0
-            var latestMissedSlot: Slot?
-
-            for slot in habit.unfinishedSlots(for: psychDay) {
-                let isSnoozed = todaysSnoozes.contains { $0.habit === habit && $0.slot === slot }
-
-                if isSnoozed || slot.endToday <= now {
-                    missedCount += 1
-                    latestMissedSlot = slot
-                }
+    ) -> [(Habit, [Slot])] {
+        let catchUpHabitAndSlots = habits.compactMap { habit -> (Habit, [Slot])? in
+            let stageStatus = habit.stageStatus(now: now)
+            if stageStatus.category == .catchUp {
+                return (habit, stageStatus.nextUpSlots)
             }
-
-            guard missedCount > 0 else { continue }
-
-            // Use the latest missed slot (by time in the schedule) for "overdue" display.
-            guard let displaySlot = latestMissedSlot else { continue }
-            let latestEnd = displaySlot.endToday
-            let overdueBy = now.timeIntervalSince(latestEnd)
-
-            result.append(
-                MissedHabit(
-                    habit: habit,
-                    slot: displaySlot,
-                    completedCount: completedCount,
-                    missedCount: missedCount,
-                    overdueBy: overdueBy
-                )
-            )
+            return nil
         }
 
-        // Show the most overdue habits first.
-        result.sort { $0.overdueBy > $1.overdueBy }
-        return result
+        return catchUpHabitAndSlots.sorted {
+            // Calculate the fraction and use it to sort, higher fraction in front.
+            // If fractions are equal to 1, then habit with larger goalCountPerDay comes first.
+
+            func catchUpFraction(_ tuple: (Habit, [Slot])) -> Double {
+                let (habit, nextUpSlots) = tuple
+                let catchUpCount = max(
+                    habit.goalCountPerDay
+                        - habit.completedCount(for: HabitScheduling.psychDay(for: now))
+                        - nextUpSlots.count, 0)
+                guard habit.goalCountPerDay > 0 else { return 0 }
+                return Double(catchUpCount) / Double(habit.goalCountPerDay)
+            }
+
+            let lhsFraction = catchUpFraction($0)
+            let rhsFraction = catchUpFraction($1)
+
+            if lhsFraction == rhsFraction {
+                if lhsFraction == 1.0 {
+                    // Larger goalCountPerDay first if both at max fraction.
+                    return $0.0.goalCountPerDay > $1.0.goalCountPerDay
+                } else {
+                    // Tiebreaker: start of first slot
+                    return $0.1[0].start < $1.1[0].start
+                }
+            } else {
+                // Higher fraction comes first
+                return lhsFraction > rhsFraction
+            }
+        }
     }
 
     /// Earliest upcoming windowStart, windowEnd, or psychDay boundary across all habits' slots.

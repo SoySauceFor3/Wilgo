@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-struct CurrentHabitRow: View {
+struct CatchUpHabitRow: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var habit: Habit
     let slots: [Slot]
@@ -21,9 +21,6 @@ struct CurrentHabitRow: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(habit.title)
                         .font(.headline)
-                    Text(slots[0].slotTimeText)
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
                 }
                 Spacer()
             }
@@ -61,11 +58,9 @@ struct CurrentHabitRow: View {
             .font(.caption2)
             .foregroundStyle(.secondary)
 
-            Text(
-                "next up slots: \(slots.dropFirst().map { $0.slotTimeText }.joined(separator: ", "))"
-            )
-            .font(.caption2)
-            .foregroundStyle(.secondary)
+            Text("next up slots: \(slots.map { $0.slotTimeText }.joined(separator: ", "))")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
 
         }
         .padding(16)
@@ -91,7 +86,7 @@ struct CurrentHabitRow: View {
         goalCountPerDay: 1
     )
 
-    CurrentHabitRow(habit: habit, slots: [slot])
+    CatchUpHabitRow(habit: habit, slots: [slot])
         .modelContainer(
             for: [Habit.self, Slot.self, HabitCheckIn.self, SnoozedSlot.self], inMemory: true
         )

@@ -112,30 +112,27 @@ final class LiveActivityManager {
         snoozedSlots: [SnoozedSlot],
         now: Date
     ) -> LiveActivityUpdate {
-        let psychDay = HabitScheduling.psychDay(for: now)
-        let todaysSnoozes = snoozedSlots.filter { $0.psychDay == psychDay && $0.resolvedAt == nil }
         let current = HabitAndSlot.current(
             habits: habits,
-            snoozedSlots: todaysSnoozes,  // TODO: CHECK!!!
             now: now,
         )
         return LiveActivityUpdate(
             contentState: makeFirstLiveActivityContentState(from: current),
-            staleDate: current.first.map { $0.1.endToday },
+            staleDate: current.first.map { $0.1[0].endToday },
             nextTransitionDate: HabitAndSlot.nextTransitionDate(habits: habits, now: now)
                 ?? now.addingTimeInterval(60)
         )
     }
 
     func makeFirstLiveActivityContentState(
-        from currentSlots: [(Habit, Slot)]
+        from currentSlots: [(Habit, [Slot])]
     ) -> NowAttributes.ContentState? {
-        guard let (habit, slot) = currentSlots.first else { return nil }
+        guard let (habit, slots) = currentSlots.first else { return nil }
         let habitId = habit.persistentModelID.encoded()
-        let slotId = slot.persistentModelID.encoded()
+        let slotId = slots[0].persistentModelID.encoded()
         return NowAttributes.ContentState(
             habitTitle: habit.title,
-            slotTimeText: slot.slotTimeText,
+            slotTimeText: slots[0].slotTimeText,
             habitId: habitId,
             slotId: slotId
         )

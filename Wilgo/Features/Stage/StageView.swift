@@ -9,7 +9,6 @@ struct StageView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(LiveActivityManager.self) private var liveActivityManager
     @Query(sort: \Habit.createdAt, order: .forward) private var habits: [Habit]
-    @Query private var snoozedSlots: [SnoozedSlot]
     /// Observed only to force a re-render when check-ins are inserted/deleted,
     /// since @Query for Habit does not re-fire on child relationship changes.
     @Query private var checkIns: [HabitCheckIn]
@@ -17,16 +16,16 @@ struct StageView: View {
     /// actually change the value of it will trigger a rerender.
     @State private var rewrite = false
 
-    private var current: [(Habit, Slot)] {
-        HabitAndSlot.current(habits: habits, snoozedSlots: snoozedSlots, now: Date())
+    private var current: [(Habit, [Slot])] {
+        HabitAndSlot.current(habits: habits, now: Date())
     }
 
-    private var upcoming: [(Habit, Slot)] {
+    private var upcoming: [(Habit, [Slot])] {
         HabitAndSlot.upcoming(habits: habits, after: Date())
     }
 
-    private var missed: [MissedHabit] {
-        HabitAndSlot.missed(habits: habits, snoozedSlots: snoozedSlots, now: Date())
+    private var catchUp: [(Habit, [Slot])] {
+        HabitAndSlot.catchUp(habits: habits, now: Date())
     }
 
     var body: some View {
@@ -40,8 +39,8 @@ struct StageView: View {
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(current, id: \.1.id) { habit, slot in
-                                CurrentHabitRow(habit: habit, slot: slot)
+                            ForEach(current, id: \.0.id) { habit, slots in
+                                CurrentHabitRow(habit: habit, slots: slots)
                             }
                         }
                     }
@@ -53,26 +52,26 @@ struct StageView: View {
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(upcoming, id: \.1.id) { habit, slot in
-                                UpcomingHabitRow(habit: habit, slot: slot)
+                            ForEach(upcoming, id: \.0.id) { habit, slots in
+                                UpcomingHabitRow(habit: habit, slots: slots)
                             }
                         }
                     }
 
-                    if !missed.isEmpty {
+                    if !catchUp.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Missed / skipped today")
+                            Text("Catch up")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(missed, id: \.slot.id) { item in
-                                MissedHabitRow(item: item)
+                            ForEach(catchUp, id: \.0.id) { habit, slots in
+                                CatchUpHabitRow(habit: habit, slots: slots)
                             }
                         }
                     }
 
-                    if current.isEmpty && upcoming.isEmpty && missed.isEmpty {
+                    if current.isEmpty && upcoming.isEmpty && catchUp.isEmpty {
                         EmptyStageCard()
                     }
                 }
