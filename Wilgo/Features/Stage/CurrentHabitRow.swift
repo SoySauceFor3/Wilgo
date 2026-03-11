@@ -14,9 +14,7 @@ struct CurrentHabitRow: View {
     }
 
     private var skipCreditsUsed: Int {
-        SkipCredit.creditsUsedInCycle(
-            for: habit,
-            until: Calendar.current.date(byAdding: .day, value: -1, to: psychToday) ?? psychToday)
+        SkipCredit.creditsUsedInCycle(for: habit, until: psychToday, inclusive: false)
     }
 
     private var skipCreditsAllowance: Int {

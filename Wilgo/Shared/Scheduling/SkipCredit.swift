@@ -4,15 +4,17 @@ import Foundation
 enum SkipCredit {
     /// A credit is burned for each psychological day in the period where
     /// the habit was not fully completed (completions < slots.count).
-    /// PsychDay is inclusive end date.
+    /// PsychDay is inclusive end date if inclusive is true, otherwise exclusive end date.
     /// NOTE: the current implementation allows extra check-ins beyond the goalCountPerDay to be used as skip credits.
-    static func creditsUsedInCycle(for habit: Habit, until psychDay: Date) -> Int {
+    static func creditsUsedInCycle(for habit: Habit, until psychDay: Date, inclusive: Bool = true)
+        -> Int
+    {
         let cal = HabitScheduling.calendar
         let start = habit.cycle.start(of: psychDay)
 
         var burned = 0
         var day = start
-        while day <= psychDay {
+        while (inclusive && day <= psychDay) || (!inclusive && day < psychDay) {
             burned += habit.goalCountPerDay - habit.completedCount(for: day)
 
             guard let next = cal.date(byAdding: .day, value: 1, to: day) else { break }
@@ -22,8 +24,13 @@ enum SkipCredit {
     }
 
     /// Credits still available in the cycle of PsychDay, inclusively.
-    static func creditsRemaining(for habit: Habit, until psychDay: Date) -> Int {
-        max(0, habit.skipCreditCount - creditsUsedInCycle(for: habit, until: psychDay))
+    static func creditsRemaining(for habit: Habit, until psychDay: Date, inclusive: Bool = false)
+        -> Int
+    {
+        max(
+            0,
+            habit.skipCreditCount
+                - creditsUsedInCycle(for: habit, until: psychDay, inclusive: inclusive))
     }
 
     // MARK: - Display
