@@ -78,7 +78,10 @@ struct StageView: View {
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle("Stage")
+            .navigationTitle(
+                HabitScheduling.psychDay(for: HabitScheduling.now()).formatted(
+                    date: .abbreviated, time: .omitted)
+            )
             .task(id: rewrite) {
                 let nextTransitionDate = HabitAndSlot.nextTransitionDate(
                     habits: habits, now: Date())

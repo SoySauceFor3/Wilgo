@@ -15,7 +15,7 @@ struct MainTabView: View {
         TabView(selection: $selectedTab) {
             StageView()
                 .tabItem {
-                    Label("Stage", systemImage: "sparkles")
+                    Label("Today", systemImage: "sparkles")
                 }
                 .tag(0)
 
