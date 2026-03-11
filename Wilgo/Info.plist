@@ -22,7 +22,8 @@
 	</array>
 	<key>BGTaskSchedulerPermittedIdentifiers</key>
 	<array>
-		<string>wilgo.morning-report-scheduler</string>
+		<string>wilgo.day-start-report-scheduler</string>
+		<string>wilgo.catchup-reminder-scheduler</string>
 	</array>
 </dict>
 </plist>

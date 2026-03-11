@@ -1,10 +1,3 @@
-//
-//  WilgoApp.swift
-//  Wilgo
-//
-//  Created by Xinya Yang on 2/24/26.
-//
-
 import BackgroundTasks
 import SwiftData
 import SwiftUI
@@ -57,6 +50,10 @@ struct WilgoApp: App {
         // After it fires once, handleBackgroundTask re-schedules it each day automatically.
         DayStartReportService.scheduleBackgroundTask()
 
+        // Set up CatchUpReminderService.
+        CatchUpReminderService.registerBackgroundTask()
+        CatchUpReminderService.startHourlyRunWhileActive()
+
         liveActivityManager = LiveActivityManager(
             modelContext: Self.sharedModelContainer.mainContext)
     }
@@ -75,6 +72,9 @@ struct WilgoApp: App {
                 liveActivityManager.sync()
                 // Watchdog: re-queue in case iOS skipped a BGTask fire.
                 DayStartReportService.scheduleBackgroundTask()
+            } else {
+                // the app is not active (inactive, or background), use this "last chance" to update and schedule the catch-up reminders.
+                CatchUpReminderService.updateAndScheduleNotificationAndBackgroundTask()
             }
         }
     }
