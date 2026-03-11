@@ -45,19 +45,6 @@ struct StageView: View {
                         }
                     }
 
-                    if !upcoming.isEmpty {
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text("Upcoming")
-                                .font(.headline)
-                                .foregroundStyle(.secondary)
-                                .padding(.horizontal, 4)
-
-                            ForEach(upcoming, id: \.0.id) { habit, slots in
-                                UpcomingHabitRow(habit: habit, slots: slots)
-                            }
-                        }
-                    }
-
                     if !catchUp.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Catch up")
@@ -67,6 +54,19 @@ struct StageView: View {
 
                             ForEach(catchUp, id: \.0.id) { habit, slots in
                                 CatchUpHabitRow(habit: habit, slots: slots)
+                            }
+                        }
+                    }
+
+                    if !upcoming.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Upcoming")
+                                .font(.headline)
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 4)
+
+                            ForEach(upcoming, id: \.0.id) { habit, slots in
+                                UpcomingHabitRow(habit: habit, slots: slots)
                             }
                         }
                     }
