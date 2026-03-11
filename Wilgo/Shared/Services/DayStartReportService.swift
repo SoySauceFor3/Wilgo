@@ -19,7 +19,7 @@ import UserNotifications
 ///    shows the live credit state directly — no separate notification needed.
 enum DayStartReportService {
 
-    static let backgroundTaskIdentifier = "wilgo.day-start-report-scheduler"
+    private static let backgroundTaskIdentifier = "wilgo.day-start-report-scheduler"
 
     // MARK: - Public
     static func registerBackgroundTask() {
@@ -31,13 +31,10 @@ enum DayStartReportService {
                 task.setTaskCompleted(success: false)
                 return
             }
-            Task { @MainActor in  // Starts a Swift concurrency Task to run the async work on the main actor
-                let habits =
-                    (try? WilgoApp.sharedModelContainer.mainContext.fetch(FetchDescriptor<Habit>()))
-                    ?? []
-                DayStartReportService.handleBackgroundTask(for: habits)
-                refreshTask.setTaskCompleted(success: true)
-            }
+            let context = ModelContext(WilgoApp.sharedModelContainer)
+            let habits = (try? context.fetch(FetchDescriptor<Habit>())) ?? []
+            DayStartReportService.handleBackgroundTask(for: habits)
+            refreshTask.setTaskCompleted(success: true)
         }
     }
 
@@ -65,8 +62,6 @@ enum DayStartReportService {
         postNotifications(for: habits, now: now)
         scheduleBackgroundTask(dayStartHour: dayStartHour, now: now)
     }
-
-    // MARK: - Private
 
     private static let summaryNotificationID = "wilgo.morning-report.summary"
 
