@@ -19,9 +19,27 @@ import UserNotifications
 ///    shows the live credit state directly — no separate notification needed.
 enum DayStartReportService {
 
-    static let backgroundTaskIdentifier = "wilgo.morning-report-scheduler"
+    static let backgroundTaskIdentifier = "wilgo.day-start-report-scheduler"
 
     // MARK: - Public
+    static func registerBackgroundTask() {
+        BGTaskScheduler.shared.register(
+            forTaskWithIdentifier: DayStartReportService.backgroundTaskIdentifier,
+            using: nil
+        ) { task in
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            Task { @MainActor in  // Starts a Swift concurrency Task to run the async work on the main actor
+                let habits =
+                    (try? WilgoApp.sharedModelContainer.mainContext.fetch(FetchDescriptor<Habit>()))
+                    ?? []
+                DayStartReportService.handleBackgroundTask(for: habits)
+                refreshTask.setTaskCompleted(success: true)
+            }
+        }
+    }
 
     /// Queue the background wakeup for the next day-start hour. Safe to call on every app-active event.
     static func scheduleBackgroundTask(
@@ -39,7 +57,7 @@ enum DayStartReportService {
     }
 
     /// Called from the BGTask handler in WilgoApp: post notifications, then re-queue for tomorrow.
-    static func handleBackgroundTask(
+    private static func handleBackgroundTask(
         for habits: [Habit],
         dayStartHour: Int = HabitScheduling.dayStartHourOffset,
         now: Date = .now
@@ -50,12 +68,12 @@ enum DayStartReportService {
 
     // MARK: - Private
 
-    static let summaryNotificationID = "wilgo.morning-report.summary"
+    private static let summaryNotificationID = "wilgo.morning-report.summary"
 
     /// Builds a single summary notification covering all habits for `yesterday`.
     /// Returns `nil` if `habits` is empty.
     /// Exposed internally for unit testing without touching UNUserNotificationCenter.
-    static func summaryNotificationContent(for habits: [Habit], missedOn yesterday: Date)
+    private static func summaryNotificationContent(for habits: [Habit], missedOn yesterday: Date)
         -> UNMutableNotificationContent?
     {
         guard !habits.isEmpty else { return nil }

@@ -51,29 +51,14 @@ struct WilgoApp: App {
         // before any other code that could race with a pending task being dispatched.
         // BGTaskScheduler crashes if an identifier listed in BGTaskSchedulerPermittedIdentifiers
         // has no registered handler at the moment the system tries to dispatch it.
-        BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: DayStartReportService.backgroundTaskIdentifier,
-            using: nil
-        ) { task in
-            guard let refreshTask = task as? BGAppRefreshTask else {
-                task.setTaskCompleted(success: false)
-                return
-            }
-            Task { @MainActor in
-                let habits =
-                    (try? WilgoApp.sharedModelContainer.mainContext.fetch(FetchDescriptor<Habit>()))
-                    ?? []
-                DayStartReportService.handleBackgroundTask(for: habits)
-                refreshTask.setTaskCompleted(success: true)
-            }
-        }
-
-        liveActivityManager = LiveActivityManager(
-            modelContext: Self.sharedModelContainer.mainContext)
+        DayStartReportService.registerBackgroundTask()
 
         // Bootstrap: queue the day-start report wakeup at the user's preferred day-start hour.
         // After it fires once, handleBackgroundTask re-schedules it each day automatically.
         DayStartReportService.scheduleBackgroundTask()
+
+        liveActivityManager = LiveActivityManager(
+            modelContext: Self.sharedModelContainer.mainContext)
     }
 
     var body: some Scene {
