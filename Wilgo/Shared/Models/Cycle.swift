@@ -55,6 +55,22 @@ enum Cycle: Codable, Equatable, Hashable {
 // MARK: - Cycle period boundaries
 
 extension Cycle {
+    /// Returns a cycle whose period containing `time` starts on that time's psych-day.
+    static func anchored(_ kind: CycleKind, at time: Date) -> Cycle {
+        let psychDay = HabitScheduling.psychDay(for: time)
+        let cal = HabitScheduling.calendar
+        switch kind {
+        case .daily:
+            return .daily
+        case .weekly:
+            let weekday = cal.component(.weekday, from: psychDay)
+            return .weekly(weekday: weekday)
+        case .monthly:
+            let day = cal.component(.day, from: psychDay)
+            return .monthly(day: day)
+        }
+    }
+
     /// Start of the cycle of the mentioned date, derived from the cycle's configuration.
     ///
     /// - `.daily`:           start of the day of `date`.

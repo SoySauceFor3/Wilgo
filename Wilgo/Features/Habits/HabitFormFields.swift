@@ -130,16 +130,7 @@ struct HabitFormFields: View {
         Binding(
             get: { cycle.kind },
             set: { newKind in
-                let cal = Calendar.current
-                let today = HabitScheduling.psychDay(for: .now)
-                switch newKind {
-                case .daily:
-                    cycle = .daily
-                case .weekly:
-                    cycle = .weekly(weekday: cal.component(.weekday, from: today))
-                case .monthly:
-                    cycle = .monthly(day: cal.component(.day, from: today))
-                }
+                cycle = Cycle.anchored(newKind, at: .now)
             }
         )
     }

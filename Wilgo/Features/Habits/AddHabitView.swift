@@ -9,8 +9,7 @@ struct AddHabitView: View {
     @State private var goalCountPerDay: Int = 1
     @State private var slotWindows: [SlotWindow]
     @State private var skipCreditCount: Int = 1
-    @State private var cycle: Cycle = .weekly(
-        weekday: Calendar.current.component(.weekday, from: HabitScheduling.psychDay(for: .now)))
+    @State private var cycle: Cycle = Cycle.anchored(.weekly, at: .now)
     @State private var proofOfWorkType: ProofOfWorkType = .manual
     @State private var punishment: String = ""
 

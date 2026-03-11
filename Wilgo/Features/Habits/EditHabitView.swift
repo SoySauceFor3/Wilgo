@@ -95,12 +95,7 @@ struct EditHabitView: View {
         // See documentation/Edit Habit Feature.md for rationale.
         var resolvedCycle = cycle
         if anyRuleChanged {
-            let cal = Calendar.current
-            switch cycle {
-            case .daily: break
-            case .weekly: resolvedCycle = .weekly(weekday: cal.component(.weekday, from: .now))
-            case .monthly: resolvedCycle = .monthly(day: cal.component(.day, from: .now))
-            }
+            resolvedCycle = Cycle.anchored(cycle.kind, at: .now)
         }
         habit.cycle = resolvedCycle
 
