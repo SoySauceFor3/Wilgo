@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import UIKit
 
 struct CurrentHabitRow: View {
     @Environment(\.modelContext) private var modelContext
@@ -62,7 +63,7 @@ struct CurrentHabitRow: View {
         let tileBackground = Color(.secondarySystemBackground)
         let gap: CGFloat = 10
         let columns: CGFloat = 5  // full grid width: 5 columns
-        let totalWidth = UIScreen.main.bounds.width - 32  // account for outer padding
+        let totalWidth = DisplayInfo.width - 32  // account for outer padding
         // totalWidth = columns * cellWidth + (columns - 1) * gap
         let cellWidth = (totalWidth - (columns - 1) * gap) / columns
         let leftBlockColumns: CGFloat = 4
@@ -202,3 +203,20 @@ struct CurrentHabitRow: View {
         )
         .padding()
 }
+
+private struct DisplayInfo {
+    private static var windowScene: UIWindowScene? {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .first
+    }
+
+    private static var screenBounds: CGRect {
+        windowScene?.screen.bounds ?? .zero
+    }
+
+    static var width: CGFloat {
+        screenBounds.width
+    }
+}
+
