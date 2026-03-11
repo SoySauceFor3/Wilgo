@@ -86,13 +86,23 @@ struct CurrentHabitRow: View {
                     .gridCellColumns(3)
 
                     statTile(
-                        title: "Window",
+                        title: "Current Slot",
                         background: tileBackground,
                         cornerRadius: cornerRadius
                     ) {
-                        Text(slots.map { $0.slotTimeText }.joined(separator: ", "))
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(slots.first?.slotTimeText ?? "No slot")
+                                .font(.caption2)
+                                .foregroundStyle(.primary)
+
+                            Text(
+                                slots.count - 1 > 1
+                                    ? "Next Up: \(slots.count - 1) slots"
+                                    : "Next Up: \(slots.count - 1) slot"
+                            )
                             .font(.caption2)
-                            .foregroundStyle(.primary)
+                            .foregroundStyle(.secondary)
+                        }
                     }
                     .frame(height: cellWidth)
                     .gridCellColumns(2)
@@ -219,4 +229,3 @@ private struct DisplayInfo {
         screenBounds.width
     }
 }
-
