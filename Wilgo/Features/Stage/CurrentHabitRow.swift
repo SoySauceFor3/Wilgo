@@ -4,6 +4,7 @@ import SwiftUI
 struct CurrentHabitRow: View {
     @Bindable var habit: Habit
     let slots: [Slot]
+    @State private var isPresentingDetail = false
 
     var body: some View {
         HabitStatsCard(
@@ -25,6 +26,15 @@ struct CurrentHabitRow: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
             }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isPresentingDetail = true
+        }
+        .sheet(isPresented: $isPresentingDetail) {
+            HabitDetailView(habit: habit)
+                .presentationDetents([.fraction(0.65), .large])
+                .presentationDragIndicator(.visible)
         }
     }
 }

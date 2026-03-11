@@ -5,6 +5,7 @@ struct CatchUpHabitRow: View {
     @Bindable var habit: Habit
     /// For catch-up, these are the "next up" slots for this habit.
     let slots: [Slot]
+    @State private var isPresentingDetail = false
 
     var body: some View {
         HabitStatsCard(
@@ -20,6 +21,15 @@ struct CatchUpHabitRow: View {
             )
             .font(.caption2)
             .foregroundStyle(.primary)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isPresentingDetail = true
+        }
+        .sheet(isPresented: $isPresentingDetail) {
+            HabitDetailView(habit: habit)
+                .presentationDetents([.fraction(0.65), .large])
+                .presentationDragIndicator(.visible)
         }
     }
 }

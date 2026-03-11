@@ -4,6 +4,7 @@ import SwiftUI
 struct UpcomingHabitRow: View {
     let habit: Habit
     let slots: [Slot]
+    @State private var isPresentingDetail = false
 
     var body: some View {
         HStack {
@@ -22,6 +23,15 @@ struct UpcomingHabitRow: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(Color(.secondarySystemGroupedBackground))
         )
+        .contentShape(Rectangle())
+        .onTapGesture {
+            isPresentingDetail = true
+        }
+        .sheet(isPresented: $isPresentingDetail) {
+            HabitDetailView(habit: habit)
+                .presentationDetents([.fraction(0.65), .large])
+                .presentationDragIndicator(.visible)
+        }
     }
 }
 
