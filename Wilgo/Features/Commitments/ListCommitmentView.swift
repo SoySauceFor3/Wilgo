@@ -6,6 +6,7 @@ struct ListCommitmentView: View {
     @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
     @State private var isPresentingAddCommitment: Bool = false
     @State private var commitmentForDetail: Commitment?
+    @State private var commitmentForEdit: Commitment?
 
     var body: some View {
         NavigationStack {
@@ -36,9 +37,18 @@ struct ListCommitmentView: View {
                 AddCommitmentView()
             }
             .sheet(item: $commitmentForDetail) { commitment in
-                CommitmentDetailView(commitment: commitment)
-                    .presentationDetents([.fraction(0.65), .large])
-                    .presentationDragIndicator(.visible)
+                CommitmentDetailView(commitment: commitment) {
+                    // Close the detail sheet and present the full-page editor.
+                    commitmentForDetail = nil
+                    commitmentForEdit = commitment
+                }
+                .presentationDetents([.fraction(0.65), .large])
+                .presentationDragIndicator(.visible)
+            }
+            .fullScreenCover(item: $commitmentForEdit) { commitment in
+                NavigationStack {
+                    EditCommitmentView(commitment: commitment)
+                }
             }
         }
     }

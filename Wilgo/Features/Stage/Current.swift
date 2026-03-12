@@ -5,6 +5,7 @@ struct CurrentCommitmentRow: View {
     @Bindable var commitment: Commitment
     let slots: [Slot]
     @State private var isPresentingDetail = false
+    @State private var isPresentingEdit = false
 
     var body: some View {
         CommitmentStatsCard(
@@ -32,9 +33,17 @@ struct CurrentCommitmentRow: View {
             isPresentingDetail = true
         }
         .sheet(isPresented: $isPresentingDetail) {
-            CommitmentDetailView(commitment: commitment)
-                .presentationDetents([.fraction(0.65), .large])
-                .presentationDragIndicator(.visible)
+            CommitmentDetailView(commitment: commitment) {
+                isPresentingDetail = false
+                isPresentingEdit = true
+            }
+            .presentationDetents([.fraction(0.65), .large])
+            .presentationDragIndicator(.visible)
+        }
+        .fullScreenCover(isPresented: $isPresentingEdit) {
+            NavigationStack {
+                EditCommitmentView(commitment: commitment)
+            }
         }
     }
 }

@@ -3,9 +3,14 @@ import SwiftUI
 
 struct CommitmentDetailView: View {
     let commitment: Commitment
+    let onEdit: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
-    @State private var isPresentingEdit = false
+
+    init(commitment: Commitment, onEdit: (() -> Void)? = nil) {
+        self.commitment = commitment
+        self.onEdit = onEdit
+    }
 
     var body: some View {
         NavigationStack {
@@ -23,11 +28,8 @@ struct CommitmentDetailView: View {
                     Button("Done") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Edit") { isPresentingEdit = true }
+                    Button("Edit") { onEdit?() }
                 }
-            }
-            .sheet(isPresented: $isPresentingEdit) {
-                EditCommitmentView(commitment: commitment)
             }
         }
     }
