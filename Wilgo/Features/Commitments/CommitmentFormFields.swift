@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// Shared form body used by both AddHabitView and EditHabitView.
+/// Shared form body used by both AddCommitmentView and EditCommitmentView.
 /// Owns no SwiftData interactions — all state is passed in via bindings.
-struct HabitFormFields: View {
+struct CommitmentFormFields: View {
     @Binding var title: String
     @Binding var goalCountPerDay: Int
     @Binding var slotWindows: [SlotWindow]
@@ -12,7 +12,7 @@ struct HabitFormFields: View {
     @Binding var punishment: String
 
     /// When non-nil, a neutral info note is shown at the top of the form.
-    /// Used by EditHabitView to indicate that rule changes start a fresh period.
+    /// Used by EditCommitmentView to indicate that rule changes start a fresh period.
     var rulesChangedNote: String?
 
     var body: some View {

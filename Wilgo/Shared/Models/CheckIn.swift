@@ -1,22 +1,16 @@
-//
-//  HabitCheckIn.swift
-//  Wilgo
-//
-//
-
 import Foundation
 import SwiftData
 
-enum HabitCheckInStatus: String, Codable {
+enum CheckInStatus: String, Codable {
     case completed
 }
 
 @Model
-final class HabitCheckIn {
-    @Relationship var habit: Habit?
+final class CheckIn {
+    @Relationship var commitment: Commitment?
 
-    /// Whether the habit was completed or intentionally skipped.
-    var status: HabitCheckInStatus = HabitCheckInStatus.completed
+    /// NOTE: Currently not in use.
+    var status: CheckInStatus = CheckInStatus.completed
 
     /// Absolute creation time (treated as UTC ground truth).
     var createdAt: Date
@@ -29,14 +23,14 @@ final class HabitCheckIn {
     var psychDay: Date = Date()
 
     init(
-        habit: Habit,
+        commitment: Commitment,
         createdAt: Date = .now
     ) {
-        self.habit = habit
+        self.commitment = commitment
         self.createdAt = createdAt
 
         let tzId = TimeZone.current.identifier
         self.timeZoneIdentifier = tzId
-        self.psychDay = HabitScheduling.psychDay(for: createdAt, timeZoneIdentifier: tzId)
+        self.psychDay = CommitmentScheduling.psychDay(for: createdAt, timeZoneIdentifier: tzId)
     }
 }

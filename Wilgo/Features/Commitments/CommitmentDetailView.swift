@@ -1,8 +1,8 @@
 import SwiftData
 import SwiftUI
 
-struct HabitDetailView: View {
-    let habit: Habit
+struct CommitmentDetailView: View {
+    let commitment: Commitment
 
     @Environment(\.dismiss) private var dismiss
     @State private var isPresentingEdit = false
@@ -16,7 +16,7 @@ struct HabitDetailView: View {
                 }
                 .padding()
             }
-            .navigationTitle(habit.title)
+            .navigationTitle(commitment.title)
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -27,7 +27,7 @@ struct HabitDetailView: View {
                 }
             }
             .sheet(isPresented: $isPresentingEdit) {
-                EditHabitView(habit: habit)
+                EditCommitmentView(commitment: commitment)
             }
         }
     }
@@ -37,11 +37,11 @@ struct HabitDetailView: View {
     private var statsSection: some View {
         HStack(spacing: 10) {
             statTile(
-                value: "\(habit.checkIns.count)",
+                value: "\(commitment.checkIns.count)",
                 label: "All-time\ncheck-ins"
             )
             statTile(
-                value: "\(habit.goalCountPerDay)×",
+                value: "\(commitment.goalCountPerDay)×",
                 label: "Daily\ngoal"
             )
             statTile(
@@ -54,7 +54,7 @@ struct HabitDetailView: View {
     private var daysTracked: String {
         let days =
             Calendar.current
-            .dateComponents([.day], from: habit.createdAt, to: HabitScheduling.now())
+            .dateComponents([.day], from: commitment.createdAt, to: CommitmentScheduling.now())
             .day ?? 0
         return "\(max(1, days + 1))"
     }
@@ -83,7 +83,7 @@ struct HabitDetailView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("History")
                 .font(.headline)
-            HabitHeatmapView(habit: habit)
+            CommitmentHeatmapView(commitment: commitment)
         }
         .padding(.vertical, 16)
         .padding(.horizontal, 14)
@@ -96,18 +96,18 @@ struct HabitDetailView: View {
 
 #Preview("Rich history") {
     let container = HeatmapPreviewFactory.richHistoryContainer()
-    PreviewWithFirstHabit(container: container) { habit in
+    PreviewWithFirstCommitment(container: container) { commitment in
         NavigationStack {
-            HabitDetailView(habit: habit)
+            CommitmentDetailView(commitment: commitment)
         }
     }
 }
 
-#Preview("New habit") {
-    let container = HeatmapPreviewFactory.newHabitContainer()
-    PreviewWithFirstHabit(container: container) { habit in
+#Preview("New commitment") {
+    let container = HeatmapPreviewFactory.newCommitmentContainer()
+    PreviewWithFirstCommitment(container: container) { commitment in
         NavigationStack {
-            HabitDetailView(habit: habit)
+            CommitmentDetailView(commitment: commitment)
         }
     }
 }

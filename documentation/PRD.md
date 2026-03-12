@@ -12,7 +12,7 @@
 
 ## 2. The Data Model (The "Will-O-Bank")
 
-Each habit is defined by these parameters:
+Each commitment is defined by these parameters:
 
 - **Frequency:** Times per day/week
 - **Ideal Window:** e.g., 5 PM – 8 PM (The "Golden Hours").
@@ -53,15 +53,15 @@ Wilgo’s personality and UI evolve throughout the day for each task (assuming t
 ### **Page 1: The Stage (Dynamic Dashboard)**
 
 - **Mascot Area:** Placeholder for Wilgo (the character).
-- **Priority Slot:** The habit currently in its "Reminder Window" becomes the largest element.
+- **Priority Slot:** The commitment currently in its "Reminder Window" becomes the largest element.
 - **Quick Action:** Large "Done" button and a "Burn Credit" button.
 - **Credit Counter:** Big bold number showing remaining Skip Credits.
 
-### **Page 2: Habit Manager (The List)**
+### **Page 2: Commitment Manager (The List)**
 
-- A clean iOS-style List of all habits.
+- A clean iOS-style List of all commitments.
 - Visual status indicators (Green dots for Done, Gray for Pending).
-- **Floating Action Button (+):** To add new habits.
+- **Floating Action Button (+):** To add new commitments.
 
 ### **Page 3: Configuration (Setup)**
 

@@ -14,10 +14,9 @@ So, my plan is to:
 1. remove the enum
 
 ```swift
-HabitCheckInStatus.skipped
+CheckInStatus.skipped
 ```
 
 1. add a state managing if a window should be moved from now stage to miss/make up session, which allows silent give up.
 
 Admittedly, this might postpone the "Oh your credit is used up, time for the punishment" part to the next day (then we know the user really gives up), but I think this lost is tolerable
-

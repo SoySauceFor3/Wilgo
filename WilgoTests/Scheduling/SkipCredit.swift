@@ -22,7 +22,7 @@ private func timeOfDay(hour: Int) -> Date {
 
 @MainActor
 private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([Habit.self, Slot.self, HabitCheckIn.self])
+    let schema = Schema([Commitment.self, Slot.self, CheckIn.self])
     let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
     return try ModelContainer(for: schema, configurations: [config])
 }
@@ -32,15 +32,15 @@ private func makeSlot(startHour: Int, endHour: Int) -> Slot {
 }
 
 @MainActor
-private func makeHabit(
+private func makeCommitment(
     in ctx: ModelContext,
     title: String = "Test",
     slots: [Slot] = [],
     skipCreditCount: Int = 3,
     cycle: Cycle = .daily,
     punishment: String? = nil
-) -> Habit {
-    let habit = Habit(
+) -> Commitment {
+    let commitment = Commitment(
         title: title,
         slots: slots,
         skipCreditCount: skipCreditCount,
@@ -48,9 +48,9 @@ private func makeHabit(
         punishment: punishment,
         goalCountPerDay: slots.count
     )
-    ctx.insert(habit)
+    ctx.insert(commitment)
     for slot in slots { ctx.insert(slot) }
-    return habit
+    return commitment
 }
 
 // MARK: - Tests
@@ -74,8 +74,8 @@ struct SkipCreditTests {
         @MainActor func nothingCompleted() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
-            let used = SkipCredit.creditsUsedInCycle(for: habit, until: psychDay)
+            let commitment = makeCommitment(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
+            let used = SkipCredit.creditsUsedInCycle(for: commitment, until: psychDay)
             #expect(used == 1)
         }
 
@@ -84,10 +84,10 @@ struct SkipCreditTests {
         @MainActor func nothingCompletedTwoSlots() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx,
                 slots: [makeSlot(startHour: 7, endHour: 8), makeSlot(startHour: 14, endHour: 15)])
-            let used = SkipCredit.creditsUsedInCycle(for: habit, until: psychDay)
+            let used = SkipCredit.creditsUsedInCycle(for: commitment, until: psychDay)
             #expect(used == 2)
         }
 
@@ -96,12 +96,13 @@ struct SkipCreditTests {
         @MainActor func partialCompletion() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx,
                 slots: [makeSlot(startHour: 7, endHour: 8), makeSlot(startHour: 14, endHour: 15)])
             ctx.insert(
-                HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 7)))
-            let used = SkipCredit.creditsUsedInCycle(for: habit, until: psychDay)
+                CheckIn(
+                    commitment: commitment, createdAt: date(year: 2026, month: 3, day: 5, hour: 7)))
+            let used = SkipCredit.creditsUsedInCycle(for: commitment, until: psychDay)
             #expect(used == 1)
         }
 
@@ -109,10 +110,11 @@ struct SkipCreditTests {
         @MainActor func fullyCompleted() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
+            let commitment = makeCommitment(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
             ctx.insert(
-                HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 9)))
-            let used = SkipCredit.creditsUsedInCycle(for: habit, until: psychDay)
+                CheckIn(
+                    commitment: commitment, createdAt: date(year: 2026, month: 3, day: 5, hour: 9)))
+            let used = SkipCredit.creditsUsedInCycle(for: commitment, until: psychDay)
             #expect(used == 0)
         }
 
@@ -120,8 +122,8 @@ struct SkipCreditTests {
         @MainActor func noSlots() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx)
-            let used = SkipCredit.creditsUsedInCycle(for: habit, until: psychDay)
+            let commitment = makeCommitment(in: ctx)
+            let used = SkipCredit.creditsUsedInCycle(for: commitment, until: psychDay)
             #expect(used == 0)
         }
 
@@ -131,19 +133,21 @@ struct SkipCreditTests {
             let ctx = container.mainContext
             // Anchor on Monday (weekday 2). Period: Mar 2 (Mon) – Mar 8 (Sun).
             // Check-in on Mar 3 only → Mar 2 (missed) + Mar 3 (done) + ... up to Mar 5 (2 missed).
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx,
                 slots: [makeSlot(startHour: 9, endHour: 10)],
                 skipCreditCount: 5,
                 cycle: .weekly(weekday: 2))
             // Mar 2 and Mar 4 missed; Mar 3 and Mar 5 completed.
             ctx.insert(
-                HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 3, hour: 9)))
+                CheckIn(
+                    commitment: commitment, createdAt: date(year: 2026, month: 3, day: 3, hour: 9)))
             ctx.insert(
-                HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 9)))
+                CheckIn(
+                    commitment: commitment, createdAt: date(year: 2026, month: 3, day: 5, hour: 9)))
             // Mar 2 (missed) + Mar 4 (missed) = 2 credits burned, up to Mar 5.
             let used = SkipCredit.creditsUsedInCycle(
-                for: habit, until: date(year: 2026, month: 3, day: 5))
+                for: commitment, until: date(year: 2026, month: 3, day: 5))
             #expect(used == 2)
         }
     }
@@ -164,11 +168,12 @@ struct SkipCreditTests {
             let container = try makeContainer()
             let ctx = container.mainContext
             // All slots completed → 0 burned.
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)], skipCreditCount: 3)
             ctx.insert(
-                HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 9)))
-            let remaining = SkipCredit.creditsRemaining(for: habit, until: psychDay)
+                CheckIn(
+                    commitment: commitment, createdAt: date(year: 2026, month: 3, day: 5, hour: 9)))
+            let remaining = SkipCredit.creditsRemaining(for: commitment, until: psychDay)
             #expect(remaining == 3)
         }
 
@@ -176,14 +181,15 @@ struct SkipCreditTests {
         @MainActor func partiallyUsed() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx,
                 slots: [makeSlot(startHour: 7, endHour: 8), makeSlot(startHour: 14, endHour: 15)],
                 skipCreditCount: 3)
             // One slot done, one missed → 1 burned.
             ctx.insert(
-                HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 7)))
-            let remaining = SkipCredit.creditsRemaining(for: habit, until: psychDay)
+                CheckIn(
+                    commitment: commitment, createdAt: date(year: 2026, month: 3, day: 5, hour: 7)))
+            let remaining = SkipCredit.creditsRemaining(for: commitment, until: psychDay)
             #expect(remaining == 2)
         }
 
@@ -192,10 +198,10 @@ struct SkipCreditTests {
             let container = try makeContainer()
             let ctx = container.mainContext
             // 1 slot missed, 1 credit allowed → 0 remaining.
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)], skipCreditCount: 1)
             // No check-in → 1 credit burned.
-            let remaining = SkipCredit.creditsRemaining(for: habit, until: psychDay)
+            let remaining = SkipCredit.creditsRemaining(for: commitment, until: psychDay)
             #expect(remaining == 0)
         }
 
@@ -204,11 +210,11 @@ struct SkipCreditTests {
             let container = try makeContainer()
             let ctx = container.mainContext
             // 2 slots missed, only 1 credit allowed → clamped at 0.
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx,
                 slots: [makeSlot(startHour: 7, endHour: 8), makeSlot(startHour: 14, endHour: 15)],
                 skipCreditCount: 1)
-            let remaining = SkipCredit.creditsRemaining(for: habit, until: psychDay)
+            let remaining = SkipCredit.creditsRemaining(for: commitment, until: psychDay)
             #expect(remaining == 0)
         }
     }
@@ -228,10 +234,10 @@ struct SkipCreditTests {
         @MainActor func nothingCompletedUsesXIcon() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx, title: "Exercise", slots: [makeSlot(startHour: 9, endHour: 10)],
                 skipCreditCount: 3)
-            let line = SkipCredit.notificationLine(for: habit, on: psychDay)
+            let line = SkipCredit.notificationLine(for: commitment, on: psychDay)
             #expect(line.hasPrefix("❌"))
         }
 
@@ -239,13 +245,14 @@ struct SkipCreditTests {
         @MainActor func partiallyCompletedUsesWarningIcon() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx, title: "Exercise",
                 slots: [makeSlot(startHour: 7, endHour: 8), makeSlot(startHour: 14, endHour: 15)],
                 skipCreditCount: 3)
             ctx.insert(
-                HabitCheckIn(habit: habit, createdAt: date(year: 2026, month: 3, day: 5, hour: 7)))
-            let line = SkipCredit.notificationLine(for: habit, on: psychDay)
+                CheckIn(
+                    commitment: commitment, createdAt: date(year: 2026, month: 3, day: 5, hour: 7)))
+            let line = SkipCredit.notificationLine(for: commitment, on: psychDay)
             #expect(line.hasPrefix("⚠️"))
         }
 
@@ -254,10 +261,10 @@ struct SkipCreditTests {
             let container = try makeContainer()
             let ctx = container.mainContext
             // 0 done, 1 slot → 1 credit used; allowance = 3 → +2 remaining.
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx, title: "Reading", slots: [makeSlot(startHour: 9, endHour: 10)],
                 skipCreditCount: 3)
-            let line = SkipCredit.notificationLine(for: habit, on: psychDay)
+            let line = SkipCredit.notificationLine(for: commitment, on: psychDay)
             #expect(line.contains("+2"))
         }
 
@@ -266,11 +273,11 @@ struct SkipCreditTests {
             let container = try makeContainer()
             let ctx = container.mainContext
             // 2 slots missed, allowance = 1 → 1 over budget → −1.
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx, title: "Exercise",
                 slots: [makeSlot(startHour: 7, endHour: 8), makeSlot(startHour: 14, endHour: 15)],
                 skipCreditCount: 1)
-            let line = SkipCredit.notificationLine(for: habit, on: psychDay)
+            let line = SkipCredit.notificationLine(for: commitment, on: psychDay)
             #expect(line.contains("−1"))
         }
 
@@ -279,10 +286,10 @@ struct SkipCreditTests {
             let container = try makeContainer()
             let ctx = container.mainContext
             // 1 slot missed, allowance = 1 → 1 used, 0 remaining → +0.
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx, title: "Exercise", slots: [makeSlot(startHour: 9, endHour: 10)],
                 skipCreditCount: 1)
-            let line = SkipCredit.notificationLine(for: habit, on: psychDay)
+            let line = SkipCredit.notificationLine(for: commitment, on: psychDay)
             #expect(line.contains("+0"))
         }
 
@@ -290,10 +297,10 @@ struct SkipCreditTests {
         @MainActor func punishmentAppendedWhenExhausted() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx, title: "Exercise", slots: [makeSlot(startHour: 9, endHour: 10)],
                 skipCreditCount: 0, punishment: "Give robaroba 20 RMB")
-            let line = SkipCredit.notificationLine(for: habit, on: psychDay)
+            let line = SkipCredit.notificationLine(for: commitment, on: psychDay)
             #expect(line.hasSuffix("· Give robaroba 20 RMB"))
         }
 
@@ -301,10 +308,10 @@ struct SkipCreditTests {
         @MainActor func punishmentOmittedWhenCreditAvailable() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx, title: "Exercise", slots: [makeSlot(startHour: 9, endHour: 10)],
                 skipCreditCount: 3, punishment: "Give robaroba 20 RMB")
-            let line = SkipCredit.notificationLine(for: habit, on: psychDay)
+            let line = SkipCredit.notificationLine(for: commitment, on: psychDay)
             #expect(!line.contains("Give robaroba 20 RMB"))
         }
 
@@ -312,10 +319,10 @@ struct SkipCreditTests {
         @MainActor func noPunishmentWhenNil() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx, title: "Exercise", slots: [makeSlot(startHour: 9, endHour: 10)],
                 skipCreditCount: 0, punishment: nil)
-            let line = SkipCredit.notificationLine(for: habit, on: psychDay)
+            let line = SkipCredit.notificationLine(for: commitment, on: psychDay)
             #expect(!line.contains("·\u{A0}"))  // no trailing segment after delta
             // The line should still end with the delta, not a punishment.
             #expect(line.last?.isLetter == false || line.last?.isNumber == true)
@@ -326,18 +333,18 @@ struct SkipCreditTests {
             let container = try makeContainer()
             let ctx = container.mainContext
             // 0 done out of 2, 5 credits used/4 allowance → −1.
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx, title: "Exercise",
                 slots: [makeSlot(startHour: 7, endHour: 8), makeSlot(startHour: 14, endHour: 15)],
                 skipCreditCount: 4, punishment: "Give robaroba 20 RMB")
             // Burn 5 credits: need 5 unfinished across prior days using a weekly cycle.
             // Simpler: use a weekly cycle and check in so exactly 5 credits are burned.
             // Instead, verify the format with a fresh daily cycle where 2 are burned, allowance 1.
-            let singleSlotHabit = makeHabit(
+            let singleSlotCommitment = makeCommitment(
                 in: ctx, title: "Exercise",
                 slots: [makeSlot(startHour: 7, endHour: 8), makeSlot(startHour: 14, endHour: 15)],
                 skipCreditCount: 4, punishment: "Give robaroba 20 RMB")
-            let line = SkipCredit.notificationLine(for: singleSlotHabit, on: psychDay)
+            let line = SkipCredit.notificationLine(for: singleSlotCommitment, on: psychDay)
             // Should contain title, done/required, used/allowance, delta.
             #expect(line.contains("Exercise"))
             #expect(line.contains("0/2"))

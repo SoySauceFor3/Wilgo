@@ -3,12 +3,12 @@
 //  Wilgo
 //
 //  UserDefaults key constants. Centralised here so non-SwiftUI code
-//  (HabitScheduling, WilgoApp) shares the same string as @AppStorage views.
+//  (CommitmentScheduling, WilgoApp) shares the same string as @AppStorage views.
 //
 
 import Foundation
 
 enum AppSettings {
-    /// Hour (0–12) when the "habit day" begins. Default: 0 (midnight).
+    /// Hour (0–12) when the "commitment day" begins. Default: 0 (midnight).
     static let dayStartHourKey = "dayStartHour"
 }

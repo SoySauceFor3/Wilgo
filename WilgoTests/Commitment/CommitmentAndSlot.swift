@@ -23,7 +23,7 @@ private func timeOfDay(hour: Int, minute: Int = 0) -> Date {
 
 @MainActor
 private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([Habit.self, Slot.self, HabitCheckIn.self])
+    let schema = Schema([Commitment.self, Slot.self, CheckIn.self])
     let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
     return try ModelContainer(for: schema, configurations: [config])
 }
@@ -33,218 +33,221 @@ private func makeSlot(startHour: Int, endHour: Int) -> Slot {
 }
 
 @MainActor
-private func makeHabit(
+private func makeCommitment(
     in ctx: ModelContext,
     title: String = "A",
     slots: [Slot] = [],
     goalCountPerDay: Int = 2
-) -> Habit {
-    let habit = Habit(
+) -> Commitment {
+    let commitment = Commitment(
         title: title, slots: slots, skipCreditCount: 0, cycle: .daily,
         goalCountPerDay: goalCountPerDay)
-    ctx.insert(habit)
+    ctx.insert(commitment)
     for slot in slots { ctx.insert(slot) }
-    return habit
+    return commitment
 }
 
-@Suite("HabitAndSlot tests", .serialized)  // seems that parallelly running the test create some mysterious bug
-struct HabitAndSlotTests {
-    // MARK: - HabitAndSlot.current
-    @Suite("HabitAndSlot — current")
-    final class HabitAndSlotCurrentTests {
+@Suite("CommitmentAndSlot tests", .serialized)  // seems that parallelly running the test create some mysterious bug
+struct CommitmentAndSlotTests {
+    // MARK: - CommitmentAndSlot.current
+    @Suite("CommitmentAndSlot — current")
+    final class CommitmentAndSlotCurrentTests {
 
         // Frozen instant used as the injectable clock for the entire suite.
         // All slot startToday/endToday values are anchored to this date, and
         // noonNow (passed as `now`) falls within the wide window (00:00–23:00).
         private static let frozenNoon = date(year: 2025, month: 6, day: 15, hour: 12)
 
-        private let savedNow = HabitScheduling.now
+        private let savedNow = CommitmentScheduling.now
         private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
 
         init() {
             UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey)
-            HabitScheduling.now = { HabitAndSlotCurrentTests.frozenNoon }
+            CommitmentScheduling.now = { CommitmentAndSlotCurrentTests.frozenNoon }
         }
 
         deinit {
             let savedNow = savedNow
             let savedOffset = savedOffset
             UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey)
-            HabitScheduling.now = savedNow
+            CommitmentScheduling.now = savedNow
         }
 
         private func wideSlot(endHour: Int = 23) -> Slot {
             makeSlot(startHour: 0, endHour: endHour)
         }
 
-        @Test("empty habits → empty")
-        @MainActor func emptyHabits() throws {
-            let result = HabitAndSlot.current(habits: [])
+        @Test("empty commitments → empty")
+        @MainActor func emptyCommitments() throws {
+            let result = CommitmentAndSlot.current(commitments: [])
             #expect(result.isEmpty)
         }
 
-        @Test("habits whose daily goal has been met → empty")
-        @MainActor func habitsWithMetDailyGoal() throws {
+        @Test("commitments whose daily goal has been met → empty")
+        @MainActor func commitmentsWithMetDailyGoal() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx, slots: [wideSlot()])
-            ctx.insert(HabitCheckIn(habit: habit, createdAt: HabitScheduling.now()))  // met daily goal
-            let result = HabitAndSlot.current(habits: [habit])
+            let commitment = makeCommitment(in: ctx, slots: [wideSlot()])
+            ctx.insert(
+                CheckIn(commitment: commitment, createdAt: CommitmentScheduling.now()))  // met daily goal
+            let result = CommitmentAndSlot.current(commitments: [commitment])
             #expect(result.isEmpty)
         }
 
-        @Test("overlap with now → habit included")
+        @Test("overlap with now → commitment included")
         @MainActor func overlapWithNowIncluded() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx, slots: [wideSlot()])
-            let result = HabitAndSlot.current(habits: [habit])
+            let commitment = makeCommitment(in: ctx, slots: [wideSlot()])
+            let result = CommitmentAndSlot.current(commitments: [commitment])
             #expect(result.count == 1)
-            #expect(result[0].0 === habit)  // habit is included
+            #expect(result[0].0 === commitment)  // commitment is included
         }
 
         @Test("more urgent slot (less remaining fraction) sorts first")
         @MainActor func sortsByRemainingFraction() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habitA = makeHabit(in: ctx, title: "A", slots: [wideSlot(endHour: 23)])
-            let habitB = makeHabit(in: ctx, title: "B", slots: [wideSlot(endHour: 22)])
-            let result = HabitAndSlot.current(habits: [habitA, habitB])
+            let commitmentA = makeCommitment(in: ctx, title: "A", slots: [wideSlot(endHour: 23)])
+            let commitmentB = makeCommitment(in: ctx, title: "B", slots: [wideSlot(endHour: 22)])
+            let result = CommitmentAndSlot.current(commitments: [commitmentA, commitmentB])
             #expect(result.count == 2)
-            #expect(result[0].0 === habitB)  // B (end=22) is more urgent
-            #expect(result[1].0 === habitA)
+            #expect(result[0].0 === commitmentB)  // B (end=22) is more urgent
+            #expect(result[1].0 === commitmentA)
         }
     }
 
-    // MARK: - HabitAndSlot.upcoming
-    @Suite("HabitAndSlot — upcoming")
-    final class HabitAndSlotUpcomingTests {
+    // MARK: - CommitmentAndSlot.upcoming
+    @Suite("CommitmentAndSlot — upcoming")
+    final class CommitmentAndSlotUpcomingTests {
 
         // // Frozen instant used as the injectable clock for the entire suite.
         // private static let fakeNow = date(year: 2025, month: 6, day: 15, hour: 0)
 
-        // private let savedNow = HabitScheduling.now
+        // private let savedNow = CommitmentScheduling.now
         private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
 
         init() {
             UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey)
-            // HabitScheduling.now = { return HabitAndSlotUpcomingTests.fakeNow }
+            // CommitmentScheduling.now = { return CommitmentAndSlotUpcomingTests.fakeNow }
         }
 
         deinit {
             // let savedNow = savedNow
             let savedOffset = savedOffset
             UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey)
-            // HabitScheduling.now = savedNow
+            // CommitmentScheduling.now = savedNow
         }
 
-        @Test("empty habits → empty")
-        @MainActor func emptyHabits() throws {
-            let result = HabitAndSlot.upcoming(
-                habits: [], after: date(year: 2000, month: 1, day: 1, hour: 0))
+        @Test("empty commitments → empty")
+        @MainActor func emptyCommitments() throws {
+            let result = CommitmentAndSlot.upcoming(
+                commitments: [], after: date(year: 2000, month: 1, day: 1, hour: 0))
             #expect(result.isEmpty)
         }
 
-        @Test("habit with no slots → omitted")
-        @MainActor func habitWithNoSlotsOmitted() throws {
+        @Test("commitment with no slots → omitted")
+        @MainActor func commitmentWithNoSlotsOmitted() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx)
-            let result = HabitAndSlot.upcoming(
-                habits: [habit], after: date(year: 2000, month: 1, day: 1, hour: 0))
+            let commitment = makeCommitment(in: ctx)
+            let result = CommitmentAndSlot.upcoming(
+                commitments: [commitment], after: date(year: 2000, month: 1, day: 1, hour: 0))
             #expect(result.isEmpty)
         }
 
-        @Test("habit with a future slot → included")
+        @Test("commitment with a future slot → included")
         @MainActor func futureSlotIncluded() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 14, endHour: 15)])  // afternoon is later than noon.
-            let result = HabitAndSlot.upcoming(
-                habits: [habit], after: date(year: 2000, month: 1, day: 1, hour: 0))
+            let commitment = makeCommitment(in: ctx, slots: [makeSlot(startHour: 14, endHour: 15)])  // afternoon is later than noon.
+            let result = CommitmentAndSlot.upcoming(
+                commitments: [commitment], after: date(year: 2000, month: 1, day: 1, hour: 0))
             #expect(result.count == 1)
-            #expect(result[0].0 === habit)
+            #expect(result[0].0 === commitment)
         }
 
-        @Test("habit with met daily goal → habit omitted")
-        @MainActor func habitWithMetDailyGoalOmitted() throws {
+        @Test("commitment with met daily goal → commitment omitted")
+        @MainActor func commitmentWithMetDailyGoalOmitted() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)], goalCountPerDay: 1)
             ctx.insert(
-                HabitCheckIn(habit: habit, createdAt: date(year: 2000, month: 1, day: 1, hour: 0)))
-            let result = HabitAndSlot.upcoming(
-                habits: [habit], after: date(year: 2000, month: 1, day: 1, hour: 0))
+                CheckIn(
+                    commitment: commitment, createdAt: date(year: 2000, month: 1, day: 1, hour: 0)))
+            let result = CommitmentAndSlot.upcoming(
+                commitments: [commitment], after: date(year: 2000, month: 1, day: 1, hour: 0))
             #expect(result.isEmpty)
         }
 
-        @Test("multiple habits: sorted by ascending slot start time")
+        @Test("multiple commitments: sorted by ascending slot start time")
         @MainActor func sortedBySlotStartTime() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            // Insert afternoon-first habit to prove we're not relying on insertion order.
-            let habitLate = makeHabit(
+            // Insert afternoon-first commitment to prove we're not relying on insertion order.
+            let commitmentLate = makeCommitment(
                 in: ctx, title: "Late", slots: [makeSlot(startHour: 15, endHour: 16)])
-            let habitEarly = makeHabit(
+            let commitmentEarly = makeCommitment(
                 in: ctx, title: "Early", slots: [makeSlot(startHour: 13, endHour: 14)])
-            let result = HabitAndSlot.upcoming(
-                habits: [habitLate, habitEarly], after: date(year: 2000, month: 1, day: 1, hour: 0))
+            let result = CommitmentAndSlot.upcoming(
+                commitments: [commitmentLate, commitmentEarly],
+                after: date(year: 2000, month: 1, day: 1, hour: 0))
             #expect(result.count == 2)
 
-            #expect(result[0] == (habitEarly, habitEarly.slots[0]))
-            #expect(result[1] == (habitLate, habitLate.slots[0]))
+            #expect(result[0] == (commitmentEarly, commitmentEarly.slots[0]))
+            #expect(result[1] == (commitmentLate, commitmentLate.slots[0]))
         }
 
-        @Test("only first future slot per habit is returned")
+        @Test("only first future slot per commitment is returned")
         @MainActor func onlyFirstFutureSlot() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
             let morning = makeSlot(startHour: 7, endHour: 8)
             let afternoon = makeSlot(startHour: 14, endHour: 15)
-            let habit = makeHabit(in: ctx, slots: [morning, afternoon])
-            let result = HabitAndSlot.upcoming(
-                habits: [habit], after: date(year: 2000, month: 1, day: 1, hour: 0))
+            let commitment = makeCommitment(in: ctx, slots: [morning, afternoon])
+            let result = CommitmentAndSlot.upcoming(
+                commitments: [commitment], after: date(year: 2000, month: 1, day: 1, hour: 0))
             #expect(result.count == 1)
-            #expect(result[0] == (habit, morning))
+            #expect(result[0] == (commitment, morning))
         }
     }
 
-    @Suite("HabitAndSlot — nextTransitionDate")
-    final class HabitAndSlotNextTransitionDateTests {
+    @Suite("CommitmentAndSlot — nextTransitionDate")
+    final class CommitmentAndSlotNextTransitionDateTests {
 
         // Frozen instant used as the injectable clock for the entire suite.
         private static let fakeNow = date(year: 2025, month: 6, day: 15, hour: 6)
         private static let nextPsychDayStart = date(year: 2025, month: 6, day: 16, hour: 0)
 
-        private let savedNow = HabitScheduling.now
+        private let savedNow = CommitmentScheduling.now
         private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
 
         init() {
             UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey)
-            HabitScheduling.now = { return HabitAndSlotNextTransitionDateTests.fakeNow }
+            CommitmentScheduling.now = { return CommitmentAndSlotNextTransitionDateTests.fakeNow }
         }
 
         deinit {
             let savedNow = savedNow
             let savedOffset = savedOffset
             UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey)
-            HabitScheduling.now = savedNow
+            CommitmentScheduling.now = savedNow
         }
 
-        @Test("empty habits → returns the next psychDay boundary")
-        @MainActor func emptyHabitsReturnsPsychDayBoundary() throws {
-            print("111HabitScheduling.now() = \(HabitScheduling.now())")
-            let result = HabitAndSlot.nextTransitionDate(habits: [])
-            #expect(result == HabitAndSlotNextTransitionDateTests.nextPsychDayStart)
+        @Test("empty commitments → returns the next psychDay boundary")
+        @MainActor func emptyCommitmentsReturnsPsychDayBoundary() throws {
+            print("111CommitmentScheduling.now() = \(CommitmentScheduling.now())")
+            let result = CommitmentAndSlot.nextTransitionDate(commitments: [])
+            #expect(result == CommitmentAndSlotNextTransitionDateTests.nextPsychDayStart)
         }
 
         @Test("simple one slot case")
         @MainActor func oneSlotCase() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
-            let result = HabitAndSlot.nextTransitionDate(habits: [habit])
+            let commitment = makeCommitment(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
+            let result = CommitmentAndSlot.nextTransitionDate(commitments: [commitment])
             #expect(result != nil)
             #expect(result! == date(year: 2025, month: 6, day: 15, hour: 9))
         }
@@ -253,8 +256,8 @@ struct HabitAndSlotTests {
         @MainActor func startIsAlreadyPassedNow() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(in: ctx, slots: [makeSlot(startHour: 4, endHour: 10)])
-            let result = HabitAndSlot.nextTransitionDate(habits: [habit])
+            let commitment = makeCommitment(in: ctx, slots: [makeSlot(startHour: 4, endHour: 10)])
+            let result = CommitmentAndSlot.nextTransitionDate(commitments: [commitment])
             #expect(result != nil)
             #expect(result! == date(year: 2025, month: 6, day: 15, hour: 10))
         }
@@ -263,10 +266,10 @@ struct HabitAndSlotTests {
         @MainActor func multipleSlotsCase() throws {
             let container = try makeContainer()
             let ctx = container.mainContext
-            let habit = makeHabit(
+            let commitment = makeCommitment(
                 in: ctx,
                 slots: [makeSlot(startHour: 4, endHour: 10), makeSlot(startHour: 8, endHour: 11)])
-            let result = HabitAndSlot.nextTransitionDate(habits: [habit])
+            let result = CommitmentAndSlot.nextTransitionDate(commitments: [commitment])
             #expect(result != nil)
             #expect(result! == date(year: 2025, month: 6, day: 15, hour: 8))
         }

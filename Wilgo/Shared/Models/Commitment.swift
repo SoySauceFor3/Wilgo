@@ -10,19 +10,19 @@ enum ProofOfWorkType: String, Codable {
     // case healthKit = "HealthKit"
 }
 
-// MARK: - Habit
+// MARK: - Commitment
 
 @Model
-final class Habit {
+final class Commitment {
     var title: String
     var createdAt: Date
 
-    /// Historical completion / skip records for this habit.
-    @Relationship(deleteRule: .cascade, inverse: \HabitCheckIn.habit)
-    var checkIns: [HabitCheckIn] = []
+    /// Historical completion / skip records for this commitment.
+    @Relationship(deleteRule: .cascade, inverse: \CheckIn.commitment)
+    var checkIns: [CheckIn] = []
 
     /// N× daily: each slot has its own ideal window.
-    @Relationship(deleteRule: .cascade, inverse: \Slot.habit)
+    @Relationship(deleteRule: .cascade, inverse: \Slot.commitment)
     var slots: [Slot] = []
 
     /// Target number of completions per psychological day.
@@ -38,7 +38,7 @@ final class Habit {
     /// - `.weekly(weekday)`: resets on the given Calendar weekday (1 = Sun … 7 = Sat).
     /// - `.monthly(day)`:    resets on the given day-of-month (1–31), clamped for short months.
     ///
-    /// Set from the current calendar when the habit is created or when reset rules change.
+    /// Set from the current calendar when the commitment is created or when reset rules change.
     var cycle: Cycle
     /// How completion is verified.
     var proofOfWorkType: ProofOfWorkType
@@ -73,7 +73,7 @@ final class Habit {
 
 // MARK: - Slot queries
 
-extension Habit {
+extension Commitment {
     /// Number of check-ins on the given psychological day.
     func completedCount(for psychDay: Date) -> Int {
         return checkIns.filter({ $0.psychDay == psychDay }).count
@@ -86,7 +86,7 @@ extension Habit {
 
     /// The first slot whose window overlaps with `now`, skipping excluded ones.
     func firstCurrentSlot(
-        now: Date = HabitScheduling.now(),
+        now: Date = CommitmentScheduling.now(),
         excluding excluded: [Slot]
     ) -> Slot? {
         return slots.first(where: { slot in
@@ -99,11 +99,11 @@ extension Habit {
     }
 
     /// The first slot after `time`.
-    func firstSlotAfter(time: Date = HabitScheduling.now()) -> Slot? {
+    func firstSlotAfter(time: Date = CommitmentScheduling.now()) -> Slot? {
         return slots.sorted().first(where: {
             time
-                <= HabitScheduling.resolve(
-                    timeOfDay: $0.start, psychDay: HabitScheduling.psychDay(for: time))
+                <= CommitmentScheduling.resolve(
+                    timeOfDay: $0.start, psychDay: CommitmentScheduling.psychDay(for: time))
         })
     }
 
@@ -130,7 +130,7 @@ extension Habit {
         let nextUpSlots: [Slot]
     }
 
-    /// Classifies this habit for the current psychological day at the given time.
+    /// Classifies this commitment for the current psychological day at the given time.
     ///
     /// Precedence:
     /// - `metGoal`: today's goal already met.
@@ -138,9 +138,9 @@ extension Habit {
     /// - `future`: otherwise, if remainingNeeded ≤ remainingSlotsToday.count.
     /// - `catchUp`: all other cases.
     func stageStatus(
-        now: Date = HabitScheduling.now()
+        now: Date = CommitmentScheduling.now()
     ) -> StageStatus {
-        let psychToday = HabitScheduling.psychDay(for: now)
+        let psychToday = CommitmentScheduling.psychDay(for: now)
         let completed = completedCount(for: psychToday)
 
         if hasMetDailyGoal(for: psychToday) {

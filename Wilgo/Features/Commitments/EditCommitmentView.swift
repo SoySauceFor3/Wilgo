@@ -1,11 +1,11 @@
 import SwiftData
 import SwiftUI
 
-struct EditHabitView: View {
+struct EditCommitmentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
-    @Bindable var habit: Habit
+    @Bindable var commitment: Commitment
 
     @State private var title: String
     @State private var goalCountPerDay: Int
@@ -20,27 +20,28 @@ struct EditHabitView: View {
     private let originalSkipCreditCount: Int
     private let originalCycle: Cycle
 
-    init(habit: Habit) {
-        self.habit = habit
+    init(commitment: Commitment) {
+        self.commitment = commitment
 
-        _title = State(initialValue: habit.title)
-        _goalCountPerDay = State(initialValue: habit.goalCountPerDay)
+        _title = State(initialValue: commitment.title)
+        _goalCountPerDay = State(initialValue: commitment.goalCountPerDay)
         _slotWindows = State(
-            initialValue: habit.slots.sorted().map { SlotWindow(start: $0.start, end: $0.end) })
-        _skipCreditCount = State(initialValue: habit.skipCreditCount)
-        _cycle = State(initialValue: habit.cycle)
-        _proofOfWorkType = State(initialValue: habit.proofOfWorkType)
-        _punishment = State(initialValue: habit.punishment ?? "")
+            initialValue: commitment.slots.sorted().map { SlotWindow(start: $0.start, end: $0.end) }
+        )
+        _skipCreditCount = State(initialValue: commitment.skipCreditCount)
+        _cycle = State(initialValue: commitment.cycle)
+        _proofOfWorkType = State(initialValue: commitment.proofOfWorkType)
+        _punishment = State(initialValue: commitment.punishment ?? "")
 
-        originalGoalCountPerDay = habit.goalCountPerDay
-        originalSkipCreditCount = habit.skipCreditCount
-        originalCycle = habit.cycle
+        originalGoalCountPerDay = commitment.goalCountPerDay
+        originalSkipCreditCount = commitment.skipCreditCount
+        originalCycle = commitment.cycle
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                HabitFormFields(
+                CommitmentFormFields(
                     title: $title,
                     goalCountPerDay: $goalCountPerDay,
                     slotWindows: $slotWindows,
@@ -52,7 +53,7 @@ struct EditHabitView: View {
                         ? "Changing rules starts a fresh cycle from today." : nil
                 )
             }
-            .navigationTitle("Edit Habit")
+            .navigationTitle("Edit Commitment")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -83,37 +84,37 @@ struct EditHabitView: View {
 
     private func saveChanges() {
         // Apply scalar field changes.
-        habit.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        habit.goalCountPerDay = goalCountPerDay
-        habit.skipCreditCount = skipCreditCount
-        habit.proofOfWorkType = proofOfWorkType
+        commitment.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        commitment.goalCountPerDay = goalCountPerDay
+        commitment.skipCreditCount = skipCreditCount
+        commitment.proofOfWorkType = proofOfWorkType
         let trimmed = punishment.trimmingCharacters(in: .whitespacesAndNewlines)
-        habit.punishment = trimmed.isEmpty ? nil : trimmed
+        commitment.punishment = trimmed.isEmpty ? nil : trimmed
 
         // Any change to a rule field signals a new commitment — re-anchor the cycle
         // to today so the new rules apply from a clean slate.
-        // See documentation/Edit Habit Feature.md for rationale.
+        // See documentation/Edit Commitment Feature.md for rationale.
         var resolvedCycle = cycle
         if anyRuleChanged {
             resolvedCycle = Cycle.anchored(cycle.kind, at: .now)
         }
-        habit.cycle = resolvedCycle
+        commitment.cycle = resolvedCycle
 
         // Replace slots only if the count or any window changed.
         let newWindows = slotWindows
-        let oldSlots = habit.slots.sorted()
+        let oldSlots = commitment.slots.sorted()
         let slotsChanged =
             newWindows.count != oldSlots.count
             || zip(newWindows, oldSlots).contains { w, s in w.start != s.start || w.end != s.end }
 
         if slotsChanged {
-            for old in habit.slots { modelContext.delete(old) }
+            for old in commitment.slots { modelContext.delete(old) }
             let newSlots: [Slot] = newWindows.map { window in
                 let slot = Slot(start: window.start, end: window.end)
                 modelContext.insert(slot)
                 return slot
             }
-            habit.slots = newSlots.sorted()
+            commitment.slots = newSlots.sorted()
         }
 
         dismiss()
@@ -122,7 +123,7 @@ struct EditHabitView: View {
 
 #Preview {
     let container = try! ModelContainer(
-        for: Habit.self, Slot.self, HabitCheckIn.self,
+        for: Commitment.self, Slot.self, CheckIn.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
     let calendar = Calendar.current
@@ -130,14 +131,14 @@ struct EditHabitView: View {
         start: calendar.date(from: DateComponents(hour: 6)) ?? Date(),
         end: calendar.date(from: DateComponents(hour: 8)) ?? Date()
     )
-    let habit = Habit(
+    let commitment = Commitment(
         title: "Morning reading",
         slots: [slot],
         skipCreditCount: 3,
         cycle: .weekly(weekday: 2),
         goalCountPerDay: 1
     )
-    container.mainContext.insert(habit)
-    return EditHabitView(habit: habit)
+    container.mainContext.insert(commitment)
+    return EditCommitmentView(commitment: commitment)
         .modelContainer(container)
 }

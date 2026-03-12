@@ -32,18 +32,18 @@ enum DayStartReportService {
                 return
             }
             let context = ModelContext(WilgoApp.sharedModelContainer)
-            let habits = (try? context.fetch(FetchDescriptor<Habit>())) ?? []
-            DayStartReportService.handleBackgroundTask(for: habits)
+            let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
+            DayStartReportService.handleBackgroundTask(for: commitments)
             refreshTask.setTaskCompleted(success: true)
         }
     }
 
     /// Queue the background wakeup for the next day-start hour. Safe to call on every app-active event.
     static func scheduleBackgroundTask(
-        dayStartHour: Int = HabitScheduling.dayStartHourOffset,
+        dayStartHour: Int = CommitmentScheduling.dayStartHourOffset,
         now: Date = .now
     ) {
-        let cal = HabitScheduling.calendar
+        let cal = CommitmentScheduling.calendar
         var fireDate = cal.date(bySettingHour: dayStartHour, minute: 0, second: 0, of: now) ?? now
         if fireDate <= now {
             fireDate = cal.date(byAdding: .day, value: 1, to: fireDate) ?? fireDate
@@ -55,39 +55,42 @@ enum DayStartReportService {
 
     /// Called from the BGTask handler in WilgoApp: post notifications, then re-queue for tomorrow.
     private static func handleBackgroundTask(
-        for habits: [Habit],
-        dayStartHour: Int = HabitScheduling.dayStartHourOffset,
+        for commitments: [Commitment],
+        dayStartHour: Int = CommitmentScheduling.dayStartHourOffset,
         now: Date = .now
     ) {
-        postNotifications(for: habits, now: now)
+        postNotifications(for: commitments, now: now)
         scheduleBackgroundTask(dayStartHour: dayStartHour, now: now)
     }
 
     private static let summaryNotificationID = "wilgo.morning-report.summary"
 
-    /// Builds a single summary notification covering all habits for `yesterday`.
-    /// Returns `nil` if `habits` is empty.
+    /// Builds a single summary notification covering all commitments for `yesterday`.
+    /// Returns `nil` if `commitments` is empty.
     /// Exposed internally for unit testing without touching UNUserNotificationCenter.
-    private static func summaryNotificationContent(for habits: [Habit], missedOn yesterday: Date)
+    private static func summaryNotificationContent(
+        for commitments: [Commitment], missedOn yesterday: Date
+    )
         -> UNMutableNotificationContent?
     {
-        guard !habits.isEmpty else { return nil }
+        guard !commitments.isEmpty else { return nil }
 
-        let missed = habits.filter { !$0.hasMetDailyGoal(for: yesterday) }
-        let done = habits.filter { $0.hasMetDailyGoal(for: yesterday) }
+        let missed = commitments.filter { !$0.hasMetDailyGoal(for: yesterday) }
+        let done = commitments.filter { $0.hasMetDailyGoal(for: yesterday) }
 
         let content = UNMutableNotificationContent()
         content.sound = .default
 
         if missed.isEmpty {
-            content.title = "Yesterday: \(habits.count)/\(habits.count) done 🎉"
+            content.title = "Yesterday: \(commitments.count)/\(commitments.count) done 🎉"
             content.body = done.map { "✓ \($0.title)" }.joined(separator: " · ")
             return content
         }
 
-        content.title = "Yesterday: \(done.count)/\(habits.count) done · \(missed.count) missed"
+        content.title =
+            "Yesterday: \(done.count)/\(commitments.count) done · \(missed.count) missed"
 
-        // Missed habits sorted by urgency: punishment first, then fewest credits left.
+        // Missed commitments sorted by urgency: punishment first, then fewest credits left.
         let sortedMissed = missed.sorted { a, b in
             let aLeft = SkipCredit.creditsRemaining(for: a, until: yesterday)
             let bLeft = SkipCredit.creditsRemaining(for: b, until: yesterday)
@@ -107,18 +110,18 @@ enum DayStartReportService {
         return content
     }
 
-    private static func postNotifications(for habits: [Habit], now: Date) {
+    private static func postNotifications(for commitments: [Commitment], now: Date) {
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
             guard granted else { return }
 
-            let cal = HabitScheduling.calendar
-            let today = HabitScheduling.psychDay(for: now)
+            let cal = CommitmentScheduling.calendar
+            let today = CommitmentScheduling.psychDay(for: now)
             let yesterday = cal.date(byAdding: .day, value: -1, to: today)!
 
             center.removePendingNotificationRequests(withIdentifiers: [summaryNotificationID])
 
-            guard let content = summaryNotificationContent(for: habits, missedOn: yesterday)
+            guard let content = summaryNotificationContent(for: commitments, missedOn: yesterday)
             else { return }
 
             let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)

@@ -2,8 +2,8 @@ import SwiftData
 import SwiftUI
 
 // Shared heatmap layout constants so smaller views (e.g. stage row) stay aligned.
-private let habitHeatmapCellSize: CGFloat = 11
-private let habitHeatmapCellSpacing: CGFloat = 3
+private let commitmentHeatmapCellSize: CGFloat = 11
+private let commitmentHeatmapCellSpacing: CGFloat = 3
 
 // MARK: - Day data
 
@@ -18,8 +18,8 @@ private struct HeatmapDayData {
 
 // MARK: - View
 
-struct HabitHeatmapView: View {
-    let habit: Habit
+struct CommitmentHeatmapView: View {
+    let commitment: Commitment
 
     @State private var selectedDay: HeatmapDayData? = nil
 
@@ -29,17 +29,17 @@ struct HabitHeatmapView: View {
     // MARK: Derived data
 
     private var today: Date {
-        HabitScheduling.psychDay(for: HabitScheduling.now())
+        CommitmentScheduling.psychDay(for: CommitmentScheduling.now())
     }
 
     private var createdPsychDay: Date {
-        HabitScheduling.psychDay(for: habit.createdAt)
+        CommitmentScheduling.psychDay(for: commitment.createdAt)
     }
 
     /// O(checkIns.count) lookup table so we don't scan all check-ins per cell.
     private var completionsByDay: [Date: Int] {
         var dict: [Date: Int] = [:]
-        for ci in habit.checkIns {
+        for ci in commitment.checkIns {
             dict[ci.psychDay, default: 0] += 1
         }
         return dict
@@ -48,7 +48,7 @@ struct HabitHeatmapView: View {
     /// Maps each psych day to its check-in timestamps, sorted ascending.
     private var checkInTimesByDay: [Date: [Date]] {
         var dict: [Date: [Date]] = [:]
-        for ci in habit.checkIns {
+        for ci in commitment.checkIns {
             dict[ci.psychDay, default: []].append(ci.createdAt)
         }
         for key in dict.keys { dict[key]?.sort() }
@@ -60,7 +60,7 @@ struct HabitHeatmapView: View {
         let todayDate = today
         let createdDate = createdPsychDay
         let counts = completionsByDay
-        let goal = max(1, habit.goalCountPerDay)
+        let goal = max(1, commitment.goalCountPerDay)
         let cal = Calendar.current
 
         // Snap to the Sunday that starts the current week.
@@ -133,34 +133,35 @@ struct HabitHeatmapView: View {
     // MARK: Color
 
     private func cellColor(for day: HeatmapDayData) -> Color {
-        habitHeatmapCellColor(for: day)
+        commitmentHeatmapCellColor(for: day)
     }
 
     // MARK: Body
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: habitHeatmapCellSpacing) {
+            HStack(alignment: .top, spacing: commitmentHeatmapCellSpacing) {
                 // Day-of-week labels — fixed outside the scroll view so they stay visible
-                VStack(spacing: habitHeatmapCellSpacing) {
-                    Color.clear.frame(width: habitHeatmapCellSize, height: 14)  // aligns with month row
+                VStack(spacing: commitmentHeatmapCellSpacing) {
+                    Color.clear.frame(width: commitmentHeatmapCellSize, height: 14)  // aligns with month row
                     ForEach(dowLabels.indices, id: \.self) { i in
                         Text(dowLabels[i])
                             .font(.system(size: 8, weight: .medium))
                             .foregroundStyle(.tertiary)
-                            .frame(width: habitHeatmapCellSize, height: habitHeatmapCellSize)
+                            .frame(
+                                width: commitmentHeatmapCellSize, height: commitmentHeatmapCellSize)
                     }
                 }
 
                 ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: habitHeatmapCellSpacing) {
+                    HStack(alignment: .top, spacing: commitmentHeatmapCellSpacing) {
                         ForEach(0..<weekColumns.count, id: \.self) { weekIdx in
-                            VStack(spacing: habitHeatmapCellSpacing) {
+                            VStack(spacing: commitmentHeatmapCellSpacing) {
                                 // Fixed-width anchor keeps all columns equal-width.
                                 // Label is centered on the midpoint column of its month,
                                 // so it reads as centered over the month section.
                                 Color.clear
-                                    .frame(width: habitHeatmapCellSize, height: 14)
+                                    .frame(width: commitmentHeatmapCellSize, height: 14)
                                     .overlay(alignment: .center) {
                                         if let label = monthLabelsByColumn[weekIdx] {
                                             Text(label)
@@ -175,8 +176,8 @@ struct HabitHeatmapView: View {
                                         cellView(for: day)
                                     } else {
                                         Color.clear.frame(
-                                            width: habitHeatmapCellSize,
-                                            height: habitHeatmapCellSize)
+                                            width: commitmentHeatmapCellSize,
+                                            height: commitmentHeatmapCellSize)
                                     }
                                 }
                             }
@@ -211,7 +212,7 @@ struct HabitHeatmapView: View {
         RoundedRectangle(cornerRadius: 2)
             .fill(day.isToday && !isSelected ? Color(.systemGray5) : semanticColor)
             .opacity(day.isBeforeCreation ? 0.7 : 1.0)
-            .frame(width: habitHeatmapCellSize, height: habitHeatmapCellSize)
+            .frame(width: commitmentHeatmapCellSize, height: commitmentHeatmapCellSize)
             .overlay {
                 if isSelected {
                     RoundedRectangle(cornerRadius: 2)
@@ -327,7 +328,7 @@ struct HabitHeatmapView: View {
         HStack(spacing: 4) {
             RoundedRectangle(cornerRadius: 2)
                 .fill(color)
-                .frame(width: habitHeatmapCellSize, height: habitHeatmapCellSize)
+                .frame(width: commitmentHeatmapCellSize, height: commitmentHeatmapCellSize)
                 .overlay {
                     if let bc = borderColor {
                         RoundedRectangle(cornerRadius: 2)
@@ -342,7 +343,7 @@ struct HabitHeatmapView: View {
 }
 
 // Shared heatmap color logic so mini rows can reuse exact semantics.
-private func habitHeatmapCellColor(for day: HeatmapDayData) -> Color {
+private func commitmentHeatmapCellColor(for day: HeatmapDayData) -> Color {
     if day.isFuture { return .clear }
     if day.isBeforeCreation { return Color(.systemGray4) }
 
@@ -376,32 +377,32 @@ private func habitHeatmapCellColor(for day: HeatmapDayData) -> Color {
 
 // MARK: - Mini row for compact views (Stage row, etc.)
 
-struct MiniHabitHeatmapRow: View {
-    let habit: Habit
+struct MiniCommitmentHeatmapRow: View {
+    let commitment: Commitment
     let daysToShow: Int
 
     private var today: Date {
-        HabitScheduling.psychDay(for: HabitScheduling.now())
+        CommitmentScheduling.psychDay(for: CommitmentScheduling.now())
     }
 
     private var createdPsychDay: Date {
-        HabitScheduling.psychDay(for: habit.createdAt)
+        CommitmentScheduling.psychDay(for: commitment.createdAt)
     }
 
     private var goal: Int {
-        max(1, habit.goalCountPerDay)
+        max(1, commitment.goalCountPerDay)
     }
 
     private var completionsByDay: [Date: Int] {
         var dict: [Date: Int] = [:]
-        for ci in habit.checkIns {
+        for ci in commitment.checkIns {
             dict[ci.psychDay, default: 0] += 1
         }
         return dict
     }
 
     private var days: [HeatmapDayData] {
-        let cal = HabitScheduling.calendar
+        let cal = CommitmentScheduling.calendar
         let counts = completionsByDay
         let goal = goal
         return (0..<daysToShow).compactMap { offset in
@@ -419,13 +420,13 @@ struct MiniHabitHeatmapRow: View {
     }
 
     var body: some View {
-        HStack(spacing: habitHeatmapCellSpacing) {
+        HStack(spacing: commitmentHeatmapCellSpacing) {
             ForEach(Array(days.enumerated()), id: \.offset) { _, day in
-                let color = habitHeatmapCellColor(for: day)
+                let color = commitmentHeatmapCellColor(for: day)
 
                 RoundedRectangle(cornerRadius: 2)
                     .fill(day.isToday ? Color(.systemGray5) : color)
-                    .frame(width: habitHeatmapCellSize, height: habitHeatmapCellSize)
+                    .frame(width: commitmentHeatmapCellSize, height: commitmentHeatmapCellSize)
                     .overlay {
                         if day.isToday {
                             RoundedRectangle(cornerRadius: 2)
@@ -439,13 +440,13 @@ struct MiniHabitHeatmapRow: View {
 
 // MARK: - Preview factory
 
-/// Shared preview data factory. Internal so HabitDetailView previews can reuse it.
+/// Shared preview data factory. Internal so CommitmentDetailView previews can reuse it.
 enum HeatmapPreviewFactory {
-    /// Habit created 10 weeks ago, 70 days of varied check-in history (goal = 2×/day).
-    /// Returns only the container; use a preview wrapper with @Query to get a live Habit at render time.
+    /// Commitment created 10 weeks ago, 70 days of varied check-in history (goal = 2×/day).
+    /// Returns only the container; use a preview wrapper with @Query to get a live Commitment at render time.
     static func richHistoryContainer() -> ModelContainer {
         let container = try! ModelContainer(
-            for: Habit.self, Slot.self, HabitCheckIn.self,
+            for: Commitment.self, Slot.self, CheckIn.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         let ctx = container.mainContext
@@ -453,7 +454,7 @@ enum HeatmapPreviewFactory {
 
         let createdAt =
             cal.date(byAdding: .day, value: -70, to: cal.startOfDay(for: Date())) ?? Date()
-        let habit = Habit(
+        let commitment = Commitment(
             title: "Morning Run",
             createdAt: createdAt,
             slots: [],
@@ -461,7 +462,7 @@ enum HeatmapPreviewFactory {
             cycle: .weekly(weekday: 2),
             goalCountPerDay: 2
         )
-        ctx.insert(habit)
+        ctx.insert(commitment)
 
         let today = cal.startOfDay(for: Date())
         for dayOffset in 0..<70 {
@@ -491,50 +492,50 @@ enum HeatmapPreviewFactory {
             }
 
             for _ in 0..<count {
-                ctx.insert(HabitCheckIn(habit: habit, createdAt: date))
+                ctx.insert(CheckIn(commitment: commitment, createdAt: date))
             }
         }
 
         return container
     }
 
-    /// Brand-new habit created today with no check-in history.
-    /// Returns only the container; use a preview wrapper with @Query to get a live Habit at render time.
-    static func newHabitContainer() -> ModelContainer {
+    /// Brand-new commitment created today with no check-in history.
+    /// Returns only the container; use a preview wrapper with @Query to get a live Commitment at render time.
+    static func newCommitmentContainer() -> ModelContainer {
         let container = try! ModelContainer(
-            for: Habit.self, Slot.self, HabitCheckIn.self,
+            for: Commitment.self, Slot.self, CheckIn.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
-        let habit = Habit(
+        let commitment = Commitment(
             title: "Meditate", slots: [], skipCreditCount: 1, cycle: .daily, goalCountPerDay: 2)
-        container.mainContext.insert(habit)
+        container.mainContext.insert(commitment)
         return container
     }
 }
 
 // MARK: - Preview helpers
 
-/// Fetches the first habit from the container at render time so the model reference stays valid
-/// after preview context resets. Use this for any preview that needs a single Habit (e.g. HabitDetailView).
-struct PreviewWithFirstHabit<Content: View>: View {
+/// Fetches the first commitment from the container at render time so the model reference stays valid
+/// after preview context resets. Use this for any preview that needs a single Commitment (e.g. CommitmentDetailView).
+struct PreviewWithFirstCommitment<Content: View>: View {
     let container: ModelContainer
-    @ViewBuilder let content: (Habit) -> Content
+    @ViewBuilder let content: (Commitment) -> Content
 
     var body: some View {
-        PreviewWithFirstHabitInner(content: content)
+        PreviewWithFirstCommitmentInner(content: content)
             .modelContainer(container)
     }
 }
 
-struct PreviewWithFirstHabitInner<Content: View>: View {
-    @Query private var habits: [Habit]
-    @ViewBuilder let content: (Habit) -> Content
+struct PreviewWithFirstCommitmentInner<Content: View>: View {
+    @Query private var commitments: [Commitment]
+    @ViewBuilder let content: (Commitment) -> Content
 
     var body: some View {
-        if let habit = habits.first {
-            content(habit)
+        if let commitment = commitments.first {
+            content(commitment)
         } else {
-            Text("No habit")
+            Text("No commitment")
         }
     }
 }
@@ -543,16 +544,16 @@ struct PreviewWithFirstHabitInner<Content: View>: View {
 
 #Preview("Rich history") {
     let container = HeatmapPreviewFactory.richHistoryContainer()
-    PreviewWithFirstHabit(container: container) { habit in
-        HabitHeatmapView(habit: habit)
+    PreviewWithFirstCommitment(container: container) { commitment in
+        CommitmentHeatmapView(commitment: commitment)
     }
     .padding()
 }
 
-#Preview("New habit (no history)") {
-    let container = HeatmapPreviewFactory.newHabitContainer()
-    PreviewWithFirstHabit(container: container) { habit in
-        HabitHeatmapView(habit: habit)
+#Preview("New commitment (no history)") {
+    let container = HeatmapPreviewFactory.newCommitmentContainer()
+    PreviewWithFirstCommitment(container: container) { commitment in
+        CommitmentHeatmapView(commitment: commitment)
     }
     .padding()
 }

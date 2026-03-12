@@ -1,9 +1,9 @@
-# Edit Habit Feature (March 2026)
+# Edit Commitment Feature (March 2026)
 
 ## Background
 
-We added the ability to edit an existing habit. Because Wilgo tracks skip-credit accounting
-against historical check-in data, editing a habit's configuration can have non-obvious
+We added the ability to edit an existing commitment. Because Wilgo tracks skip-credit accounting
+against historical check-in data, editing a commitment's configuration can have non-obvious
 side effects on past and current credit calculations. This document records what we decided
 and why.
 
@@ -49,7 +49,7 @@ user begins the new commitment with a clean slate.
 
 ### What it means
 
-Every habit has a `periodAnchor: Date` that determines when each credit period begins:
+Every commitment has a `periodAnchor: Date` that determines when each credit period begins:
 
 - **Weekly**: the period resets on the same weekday as `periodAnchor`, every week.
   Example: anchor = Friday → period runs Friday–Thursday, forever.
@@ -58,7 +58,7 @@ Every habit has a `periodAnchor: Date` that determines when each credit period b
   Example: anchor = March 31 → resets on the 31st (or last day) of each month.
 - **Daily**: unaffected — always resets at midnight.
 
-For **new habits**, `periodAnchor` is set to `createdAt`. The habit's first period begins
+For **new commitments**, `periodAnchor` is set to `createdAt`. The commitment's first period begins
 the day it was created.
 
 When a user **edits `skipCreditPeriod`**, `periodAnchor` is updated to `Date.now`. This
@@ -66,7 +66,7 @@ means the new period type starts counting from today, with no retroactive histor
 
 ### Why not calendar boundaries (week start / 1st of month)?
 
-Calendar-aligned periods feel arbitrary to users: "Why does my habit reset on Monday when
+Calendar-aligned periods feel arbitrary to users: "Why does my commitment reset on Monday when
 I started it on Friday?" The anchor-based approach means "the period resets when _I_
 decided to start it," which is more intuitive and personal.
 
@@ -75,9 +75,9 @@ decided to start it," which is more intuitive and personal.
 We considered a dialog on create/edit: "Start period on [today] or [natural calendar
 boundary]?" We decided against it because:
 
-1. The right answer is almost always "today." When you set up a habit, you're committing
+1. The right answer is almost always "today." When you set up a commitment, you're committing
    starting now — you naturally want the accounting to reflect that.
-2. Monthly habits are especially confusing to ask about: "Should this reset on the 5th or
+2. Monthly commitments are especially confusing to ask about: "Should this reset on the 5th or
    the 1st?" Most users have no strong opinion and will pick the default anyway.
 3. The dialog adds cognitive friction on every create/edit for a decision the user has
    already implicitly made by acting today.
@@ -96,14 +96,14 @@ period. However:
 
 ---
 
-### No `HabitConfigSnapshot` (history versioning)
+### No `CommitmentConfigSnapshot` (history versioning)
 
-We decided **not** to store a timestamped history of habit configuration changes.
+We decided **not** to store a timestamped history of commitment configuration changes.
 
 This was discussed in the context of a future history visualization (heatmap or ring
 diagram). For a heatmap showing raw check-in counts per day, no goal/config history is
-needed — `HabitCheckIn.psychDay` is sufficient. For ring diagrams (progress toward a
-period goal), a `HabitConfigSnapshot` model would be needed.
+needed — `CheckIn.psychDay` is sufficient. For ring diagrams (progress toward a
+period goal), a `CommitmentConfigSnapshot` model would be needed.
 
 We deferred this because:
 
@@ -111,19 +111,19 @@ We deferred this because:
 - The shape of a ring diagram feature (daily rings vs. period rings) is unknown; building
   a snapshot model now risks building the wrong abstraction.
 - When the time comes, a retroactive "initial snapshot" can be synthesized from
-  `habit.createdAt` + original config with a lightweight migration pass.
+  `commitment.createdAt` + original config with a lightweight migration pass.
 
-The architectural promise we do make: **never delete `HabitCheckIn` records during an
+The architectural promise we do make: **never delete `CheckIn` records during an
 edit.** Raw check-in data is the ground truth for all future history features.
 
 ---
 
 ### Notification ID stability
 
-`MorningReportService` previously derived notification IDs from the habit title slug.
-Renaming a habit orphaned the pending notification (the old ID could never be cancelled).
+`MorningReportService` previously derived notification IDs from the commitment title slug.
+Renaming a commitment orphaned the pending notification (the old ID could never be cancelled).
 
-Fix: JSON-encode `habit.persistentModelID` (SwiftData's built-in stable identifier,
+Fix: JSON-encode `commitment.persistentModelID` (SwiftData's built-in stable identifier,
 backed by CoreData's URI-based object ID) as the notification ID base. No extra model
 field is needed, and renames no longer affect pending notifications.
 
@@ -143,9 +143,9 @@ calendar boundary]."
 - Pro: explicit, discoverable.
 - Con: cognitive friction on every create/edit; the right answer is almost always "today."
 
-**Option B — Dedicated "Reset day" setting per habit**
-Add a secondary setting to the habit detail: "Reset day" (weekday picker for weekly
-habits, day-of-month picker for monthly habits). Only surfaced after the habit is created,
+**Option B — Dedicated "Reset day" setting per commitment**
+Add a secondary setting to the commitment detail: "Reset day" (weekday picker for weekly
+commitments, day-of-month picker for monthly commitments). Only surfaced after the commitment is created,
 as a power-user adjustment.
 
 - Pro: no friction on the primary create flow; power users who want Monday resets can
@@ -156,5 +156,5 @@ as a power-user adjustment.
 flow simple. If users consistently report wanting to change their reset day after creation,
 add Option B. If they want to set it upfront, reconsider Option A.
 
-Whichever option is chosen, the underlying mechanism (`periodAnchor: Date` on `Habit`)
+Whichever option is chosen, the underlying mechanism (`periodAnchor: Date` on `Commitment`)
 already supports it — it's purely a UI addition.

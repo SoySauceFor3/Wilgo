@@ -8,7 +8,7 @@ final class Slot {
     /// End of this slot's ideal window (time-of-day only).
     var end: Date
 
-    @Relationship var habit: Habit?
+    @Relationship var commitment: Commitment?
 
     init(
         start: Date,
@@ -21,10 +21,10 @@ final class Slot {
 
 extension Slot {
     /// Start of the slot mapped onto the current psychological day.
-    var startToday: Date { HabitScheduling.resolve(timeOfDay: start) }
+    var startToday: Date { CommitmentScheduling.resolve(timeOfDay: start) }
 
     /// End of the slot mapped onto the current psychological day.
-    var endToday: Date { HabitScheduling.resolve(timeOfDay: end) }
+    var endToday: Date { CommitmentScheduling.resolve(timeOfDay: end) }
 
     var slotTimeText: String {
         let formatter = DateFormatter()

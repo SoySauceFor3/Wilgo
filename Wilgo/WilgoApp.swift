@@ -24,9 +24,9 @@ struct WilgoApp: App {
     /// Swift's lazy static initialiser is thread-safe; it's fine to access from the handler.
     static let sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Habit.self,
+            Commitment.self,
             Slot.self,
-            HabitCheckIn.self,
+            CheckIn.self,
         ])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
@@ -81,7 +81,7 @@ struct WilgoApp: App {
 
     // MARK: - Deep link handling
 
-    /// Handles `wilgo://done?habitId=...` deep links produced by the Live Activity's Done button.
+    /// Handles `wilgo://done?commitmentId=...` deep links produced by the Live Activity's Done button.
     private func handleDeepLink(_ url: URL) {
         guard url.scheme == "wilgo" else { return }
         let context = Self.sharedModelContainer.mainContext
@@ -94,16 +94,18 @@ struct WilgoApp: App {
         switch url.host {
         case "done":
             guard
-                let habitIdStr = queryValue("habitId"),
-                let habitId = PersistentIdentifier.decode(from: habitIdStr)
+                let commitmentIdStr = queryValue("commitmentId"),
+                let commitmentId = PersistentIdentifier.decode(from: commitmentIdStr)
             else { return }
-            let habits = (try? context.fetch(FetchDescriptor<Habit>())) ?? []
-            guard let habit = habits.first(where: { $0.persistentModelID == habitId }) else {
+            let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
+            guard
+                let commitment = commitments.first(where: { $0.persistentModelID == commitmentId })
+            else {
                 return
             }
-            let checkIn = HabitCheckIn(habit: habit)
+            let checkIn = CheckIn(commitment: commitment)
             context.insert(checkIn)
-            habit.checkIns.append(checkIn)  // keep inverse in sync immediately, as inverse relationship propogation takes time.
+            commitment.checkIns.append(checkIn)  // keep inverse in sync immediately, as inverse relationship propogation takes time.
             liveActivityManager.sync()
 
         default:

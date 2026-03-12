@@ -21,7 +21,7 @@ struct LiveActivityUpdate {
 ///    lifetime of this object, which is the full lifetime of the app.
 ///
 /// 2. **Explicit `sync()` calls**: for changes that don't involve a time
-///    boundary — a user completing a habit, etc. — callers
+///    boundary — a user completing a commitment, etc. — callers
 ///    invoke `sync()` directly so the activity updates immediately without
 ///    waiting for the next boundary wake-up.
 ///
@@ -49,7 +49,7 @@ final class LiveActivityManager {
 
     /// Immediately syncs the live activity to the current state.
     ///
-    /// Call this whenever habit data changes while the app is on screen.
+    /// Call this whenever commitment data changes while the app is on screen.
     /// (Calling it on `scenePhase == .active` is not necessary because the monitoring loop already runs in the background, but just a cheap safety net.)
     func sync() {
         let update = currentLiveActivityUpdate()
@@ -82,13 +82,13 @@ final class LiveActivityManager {
     // MARK: - Helpers
 
     private func currentLiveActivityUpdate() -> LiveActivityUpdate {
-        let habits = (try? modelContext.fetch(FetchDescriptor<Habit>())) ?? []
-        return makeLiveActivityUpdate(habits: habits, now: Date())
+        let commitments = (try? modelContext.fetch(FetchDescriptor<Commitment>())) ?? []
+        return makeLiveActivityUpdate(commitments: commitments, now: Date())
     }
 
     // takes the computed state and tells iOS what to actually show (or not show) on the Lock Screen.
     private func apply(contentState: NowAttributes.ContentState?, staleDate: Date?) async {
-        if let state = contentState, state.hasCurrentHabit {
+        if let state = contentState, state.hasCurrentCommitment {
             let content = ActivityContent(state: state, staleDate: staleDate)
             if let activity = Activity<NowAttributes>.activities.first {
                 await activity.update(content)
@@ -107,31 +107,32 @@ final class LiveActivityManager {
     }
 
     private func makeLiveActivityUpdate(
-        habits: [Habit],
+        commitments: [Commitment],
         now: Date
     ) -> LiveActivityUpdate {
-        let current = HabitAndSlot.current(
-            habits: habits,
+        let current = CommitmentAndSlot.current(
+            commitments: commitments,
             now: now,
         )
         return LiveActivityUpdate(
             contentState: makeFirstLiveActivityContentState(from: current),
             staleDate: current.first.map { $0.1[0].endToday },
-            nextTransitionDate: HabitAndSlot.nextTransitionDate(habits: habits, now: now)
+            nextTransitionDate: CommitmentAndSlot.nextTransitionDate(
+                commitments: commitments, now: now)
                 ?? now.addingTimeInterval(60)
         )
     }
 
     func makeFirstLiveActivityContentState(
-        from currentSlots: [(Habit, [Slot])]
+        from currentSlots: [(Commitment, [Slot])]
     ) -> NowAttributes.ContentState? {
-        guard let (habit, slots) = currentSlots.first else { return nil }
-        let habitId = habit.persistentModelID.encoded()
+        guard let (commitment, slots) = currentSlots.first else { return nil }
+        let commitmentId = commitment.persistentModelID.encoded()
         let slotId = slots[0].persistentModelID.encoded()
         return NowAttributes.ContentState(
-            habitTitle: habit.title,
+            commitmentTitle: commitment.title,
             slotTimeText: slots[0].slotTimeText,
-            habitId: habitId,
+            commitmentId: commitmentId,
             slotId: slotId
         )
     }

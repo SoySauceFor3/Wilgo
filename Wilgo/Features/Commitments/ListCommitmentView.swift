@@ -1,28 +1,28 @@
 import SwiftData
 import SwiftUI
 
-struct ListHabitView: View {
+struct ListCommitmentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Habit.createdAt, order: .forward) private var habits: [Habit]
-    @State private var isPresentingAddHabit: Bool = false
-    @State private var habitForDetail: Habit?
+    @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
+    @State private var isPresentingAddCommitment: Bool = false
+    @State private var commitmentForDetail: Commitment?
 
     var body: some View {
         NavigationStack {
             List {
-                ForEach(habits) { habit in
-                    HabitRowView(habit: habit)
+                ForEach(commitments) { commitment in
+                    CommitmentRowView(commitment: commitment)
                         .contentShape(Rectangle())
-                        .onTapGesture { habitForDetail = habit }
+                        .onTapGesture { commitmentForDetail = commitment }
                 }
-                .onDelete(perform: deleteHabits)
+                .onDelete(perform: deleteCommitments)
             }
             .listStyle(.insetGrouped)
-            .navigationTitle("Habits")
+            .navigationTitle("Commitments")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        isPresentingAddHabit = true
+                        isPresentingAddCommitment = true
                     } label: {
                         Image(systemName: "plus")
                     }
@@ -32,34 +32,34 @@ struct ListHabitView: View {
                     EditButton()
                 }
             }
-            .sheet(isPresented: $isPresentingAddHabit) {
-                AddHabitView()
+            .sheet(isPresented: $isPresentingAddCommitment) {
+                AddCommitmentView()
             }
-            .sheet(item: $habitForDetail) { habit in
-                HabitDetailView(habit: habit)
+            .sheet(item: $commitmentForDetail) { commitment in
+                CommitmentDetailView(commitment: commitment)
                     .presentationDetents([.fraction(0.65), .large])
                     .presentationDragIndicator(.visible)
             }
         }
     }
 
-    private func deleteHabits(offsets: IndexSet) {
+    private func deleteCommitments(offsets: IndexSet) {
         withAnimation {
             for index in offsets {
-                modelContext.delete(habits[index])
+                modelContext.delete(commitments[index])
             }
         }
     }
 }
 
-private struct HabitRowView: View {
-    @Bindable var habit: Habit
+private struct CommitmentRowView: View {
+    @Bindable var commitment: Commitment
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             // Top line: status + title
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(habit.title)
+                Text(commitment.title)
                     .font(.headline)
                     .foregroundStyle(.primary)
 
@@ -72,7 +72,7 @@ private struct HabitRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text("\(habit.goalCountPerDay)× daily")
+                Text("\(commitment.goalCountPerDay)× daily")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -83,7 +83,7 @@ private struct HabitRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text(slotWindowsSummary(habit))
+                Text(slotWindowsSummary(commitment))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -95,14 +95,14 @@ private struct HabitRowView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
 
-                    Text("\(habit.skipCreditCount) / \(habit.cycle.label)")
+                    Text("\(commitment.skipCreditCount) / \(commitment.cycle.label)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
 
                 Spacer()
 
-                Text(habit.proofOfWorkType.rawValue)
+                Text(commitment.proofOfWorkType.rawValue)
                     .font(.caption2)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
@@ -124,15 +124,17 @@ private struct HabitRowView: View {
         return formatter.string(from: date)
     }
 
-    private func slotWindowsSummary(_ habit: Habit) -> String {
-        return habit.slots.map { "\(formattedTime(from: $0.start))–\(formattedTime(from: $0.end))" }
-            .joined(separator: ", ")
+    private func slotWindowsSummary(_ commitment: Commitment) -> String {
+        return commitment.slots.map {
+            "\(formattedTime(from: $0.start))–\(formattedTime(from: $0.end))"
+        }
+        .joined(separator: ", ")
     }
 }
 
 private func makePreviewContainerWithSamples() throws -> ModelContainer {
     let container = try ModelContainer(
-        for: Habit.self, Slot.self, HabitCheckIn.self,
+        for: Commitment.self, Slot.self, CheckIn.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
     let ctx = container.mainContext
@@ -145,32 +147,32 @@ private func makePreviewContainerWithSamples() throws -> ModelContainer {
         )
     }
 
-    let samples: [Habit] = [
-        Habit(
+    let samples: [Commitment] = [
+        Commitment(
             title: "Workout", slots: [slot(6, 0, 8, 0), slot(8, 0, 10, 0)], skipCreditCount: 5,
             cycle: .monthly(day: 1), proofOfWorkType: .manual, goalCountPerDay: 1),
-        Habit(
+        Commitment(
             title: "Read 30 mins 📚", slots: [slot(9, 0, 11, 0)], skipCreditCount: 1, cycle: .daily,
             proofOfWorkType: .manual, goalCountPerDay: 1),
-        Habit(
+        Commitment(
             title: "Drink 2L Water 💧", slots: [slot(12, 0, 14, 0)], skipCreditCount: 1,
             cycle: .daily, proofOfWorkType: .manual, goalCountPerDay: 1),
-        Habit(
+        Commitment(
             title: "Meditate 10 mins 🧘", slots: [slot(15, 0, 17, 0)], skipCreditCount: 1,
             cycle: .daily, proofOfWorkType: .manual, goalCountPerDay: 1),
-        Habit(
+        Commitment(
             title: "No social media after 9 PM 📵", slots: [slot(21, 0, 23, 0)], skipCreditCount: 1,
             cycle: .daily, proofOfWorkType: .manual, goalCountPerDay: 1),
     ]
-    for habit in samples {
-        ctx.insert(habit)
+    for commitment in samples {
+        ctx.insert(commitment)
     }
     return container
 }
 
-struct ListHabitView_Previews: PreviewProvider {
+struct ListCommitmentView_Previews: PreviewProvider {
     static var previews: some View {
-        ListHabitView()
+        ListCommitmentView()
             .modelContainer(try! makePreviewContainerWithSamples())
     }
 }

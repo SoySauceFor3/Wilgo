@@ -10,7 +10,7 @@ enum CycleKind: String, CaseIterable, Codable {
     case monthly = "Monthly"
 }
 
-/// How often the habit's skip-credit budget resets, with the anchor baked in.
+/// How often the commitment's skip-credit budget resets, with the anchor baked in.
 ///
 /// - `.daily`:              resets at midnight every day; no anchor needed.
 /// - `.weekly(weekday:)`:   resets on the given Calendar weekday (1 = Sun … 7 = Sat).
@@ -36,7 +36,7 @@ enum Cycle: Codable, Equatable, Hashable {
     /// - Daily:   "Mar 4"
     /// - Weekly:  "Mar 2 – Mar 8"
     /// - Monthly: "Mar 1 – Mar 31"  (respects custom anchor days, e.g. "Feb 15 – Mar 14")
-    func label(of date: Date = HabitScheduling.now()) -> String {
+    func label(of date: Date = CommitmentScheduling.now()) -> String {
         let fmt = DateFormatter()
         fmt.dateFormat = "MMM d"
         let start = self.start(of: date)
@@ -44,7 +44,7 @@ enum Cycle: Codable, Equatable, Hashable {
         case .daily:
             return fmt.string(from: start)
         case .weekly, .monthly:
-            let cal = HabitScheduling.calendar
+            let cal = CommitmentScheduling.calendar
             let exclusiveEnd = self.end(of: date)
             let inclusiveEnd = cal.date(byAdding: .day, value: -1, to: exclusiveEnd) ?? exclusiveEnd
             return "\(fmt.string(from: start)) – \(fmt.string(from: inclusiveEnd))"
@@ -57,8 +57,8 @@ enum Cycle: Codable, Equatable, Hashable {
 extension Cycle {
     /// Returns a cycle whose period containing `time` starts on that time's psych-day.
     static func anchored(_ kind: CycleKind, at time: Date) -> Cycle {
-        let psychDay = HabitScheduling.psychDay(for: time)
-        let cal = HabitScheduling.calendar
+        let psychDay = CommitmentScheduling.psychDay(for: time)
+        let cal = CommitmentScheduling.calendar
         switch kind {
         case .daily:
             return .daily
@@ -77,10 +77,10 @@ extension Cycle {
     /// - `.weekly(weekday)`: most recent occurrence of that weekday on or before `date`.
     /// - `.monthly(day)`:    most recent occurrence of that day-of-month on or before `date`,
     ///   clamped to the last day of shorter months (e.g. day=31 → Feb 28/29).
-    func start(of date: Date = HabitScheduling.now()) -> Date {
+    func start(of date: Date = CommitmentScheduling.now()) -> Date {
         switch self {
         case .daily:
-            return HabitScheduling.calendar.startOfDay(for: date)
+            return CommitmentScheduling.calendar.startOfDay(for: date)
         case .weekly(let weekday):
             return Cycle.weeklyPeriodStart(matches: weekday, of: date)
         case .monthly(let anchor):
@@ -89,8 +89,8 @@ extension Cycle {
     }
 
     /// Exclusive end of the budget period of `date` (i.e. next period start).
-    func end(of: Date = HabitScheduling.now()) -> Date {
-        let cal = HabitScheduling.calendar
+    func end(of: Date = CommitmentScheduling.now()) -> Date {
+        let cal = CommitmentScheduling.calendar
         let start = start(of: of)
         switch self {
         case .daily: return cal.date(byAdding: .day, value: 1, to: start) ?? start
@@ -103,7 +103,7 @@ extension Cycle {
 
     /// Most recent date on or before `date` whose weekday matches `anchorWeekday` (1 = Sun … 7 = Sat).
     private static func weeklyPeriodStart(matches anchorWeekday: Int, of date: Date) -> Date {
-        let cal = HabitScheduling.calendar
+        let cal = CommitmentScheduling.calendar
         let currWeekday = cal.component(.weekday, from: cal.startOfDay(for: date))
         let daysBack = (currWeekday - anchorWeekday + 7) % 7
         return cal.date(byAdding: .day, value: -daysBack, to: cal.startOfDay(for: date))
@@ -113,7 +113,7 @@ extension Cycle {
     /// Most recent date on or before `date` whose day-of-month matches `anchorDay` (1–31),
     /// clamped to the last day of the relevant month.
     private static func monthlyPeriodStart(matches anchorDay: Int, of date: Date) -> Date {
-        let cal = HabitScheduling.calendar
+        let cal = CommitmentScheduling.calendar
         let date = cal.startOfDay(for: date)
 
         // Try this calendar month first.
@@ -148,7 +148,7 @@ extension Cycle {
     private static func nextMonthlyPeriodStart(anchorDay: Int, after currentPeriodStart: Date)
         -> Date
     {
-        let cal = HabitScheduling.calendar
+        let cal = CommitmentScheduling.calendar
         let nextMonth =
             cal.date(byAdding: .month, value: 1, to: currentPeriodStart) ?? currentPeriodStart
         return clampedMonthDay(anchorDay, inMonthOf: nextMonth, cal: cal) ?? nextMonth

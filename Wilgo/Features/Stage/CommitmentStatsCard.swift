@@ -2,9 +2,9 @@ import SwiftData
 import SwiftUI
 import UIKit
 
-struct HabitStatsCard<TopRightContent: View>: View {
+struct CommitmentStatsCard<TopRightContent: View>: View {
     @Environment(\.modelContext) private var modelContext
-    @Bindable var habit: Habit
+    @Bindable var commitment: Commitment
     let slots: [Slot]
     let topRightTitle: String
     @ViewBuilder var topRightContent: () -> TopRightContent
@@ -12,11 +12,11 @@ struct HabitStatsCard<TopRightContent: View>: View {
     // MARK: - Derived data
 
     private var psychToday: Date {
-        HabitScheduling.psychDay(for: HabitScheduling.now())
+        CommitmentScheduling.psychDay(for: CommitmentScheduling.now())
     }
 
     private var skipCreditsUsed: Int {
-        SkipCredit.creditsUsedInCycle(for: habit, until: psychToday, inclusive: false)
+        SkipCredit.creditsUsedInCycle(for: commitment, until: psychToday, inclusive: false)
     }
 
     // MARK: - Tile helper
@@ -54,15 +54,15 @@ struct HabitStatsCard<TopRightContent: View>: View {
         let leftBlockWidth = leftBlockColumns * cellWidth + (leftBlockColumns - 1) * gap
 
         VStack(spacing: gap) {
-            // Top row: Habit (1×3) + variant tile (1×2)
+            // Top row: Commitment (1×3) + variant tile (1×2)
             Grid(horizontalSpacing: gap, verticalSpacing: gap) {
                 GridRow {
                     statTile(
-                        title: "Habit",
+                        title: "Commitment",
                         background: tileBackground,
                         cornerRadius: cornerRadius
                     ) {
-                        Text(habit.title)
+                        Text(commitment.title)
                             .font(.headline)
                             .foregroundStyle(.primary)
                     }
@@ -94,7 +94,7 @@ struct HabitStatsCard<TopRightContent: View>: View {
                             cornerRadius: cornerRadius
                         ) {
                             Text(
-                                "\(habit.completedCount(for: psychToday))/\(habit.goalCountPerDay)"
+                                "\(commitment.completedCount(for: psychToday))/\(commitment.goalCountPerDay)"
                             )
                             .font(.title3.bold())
                             .foregroundStyle(.primary)
@@ -108,12 +108,14 @@ struct HabitStatsCard<TopRightContent: View>: View {
                             cornerRadius: cornerRadius
                         ) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(habit.cycle.label(of: psychToday))
+                                Text(commitment.cycle.label(of: psychToday))
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
-                                Text("\(skipCreditsUsed)/\(habit.skipCreditCount) credits used")
-                                    .font(.caption2)
-                                    .foregroundStyle(.primary)
+                                Text(
+                                    "\(skipCreditsUsed)/\(commitment.skipCreditCount) credits used"
+                                )
+                                .font(.caption2)
+                                .foregroundStyle(.primary)
                             }
                         }
                         .frame(height: cellWidth)
@@ -127,7 +129,7 @@ struct HabitStatsCard<TopRightContent: View>: View {
                             background: tileBackground,
                             cornerRadius: cornerRadius
                         ) {
-                            MiniHabitHeatmapRow(habit: habit, daysToShow: 14)
+                            MiniCommitmentHeatmapRow(commitment: commitment, daysToShow: 14)
                         }
                         .frame(height: cellWidth)
                         .gridCellColumns(4)
@@ -138,11 +140,11 @@ struct HabitStatsCard<TopRightContent: View>: View {
                 // Right: Done column (2×1)
                 Button {
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                        let checkIn = HabitCheckIn(
-                            habit: habit
+                        let checkIn = CheckIn(
+                            commitment: commitment
                         )
                         modelContext.insert(checkIn)
-                        habit.checkIns.append(checkIn)  // keep inverse in sync immediately, as inverse relationship propagation takes time.
+                        commitment.checkIns.append(checkIn)  // keep inverse in sync immediately, as inverse relationship propagation takes time.
                     }
                 } label: {
                     Label("Done", systemImage: "checkmark.circle.fill")
@@ -181,4 +183,3 @@ private struct DisplayInfo {
         screenBounds.width
     }
 }
-

@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-struct AddHabitView: View {
+struct AddCommitmentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
@@ -14,14 +14,14 @@ struct AddHabitView: View {
     @State private var punishment: String = ""
 
     init() {
-        let (start, end) = HabitFormFields.defaultFirstWindow()
+        let (start, end) = CommitmentFormFields.defaultFirstWindow()
         _slotWindows = State(initialValue: [SlotWindow(start: start, end: end)])
     }
 
     var body: some View {
         NavigationStack {
             Form {
-                HabitFormFields(
+                CommitmentFormFields(
                     title: $title,
                     goalCountPerDay: $goalCountPerDay,
                     slotWindows: $slotWindows,
@@ -31,14 +31,14 @@ struct AddHabitView: View {
                     punishment: $punishment
                 )
             }
-            .navigationTitle("New Habit")
+            .navigationTitle("New Commitment")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { saveHabit() }
+                    Button("Save") { saveCommitment() }
                         .disabled(!canSave)
                 }
             }
@@ -49,7 +49,7 @@ struct AddHabitView: View {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    private func saveHabit() {
+    private func saveCommitment() {
         let slots: [Slot] = slotWindows.map { window in
             let slot = Slot(start: window.start, end: window.end)
             modelContext.insert(slot)
@@ -57,7 +57,7 @@ struct AddHabitView: View {
         }
         let sortedSlots = slots.sorted()
         let trimmedPunishment = punishment.trimmingCharacters(in: .whitespacesAndNewlines)
-        let habit = Habit(
+        let commitment = Commitment(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             slots: sortedSlots,
             skipCreditCount: skipCreditCount,
@@ -66,16 +66,16 @@ struct AddHabitView: View {
             punishment: trimmedPunishment.isEmpty ? nil : trimmedPunishment,
             goalCountPerDay: goalCountPerDay
         )
-        modelContext.insert(habit)
+        modelContext.insert(commitment)
         dismiss()
     }
 }
 
 #Preview {
     let container = try! ModelContainer(
-        for: Habit.self, Slot.self, HabitCheckIn.self,
+        for: Commitment.self, Slot.self, CheckIn.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
-    AddHabitView()
+    AddCommitmentView()
         .modelContainer(container)
 }

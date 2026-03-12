@@ -2,7 +2,7 @@
 //  MainTabView.swift
 //  Wilgo
 //
-//  Top-level tab navigation: Stage (dynamic dashboard) and Habits (list).
+//  Top-level tab navigation: Stage (dynamic dashboard) and Commitments (list).
 //
 
 import SwiftData
@@ -19,9 +19,9 @@ struct MainTabView: View {
                 }
                 .tag(0)
 
-            ListHabitView()
+            ListCommitmentView()
                 .tabItem {
-                    Label("Habits", systemImage: "list.bullet")
+                    Label("Commitments", systemImage: "list.bullet")
                 }
                 .tag(1)
 
@@ -38,7 +38,7 @@ struct MainTabView: View {
     MainTabView()
         .modelContainer(
             try! ModelContainer(
-                for: Habit.self, Slot.self, HabitCheckIn.self,
+                for: Commitment.self, Slot.self, CheckIn.self,
                 configurations: ModelConfiguration(isStoredInMemoryOnly: true)
             )
         )

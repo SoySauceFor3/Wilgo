@@ -11,8 +11,8 @@ struct NowLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: NowAttributes.self) { context in
             let _ = precondition(
-                context.state.hasCurrentHabit,
-                "Live Activity must only be started when there is a current habit (habitTitle and slotTimeText must be set)."
+                context.state.hasCurrentCommitment,
+                "Live Activity must only be started when there is a current commitment (commitmentTitle and slotTimeText must be set)."
             )
             return VStack(spacing: 8) {
                 HStack(spacing: 12) {
@@ -20,7 +20,7 @@ struct NowLiveActivity: Widget {
                         .font(.title2)
                         .foregroundStyle(.tint)
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(context.state.habitTitle)
+                        Text(context.state.commitmentTitle)
                             .font(.headline)
                             .lineLimit(1)
                         Text(context.state.slotTimeText)
@@ -31,7 +31,7 @@ struct NowLiveActivity: Widget {
                 }
 
                 HStack(spacing: 8) {
-                    Link(destination: doneURL(habitId: context.state.habitId)) {
+                    Link(destination: doneURL(commitmentId: context.state.commitmentId)) {
                         Label("Done", systemImage: "checkmark.circle.fill")
                             .font(.subheadline.weight(.medium))
                             .frame(maxWidth: .infinity)
@@ -48,8 +48,8 @@ struct NowLiveActivity: Widget {
             .activitySystemActionForegroundColor(Color.primary)
         } dynamicIsland: { context in
             let _ = precondition(
-                context.state.hasCurrentHabit,
-                "Live Activity must only be started when there is a current habit (habitTitle and slotTimeText must be set)."
+                context.state.hasCurrentCommitment,
+                "Live Activity must only be started when there is a current commitment (commitmentTitle and slotTimeText must be set)."
             )
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
@@ -58,7 +58,7 @@ struct NowLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.center) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(context.state.habitTitle)
+                        Text(context.state.commitmentTitle)
                             .font(.subheadline.weight(.semibold))
                             .lineLimit(1)
                         Text(context.state.slotTimeText)
@@ -69,7 +69,7 @@ struct NowLiveActivity: Widget {
                 }
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack(spacing: 8) {
-                        Link(destination: doneURL(habitId: context.state.habitId)) {
+                        Link(destination: doneURL(commitmentId: context.state.commitmentId)) {
                             Label("Done", systemImage: "checkmark.circle.fill")
                                 .font(.caption.weight(.medium))
                                 .frame(maxWidth: .infinity)
@@ -85,7 +85,7 @@ struct NowLiveActivity: Widget {
                 Image(systemName: "sparkles")
                     .font(.caption)
             } compactTrailing: {
-                Text(context.state.habitTitle)
+                Text(context.state.commitmentTitle)
                     .font(.caption)
                     .lineLimit(1)
             } minimal: {
@@ -97,22 +97,22 @@ struct NowLiveActivity: Widget {
 
     // MARK: - URL helpers
 
-    private func doneURL(habitId: String) -> URL {
+    private func doneURL(commitmentId: String) -> URL {
         var components = URLComponents()
         components.scheme = "wilgo"
         components.host = "done"
-        components.queryItems = [URLQueryItem(name: "habitId", value: habitId)]
+        components.queryItems = [URLQueryItem(name: "commitmentId", value: commitmentId)]
         return components.url ?? URL(string: "wilgo://done")!
     }
 
 }
 
 extension NowAttributes.ContentState {
-    fileprivate static var withHabit: NowAttributes.ContentState {
+    fileprivate static var withCommitment: NowAttributes.ContentState {
         NowAttributes.ContentState(
-            habitTitle: "Morning reading",
+            commitmentTitle: "Morning reading",
             slotTimeText: "9:00 AM – 11:00 AM",
-            habitId: "",
+            commitmentId: "",
             slotId: ""
         )
     }
@@ -121,5 +121,5 @@ extension NowAttributes.ContentState {
 #Preview("Live Activity", as: .content, using: NowAttributes()) {
     NowLiveActivity()
 } contentStates: {
-    NowAttributes.ContentState.withHabit
+    NowAttributes.ContentState.withCommitment
 }

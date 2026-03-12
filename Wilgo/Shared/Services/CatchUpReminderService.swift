@@ -32,19 +32,21 @@ enum CatchUpReminderService {
     }
 
     // The real work that we should do once in a while (hour)
-    static func updateAndScheduleNotificationAndBackgroundTask(now: Date = HabitScheduling.now()) {
+    static func updateAndScheduleNotificationAndBackgroundTask(
+        now: Date = CommitmentScheduling.now()
+    ) {
         let context = ModelContext(WilgoApp.sharedModelContainer)
-        let habits = (try? context.fetch(FetchDescriptor<Habit>())) ?? []
-        let catchUp = HabitAndSlot.catchUp(habits: habits)
+        let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
+        let catchUp = CommitmentAndSlot.catchUp(commitments: commitments)
 
-        updateCatchUpHabitsStorage(catchUp: catchUp, now: now)
+        updateCatchUpCommitmentsStorage(catchUp: catchUp, now: now)
         scheduleNotificationPost(for: catchUp, now: now)
         scheduleBackgroundTask(now: now)
     }
 
     /// Queue the next catch-up reminder.
     static func scheduleBackgroundTask(
-        now: Date = HabitScheduling.now()
+        now: Date = CommitmentScheduling.now()
     ) {
         let request = BGAppRefreshTaskRequest(identifier: backgroundTaskIdentifier)
 
@@ -52,20 +54,22 @@ enum CatchUpReminderService {
         try? BGTaskScheduler.shared.submit(request)
     }
 
-    private static let lastNewCatchUpHabitDateKey = "CatchUpReminderService.lastNewCatchUpHabitDate"
-    private static let lastCatchUpHabitsKey: String = "CatchUpReminderService.lastCatchUpHabits"
+    private static let lastNewCatchUpCommitmentDateKey =
+        "CatchUpReminderService.lastNewCatchUpCommitmentDate"
+    private static let lastCatchUpCommitmentsKey: String =
+        "CatchUpReminderService.lastCatchUpCommitments"
 
     // NOTE: because this function runs roughly 1/hour when the app is not active, so the date might be slightly outdated.
-    private static func updateCatchUpHabitsStorage(
-        catchUp: [(Habit, [Slot])],
-        now: Date = HabitScheduling.now()
+    private static func updateCatchUpCommitmentsStorage(
+        catchUp: [(Commitment, [Slot])],
+        now: Date = CommitmentScheduling.now()
     ) {
-        // 1. Get the currently stored catch-up habits from UserDefaults.
+        // 1. Get the currently stored catch-up commitments from UserDefaults.
         let defaults = UserDefaults.standard
         let currentIDs = Set(catchUp.map { $0.0.persistentModelID })
 
         let prevIDs: Set<PersistentIdentifier>
-        if let prevData = defaults.data(forKey: lastCatchUpHabitsKey),
+        if let prevData = defaults.data(forKey: lastCatchUpCommitmentsKey),
             let prevRawIDs = try? JSONDecoder().decode([String].self, from: prevData)
         {
             prevIDs = Set(prevRawIDs.compactMap { PersistentIdentifier.decode(from: $0) })
@@ -73,41 +77,41 @@ enum CatchUpReminderService {
             prevIDs = []
         }
 
-        // 2. Compute new catch-up habits not previously present.
+        // 2. Compute new catch-up commitments not previously present.
         let newIDs = currentIDs.subtracting(prevIDs)
 
-        // 3. If there are any new catch-up habits (at least one ID not in prevIDs), update addition date.
+        // 3. If there are any new catch-up commitments (at least one ID not in prevIDs), update addition date.
         if !newIDs.isEmpty {
-            defaults.set(now, forKey: lastNewCatchUpHabitDateKey)
+            defaults.set(now, forKey: lastNewCatchUpCommitmentDateKey)
         }
 
-        // 4. Update the stored catch-up habits.
+        // 4. Update the stored catch-up commitments.
         let idStrings = currentIDs.map { $0.encoded() }
         if let encoded = try? JSONEncoder().encode(Array(idStrings)) {
-            defaults.set(encoded, forKey: lastCatchUpHabitsKey)
+            defaults.set(encoded, forKey: lastCatchUpCommitmentsKey)
         }
 
     }
 
     private static func nextNotificationDate(
-        lastNewCatchUpHabitDate: Date,
-        now: Date = HabitScheduling.now()
+        lastNewCatchUpCommitmentDate: Date,
+        now: Date = CommitmentScheduling.now()
     ) -> Date {
         let defaults = UserDefaults.standard
         guard
-            let lastNewCatchUpHabitDate = defaults.object(
-                forKey: lastNewCatchUpHabitDateKey) as? Date
+            let lastNewCatchUpCommitmentDate = defaults.object(
+                forKey: lastNewCatchUpCommitmentDateKey) as? Date
         else {
-            return now  // If there is no last new catch-up habit date, return the current time.
+            return now  // If there is no last new catch-up commitment date, return the current time.
         }
 
-        // Calculate the smallest power of 2 (n) such that fireDate = lastNewCatchUpHabitDate + (2^n - 1) * 1 hour is >= now
-        // We start from the moment of noticing the new catch-up habit, which can possibly be a little bit late.
+        // Calculate the smallest power of 2 (n) such that fireDate = lastNewCatchUpCommitmentDate + (2^n - 1) * 1 hour is >= now
+        // We start from the moment of noticing the new catch-up commitment, which can possibly be a little bit late.
         var n = 0
         var nextNotificationDate: Date
         repeat {
             let intervalHours = pow(2.0, Double(n)) - 1.0
-            nextNotificationDate = lastNewCatchUpHabitDate.addingTimeInterval(
+            nextNotificationDate = lastNewCatchUpCommitmentDate.addingTimeInterval(
                 intervalHours * 3600)
             n += 1
         } while nextNotificationDate < now
@@ -115,29 +119,29 @@ enum CatchUpReminderService {
     }
 
     private static func makeNotificationContent(
-        for catchUp: [(Habit, [Slot])]
+        for catchUp: [(Commitment, [Slot])]
     ) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.sound = .default
 
         guard !catchUp.isEmpty else {
-            content.title = "Catch up on your habits"
-            content.body = "Open Wilgo to review your habits."
+            content.title = "Catch up on your commitments"
+            content.body = "Open Wilgo to review your commitments."
             return content
         }
 
-        let habits = catchUp.map { $0.0 }
-        let count = habits.count
+        let commitments = catchUp.map { $0.0 }
+        let count = commitments.count
 
-        if count == 1, let habit = habits.first {
-            content.title = "Catch up: \(habit.title)"
-            content.body = "You have 1 habit to catch up on. Open Wilgo to do it now."
+        if count == 1, let commitment = commitments.first {
+            content.title = "Catch up: \(commitment.title)"
+            content.body = "You have 1 commitment to catch up on. Open Wilgo to do it now."
             return content
         }
 
-        content.title = "Catch up on \(count) habits"
+        content.title = "Catch up on \(count) commitments"
 
-        let titles = habits.map(\.title)
+        let titles = commitments.map(\.title)
         let primary = titles.prefix(3).joined(separator: " · ")
         if titles.count > 3 {
             let remaining = titles.count - 3
@@ -150,7 +154,7 @@ enum CatchUpReminderService {
     }
 
     private static let notificationID: String = "wilgo.catchup"
-    private static func scheduleNotificationPost(for catchUp: [(Habit, [Slot])], now: Date) {
+    private static func scheduleNotificationPost(for catchUp: [(Commitment, [Slot])], now: Date) {
         let center: UNUserNotificationCenter = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
             guard granted else { return }
@@ -159,7 +163,7 @@ enum CatchUpReminderService {
             center.removePendingNotificationRequests(withIdentifiers: [notificationID])
 
             let content = makeNotificationContent(for: catchUp)
-            let nextNotificationDate = nextNotificationDate(lastNewCatchUpHabitDate: now)
+            let nextNotificationDate = nextNotificationDate(lastNewCatchUpCommitmentDate: now)
             let calendar = Calendar.current
             let components = calendar.dateComponents(
                 [.year, .month, .day, .hour, .minute, .second],

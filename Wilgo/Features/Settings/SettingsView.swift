@@ -25,7 +25,7 @@ struct SettingsView: View {
                     Text("Schedule")
                 } footer: {
                     Text(
-                        "Habits are tracked from this hour until the same time the next day. The morning report notification also fires at this hour. Changes apply going forward — past check-ins are not affected."
+                        "Commitments are tracked from this hour until the same time the next day. The morning report notification also fires at this hour. Changes apply going forward — past check-ins are not affected."
                     )
                 }
             }

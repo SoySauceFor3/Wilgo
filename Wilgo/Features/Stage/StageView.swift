@@ -1,4 +1,4 @@
-//  The Stage — dynamic dashboard highlighting the in-window habit with phase-based styling.
+//  The Stage — dynamic dashboard highlighting the in-window commitment with phase-based styling.
 //  Schedule: N× daily; each slot has its own ideal window.
 //
 
@@ -8,24 +8,24 @@ import SwiftUI
 struct StageView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(LiveActivityManager.self) private var liveActivityManager
-    @Query(sort: \Habit.createdAt, order: .forward) private var habits: [Habit]
+    @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
     /// Observed only to force a re-render when check-ins are inserted/deleted,
-    /// since @Query for Habit does not re-fire on child relationship changes.
-    @Query private var checkIns: [HabitCheckIn]
+    /// since @Query for Commitment does not re-fire on child relationship changes.
+    @Query private var checkIns: [CheckIn]
 
     /// actually change the value of it will trigger a rerender.
     @State private var rewrite = false
 
-    private var current: [(Habit, [Slot])] {
-        HabitAndSlot.current(habits: habits, now: Date())
+    private var current: [(Commitment, [Slot])] {
+        CommitmentAndSlot.current(commitments: commitments, now: Date())
     }
 
-    private var upcoming: [(Habit, [Slot])] {
-        HabitAndSlot.upcoming(habits: habits, after: Date())
+    private var upcoming: [(Commitment, [Slot])] {
+        CommitmentAndSlot.upcoming(commitments: commitments, after: Date())
     }
 
-    private var catchUp: [(Habit, [Slot])] {
-        HabitAndSlot.catchUp(habits: habits, now: Date())
+    private var catchUp: [(Commitment, [Slot])] {
+        CommitmentAndSlot.catchUp(commitments: commitments, now: Date())
     }
 
     var body: some View {
@@ -39,8 +39,8 @@ struct StageView: View {
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(current, id: \.0.id) { habit, slots in
-                                CurrentHabitRow(habit: habit, slots: slots)
+                            ForEach(current, id: \.0.id) { commitment, slots in
+                                CurrentCommitmentRow(commitment: commitment, slots: slots)
                             }
                         }
                     }
@@ -52,8 +52,8 @@ struct StageView: View {
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(catchUp, id: \.0.id) { habit, slots in
-                                CatchUpHabitRow(habit: habit, slots: slots)
+                            ForEach(catchUp, id: \.0.id) { commitment, slots in
+                                CatchUpCommitmentRow(commitment: commitment, slots: slots)
                             }
                         }
                     }
@@ -65,8 +65,8 @@ struct StageView: View {
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(upcoming, id: \.0.id) { habit, slots in
-                                UpcomingHabitRow(habit: habit, slots: slots)
+                            ForEach(upcoming, id: \.0.id) { commitment, slots in
+                                UpcomingCommitmentRow(commitment: commitment, slots: slots)
                             }
                         }
                     }
@@ -79,12 +79,12 @@ struct StageView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle(
-                HabitScheduling.psychDay(for: HabitScheduling.now()).formatted(
+                CommitmentScheduling.psychDay(for: CommitmentScheduling.now()).formatted(
                     date: .abbreviated, time: .omitted)
             )
             .task(id: rewrite) {
-                let nextTransitionDate = HabitAndSlot.nextTransitionDate(
-                    habits: habits, now: Date())
+                let nextTransitionDate = CommitmentAndSlot.nextTransitionDate(
+                    commitments: commitments, now: Date())
                 let delay = nextTransitionDate?.timeIntervalSince(Date()) ?? 60
                 if delay > 0 {
                     try? await Task.sleep(until: .now + .seconds(delay), clock: .continuous)
@@ -118,7 +118,7 @@ private struct EmptyStageCard: View {
             Text("Nothing on stage right now")
                 .font(.headline)
                 .foregroundStyle(.secondary)
-            Text("Add habits and set their ideal times to see them here.")
+            Text("Add commitments and set their ideal times to see them here.")
                 .font(.subheadline)
                 .foregroundStyle(.tertiary)
                 .multilineTextAlignment(.center)
@@ -135,9 +135,9 @@ private struct EmptyStageCard: View {
 // MARK: - Previews
 
 private enum StagePreviewFactory {
-    static var multipleHabits: some View {
+    static var multipleCommitments: some View {
         let container = try! ModelContainer(
-            for: Habit.self, Slot.self, HabitCheckIn.self,
+            for: Commitment.self, Slot.self, CheckIn.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         let ctx = container.mainContext
@@ -150,53 +150,53 @@ private enum StagePreviewFactory {
             )
         }
 
-        let habit1 = Habit(
-            title: "habit 1",
+        let commitment1 = Commitment(
+            title: "commitment 1",
             slots: [slot(23, 0, 23, 10)],
             skipCreditCount: 5,
             cycle: .monthly(day: 1),
             proofOfWorkType: .manual,
             goalCountPerDay: 1
         )
-        let habit2 = Habit(
-            title: "habit 2",
+        let commitment2 = Commitment(
+            title: "commitment 2",
             slots: [slot(23, 1, 23, 59)],
             skipCreditCount: 3,
             cycle: .weekly(weekday: 2),
             proofOfWorkType: .manual,
             goalCountPerDay: 1
         )
-        let habit3 = Habit(
-            title: "habit 3",
+        let commitment3 = Commitment(
+            title: "commitment 3",
             slots: [slot(23, 0, 23, 30)],
             skipCreditCount: 2,
             cycle: .weekly(weekday: 2),
             proofOfWorkType: .manual,
             goalCountPerDay: 1
         )
-        habit1.slots.forEach {
-            $0.habit = habit1
+        commitment1.slots.forEach {
+            $0.commitment = commitment1
             ctx.insert($0)
         }
-        habit2.slots.forEach {
-            $0.habit = habit2
+        commitment2.slots.forEach {
+            $0.commitment = commitment2
             ctx.insert($0)
         }
-        habit3.slots.forEach {
-            $0.habit = habit3
+        commitment3.slots.forEach {
+            $0.commitment = commitment3
             ctx.insert($0)
         }
-        ctx.insert(habit1)
-        ctx.insert(habit2)
-        ctx.insert(habit3)
+        ctx.insert(commitment1)
+        ctx.insert(commitment2)
+        ctx.insert(commitment3)
 
         return StageView()
             .modelContainer(container)
     }
 
-    static var singleHabit: some View {
+    static var singleCommitment: some View {
         let container = try! ModelContainer(
-            for: Habit.self, Slot.self, HabitCheckIn.self,
+            for: Commitment.self, Slot.self, CheckIn.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         let ctx = container.mainContext
@@ -205,7 +205,7 @@ private enum StagePreviewFactory {
             start: calendar.date(from: DateComponents(hour: 0, minute: 0)) ?? Date(),
             end: calendar.date(from: DateComponents(hour: 0, minute: 10)) ?? Date()
         )
-        let habit = Habit(
+        let commitment = Commitment(
             title: "Workout",
             slots: [slot],
             skipCreditCount: 5,
@@ -213,9 +213,9 @@ private enum StagePreviewFactory {
             proofOfWorkType: .manual,
             goalCountPerDay: 1
         )
-        slot.habit = habit
+        slot.commitment = commitment
         ctx.insert(slot)
-        ctx.insert(habit)
+        ctx.insert(commitment)
 
         return StageView()
             .modelContainer(container)
@@ -225,19 +225,19 @@ private enum StagePreviewFactory {
         StageView()
             .modelContainer(
                 try! ModelContainer(
-                    for: Habit.self, Slot.self, HabitCheckIn.self,
+                    for: Commitment.self, Slot.self, CheckIn.self,
                     configurations: ModelConfiguration(isStoredInMemoryOnly: true)
                 )
             )
     }
 }
 
-#Preview("Stage with multiple habits") {
-    StagePreviewFactory.multipleHabits
+#Preview("Stage with multiple commitments") {
+    StagePreviewFactory.multipleCommitments
 }
 
-#Preview("Stage with 1 habit") {
-    StagePreviewFactory.singleHabit
+#Preview("Stage with 1 commitment") {
+    StagePreviewFactory.singleCommitment
 }
 
 #Preview("Stage empty") {

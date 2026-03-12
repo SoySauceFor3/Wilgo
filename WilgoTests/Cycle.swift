@@ -23,7 +23,7 @@ struct CyclePeriodMathTests {
     @Suite("Cycle.clampedMonthDay")
     struct ClampedMonthDayTests {
 
-        let cal = HabitScheduling.calendar
+        let cal = CommitmentScheduling.calendar
 
         @Test("target day within month returns that exact date")
         func withinMonth() {
@@ -168,7 +168,7 @@ struct CyclePeriodMathTests {
 
         @Test("period end is always exactly 7 days after period start")
         func periodSpanIsSevenDays() {
-            let cal = HabitScheduling.calendar
+            let cal = CommitmentScheduling.calendar
             // anchor = Wed (weekday 4), date = Sat Mar 7
             let date = date(year: 2026, month: 3, day: 7)
             let cycle = Cycle.weekly(weekday: 4)

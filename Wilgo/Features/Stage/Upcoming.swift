@@ -1,15 +1,15 @@
 import SwiftData
 import SwiftUI
 
-struct UpcomingHabitRow: View {
-    let habit: Habit
+struct UpcomingCommitmentRow: View {
+    let commitment: Commitment
     let slots: [Slot]
     @State private var isPresentingDetail = false
 
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
-                Text(habit.title)
+                Text(commitment.title)
                     .font(.subheadline)
                     .fontWeight(.medium)
                 Text(slots[0].slotTimeText)
@@ -28,7 +28,7 @@ struct UpcomingHabitRow: View {
             isPresentingDetail = true
         }
         .sheet(isPresented: $isPresentingDetail) {
-            HabitDetailView(habit: habit)
+            CommitmentDetailView(commitment: commitment)
                 .presentationDetents([.fraction(0.65), .large])
                 .presentationDragIndicator(.visible)
         }
@@ -42,7 +42,7 @@ struct UpcomingHabitRow: View {
     let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: today) ?? today
 
     let slot = Slot(start: start, end: end)
-    let habit = Habit(
+    let commitment = Commitment(
         title: "Morning reading",
         slots: [slot],
         skipCreditCount: 3,
@@ -50,9 +50,9 @@ struct UpcomingHabitRow: View {
         goalCountPerDay: 1
     )
 
-    return UpcomingHabitRow(habit: habit, slots: [slot])
+    return UpcomingCommitmentRow(commitment: commitment, slots: [slot])
         .modelContainer(
-            for: [Habit.self, Slot.self, HabitCheckIn.self], inMemory: true
+            for: [Commitment.self, Slot.self, CheckIn.self], inMemory: true
         )
         .padding()
 }
