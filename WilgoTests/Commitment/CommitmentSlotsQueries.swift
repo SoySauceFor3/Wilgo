@@ -53,7 +53,9 @@ private func makeCommitment(
     cycle: Cycle = .daily
 ) -> Commitment {
     let commitment = Commitment(
-        title: title, slots: slots, skipCreditCount: skipCreditCount, cycle: cycle,
+        title: title,
+        slots: slots,
+        skipBudget: SkipBudget(cycle: cycle, countPerCycle: skipCreditCount),
         goalCountPerDay: goalCountPerDay)
     ctx.insert(commitment)
     for slot in slots { ctx.insert(slot) }

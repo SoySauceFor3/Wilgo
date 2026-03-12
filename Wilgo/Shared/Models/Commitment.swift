@@ -10,6 +10,13 @@ enum ProofOfWorkType: String, Codable {
     // case healthKit = "HealthKit"
 }
 
+struct QuantifiedCycle: Codable, Hashable {
+    var cycle: Cycle  // daily / weekly / monthly with anchors
+    var countPerCycle: Int  // “how many per that cycle”
+}
+
+typealias SkipBudget = QuantifiedCycle  // semantic: forgiven misses per cycle
+
 // MARK: - Commitment
 
 @Model
@@ -29,17 +36,8 @@ final class Commitment {
     /// If nil, defaults to `max(1, slots.count)` for backwards compatibility.
     var goalCountPerDay: Int
 
-    /// Number of allowed skips within the budget period.
-    var skipCreditCount: Int
-    /// TODO: Verify that hte timezone changes are handled correctly.
-    /// How often the skip-credit budget resets, with the anchor baked in.
-    ///
-    /// - `.daily`:           resets every midnight; no anchor.
-    /// - `.weekly(weekday)`: resets on the given Calendar weekday (1 = Sun … 7 = Sat).
-    /// - `.monthly(day)`:    resets on the given day-of-month (1–31), clamped for short months.
-    ///
-    /// Set from the current calendar when the commitment is created or when reset rules change.
-    var cycle: Cycle
+    var skipBudget: SkipBudget
+
     /// How completion is verified.
     var proofOfWorkType: ProofOfWorkType
     /// What the user owes if skip credits are exhausted (e.g. "Give robaroba 20 RMB").
@@ -50,8 +48,7 @@ final class Commitment {
         title: String,
         createdAt: Date = .now,
         slots: [Slot],
-        skipCreditCount: Int,
-        cycle: Cycle,
+        skipBudget: SkipBudget,
         proofOfWorkType: ProofOfWorkType = .manual,
         punishment: String? = nil,
         goalCountPerDay: Int
@@ -60,15 +57,10 @@ final class Commitment {
         self.createdAt = createdAt
         self.slots = slots
         self.goalCountPerDay = goalCountPerDay
-        self.skipCreditCount = skipCreditCount
-        self.cycle = cycle
+        self.skipBudget = skipBudget
         self.proofOfWorkType = proofOfWorkType
         self.punishment = punishment
     }
-
-    // // TODO: REmove it
-    // /// Times per day (N× daily). Convenience for display.
-    // var timesPerDay: Int { goalCountPerDay ?? max(1, slots.count) }
 }
 
 // MARK: - Slot queries

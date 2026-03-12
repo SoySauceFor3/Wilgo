@@ -8,14 +8,16 @@ struct AddCommitmentView: View {
     @State private var title: String = ""
     @State private var goalCountPerDay: Int = 1
     @State private var slotWindows: [SlotWindow]
-    @State private var skipCreditCount: Int = 1
-    @State private var cycle: Cycle = Cycle.anchored(.weekly, at: .now)
+    @State private var skipBudget: SkipBudget
     @State private var proofOfWorkType: ProofOfWorkType = .manual
     @State private var punishment: String = ""
 
     init() {
         let (start, end) = CommitmentFormFields.defaultFirstWindow()
         _slotWindows = State(initialValue: [SlotWindow(start: start, end: end)])
+        _skipBudget = State(
+            initialValue: SkipBudget(cycle: Cycle.anchored(.weekly, at: .now), countPerCycle: 0)
+        )
     }
 
     var body: some View {
@@ -25,8 +27,7 @@ struct AddCommitmentView: View {
                     title: $title,
                     goalCountPerDay: $goalCountPerDay,
                     slotWindows: $slotWindows,
-                    skipCreditCount: $skipCreditCount,
-                    cycle: $cycle,
+                    skipBudget: $skipBudget,
                     proofOfWorkType: $proofOfWorkType,
                     punishment: $punishment
                 )
@@ -60,8 +61,7 @@ struct AddCommitmentView: View {
         let commitment = Commitment(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             slots: sortedSlots,
-            skipCreditCount: skipCreditCount,
-            cycle: cycle,
+            skipBudget: skipBudget,
             proofOfWorkType: proofOfWorkType,
             punishment: trimmedPunishment.isEmpty ? nil : trimmedPunishment,
             goalCountPerDay: goalCountPerDay

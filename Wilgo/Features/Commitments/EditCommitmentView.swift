@@ -10,15 +10,13 @@ struct EditCommitmentView: View {
     @State private var title: String
     @State private var goalCountPerDay: Int
     @State private var slotWindows: [SlotWindow]
-    @State private var skipCreditCount: Int
-    @State private var cycle: Cycle
+    @State private var skipBudget: SkipBudget
     @State private var proofOfWorkType: ProofOfWorkType
     @State private var punishment: String
 
     /// Snapshot of rule values at open time, used to detect if any rule changed.
     private let originalGoalCountPerDay: Int
-    private let originalSkipCreditCount: Int
-    private let originalCycle: Cycle
+    private let originalSkipBudget: SkipBudget
 
     init(commitment: Commitment) {
         self.commitment = commitment
@@ -28,14 +26,12 @@ struct EditCommitmentView: View {
         _slotWindows = State(
             initialValue: commitment.slots.sorted().map { SlotWindow(start: $0.start, end: $0.end) }
         )
-        _skipCreditCount = State(initialValue: commitment.skipCreditCount)
-        _cycle = State(initialValue: commitment.cycle)
+        _skipBudget = State(initialValue: commitment.skipBudget)
         _proofOfWorkType = State(initialValue: commitment.proofOfWorkType)
         _punishment = State(initialValue: commitment.punishment ?? "")
 
         originalGoalCountPerDay = commitment.goalCountPerDay
-        originalSkipCreditCount = commitment.skipCreditCount
-        originalCycle = commitment.cycle
+        originalSkipBudget = commitment.skipBudget
     }
 
     var body: some View {
@@ -45,8 +41,7 @@ struct EditCommitmentView: View {
                     title: $title,
                     goalCountPerDay: $goalCountPerDay,
                     slotWindows: $slotWindows,
-                    skipCreditCount: $skipCreditCount,
-                    cycle: $cycle,
+                    skipBudget: $skipBudget,
                     proofOfWorkType: $proofOfWorkType,
                     punishment: $punishment,
                     rulesChangedNote: anyRuleChanged
@@ -76,8 +71,7 @@ struct EditCommitmentView: View {
     /// True when any rule field (timesPerDay, skipCreditCount, cycle) changed.
     /// Rule changes re-anchor the cycle to today so the new rules start from a clean slate.
     private var anyRuleChanged: Bool {
-        goalCountPerDay != originalGoalCountPerDay || skipCreditCount != originalSkipCreditCount
-            || cycle != originalCycle
+        goalCountPerDay != originalGoalCountPerDay || skipBudget != originalSkipBudget
     }
 
     // MARK: - Save
@@ -86,7 +80,6 @@ struct EditCommitmentView: View {
         // Apply scalar field changes.
         commitment.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         commitment.goalCountPerDay = goalCountPerDay
-        commitment.skipCreditCount = skipCreditCount
         commitment.proofOfWorkType = proofOfWorkType
         let trimmed = punishment.trimmingCharacters(in: .whitespacesAndNewlines)
         commitment.punishment = trimmed.isEmpty ? nil : trimmed
@@ -94,11 +87,12 @@ struct EditCommitmentView: View {
         // Any change to a rule field signals a new commitment — re-anchor the cycle
         // to today so the new rules apply from a clean slate.
         // See documentation/Edit Commitment Feature.md for rationale.
-        var resolvedCycle = cycle
+        var resolvedCycle = skipBudget.cycle
         if anyRuleChanged {
-            resolvedCycle = Cycle.anchored(cycle.kind, at: .now)
+            resolvedCycle = Cycle.anchored(resolvedCycle.kind, at: .now)
         }
-        commitment.cycle = resolvedCycle
+        commitment.skipBudget = SkipBudget(
+            cycle: resolvedCycle, countPerCycle: skipBudget.countPerCycle)
 
         // Replace slots only if the count or any window changed.
         let newWindows = slotWindows
@@ -134,8 +128,7 @@ struct EditCommitmentView: View {
     let commitment = Commitment(
         title: "Morning reading",
         slots: [slot],
-        skipCreditCount: 3,
-        cycle: .weekly(weekday: 2),
+        skipBudget: SkipBudget(cycle: .weekly(weekday: 2), countPerCycle: 3),
         goalCountPerDay: 1
     )
     container.mainContext.insert(commitment)

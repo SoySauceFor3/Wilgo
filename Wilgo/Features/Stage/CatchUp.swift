@@ -53,8 +53,7 @@ struct CatchUpCommitmentRow: View {
     let commitment = Commitment(
         title: "Morning reading",
         slots: [slot],
-        skipCreditCount: 3,
-        cycle: .weekly(weekday: 2),
+        skipBudget: SkipBudget(cycle: .weekly(weekday: 2), countPerCycle: 3),
         goalCountPerDay: 1
     )
 

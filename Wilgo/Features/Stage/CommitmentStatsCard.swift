@@ -108,11 +108,11 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
                             cornerRadius: cornerRadius
                         ) {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(commitment.cycle.label(of: psychToday))
+                                Text(commitment.skipBudget.cycle.label(of: psychToday))
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                                 Text(
-                                    "\(skipCreditsUsed)/\(commitment.skipCreditCount) credits used"
+                                    "\(skipCreditsUsed)/\(commitment.skipBudget.countPerCycle) credits used"
                                 )
                                 .font(.caption2)
                                 .foregroundStyle(.primary)

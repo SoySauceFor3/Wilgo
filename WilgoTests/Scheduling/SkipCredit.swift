@@ -43,8 +43,7 @@ private func makeCommitment(
     let commitment = Commitment(
         title: title,
         slots: slots,
-        skipCreditCount: skipCreditCount,
-        cycle: cycle,
+        skipBudget: SkipBudget(cycle: cycle, countPerCycle: skipCreditCount),
         punishment: punishment,
         goalCountPerDay: slots.count
     )

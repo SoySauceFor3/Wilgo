@@ -458,8 +458,7 @@ enum HeatmapPreviewFactory {
             title: "Morning Run",
             createdAt: createdAt,
             slots: [],
-            skipCreditCount: 3,
-            cycle: .weekly(weekday: 2),
+            skipBudget: SkipBudget(cycle: .weekly(weekday: 2), countPerCycle: 3),
             goalCountPerDay: 2
         )
         ctx.insert(commitment)
@@ -507,7 +506,10 @@ enum HeatmapPreviewFactory {
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
         let commitment = Commitment(
-            title: "Meditate", slots: [], skipCreditCount: 1, cycle: .daily, goalCountPerDay: 2)
+            title: "Meditate",
+            slots: [],
+            skipBudget: SkipBudget(cycle: .daily, countPerCycle: 1),
+            goalCountPerDay: 2)
         container.mainContext.insert(commitment)
         return container
     }

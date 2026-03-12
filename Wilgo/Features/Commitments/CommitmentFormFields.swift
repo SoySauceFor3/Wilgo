@@ -6,8 +6,7 @@ struct CommitmentFormFields: View {
     @Binding var title: String
     @Binding var goalCountPerDay: Int
     @Binding var slotWindows: [SlotWindow]
-    @Binding var skipCreditCount: Int
-    @Binding var cycle: Cycle
+    @Binding var skipBudget: SkipBudget
     @Binding var proofOfWorkType: ProofOfWorkType
     @Binding var punishment: String
 
@@ -100,8 +99,8 @@ struct CommitmentFormFields: View {
                 }
             }
 
-            Stepper(value: $skipCreditCount, in: 0...30) {
-                Text("Skip credits: \(skipCreditCount)")
+            Stepper(value: skipCreditCountBinding, in: 0...30) {
+                Text("Skip credits: \(skipBudget.countPerCycle)")
             }
         }
 
@@ -128,9 +127,19 @@ struct CommitmentFormFields: View {
     /// When the kind changes, a new Cycle is constructed anchored to today(PsychDay).
     private var cycleKindBinding: Binding<CycleKind> {
         Binding(
-            get: { cycle.kind },
+            get: { skipBudget.cycle.kind },
             set: { newKind in
-                cycle = Cycle.anchored(newKind, at: .now)
+                skipBudget.cycle = Cycle.anchored(newKind, at: .now)
+            }
+        )
+    }
+
+    /// Exposes the skipBudget's countPerCycle as a Binding<Int> for the Stepper.
+    private var skipCreditCountBinding: Binding<Int> {
+        Binding(
+            get: { skipBudget.countPerCycle },
+            set: { newValue in
+                skipBudget.countPerCycle = newValue
             }
         )
     }
