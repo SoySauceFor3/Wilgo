@@ -4,8 +4,8 @@ import SwiftUI
 /// Owns no SwiftData interactions — all state is passed in via bindings.
 struct CommitmentFormFields: View {
     @Binding var title: String
-    @Binding var goalCountPerDay: Int
     @Binding var slotWindows: [SlotWindow]
+    @Binding var target: Target
     @Binding var skipBudget: SkipBudget
     @Binding var proofOfWorkType: ProofOfWorkType
     @Binding var punishment: String
@@ -26,8 +26,16 @@ struct CommitmentFormFields: View {
         Section("Basics") {
             TextField("Title", text: $title)
 
-            Stepper(value: $goalCountPerDay, in: 1...21) {
-                Text("Goal per day: \(goalCountPerDay)")
+            Section("Target") {
+                Picker("Reset cycle", selection: targetCycleKindBinding) {
+                    ForEach(CycleKind.allCases, id: \.self) { kind in
+                        Text(kind.rawValue).tag(kind)
+                    }
+                }
+
+                Stepper(value: targetCountBinding, in: 1...30) {
+                    Text("Target: \(target.countPerCycle)")
+                }
             }
         }
 
@@ -93,13 +101,13 @@ struct CommitmentFormFields: View {
         }
 
         Section("Skip credits") {
-            Picker("Reset cycle", selection: cycleKindBinding) {
+            Picker("Reset cycle", selection: skipBudgetCycleKindBinding) {
                 ForEach(CycleKind.allCases, id: \.self) { kind in
                     Text(kind.rawValue).tag(kind)
                 }
             }
 
-            Stepper(value: skipCreditCountBinding, in: 0...30) {
+            Stepper(value: skipBudgetCountBinding, in: 0...30) {
                 Text("Skip credits: \(skipBudget.countPerCycle)")
             }
         }
@@ -125,7 +133,27 @@ struct CommitmentFormFields: View {
 
     /// Maps the cycle binding to/from a CycleKind for the Picker.
     /// When the kind changes, a new Cycle is constructed anchored to today(PsychDay).
-    private var cycleKindBinding: Binding<CycleKind> {
+    private var targetCycleKindBinding: Binding<CycleKind> {
+        Binding(
+            get: { target.cycle.kind },
+            set: { newKind in
+                target.cycle = Cycle.anchored(newKind, at: .now)
+            }
+        )
+    }
+
+    /// Exposes the skipBudget's countPerCycle as a Binding<Int> for the Stepper.
+    private var targetCountBinding: Binding<Int> {
+        Binding(
+            get: { target.countPerCycle },
+            set: { newValue in
+                target.countPerCycle = newValue
+            }
+        )
+    }
+    /// Maps the cycle binding to/from a CycleKind for the Picker.
+    /// When the kind changes, a new Cycle is constructed anchored to today(PsychDay).
+    private var skipBudgetCycleKindBinding: Binding<CycleKind> {
         Binding(
             get: { skipBudget.cycle.kind },
             set: { newKind in
@@ -135,7 +163,7 @@ struct CommitmentFormFields: View {
     }
 
     /// Exposes the skipBudget's countPerCycle as a Binding<Int> for the Stepper.
-    private var skipCreditCountBinding: Binding<Int> {
+    private var skipBudgetCountBinding: Binding<Int> {
         Binding(
             get: { skipBudget.countPerCycle },
             set: { newValue in

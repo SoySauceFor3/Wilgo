@@ -1,5 +1,7 @@
 import Foundation
 
+// TODO: THIS NEED TO CHANGED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! It only supports daily cycle for target.
+
 /// Pure logic for computing skip-credit state for a commitment.
 enum SkipCredit {
     /// A credit is burned for each psychological day in the period where
@@ -17,7 +19,7 @@ enum SkipCredit {
         var burned = 0
         var day = start
         while (inclusive && day <= psychDay) || (!inclusive && day < psychDay) {
-            burned += commitment.goalCountPerDay - commitment.completedCount(for: day)
+            burned += commitment.target.countPerCycle - commitment.completedCount(for: day)
 
             guard let next = cal.date(byAdding: .day, value: 1, to: day) else { break }
             day = next
@@ -54,7 +56,7 @@ enum SkipCredit {
     /// ```
     static func notificationLine(for commitment: Commitment, on psychDay: Date) -> String {
         let completed = commitment.completedCount(for: psychDay)
-        let required = commitment.goalCountPerDay
+        let required = commitment.target.countPerCycle
         let used = creditsUsedInCycle(for: commitment, until: psychDay)
         let allowance = commitment.skipBudget.countPerCycle
 

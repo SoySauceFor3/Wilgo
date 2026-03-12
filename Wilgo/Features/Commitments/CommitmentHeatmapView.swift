@@ -1,6 +1,8 @@
 import SwiftData
 import SwiftUI
 
+// TODO: CURRENTLY ONLY SUPPORT DAILY CYCLE FOR TARGET.
+
 // Shared heatmap layout constants so smaller views (e.g. stage row) stay aligned.
 private let commitmentHeatmapCellSize: CGFloat = 11
 private let commitmentHeatmapCellSpacing: CGFloat = 3
@@ -60,7 +62,7 @@ struct CommitmentHeatmapView: View {
         let todayDate = today
         let createdDate = createdPsychDay
         let counts = completionsByDay
-        let goal = max(1, commitment.goalCountPerDay)
+        let goal = commitment.target.countPerCycle
         let cal = Calendar.current
 
         // Snap to the Sunday that starts the current week.
@@ -390,7 +392,7 @@ struct MiniCommitmentHeatmapRow: View {
     }
 
     private var goal: Int {
-        max(1, commitment.goalCountPerDay)
+        max(1, commitment.target.countPerCycle)
     }
 
     private var completionsByDay: [Date: Int] {
@@ -458,8 +460,8 @@ enum HeatmapPreviewFactory {
             title: "Morning Run",
             createdAt: createdAt,
             slots: [],
-            skipBudget: SkipBudget(cycle: .weekly(weekday: 2), countPerCycle: 3),
-            goalCountPerDay: 2
+            target: Target(cycle: .daily, countPerCycle: 2),
+            skipBudget: SkipBudget(cycle: .daily, countPerCycle: 2)
         )
         ctx.insert(commitment)
 
@@ -508,8 +510,9 @@ enum HeatmapPreviewFactory {
         let commitment = Commitment(
             title: "Meditate",
             slots: [],
+            target: Target(cycle: .daily, countPerCycle: 2),
             skipBudget: SkipBudget(cycle: .daily, countPerCycle: 1),
-            goalCountPerDay: 2)
+        )
         container.mainContext.insert(commitment)
         return container
     }

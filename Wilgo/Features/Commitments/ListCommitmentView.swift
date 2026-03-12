@@ -82,7 +82,7 @@ private struct CommitmentRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text("\(commitment.goalCountPerDay)× daily")
+                Text("\(commitment.target.countPerCycle)× \(commitment.target.cycle.label)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -162,33 +162,38 @@ private func makePreviewContainerWithSamples() throws -> ModelContainer {
         Commitment(
             title: "Workout",
             slots: [slot(6, 0, 8, 0), slot(8, 0, 10, 0)],
+            target: Target(cycle: .daily, countPerCycle: 1),
             skipBudget: SkipBudget(cycle: .monthly(day: 1), countPerCycle: 5),
             proofOfWorkType: .manual,
-            goalCountPerDay: 1),
+        ),
         Commitment(
             title: "Read 30 mins 📚",
             slots: [slot(9, 0, 11, 0)],
+            target: Target(cycle: .daily, countPerCycle: 1),
             skipBudget: SkipBudget(cycle: .daily, countPerCycle: 1),
             proofOfWorkType: .manual,
-            goalCountPerDay: 1),
+        ),
         Commitment(
             title: "Drink 2L Water 💧",
             slots: [slot(12, 0, 14, 0)],
+            target: Target(cycle: .daily, countPerCycle: 1),
             skipBudget: SkipBudget(cycle: .daily, countPerCycle: 1),
             proofOfWorkType: .manual,
-            goalCountPerDay: 1),
+        ),
         Commitment(
             title: "Meditate 10 mins 🧘",
             slots: [slot(15, 0, 17, 0)],
+            target: Target(cycle: .daily, countPerCycle: 1),
             skipBudget: SkipBudget(cycle: .daily, countPerCycle: 1),
             proofOfWorkType: .manual,
-            goalCountPerDay: 1),
+        ),
         Commitment(
             title: "No social media after 9 PM 📵",
             slots: [slot(21, 0, 23, 0)],
+            target: Target(cycle: .daily, countPerCycle: 1),
             skipBudget: SkipBudget(cycle: .daily, countPerCycle: 1),
             proofOfWorkType: .manual,
-            goalCountPerDay: 1),
+        ),
     ]
     for commitment in samples {
         ctx.insert(commitment)

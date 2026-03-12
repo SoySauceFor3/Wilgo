@@ -6,7 +6,8 @@ struct AddCommitmentView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var title: String = ""
-    @State private var goalCountPerDay: Int = 1
+    @State private var target: Target = Target(
+        cycle: Cycle.anchored(.daily, at: .now), countPerCycle: 1)
     @State private var slotWindows: [SlotWindow]
     @State private var skipBudget: SkipBudget
     @State private var proofOfWorkType: ProofOfWorkType = .manual
@@ -25,8 +26,8 @@ struct AddCommitmentView: View {
             Form {
                 CommitmentFormFields(
                     title: $title,
-                    goalCountPerDay: $goalCountPerDay,
                     slotWindows: $slotWindows,
+                    target: $target,
                     skipBudget: $skipBudget,
                     proofOfWorkType: $proofOfWorkType,
                     punishment: $punishment
@@ -61,10 +62,10 @@ struct AddCommitmentView: View {
         let commitment = Commitment(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             slots: sortedSlots,
+            target: target,
             skipBudget: skipBudget,
             proofOfWorkType: proofOfWorkType,
             punishment: trimmedPunishment.isEmpty ? nil : trimmedPunishment,
-            goalCountPerDay: goalCountPerDay
         )
         modelContext.insert(commitment)
         dismiss()

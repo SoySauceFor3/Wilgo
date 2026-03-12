@@ -8,29 +8,29 @@ struct EditCommitmentView: View {
     @Bindable var commitment: Commitment
 
     @State private var title: String
-    @State private var goalCountPerDay: Int
     @State private var slotWindows: [SlotWindow]
+    @State private var target: Target
     @State private var skipBudget: SkipBudget
     @State private var proofOfWorkType: ProofOfWorkType
     @State private var punishment: String
 
     /// Snapshot of rule values at open time, used to detect if any rule changed.
-    private let originalGoalCountPerDay: Int
+    private let originalTarget: Target
     private let originalSkipBudget: SkipBudget
 
     init(commitment: Commitment) {
         self.commitment = commitment
 
         _title = State(initialValue: commitment.title)
-        _goalCountPerDay = State(initialValue: commitment.goalCountPerDay)
         _slotWindows = State(
             initialValue: commitment.slots.sorted().map { SlotWindow(start: $0.start, end: $0.end) }
         )
+        _target = State(initialValue: commitment.target)
         _skipBudget = State(initialValue: commitment.skipBudget)
         _proofOfWorkType = State(initialValue: commitment.proofOfWorkType)
         _punishment = State(initialValue: commitment.punishment ?? "")
 
-        originalGoalCountPerDay = commitment.goalCountPerDay
+        originalTarget = commitment.target
         originalSkipBudget = commitment.skipBudget
     }
 
@@ -39,8 +39,8 @@ struct EditCommitmentView: View {
             Form {
                 CommitmentFormFields(
                     title: $title,
-                    goalCountPerDay: $goalCountPerDay,
                     slotWindows: $slotWindows,
+                    target: $target,
                     skipBudget: $skipBudget,
                     proofOfWorkType: $proofOfWorkType,
                     punishment: $punishment,
@@ -71,7 +71,7 @@ struct EditCommitmentView: View {
     /// True when any rule field (timesPerDay, skipCreditCount, cycle) changed.
     /// Rule changes re-anchor the cycle to today so the new rules start from a clean slate.
     private var anyRuleChanged: Bool {
-        goalCountPerDay != originalGoalCountPerDay || skipBudget != originalSkipBudget
+        target != originalTarget || skipBudget != originalSkipBudget
     }
 
     // MARK: - Save
@@ -79,7 +79,7 @@ struct EditCommitmentView: View {
     private func saveChanges() {
         // Apply scalar field changes.
         commitment.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        commitment.goalCountPerDay = goalCountPerDay
+        commitment.target = target
         commitment.proofOfWorkType = proofOfWorkType
         let trimmed = punishment.trimmingCharacters(in: .whitespacesAndNewlines)
         commitment.punishment = trimmed.isEmpty ? nil : trimmed
@@ -87,6 +87,13 @@ struct EditCommitmentView: View {
         // Any change to a rule field signals a new commitment — re-anchor the cycle
         // to today so the new rules apply from a clean slate.
         // See documentation/Edit Commitment Feature.md for rationale.
+        var resolvedTarget = target
+        if anyRuleChanged {
+            resolvedTarget = Target(
+                cycle: Cycle.anchored(resolvedTarget.cycle.kind, at: .now),
+                countPerCycle: resolvedTarget.countPerCycle)
+        }
+        commitment.target = resolvedTarget
         var resolvedCycle = skipBudget.cycle
         if anyRuleChanged {
             resolvedCycle = Cycle.anchored(resolvedCycle.kind, at: .now)
@@ -128,8 +135,8 @@ struct EditCommitmentView: View {
     let commitment = Commitment(
         title: "Morning reading",
         slots: [slot],
-        skipBudget: SkipBudget(cycle: .weekly(weekday: 2), countPerCycle: 3),
-        goalCountPerDay: 1
+        target: Target(cycle: .daily, countPerCycle: 1),
+        skipBudget: SkipBudget(cycle: .weekly(weekday: 2), countPerCycle: 3)
     )
     container.mainContext.insert(commitment)
     return EditCommitmentView(commitment: commitment)

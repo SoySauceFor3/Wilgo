@@ -59,17 +59,18 @@ enum CommitmentAndSlot {
         }
 
         return catchUpCommitmentAndSlots.sorted {
-            // Calculate the fraction and use it to sort, higher fraction in front.
+            // TODO: THIS NEED TO CHANGED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! It only supports daily cycle for target.
+            // Calculate the fraction of "late progress"/"total target" and use it to sort, higher fraction in front.
             // If fractions are equal to 1, then commitment with larger goalCountPerDay comes first.
 
             func catchUpFraction(_ tuple: (Commitment, [Slot])) -> Double {
                 let (commitment, nextUpSlots) = tuple
                 let catchUpCount = max(
-                    commitment.goalCountPerDay
+                    commitment.target.countPerCycle
                         - commitment.completedCount(for: CommitmentScheduling.psychDay(for: now))
                         - nextUpSlots.count, 0)
-                guard commitment.goalCountPerDay > 0 else { return 0 }
-                return Double(catchUpCount) / Double(commitment.goalCountPerDay)
+                guard commitment.target.countPerCycle > 0 else { return 0 }
+                return Double(catchUpCount) / Double(commitment.target.countPerCycle)
             }
 
             let lhsFraction = catchUpFraction($0)
@@ -78,7 +79,7 @@ enum CommitmentAndSlot {
             if lhsFraction == rhsFraction {
                 if lhsFraction == 1.0 {
                     // Larger goalCountPerDay first if both at max fraction.
-                    return $0.0.goalCountPerDay > $1.0.goalCountPerDay
+                    return $0.0.target.countPerCycle > $1.0.target.countPerCycle
                 } else {
                     // Tiebreaker: start of first slot
                     return $0.1[0].start < $1.1[0].start

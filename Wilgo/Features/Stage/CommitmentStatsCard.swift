@@ -88,13 +88,13 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
                 Grid(horizontalSpacing: gap, verticalSpacing: gap) {
                     // Row A: Completed (1×2) + Skip credits (1×2)
                     GridRow {
-                        statTile(
+                        statTile(  // TODO: THIS NEED TO CHANGED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                             title: "Completed today",
                             background: tileBackground,
                             cornerRadius: cornerRadius
                         ) {
                             Text(
-                                "\(commitment.completedCount(for: psychToday))/\(commitment.goalCountPerDay)"
+                                "\(commitment.completedCount(for: psychToday))/\(commitment.target.countPerCycle)"
                             )
                             .font(.title3.bold())
                             .foregroundStyle(.primary)

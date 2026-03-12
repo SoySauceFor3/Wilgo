@@ -43,8 +43,8 @@ struct CommitmentDetailView: View {
                 label: "All-time\ncheck-ins"
             )
             statTile(
-                value: "\(commitment.goalCountPerDay)×",
-                label: "Daily\ngoal"
+                value: "\(commitment.target.countPerCycle)×",
+                label: "\(commitment.target.cycle.kind.rawValue)\ngoal"
             )
             statTile(
                 value: daysTracked,

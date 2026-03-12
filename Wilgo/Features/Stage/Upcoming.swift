@@ -54,8 +54,8 @@ struct UpcomingCommitmentRow: View {
     let commitment = Commitment(
         title: "Morning reading",
         slots: [slot],
+        target: Target(cycle: .daily, countPerCycle: 1),
         skipBudget: SkipBudget(cycle: .weekly(weekday: 2), countPerCycle: 3),
-        goalCountPerDay: 1
     )
 
     return UpcomingCommitmentRow(commitment: commitment, slots: [slot])

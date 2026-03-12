@@ -1,9 +1,6 @@
 import Foundation
 import SwiftData
 
-// NOTE:
-// we only support daily frequencies for now.
-
 enum ProofOfWorkType: String, Codable {
     case manual = "Manual"
     // case notionAPI = "Notion API"
@@ -15,6 +12,7 @@ struct QuantifiedCycle: Codable, Hashable {
     var countPerCycle: Int  // “how many per that cycle”
 }
 
+typealias Target = QuantifiedCycle  // semantic: target completions per cycle
 typealias SkipBudget = QuantifiedCycle  // semantic: forgiven misses per cycle
 
 // MARK: - Commitment
@@ -32,9 +30,7 @@ final class Commitment {
     @Relationship(deleteRule: .cascade, inverse: \Slot.commitment)
     var slots: [Slot] = []
 
-    /// Target number of completions per psychological day.
-    /// If nil, defaults to `max(1, slots.count)` for backwards compatibility.
-    var goalCountPerDay: Int
+    var target: Target
 
     var skipBudget: SkipBudget
 
@@ -48,15 +44,15 @@ final class Commitment {
         title: String,
         createdAt: Date = .now,
         slots: [Slot],
+        target: Target,
         skipBudget: SkipBudget,
         proofOfWorkType: ProofOfWorkType = .manual,
         punishment: String? = nil,
-        goalCountPerDay: Int
     ) {
         self.title = title
         self.createdAt = createdAt
         self.slots = slots
-        self.goalCountPerDay = goalCountPerDay
+        self.target = target
         self.skipBudget = skipBudget
         self.proofOfWorkType = proofOfWorkType
         self.punishment = punishment
@@ -100,7 +96,8 @@ extension Commitment {
     }
 
     func hasMetDailyGoal(for psychDay: Date) -> Bool {
-        return completedCount(for: psychDay) >= goalCountPerDay
+        // TODO: THIS NEED TO CHANGED!!!!!!!!!!!!!!!!
+        return completedCount(for: psychDay) >= target.countPerCycle
     }
 
     // MARK: - Stage categorization
@@ -122,6 +119,7 @@ extension Commitment {
         let nextUpSlots: [Slot]
     }
 
+    /// TODO: THIS NEED TO CHANGED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     /// Classifies this commitment for the current psychological day at the given time.
     ///
     /// Precedence:
@@ -173,7 +171,7 @@ extension Commitment {
         }
 
         // now < notPassedResolvedSlots[0].0, the first element is a future slot.
-        if notPassedResolvedSlots.count >= goalCountPerDay - completed {
+        if notPassedResolvedSlots.count >= target.countPerCycle - completed {
             return StageStatus(category: .future, nextUpSlots: notPassedResolvedSlots)
         }
 
