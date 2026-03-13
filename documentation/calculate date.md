@@ -75,7 +75,3 @@ We keep slots (`Slot` with `start`, `end`) and **do not store a per-slot index o
   - which occurrences are fulfilled,
   - which are overdue,
   - and how late they are, in a way that matches the motivational model we want.
-
-# TODOs
-
-- [] The customized start of a day is not supported or handled.

@@ -87,19 +87,19 @@ struct EditCommitmentView: View {
         // Any change to a rule field signals a new commitment — re-anchor the cycle
         // to today so the new rules apply from a clean slate.
         // See documentation/Edit Commitment Feature.md for rationale.
-        var resolvedTarget = target
         if anyRuleChanged {
-            resolvedTarget = Target(
-                cycle: Cycle.anchored(resolvedTarget.cycle.kind, at: .now),
-                count: resolvedTarget.count)
+            // Reanchor the target cycle to today as the reference day.
+            target.cycle = Cycle.anchored(target.cycle.kind, at: CommitmentScheduling.now())
         }
-        commitment.target = resolvedTarget
-        var resolvedCycle = skipBudget.cycle
+        commitment.target = target
+
         if anyRuleChanged {
-            resolvedCycle = Cycle.anchored(resolvedCycle.kind, at: .now)
+            // Reanchor the skip budget cycle to today as the reference day.
+            skipBudget.cycle = Cycle.anchored(
+                skipBudget.cycle.kind, at: CommitmentScheduling.now(),
+                multiplier: skipBudget.cycle.multiplier)
         }
-        commitment.skipBudget = SkipBudget(
-            cycle: resolvedCycle, count: skipBudget.count)
+        commitment.skipBudget = skipBudget
 
         // Replace slots only if the count or any window changed.
         let newWindows = slotWindows
