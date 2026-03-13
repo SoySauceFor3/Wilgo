@@ -2,33 +2,34 @@ import SwiftData
 import SwiftUI
 
 struct CommitmentRowView: View {
+    enum Variant {
+        case list
+        case settings
+    }
+
     @Bindable var commitment: Commitment
+    var variant: Variant = .list
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            // Top line: status + title
+            // Top line
             HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(commitment.title)
-                    .font(.headline)
-                    .foregroundStyle(.primary)
+                switch variant {
+                case .list:
+                    Text(commitment.title)
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                case .settings:
+                    Text("Settings")
+                        .font(.headline)
+                        .foregroundStyle(.primary)
+                }
 
                 Spacer()
             }
 
-            // Second line: schedule (N× daily)
             HStack(spacing: 4) {
-                Label("Schedule", systemImage: "calendar")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                Text("\(commitment.target.count)× \(commitment.target.cycle.label)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            // Third line: ideal windows (one per slot)
-            HStack(spacing: 4) {
-                Label("Windows", systemImage: "sun.max")
+                Label("Reminder windows", systemImage: "sun.max")
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
@@ -37,7 +38,17 @@ struct CommitmentRowView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // Fourth line: skip credits + proof-of-work
+            HStack(spacing: 4) {
+                Label("Target", systemImage: "target")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                Text("\(commitment.target.count)× \(commitment.target.cycle.kind.adj)")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+
+            // Fourth line: skip credits
             HStack(spacing: 8) {
                 HStack(spacing: 4) {
                     Label("Skip", systemImage: "arrow.uturn.left")
@@ -45,7 +56,21 @@ struct CommitmentRowView: View {
                         .foregroundStyle(.secondary)
 
                     let budget = commitment.skipBudget
-                    Text("\(budget.count) / \(budget.cycle.label)")
+                    Text("\(budget.count)cr every \(budget.cycle.periodicRepresentation())")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            // Fifth line: skip credits + proof-of-work
+            HStack(spacing: 8) {
+                HStack(spacing: 4) {
+                    Label("Punishment", systemImage: "exclamationmark.triangle")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    let punishment = commitment.punishment
+                    Text((punishment != nil && !punishment!.isEmpty) ? "\(punishment!)" : "None")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }

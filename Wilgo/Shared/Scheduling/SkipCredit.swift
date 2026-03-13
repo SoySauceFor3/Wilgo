@@ -8,6 +8,7 @@ enum SkipCredit {
     /// the commitment was not fully completed (completions < slots.count).
     /// PsychDay is inclusive end date if inclusive is true, otherwise exclusive end date.
     /// NOTE: the current implementation allows extra check-ins beyond the goalCountPerDay to be used as skip credits.
+    /// TODO: This function currently cannot calculate CycleKind weekly/monthly
     static func creditsUsedInCycle(
         for commitment: Commitment, until psychDay: Date, inclusive: Bool = true
     )

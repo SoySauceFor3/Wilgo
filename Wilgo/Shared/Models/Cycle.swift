@@ -8,6 +8,30 @@ enum CycleKind: String, CaseIterable, Codable {
     case daily = "Daily"
     case weekly = "Weekly"
     case monthly = "Monthly"
+
+    var nounSingle: String {
+        switch self {
+        case .daily: return "Day"
+        case .weekly: return "Week"
+        case .monthly: return "Month"
+        }
+    }
+
+    var nounPlural: String {
+        switch self {
+        case .daily: return "Days"
+        case .weekly: return "Weeks"
+        case .monthly: return "Months"
+        }
+    }
+
+    var adj: String {
+        switch self {
+        case .daily: return "Daily"
+        case .weekly: return "Weekly"
+        case .monthly: return "Monthly"
+        }
+    }
 }
 
 /// A reset cycle anchored at a specific reference date.
@@ -17,7 +41,7 @@ enum CycleKind: String, CaseIterable, Codable {
 /// - `referenceDate`: any psych-day within the first period; this defines the anchor.
 struct Cycle: Codable, Equatable, Hashable {
     var kind: CycleKind
-    var referencePsychDay: Date  // psych-day; hour/minute ignored; it is one of the start day of the Cycle.
+    private var referencePsychDay: Date  // psych-day; hour/minute ignored; it is one of the start day of the Cycle.
     var multiplier: Int
 
     private init(kind: CycleKind, referenceDate: Date, multiplier: Int = 1, ) {
@@ -26,8 +50,13 @@ struct Cycle: Codable, Equatable, Hashable {
         self.multiplier = max(1, multiplier)
     }
 
-    /// Human-readable label, matches the old `Period.rawValue` usage.
-    var label: String { kind.rawValue }
+    func periodicRepresentation() -> String {
+        if multiplier == 1 {
+            return "\(multiplier) \(kind.nounSingle)"
+        }
+        return "\(multiplier) \(kind.nounPlural)"
+
+    }
 
     /// Human-readable period label for the cycle period containing `date`.
     ///
