@@ -7,7 +7,7 @@ struct AddCommitmentView: View {
 
     @State private var title: String = ""
     @State private var target: Target = Target(
-        cycle: Cycle.anchored(.daily, at: .now), countPerCycle: 1)
+        cycle: Cycle.anchored(.daily, at: .now), count: 1)
     @State private var slotWindows: [SlotWindow]
     @State private var skipBudget: SkipBudget
     @State private var proofOfWorkType: ProofOfWorkType = .manual
@@ -17,7 +17,8 @@ struct AddCommitmentView: View {
         let (start, end) = CommitmentFormFields.defaultFirstWindow()
         _slotWindows = State(initialValue: [SlotWindow(start: start, end: end)])
         _skipBudget = State(
-            initialValue: SkipBudget(cycle: Cycle.anchored(.weekly, at: .now), countPerCycle: 0)
+            initialValue: SkipBudget(
+                cycle: Cycle.anchored(.weekly, at: .now), count: 0)
         )
     }
 

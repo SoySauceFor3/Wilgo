@@ -66,11 +66,11 @@ enum CommitmentAndSlot {
             func catchUpFraction(_ tuple: (Commitment, [Slot])) -> Double {
                 let (commitment, nextUpSlots) = tuple
                 let catchUpCount = max(
-                    commitment.target.countPerCycle
+                    commitment.target.count
                         - commitment.completedCount(for: CommitmentScheduling.psychDay(for: now))
                         - nextUpSlots.count, 0)
-                guard commitment.target.countPerCycle > 0 else { return 0 }
-                return Double(catchUpCount) / Double(commitment.target.countPerCycle)
+                guard commitment.target.count > 0 else { return 0 }
+                return Double(catchUpCount) / Double(commitment.target.count)
             }
 
             let lhsFraction = catchUpFraction($0)
@@ -79,7 +79,7 @@ enum CommitmentAndSlot {
             if lhsFraction == rhsFraction {
                 if lhsFraction == 1.0 {
                     // Larger goalCountPerDay first if both at max fraction.
-                    return $0.0.target.countPerCycle > $1.0.target.countPerCycle
+                    return $0.0.target.count > $1.0.target.count
                 } else {
                     // Tiebreaker: start of first slot
                     return $0.1[0].start < $1.1[0].start

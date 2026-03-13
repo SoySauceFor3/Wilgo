@@ -34,7 +34,7 @@ struct CommitmentFormFields: View {
                 }
 
                 Stepper(value: targetCountBinding, in: 1...30) {
-                    Text("Target: \(target.countPerCycle)")
+                    Text("Target: \(target.count)")
                 }
             }
         }
@@ -101,14 +101,29 @@ struct CommitmentFormFields: View {
         }
 
         Section("Skip credits") {
-            Picker("Reset cycle", selection: skipBudgetCycleKindBinding) {
-                ForEach(CycleKind.allCases, id: \.self) { kind in
-                    Text(kind.rawValue).tag(kind)
+            HStack(spacing: 4) {
+                Picker("", selection: skipBudgetCountBinding) {
+                    ForEach(0..<31, id: \.self) { value in
+                        Text("\(value)").tag(value)
+                    }
                 }
-            }
+                .labelsHidden()
 
-            Stepper(value: skipBudgetCountBinding, in: 0...30) {
-                Text("Skip credits: \(skipBudget.countPerCycle)")
+                Text("every")
+
+                Picker("", selection: skipBudgetMultiplierBinding) {
+                    ForEach(1..<13, id: \.self) { value in
+                        Text("\(value)").tag(value)
+                    }
+                }
+                .labelsHidden()
+
+                Picker("", selection: skipBudgetCycleKindBinding) {
+                    ForEach(allowedSkipBudgetCycleKinds, id: \.self) { kind in
+                        Text(kind.rawValue.lowercased()).tag(kind)
+                    }
+                }
+                .labelsHidden()
             }
         }
 
@@ -138,16 +153,32 @@ struct CommitmentFormFields: View {
             get: { target.cycle.kind },
             set: { newKind in
                 target.cycle = Cycle.anchored(newKind, at: .now)
+                enforceCompatibleSkipBudgetCycle()
             }
         )
     }
 
-    /// Exposes the skipBudget's countPerCycle as a Binding<Int> for the Stepper.
+    /// Allowed skip-budget cycle kinds for the current target cycle (Option B-style).
+    /// - Daily target: may use daily / weekly / monthly budgets.
+    /// - Weekly target: constrained to weekly budgets (multi-week in future via length multipliers).
+    /// - Monthly target: constrained to monthly budgets (multi-month in future via length multipliers).
+    private var allowedSkipBudgetCycleKinds: [CycleKind] {
+        switch target.cycle.kind {
+        case .daily:
+            return CycleKind.allCases
+        case .weekly:
+            return [.weekly]
+        case .monthly:
+            return [.monthly]
+        }
+    }
+
+    /// Exposes the target's countPerCycle as a Binding<Int> for the Stepper.
     private var targetCountBinding: Binding<Int> {
         Binding(
-            get: { target.countPerCycle },
+            get: { target.count },
             set: { newValue in
-                target.countPerCycle = newValue
+                target.count = newValue
             }
         )
     }
@@ -162,12 +193,22 @@ struct CommitmentFormFields: View {
         )
     }
 
-    /// Exposes the skipBudget's countPerCycle as a Binding<Int> for the Stepper.
+    /// Exposes the skipBudget's count as a Binding<Int> for the Picker.
     private var skipBudgetCountBinding: Binding<Int> {
         Binding(
-            get: { skipBudget.countPerCycle },
+            get: { skipBudget.count },
             set: { newValue in
-                skipBudget.countPerCycle = newValue
+                skipBudget.count = newValue
+            }
+        )
+    }
+
+    /// Exposes the skipBudget's multiplier as a Binding<Int> for the Picker.
+    private var skipBudgetMultiplierBinding: Binding<Int> {
+        Binding(
+            get: { skipBudget.cycle.multiplier },
+            set: { newValue in
+                skipBudget.cycle.multiplier = newValue
             }
         )
     }
@@ -207,6 +248,19 @@ struct CommitmentFormFields: View {
                 slotWindows = copy
             }
         )
+    }
+
+    /// Ensures the skip-budget cycle stays compatible with the selected target cycle.
+    /// If the current skip cycle kind becomes invalid under Option B rules, it is
+    /// reset to the first allowed kind, anchored to "today" (current psych-day).
+    private func enforceCompatibleSkipBudgetCycle() {
+        let allowedKinds = allowedSkipBudgetCycleKinds
+        guard !allowedKinds.isEmpty else { return }
+        if !allowedKinds.contains(skipBudget.cycle.kind),
+            let fallbackKind = allowedKinds.first
+        {
+            skipBudget.cycle = Cycle.anchored(fallbackKind, at: .now)
+        }
     }
 }
 

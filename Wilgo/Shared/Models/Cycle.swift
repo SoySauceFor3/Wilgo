@@ -10,92 +10,135 @@ enum CycleKind: String, CaseIterable, Codable {
     case monthly = "Monthly"
 }
 
-/// How often the commitment's skip-credit budget resets, with the anchor baked in.
+/// A reset cycle anchored at a specific reference date.
 ///
-/// - `.daily`:              resets at midnight every day; no anchor needed.
-/// - `.weekly(weekday:)`:   resets on the given Calendar weekday (1 = Sun … 7 = Sat).
-/// - `.monthly(day:)`:      resets on the given day-of-month (1–31), clamped for short months.
-enum Cycle: Codable, Equatable, Hashable {
-    case daily
-    case weekly(weekday: Int)
-    case monthly(day: Int)
+/// - `kind`:       daily / weekly / monthly.
+/// - `multiplier`: how many base cycles are grouped into one period (e.g. 2 weeks, 3 months).
+/// - `referenceDate`: any psych-day within the first period; this defines the anchor.
+struct Cycle: Codable, Equatable, Hashable {
+    var kind: CycleKind
+    var referencePsychDay: Date  // psych-day; hour/minute ignored; it is one of the start day of the Cycle.
+    var multiplier: Int
 
-    var kind: CycleKind {
-        switch self {
-        case .daily: return .daily
-        case .weekly: return .weekly
-        case .monthly: return .monthly
-        }
+    private init(kind: CycleKind, referenceDate: Date, multiplier: Int = 1, ) {
+        self.kind = kind
+        self.referencePsychDay = CommitmentScheduling.psychDay(for: referenceDate)
+        self.multiplier = max(1, multiplier)
     }
 
     /// Human-readable label, matches the old `Period.rawValue` usage.
     var label: String { kind.rawValue }
 
-    /// Human-readable period label for the cycle containing `date`.
+    /// Human-readable period label for the cycle period containing `date`.
     ///
-    /// - Daily:   "Mar 4"
-    /// - Weekly:  "Mar 2 – Mar 8"
-    /// - Monthly: "Mar 1 – Mar 31"  (respects custom anchor days, e.g. "Feb 15 – Mar 14")
+    /// - Daily (multiplier=1): "Mar 4"
+    /// - Other cases:          "Mar 2 – Mar 8"
     func label(of date: Date = CommitmentScheduling.now()) -> String {
         let fmt = DateFormatter()
         fmt.dateFormat = "MMM d"
-        let start = self.start(of: date)
-        switch self {
-        case .daily:
+        let start = self.startDayOfCycle(including: date)
+
+        // Single-day period → use compact single-date label.
+        if kind == .daily && multiplier == 1 {
             return fmt.string(from: start)
-        case .weekly, .monthly:
-            let cal = CommitmentScheduling.calendar
-            let exclusiveEnd = self.end(of: date)
-            let inclusiveEnd = cal.date(byAdding: .day, value: -1, to: exclusiveEnd) ?? exclusiveEnd
-            return "\(fmt.string(from: start)) – \(fmt.string(from: inclusiveEnd))"
         }
+
+        let cal = CommitmentScheduling.calendar
+        let exclusiveEnd = self.endDayOfCycle(including: date)
+        let inclusiveEnd = cal.date(byAdding: .day, value: -1, to: exclusiveEnd) ?? exclusiveEnd
+        return "\(fmt.string(from: start)) – \(fmt.string(from: inclusiveEnd))"
     }
 }
 
 // MARK: - Cycle period boundaries
 
 extension Cycle {
-    /// Returns a cycle whose period containing `time` starts on that time's psych-day.
-    static func anchored(_ kind: CycleKind, at time: Date) -> Cycle {
+    /// Returns a cycle who start on `time`'s psych-day.
+    static func anchored(_ kind: CycleKind, at time: Date, multiplier: Int = 1) -> Cycle {
         let psychDay = CommitmentScheduling.psychDay(for: time)
+        return Cycle(kind: kind, referenceDate: psychDay, multiplier: multiplier)
+    }
+
+    /// Start of the (multiplier × base-kind) period that contains `date`.
+    func startDayOfCycle(including psychDay: Date = CommitmentScheduling.now()) -> Date {
+        let cal = CommitmentScheduling.calendar
+        let psychDay = cal.startOfDay(for: psychDay)
+        var cycleStartReference = cal.startOfDay(for: referencePsychDay)
+
+        func stepForward(from current: Date) -> Date {
+            switch kind {
+            case .daily:
+                return cal.date(byAdding: .day, value: multiplier, to: current) ?? current
+            case .weekly:
+                return cal.date(byAdding: .day, value: 7 * multiplier, to: current) ?? current
+            case .monthly:
+                let anchorDay = cal.component(.day, from: referencePsychDay)
+                var result = current
+                for _ in 0..<multiplier {
+                    result = Cycle.nextMonthlyDay(on: anchorDay, after: result)
+                }
+                return result
+            }
+        }
+
+        func stepBackward(from current: Date) -> Date {
+            switch kind {
+            case .daily:
+                return cal.date(byAdding: .day, value: -multiplier, to: current) ?? current
+            case .weekly:
+                return cal.date(byAdding: .day, value: -7 * multiplier, to: current) ?? current
+            case .monthly:
+                let anchorDay = cal.component(.day, from: referencePsychDay)
+                var result = current
+                for _ in 0..<multiplier {
+                    // Go back one base month at a time.
+                    let prevMonth =
+                        cal.date(byAdding: .month, value: -1, to: result) ?? result
+                    result =
+                        Cycle.clampedMonthDay(anchorDay, inMonthOf: prevMonth, cal: cal)
+                        ?? prevMonth
+                }
+                return result
+            }
+        }
+
+        if psychDay >= cycleStartReference {
+            // cycleStartReference <= ans <= psychDay < next
+            while true {
+                let next = stepForward(from: cycleStartReference)
+                if psychDay < next { break }
+                cycleStartReference = next
+            }
+            return cycleStartReference
+        } else {
+            // ans <= psychDay < cycleStartReference
+            // prev <= psychDay
+            while true {
+                let prev = stepBackward(from: cycleStartReference)
+                if psychDay >= prev {
+                    return prev  // found the previous cycle start reference
+                }
+                cycleStartReference = prev
+            }
+        }
+    }
+
+    /// Exclusive end of the budget period (multiplier × base-kind) of `date` (i.e. next period start).
+    func endDayOfCycle(including psychDay: Date = CommitmentScheduling.now()) -> Date {
+        let start = startDayOfCycle(including: psychDay)
         let cal = CommitmentScheduling.calendar
         switch kind {
         case .daily:
-            return .daily
+            return cal.date(byAdding: .day, value: multiplier, to: start) ?? start
         case .weekly:
-            let weekday = cal.component(.weekday, from: psychDay)
-            return .weekly(weekday: weekday)
+            return cal.date(byAdding: .day, value: 7 * multiplier, to: start) ?? start
         case .monthly:
-            let day = cal.component(.day, from: psychDay)
-            return .monthly(day: day)
-        }
-    }
-
-    /// Start of the cycle of the mentioned date, derived from the cycle's configuration.
-    ///
-    /// - `.daily`:           start of the day of `date`.
-    /// - `.weekly(weekday)`: most recent occurrence of that weekday on or before `date`.
-    /// - `.monthly(day)`:    most recent occurrence of that day-of-month on or before `date`,
-    ///   clamped to the last day of shorter months (e.g. day=31 → Feb 28/29).
-    func start(of date: Date = CommitmentScheduling.now()) -> Date {
-        switch self {
-        case .daily:
-            return CommitmentScheduling.calendar.startOfDay(for: date)
-        case .weekly(let weekday):
-            return Cycle.weeklyPeriodStart(matches: weekday, of: date)
-        case .monthly(let anchor):
-            return Cycle.monthlyPeriodStart(matches: anchor, of: date)
-        }
-    }
-
-    /// Exclusive end of the budget period of `date` (i.e. next period start).
-    func end(of: Date = CommitmentScheduling.now()) -> Date {
-        let cal = CommitmentScheduling.calendar
-        let start = start(of: of)
-        switch self {
-        case .daily: return cal.date(byAdding: .day, value: 1, to: start) ?? start
-        case .weekly: return cal.date(byAdding: .weekOfYear, value: 1, to: start) ?? start
-        case .monthly(let day): return Cycle.nextMonthlyPeriodStart(anchorDay: day, after: start)
+            let anchorDay = cal.component(.day, from: referencePsychDay)
+            var result = start
+            for _ in 0..<multiplier {
+                result = Cycle.nextMonthlyDay(on: anchorDay, after: result)
+            }
+            return result
         }
     }
 
@@ -145,7 +188,7 @@ extension Cycle {
     }
 
     /// Start of the monthly period that immediately follows `currentPeriodStart`.
-    private static func nextMonthlyPeriodStart(anchorDay: Int, after currentPeriodStart: Date)
+    private static func nextMonthlyDay(on anchorDay: Int, after currentPeriodStart: Date)
         -> Date
     {
         let cal = CommitmentScheduling.calendar

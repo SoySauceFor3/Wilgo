@@ -82,7 +82,7 @@ private struct CommitmentRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text("\(commitment.target.countPerCycle)× \(commitment.target.cycle.label)")
+                Text("\(commitment.target.count)× \(commitment.target.cycle.label)")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -106,7 +106,7 @@ private struct CommitmentRowView: View {
                         .foregroundStyle(.secondary)
 
                     let budget = commitment.skipBudget
-                    Text("\(budget.countPerCycle) / \(budget.cycle.label)")
+                    Text("\(budget.count) / \(budget.cycle.label)")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -162,36 +162,36 @@ private func makePreviewContainerWithSamples() throws -> ModelContainer {
         Commitment(
             title: "Workout",
             slots: [slot(6, 0, 8, 0), slot(8, 0, 10, 0)],
-            target: Target(cycle: .daily, countPerCycle: 1),
-            skipBudget: SkipBudget(cycle: .monthly(day: 1), countPerCycle: 5),
+            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
+            skipBudget: SkipBudget(cycle: Cycle.anchored(.monthly, at: .now), count: 5),
             proofOfWorkType: .manual,
         ),
         Commitment(
             title: "Read 30 mins 📚",
             slots: [slot(9, 0, 11, 0)],
-            target: Target(cycle: .daily, countPerCycle: 1),
-            skipBudget: SkipBudget(cycle: .daily, countPerCycle: 1),
+            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
+            skipBudget: SkipBudget(cycle: Cycle.anchored(.daily, at: .now), count: 1),
             proofOfWorkType: .manual,
         ),
         Commitment(
             title: "Drink 2L Water 💧",
             slots: [slot(12, 0, 14, 0)],
-            target: Target(cycle: .daily, countPerCycle: 1),
-            skipBudget: SkipBudget(cycle: .daily, countPerCycle: 1),
+            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
+            skipBudget: SkipBudget(cycle: Cycle.anchored(.daily, at: .now), count: 1),
             proofOfWorkType: .manual,
         ),
         Commitment(
             title: "Meditate 10 mins 🧘",
             slots: [slot(15, 0, 17, 0)],
-            target: Target(cycle: .daily, countPerCycle: 1),
-            skipBudget: SkipBudget(cycle: .daily, countPerCycle: 1),
+            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
+            skipBudget: SkipBudget(cycle: Cycle.anchored(.daily, at: .now), count: 1),
             proofOfWorkType: .manual,
         ),
         Commitment(
             title: "No social media after 9 PM 📵",
             slots: [slot(21, 0, 23, 0)],
-            target: Target(cycle: .daily, countPerCycle: 1),
-            skipBudget: SkipBudget(cycle: .daily, countPerCycle: 1),
+            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
+            skipBudget: SkipBudget(cycle: Cycle.anchored(.daily, at: .now), count: 1),
             proofOfWorkType: .manual,
         ),
     ]

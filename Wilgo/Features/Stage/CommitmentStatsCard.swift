@@ -94,7 +94,7 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
                             cornerRadius: cornerRadius
                         ) {
                             Text(
-                                "\(commitment.completedCount(for: psychToday))/\(commitment.target.countPerCycle)"
+                                "\(commitment.completedCount(for: psychToday))/\(commitment.target.count)"
                             )
                             .font(.title3.bold())
                             .foregroundStyle(.primary)
@@ -112,7 +112,7 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
                                     .font(.caption2)
                                     .foregroundStyle(.secondary)
                                 Text(
-                                    "\(skipCreditsUsed)/\(commitment.skipBudget.countPerCycle) credits used"
+                                    "\(skipCreditsUsed)/\(commitment.skipBudget.count) credits used"
                                 )
                                 .font(.caption2)
                                 .foregroundStyle(.primary)

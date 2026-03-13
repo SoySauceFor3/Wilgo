@@ -9,11 +9,11 @@ enum ProofOfWorkType: String, Codable {
 
 struct QuantifiedCycle: Codable, Hashable {
     var cycle: Cycle  // daily / weekly / monthly with anchors
-    var countPerCycle: Int  // “how many per that cycle”
+    var count: Int  // “how many per that cycle”
 }
 
 typealias Target = QuantifiedCycle  // semantic: target completions per cycle
-typealias SkipBudget = QuantifiedCycle  // semantic: forgiven misses per cycle
+typealias SkipBudget = QuantifiedCycle
 
 // MARK: - Commitment
 
@@ -97,7 +97,7 @@ extension Commitment {
 
     func hasMetDailyGoal(for psychDay: Date) -> Bool {
         // TODO: THIS NEED TO CHANGED!!!!!!!!!!!!!!!!
-        return completedCount(for: psychDay) >= target.countPerCycle
+        return completedCount(for: psychDay) >= target.count
     }
 
     // MARK: - Stage categorization
@@ -171,7 +171,7 @@ extension Commitment {
         }
 
         // now < notPassedResolvedSlots[0].0, the first element is a future slot.
-        if notPassedResolvedSlots.count >= target.countPerCycle - completed {
+        if notPassedResolvedSlots.count >= target.count - completed {
             return StageStatus(category: .future, nextUpSlots: notPassedResolvedSlots)
         }
 

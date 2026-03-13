@@ -43,7 +43,7 @@ struct CommitmentDetailView: View {
                 label: "All-time\ncheck-ins"
             )
             statTile(
-                value: "\(commitment.target.countPerCycle)×",
+                value: "\(commitment.target.count)×",
                 label: "\(commitment.target.cycle.kind.rawValue)\ngoal"
             )
             statTile(

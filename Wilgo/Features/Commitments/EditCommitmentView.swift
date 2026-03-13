@@ -91,7 +91,7 @@ struct EditCommitmentView: View {
         if anyRuleChanged {
             resolvedTarget = Target(
                 cycle: Cycle.anchored(resolvedTarget.cycle.kind, at: .now),
-                countPerCycle: resolvedTarget.countPerCycle)
+                count: resolvedTarget.count)
         }
         commitment.target = resolvedTarget
         var resolvedCycle = skipBudget.cycle
@@ -99,7 +99,7 @@ struct EditCommitmentView: View {
             resolvedCycle = Cycle.anchored(resolvedCycle.kind, at: .now)
         }
         commitment.skipBudget = SkipBudget(
-            cycle: resolvedCycle, countPerCycle: skipBudget.countPerCycle)
+            cycle: resolvedCycle, count: skipBudget.count)
 
         // Replace slots only if the count or any window changed.
         let newWindows = slotWindows
@@ -135,8 +135,8 @@ struct EditCommitmentView: View {
     let commitment = Commitment(
         title: "Morning reading",
         slots: [slot],
-        target: Target(cycle: .daily, countPerCycle: 1),
-        skipBudget: SkipBudget(cycle: .weekly(weekday: 2), countPerCycle: 3)
+        target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
+        skipBudget: SkipBudget(cycle: Cycle.anchored(.weekly, at: .now), count: 3)
     )
     container.mainContext.insert(commitment)
     return EditCommitmentView(commitment: commitment)

@@ -14,12 +14,12 @@ enum SkipCredit {
         -> Int
     {
         let cal = CommitmentScheduling.calendar
-        let start = commitment.skipBudget.cycle.start(of: psychDay)
+        let start = commitment.skipBudget.cycle.startDayOfCycle(including: psychDay)
 
         var burned = 0
         var day = start
         while (inclusive && day <= psychDay) || (!inclusive && day < psychDay) {
-            burned += commitment.target.countPerCycle - commitment.completedCount(for: day)
+            burned += commitment.target.count - commitment.completedCount(for: day)
 
             guard let next = cal.date(byAdding: .day, value: 1, to: day) else { break }
             day = next
@@ -35,7 +35,7 @@ enum SkipCredit {
     {
         max(
             0,
-            commitment.skipBudget.countPerCycle
+            commitment.skipBudget.count
                 - creditsUsedInCycle(for: commitment, until: psychDay, inclusive: inclusive))
     }
 
@@ -56,9 +56,9 @@ enum SkipCredit {
     /// ```
     static func notificationLine(for commitment: Commitment, on psychDay: Date) -> String {
         let completed = commitment.completedCount(for: psychDay)
-        let required = commitment.target.countPerCycle
+        let required = commitment.target.count
         let used = creditsUsedInCycle(for: commitment, until: psychDay)
-        let allowance = commitment.skipBudget.countPerCycle
+        let allowance = commitment.skipBudget.count
 
         let icon = completed == 0 ? "❌" : "⚠️"
 

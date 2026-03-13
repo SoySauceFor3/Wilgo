@@ -62,7 +62,7 @@ struct CommitmentHeatmapView: View {
         let todayDate = today
         let createdDate = createdPsychDay
         let counts = completionsByDay
-        let goal = commitment.target.countPerCycle
+        let goal = commitment.target.count
         let cal = Calendar.current
 
         // Snap to the Sunday that starts the current week.
@@ -392,7 +392,7 @@ struct MiniCommitmentHeatmapRow: View {
     }
 
     private var goal: Int {
-        max(1, commitment.target.countPerCycle)
+        max(1, commitment.target.count)
     }
 
     private var completionsByDay: [Date: Int] {
@@ -460,8 +460,8 @@ enum HeatmapPreviewFactory {
             title: "Morning Run",
             createdAt: createdAt,
             slots: [],
-            target: Target(cycle: .daily, countPerCycle: 2),
-            skipBudget: SkipBudget(cycle: .daily, countPerCycle: 2)
+            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 2),
+            skipBudget: SkipBudget(cycle: Cycle.anchored(.daily, at: .now), count: 2)
         )
         ctx.insert(commitment)
 
@@ -510,8 +510,8 @@ enum HeatmapPreviewFactory {
         let commitment = Commitment(
             title: "Meditate",
             slots: [],
-            target: Target(cycle: .daily, countPerCycle: 2),
-            skipBudget: SkipBudget(cycle: .daily, countPerCycle: 1),
+            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 2),
+            skipBudget: SkipBudget(cycle: Cycle.anchored(.daily, at: .now), count: 1),
         )
         container.mainContext.insert(commitment)
         return container
