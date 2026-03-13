@@ -25,21 +25,9 @@ struct CommitmentFormFields: View {
 
         Section("Basics") {
             TextField("Title", text: $title)
-
-            Section("Target") {
-                Picker("Reset cycle", selection: targetCycleKindBinding) {
-                    ForEach(CycleKind.allCases, id: \.self) { kind in
-                        Text(kind.rawValue).tag(kind)
-                    }
-                }
-
-                Stepper(value: targetCountBinding, in: 1...30) {
-                    Text("Target: \(target.count)")
-                }
-            }
         }
 
-        Section("Ideal windows") {
+        Section("Reminder windows") {
             Text("Optional. Leave empty to allow any time of the day.")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
@@ -100,6 +88,26 @@ struct CommitmentFormFields: View {
             }
         }
 
+        Section("Target") {
+            HStack(spacing: 4) {
+                Picker("", selection: targetCountBinding) {
+                    ForEach(0..<31, id: \.self) { value in
+                        Text("\(value)").tag(value)
+                    }
+                }
+                .labelsHidden()
+
+                Text("every")
+
+                Picker("", selection: targetCycleKindBinding) {
+                    ForEach(CycleKind.allCases, id: \.self) { kind in
+                        Text(kind.rawValue.lowercased()).tag(kind)
+                    }
+                }
+                .labelsHidden()
+            }
+        }
+
         Section("Skip credits") {
             HStack(spacing: 4) {
                 Picker("", selection: skipBudgetCountBinding) {
@@ -112,7 +120,7 @@ struct CommitmentFormFields: View {
                 Text("every")
 
                 Picker("", selection: skipBudgetMultiplierBinding) {
-                    ForEach(1..<13, id: \.self) { value in
+                    ForEach(1..<30, id: \.self) { value in
                         Text("\(value)").tag(value)
                     }
                 }
