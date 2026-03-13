@@ -18,8 +18,10 @@ struct CommitmentDetailView: View {
         CommitmentScheduling.psychDay(for: CommitmentScheduling.now())
     }
 
-    private var completedToday: Int {
-        commitment.completedCount(for: psychToday)
+    private var checkInsInCurrentTargetCycle: [CheckIn] {
+        commitment.checkInsInCycle(
+            cycle: commitment.target.cycle, until: psychToday, inclusive: true
+        )
     }
 
     private var daysTracked: String {
@@ -86,10 +88,10 @@ struct CommitmentDetailView: View {
                     Text(targetCycleLabel)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    // TODO: Make this part work for weekly/monthly target
                     statTile(
-                        value: "\(completedToday)/\(commitment.target.count)",
-                        label: "Completed today"
+                        value:
+                            "\(checkInsInCurrentTargetCycle.count)/\(commitment.target.count)",
+                        label: "Completed \(commitment.target.cycle.kind.thisNoun)"
                     )
 
                 }
@@ -172,7 +174,7 @@ struct CommitmentDetailView: View {
 
     private func formattedShortDate(_ date: Date) -> String {
         let fmt = DateFormatter()
-        fmt.dateFormat = "MMM d, yyyy"
+        fmt.dateFormat = "MM/dd/yy"
         return fmt.string(from: date)
     }
 }

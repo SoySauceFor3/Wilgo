@@ -32,6 +32,14 @@ enum CycleKind: String, CaseIterable, Codable {
         case .monthly: return "Monthly"
         }
     }
+
+    var thisNoun: String {
+        switch self {
+        case .daily: return "today"
+        case .weekly: return "this week"
+        case .monthly: return "this month"
+        }
+    }
 }
 
 /// A reset cycle anchored at a specific reference date.

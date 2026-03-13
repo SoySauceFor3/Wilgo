@@ -12,7 +12,7 @@ struct QuantifiedCycle: Codable, Hashable {
     var count: Int  // “how many per that cycle”
 }
 
-typealias Target = QuantifiedCycle  // semantic: target completions per cycle
+typealias Target = QuantifiedCycle
 typealias SkipBudget = QuantifiedCycle
 
 // MARK: - Commitment
@@ -98,6 +98,17 @@ extension Commitment {
     func hasMetDailyGoal(for psychDay: Date) -> Bool {
         // TODO: THIS NEED TO CHANGED!!!!!!!!!!!!!!!!
         return completedCount(for: psychDay) >= target.count
+    }
+
+    func checkInsInCycle(
+        cycle: Cycle,
+        until psychDay: Date = CommitmentScheduling.psychDay(for: CommitmentScheduling.now()),
+        inclusive: Bool = true
+    ) -> [CheckIn] {
+        let start = cycle.startDayOfCycle(including: psychDay)
+        return checkIns.filter {
+            start <= $0.psychDay && (inclusive ? $0.psychDay <= psychDay : $0.psychDay < psychDay)
+        }
     }
 
     // MARK: - Stage categorization
