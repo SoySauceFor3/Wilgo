@@ -19,6 +19,16 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
         SkipCredit.creditsUsedInCycle(for: commitment, until: psychToday, inclusive: false)
     }
 
+    private var checkInsInCurrentTargetCycle: [CheckIn] {
+        commitment.checkInsInCycle(
+            cycle: commitment.target.cycle, until: psychToday, inclusive: true
+        )
+    }
+
+    private var targetCycleLabel: String {
+        commitment.target.cycle.label(of: psychToday)
+    }
+
     // MARK: - Tile helper
 
     private func statTile<Content: View>(
@@ -88,34 +98,44 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
                 Grid(horizontalSpacing: gap, verticalSpacing: gap) {
                     // Row A: Completed (1×2) + Skip credits (1×2)
                     GridRow {
-                        statTile(  // TODO: THIS NEED TO CHANGED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                            title: "Completed today",
+                        statTile(
+                            title:
+                                "\(commitment.target.cycle.kind.nounSingle) \(targetCycleLabel)",
                             background: tileBackground,
                             cornerRadius: cornerRadius
                         ) {
-                            Text(
-                                "\(commitment.completedCount(for: psychToday))/\(commitment.target.count)"
-                            )
-                            .font(.title3.bold())
-                            .foregroundStyle(.primary)
+                            HStack(alignment: .bottom, spacing: 4) {
+                                Text(
+                                    "\(checkInsInCurrentTargetCycle.count)/\(commitment.target.count)"
+                                )
+                                .font(.title3.bold())
+                                .foregroundStyle(.primary)
+                                Text("check-ins")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.bottom, 2)
+                            }
                         }
                         .frame(height: cellWidth)
                         .gridCellColumns(2)
 
                         statTile(
-                            title: "Skip credits",
+                            title:
+                                "Budget \(commitment.skipBudget.cycle.label(of: psychToday))",
                             background: tileBackground,
                             cornerRadius: cornerRadius
                         ) {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(commitment.skipBudget.cycle.label(of: psychToday))
-                                    .font(.caption2)
-                                    .foregroundStyle(.secondary)
+
+                            HStack(alignment: .bottom, spacing: 4) {
                                 Text(
-                                    "\(skipCreditsUsed)/\(commitment.skipBudget.count) credits used"
+                                    "\(skipCreditsUsed)/\(commitment.skipBudget.count)"
                                 )
-                                .font(.caption2)
+                                .font(.title3.bold())
                                 .foregroundStyle(.primary)
+                                Text("skip cr used")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .padding(.bottom, 2)
                             }
                         }
                         .frame(height: cellWidth)

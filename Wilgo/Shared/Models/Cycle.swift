@@ -72,7 +72,7 @@ struct Cycle: Codable, Equatable, Hashable {
     /// - Other cases:          "Mar 2 – Mar 8"
     func label(of date: Date = CommitmentScheduling.now()) -> String {
         let fmt = DateFormatter()
-        fmt.dateFormat = "MMM d"
+        fmt.dateFormat = "MM/dd"
         let start = self.startDayOfCycle(including: date)
 
         // Single-day period → use compact single-date label.
