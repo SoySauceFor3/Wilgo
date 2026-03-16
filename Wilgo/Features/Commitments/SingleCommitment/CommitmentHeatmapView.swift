@@ -1,21 +1,141 @@
 import SwiftData
 import SwiftUI
 
-// TODO: CURRENTLY ONLY SUPPORT DAILY CYCLE FOR TARGET.
-
 // Shared heatmap layout constants so smaller views (e.g. stage row) stay aligned.
-private let commitmentHeatmapCellSize: CGFloat = 11
-private let commitmentHeatmapCellSpacing: CGFloat = 3
+private let cellSize: CGFloat = 11
+private let cellSpacing: CGFloat = 3
 
-// MARK: - Day data
+/// Larger cell size for weekly/monthly modes to avoid overlapping date labels.
+private let cellSizeWide: CGFloat = 22
 
-private struct HeatmapDayData {
-    let date: Date
-    let completedCount: Int
-    let goal: Int
-    let isBeforeCreation: Bool
-    let isFuture: Bool
-    let isToday: Bool
+/// Height of the monthly heatmap content (label row + cell + vertical padding) so the view occupies space.
+private let monthlyHeatmapContentHeight: CGFloat =
+    18 + cellSpacing + cellSizeWide + 4 * 2
+
+/// Columns in weekly grid (4 rows × 7 columns = 28 slots, we use 26).
+private let weeklyGridColumns = 7
+private let weeklyGridRows = 4
+
+// MARK: - Legend (shared)
+
+struct CommitmentHeatmapLegendView: View {
+    let commitment: Commitment
+    let heatmapKind: CycleKind
+
+    private struct LegendSample: Identifiable {
+        let id = UUID()
+        let progress: Double   // 0...1
+        let label: String
+    }
+
+    private var expectedGoal: Int? {
+        expectedGoalPerPeriod(target: commitment.target, periodKind: heatmapKind)
+    }
+
+    private var samples: [LegendSample] {
+        guard let goal = expectedGoal, goal > 0 else {
+            // Fallback absolute scale when we don't have a meaningful goal.
+            let rawValues: [Int] = [0, 1, 2, 3, 4, 5]
+            let uniqueValues = Array(Set(rawValues)).sorted()
+            return uniqueValues.map { value in
+                let progress = min(Double(value) / 4.0, 1.0)
+                return LegendSample(progress: progress, label: "\(value)")
+            }
+        }
+
+        // Candidate counts anchored around the goal; we will uniquify them.
+        let rawValues: [Int] = [
+            0,
+            max(1, Int(round(0.25 * Double(goal)))),
+            max(1, Int(round(0.5 * Double(goal)))),
+            goal,
+            Int(round(1.5 * Double(goal))),
+            2 * goal,
+        ]
+
+        let uniqueValues = Array(Set(rawValues)).sorted()
+
+        return uniqueValues.map { value in
+            // Map counts to intensity such that:
+            // count == goal   → 0.5 intensity
+            // count >= 2*goal → 1.0 intensity
+            let scaled = min(Double(value) / Double(2 * goal), 1.0)
+            return LegendSample(progress: scaled, label: "\(value)")
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: 8) {
+            legendItem(Color(.systemGray5), "Today", borderColor: Color.primary.opacity(0.45))
+            legendItem(Color(.systemGray3), "N/A")
+            ForEach(samples) { sample in
+                legendItem(heatmapLegendColorSample(progress: sample.progress), sample.label)
+            }
+        }
+    }
+
+    private func legendItem(_ color: Color, _ label: String, borderColor: Color? = nil) -> some View
+    {
+        HStack(spacing: 4) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(color)
+                .frame(width: cellSize, height: cellSize)
+                .overlay {
+                    if let bc = borderColor {
+                        RoundedRectangle(cornerRadius: 2).stroke(bc, lineWidth: 1.5)
+                    }
+                }
+            Text(label)
+                .font(.system(size: 9))
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private func heatmapLegendColorSample(progress: Double) -> Color {
+        heatmapBaseColor(forProgress: progress)
+    }
+}
+
+// Base color mapping shared by the heatmap cells and legend.
+private func heatmapBaseColor(forProgress rawProgress: Double) -> Color {
+    let progress = max(0.0, min(rawProgress, 1.0))
+
+    if progress == 0 {
+        return .white
+    }
+
+    // Green hue, with stronger contrast at high progress.
+    let saturation = 0.3 + 0.7 * progress
+    let brightness = 1.0 - 0.7 * progress
+
+    return Color(
+        hue: 0.37,
+        saturation: saturation,
+        brightness: brightness
+    )
+}
+
+// TODO: This needs to be changed to use better color schemes.
+private func heatmapCellColor(for period: HeatmapPeriodData) -> Color {
+    if period.isFuture { return .clear }
+    if period.isBeforeCreation { return Color(.systemGray3) }
+
+    let count = period.checkIns.count
+    if count == 0 {
+        return .white
+    }
+
+    if let goal = period.goal, goal > 0 {
+        // Map counts to intensity such that:
+        // count == goal   → 0.5 intensity
+        // count >= 2*goal → 1.0 intensity
+        let progress = min(Double(count) / Double(2 * goal), 1.0)
+        return heatmapBaseColor(forProgress: progress)
+    }
+
+    // Fallback for periods without a goal: simple linear scaling based on count.
+    let fallbackIntensity = min(Double(count) / 4.0, 1.0)
+    return heatmapBaseColor(forProgress: fallbackIntensity)
 }
 
 // MARK: - View
@@ -23,248 +143,423 @@ private struct HeatmapDayData {
 struct CommitmentHeatmapView: View {
     let commitment: Commitment
 
-    @State private var selectedDay: HeatmapDayData? = nil
-
-    private let weeksToShow = 26
-    private let dowLabels = ["S", "M", "T", "W", "T", "F", "S"]
-
-    // MARK: Derived data
-
-    private var today: Date {
-        CommitmentScheduling.psychDay(for: CommitmentScheduling.now())
-    }
-
-    private var createdPsychDay: Date {
-        CommitmentScheduling.psychDay(for: commitment.createdAt)
-    }
-
-    /// O(checkIns.count) lookup table so we don't scan all check-ins per cell.
-    private var completionsByDay: [Date: Int] {
-        var dict: [Date: Int] = [:]
-        for ci in commitment.checkIns {
-            dict[ci.psychDay, default: 0] += 1
-        }
-        return dict
-    }
-
-    /// Maps each psych day to its check-in timestamps, sorted ascending.
-    private var checkInTimesByDay: [Date: [Date]] {
-        var dict: [Date: [Date]] = [:]
-        for ci in commitment.checkIns {
-            dict[ci.psychDay, default: []].append(ci.createdAt)
-        }
-        for key in dict.keys { dict[key]?.sort() }
-        return dict
-    }
-
-    /// 26 columns (oldest → newest), each column = 7 days (Sun=0 … Sat=6).
-    private var weekColumns: [[HeatmapDayData?]] {
-        let todayDate = today
-        let createdDate = createdPsychDay
-        let counts = completionsByDay
-        let goal = commitment.target.count
-        let cal = Calendar.current
-
-        // Snap to the Sunday that starts the current week.
-        let todayWeekday = cal.component(.weekday, from: todayDate)  // 1=Sun … 7=Sat
-        guard
-            let thisSunday = cal.date(byAdding: .day, value: -(todayWeekday - 1), to: todayDate),
-            let startSunday = cal.date(
-                byAdding: .weekOfYear, value: -(weeksToShow - 1), to: thisSunday)
-        else { return [] }
-
-        return (0..<weeksToShow).map { weekOffset in
-            guard let weekStart = cal.date(byAdding: .day, value: weekOffset * 7, to: startSunday)
-            else { return [HeatmapDayData?](repeating: nil, count: 7) }
-            return (0..<7).map { dayOffset in
-                guard let date = cal.date(byAdding: .day, value: dayOffset, to: weekStart)
-                else { return nil }
-                return HeatmapDayData(
-                    date: date,
-                    completedCount: counts[date] ?? 0,
-                    goal: goal,
-                    isBeforeCreation: date < createdDate,
-                    isFuture: date > todayDate,
-                    isToday: date == todayDate
-                )
-            }
-        }
-    }
-
-    // MARK: Month label helpers
-
-    /// Maps each column index to a month abbreviation, positioned at the midpoint of
-    /// that month's visible column span so labels appear centered over their month.
-    private var monthLabelsByColumn: [Int: String] {
-        let cal = Calendar.current
-
-        // Collect the start column index for each month boundary.
-        var starts: [(weekIdx: Int, date: Date)] = []
-        for weekIdx in 0..<weekColumns.count {
-            guard let first = weekColumns[weekIdx].compactMap({ $0 }).first else { continue }
-            if weekIdx == 0 {
-                starts.append((weekIdx, first.date))
-                continue
-            }
-            guard let prevFirst = weekColumns[weekIdx - 1].compactMap({ $0 }).first else {
-                continue
-            }
-            if cal.component(.month, from: first.date)
-                != cal.component(.month, from: prevFirst.date)
-            {
-                starts.append((weekIdx, first.date))
-            }
-        }
-
-        // Place each label at the midpoint of its month's column span.
-        var result: [Int: String] = [:]
-        for (i, start) in starts.enumerated() {
-            let endIdx = i + 1 < starts.count ? starts[i + 1].weekIdx - 1 : weekColumns.count - 1
-            let midIdx = (start.weekIdx + endIdx) / 2
-            result[midIdx] = monthAbbr(start.date)
-        }
-        return result
-    }
-
-    private func monthAbbr(_ date: Date) -> String {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "MMM"
-        return fmt.string(from: date)
-    }
-
-    // MARK: Color
-
-    private func cellColor(for day: HeatmapDayData) -> Color {
-        commitmentHeatmapCellColor(for: day)
-    }
-
-    // MARK: Body
+    @State private var heatmapKind: CycleKind = .daily
+    @State private var selectedPeriod: HeatmapPeriodData? = nil
+    private var context: HeatmapContext { HeatmapContext(commitment: commitment) }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: commitmentHeatmapCellSpacing) {
-                // Day-of-week labels — fixed outside the scroll view so they stay visible
-                VStack(spacing: commitmentHeatmapCellSpacing) {
-                    Color.clear.frame(width: commitmentHeatmapCellSize, height: 14)  // aligns with month row
-                    ForEach(dowLabels.indices, id: \.self) { i in
-                        Text(dowLabels[i])
-                            .font(.system(size: 8, weight: .medium))
-                            .foregroundStyle(.tertiary)
-                            .frame(
-                                width: commitmentHeatmapCellSize, height: commitmentHeatmapCellSize)
-                    }
-                }
+            heatmapKindPicker
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(alignment: .top, spacing: commitmentHeatmapCellSpacing) {
-                        ForEach(0..<weekColumns.count, id: \.self) { weekIdx in
-                            VStack(spacing: commitmentHeatmapCellSpacing) {
-                                // Fixed-width anchor keeps all columns equal-width.
-                                // Label is centered on the midpoint column of its month,
-                                // so it reads as centered over the month section.
-                                Color.clear
-                                    .frame(width: commitmentHeatmapCellSize, height: 14)
-                                    .overlay(alignment: .center) {
-                                        if let label = monthLabelsByColumn[weekIdx] {
-                                            Text(label)
-                                                .font(.system(size: 9, weight: .semibold))
-                                                .foregroundStyle(.secondary)
-                                                .fixedSize()
-                                        }
-                                    }
+            heatmapContent
 
-                                ForEach(0..<7, id: \.self) { dayIdx in
-                                    if let day = weekColumns[weekIdx][dayIdx] {
-                                        cellView(for: day)
-                                    } else {
-                                        Color.clear.frame(
-                                            width: commitmentHeatmapCellSize,
-                                            height: commitmentHeatmapCellSize)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    .padding(.vertical, 4)
-                    .padding(.trailing, 4)  // Room for month labels and rightmost cells to overflow without clipping
-                }
-                .defaultScrollAnchor(.trailing)
+            CommitmentHeatmapLegendView(commitment: commitment, heatmapKind: heatmapKind)
+
+            if let selected = selectedPeriod {
+                CommitmentHeatmapInfoCard(
+                    period: selected,
+                    heatmapKind: heatmapKind,
+                    selectedPeriod: $selectedPeriod
+                )
+                .transition(.opacity.combined(with: .move(edge: .top)))
             }
-
-            legendView
-
-            // Info card — slides in when a day is tapped
-            if let selected = selectedDay {
-                dayInfoCard(for: selected)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-
         }
-        .animation(.spring(duration: 0.22), value: selectedDay?.date)
+        .animation(.spring(duration: 0.22), value: selectedPeriod?.id)
+        .animation(.spring(duration: 0.22), value: heatmapKind)
     }
 
-    // MARK: Cell view
+    private var heatmapKindPicker: some View {
+        Picker("View", selection: $heatmapKind) {
+            ForEach(CycleKind.allCases, id: \.self) { kind in
+                Text(kind.adj).tag(kind)
+            }
+        }
+        .pickerStyle(.segmented)
+    }
 
     @ViewBuilder
-    private func cellView(for day: HeatmapDayData) -> some View {
-        let isSelected = selectedDay?.date == day.date
-        let semanticColor = cellColor(for: day)
-        // Today: hollow — light gray fill, semantic-color border.
-        // Selected: normal fill, white selection ring on top.
-        RoundedRectangle(cornerRadius: 2)
-            .fill(day.isToday && !isSelected ? Color(.systemGray5) : semanticColor)
-            .opacity(day.isBeforeCreation ? 0.7 : 1.0)
-            .frame(width: commitmentHeatmapCellSize, height: commitmentHeatmapCellSize)
+    private var heatmapContent: some View {
+        switch heatmapKind {
+        case .daily:
+            dailyHeatmapGrid
+        case .weekly:
+            weeklyHeatmapGrid
+        case .monthly:
+            monthlyHeatmapCentered
+        }
+    }
+
+    /// Shared helper for simple "header row + N rows of cells" heatmap layouts.
+    /// Callers provide how to render each header column and each cell.
+    private func headerGrid<Header: View, Cell: View>(
+        columns: Int,
+        rows: Int,
+        @ViewBuilder header: @escaping (Int) -> Header,
+        @ViewBuilder cell: @escaping (Int, Int) -> Cell
+    ) -> some View {
+        Grid(
+            alignment: .topLeading,
+            horizontalSpacing: cellSpacing,
+            verticalSpacing: cellSpacing
+        ) {
+            // Top header row.
+            GridRow {
+                ForEach(0..<columns, id: \.self) { col in
+                    header(col)
+                }
+            }
+
+            // Subsequent rows of cells.
+            ForEach(0..<rows, id: \.self) { row in
+                GridRow {
+                    ForEach(0..<columns, id: \.self) { col in
+                        cell(col, row)
+                    }
+                }
+            }
+        }
+    }
+
+    // MARK: Daily grid (7 rows × x columns) – pinned weekday column + scrollable Grid
+
+    private static let dailyDowLabels: [String] = ["M", "T", "W", "T", "F", "S", "S"]
+    private static let dailyLabelRowHeight: CGFloat = 14
+
+    private var dailyHeatmapGrid: some View {
+        let periods = DailyHeatmapDataBuilder(context: context).dailyPeriods()
+        let columns = Self.buildDailyColumns(from: periods)
+        let monthLabelsByColumn = Self.buildMonthLabelsByColumn(from: columns)
+
+        return HStack(alignment: .top, spacing: cellSpacing) {
+            // Pinned left column: header cell + weekday labels (no horizontal scroll).
+            dailyPinnedLeftColumn()
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                dailyScrollableGrid(columns: columns, monthLabelsByColumn: monthLabelsByColumn)
+                    .padding(.trailing, 4)
+            }
+            .defaultScrollAnchor(.trailing)
+        }
+        .padding(.vertical, 4)
+    }
+
+    /// Pinned left column: one header row (height matches month label row) + 7 weekday labels.
+    private func dailyPinnedLeftColumn() -> some View {
+        Grid(alignment: .leading, horizontalSpacing: 0, verticalSpacing: cellSpacing) {
+            GridRow {
+                Color.clear.frame(width: cellSize, height: Self.dailyLabelRowHeight)
+            }
+            ForEach(0..<7, id: \.self) { dayIdx in
+                GridRow {
+                    Text(Self.dailyDowLabels[dayIdx])
+                        .font(.system(size: 8, weight: .medium))
+                        .foregroundStyle(.tertiary)
+                        .frame(width: cellSize, height: cellSize)
+                }
+            }
+        }
+    }
+
+    /// Scrollable grid: one row of month labels (or empty) + 7 rows of period cells; aligns with pinned column by using same row heights.
+    private func dailyScrollableGrid(
+        columns: [[HeatmapPeriodData?]],
+        monthLabelsByColumn: [Int: String]
+    ) -> some View {
+        headerGrid(
+            columns: columns.count,
+            rows: 7,
+            header: { weekIdx in
+                if let label = monthLabelsByColumn[weekIdx] {
+                    Text(label)
+                        .font(.system(size: 9, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .fixedSize()
+                        .frame(width: cellSize, height: Self.dailyLabelRowHeight)
+                } else {
+                    Color.clear.frame(width: cellSize, height: Self.dailyLabelRowHeight)
+                }
+            },
+            cell: { weekIdx, dayIdx in
+                if let period = columns[weekIdx][dayIdx] {
+                    periodCell(period)
+                } else {
+                    Color.clear.frame(width: cellSize, height: cellSize)
+                }
+            }
+        )
+    }
+
+    private var weeklyHeatmapGrid: some View {
+        let periods = WeeklyHeatmapDataBuilder(context: context).weeklyPeriods()
+        let cellSize = cellSizeWide
+        let grid = headerGrid(
+            columns: weeklyGridColumns,
+            rows: weeklyGridRows,
+            header: { col in
+                let periodIdxForLabel = col * weeklyGridRows
+                if periodIdxForLabel < periods.count {
+                    Text(Self.periodColumnLabel(periods[periodIdxForLabel], kind: .weekly))
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .multilineTextAlignment(.center)
+                        .frame(width: cellSize, height: 18)
+                } else {
+                    Color.clear.frame(width: cellSize, height: 18)
+                }
+            },
+            cell: { col, row in
+                let periodIdx = col * weeklyGridRows + row
+                if periodIdx < periods.count {
+                    periodCell(periods[periodIdx], cellSize: cellSize)
+                } else {
+                    Color.clear.frame(width: cellSize, height: cellSize)
+                }
+            }
+        )
+
+        return HStack {
+            Spacer(minLength: 0)
+            grid
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 4)
+    }
+
+    private var monthlyHeatmapCentered: some View {
+        let periods = MonthlyHeatmapDataBuilder(context: context).monthlyPeriods()
+        let cellSize = cellSizeWide
+        let grid = headerGrid(
+            columns: periods.count,
+            rows: 1,
+            header: { col in
+                let period = periods[col]
+                Text(Self.periodColumnLabel(period, kind: .monthly))
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .frame(width: cellSize, height: 18, alignment: .center)
+            },
+            cell: { col, _ in
+                let period = periods[col]
+                periodCell(period, cellSize: cellSize)
+            }
+        )
+        .padding(.vertical, 4)
+        .padding(.horizontal, 4)
+
+        return GeometryReader { geo in
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 0) {
+                    Spacer(minLength: 0)
+                    grid
+                    Spacer(minLength: 0)
+                }
+                .frame(minWidth: geo.size.width)
+            }
+            .defaultScrollAnchor(.trailing)
+        }
+        .frame(height: monthlyHeatmapContentHeight)
+    }
+
+    // MARK: Single row (generic, used elsewhere if needed)
+
+    private func singleRowHeatmap(
+        periods: [HeatmapPeriodData],
+        columnLabel: @escaping (HeatmapPeriodData) -> String,
+        cellSize: CGFloat = cellSize
+    ) -> some View {
+        HStack(alignment: .top, spacing: cellSpacing) {
+            Color.clear.frame(width: 0, height: 14)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(alignment: .top, spacing: cellSpacing) {
+                    ForEach(periods) { period in
+                        VStack(spacing: cellSpacing) {
+                            Text(columnLabel(period))
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.7)
+                                .frame(width: cellSize, height: 18, alignment: .center)
+                            periodCell(period, cellSize: cellSize)
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+                .padding(.trailing, 4)
+            }
+            .defaultScrollAnchor(.trailing)
+        }
+    }
+
+    private static func periodColumnLabel(_ period: HeatmapPeriodData, kind: CycleKind) -> String {
+        let fmt = DateFormatter()
+        switch kind {
+        case .daily: fmt.dateFormat = "MMM d"
+        case .weekly: fmt.dateFormat = "MM/dd"
+        case .monthly: fmt.dateFormat = "MM/dd"
+        }
+        return fmt.string(from: period.periodStartPsychDay)
+    }
+
+    // MARK: Helpers – daily grid layout + month labels
+
+    private static func buildDailyColumns(
+        from periods: [HeatmapPeriodData]
+    ) -> [[HeatmapPeriodData?]] {
+        let cal = CommitmentScheduling.calendar
+
+        guard let firstPeriod = periods.first else {
+            return []
+        }
+
+        let firstWeekday = cal.component(.weekday, from: firstPeriod.periodStartPsychDay)  // 1=Sun…7=Sat
+        let firstOffset = (firstWeekday + 5) % 7  // 0=Mon, 6=Sun
+        let weeksToShow = (firstOffset + periods.count + 6) / 7
+
+        // Fill the first and last week with nil if they are not full.
+        var flat: [HeatmapPeriodData?] = Array(repeating: nil, count: weeksToShow * 7)
+        for (i, period) in periods.enumerated() {
+            let idx = firstOffset + i
+            if idx < flat.count {
+                flat[idx] = period
+            }
+        }
+
+        // Convert flat buffer into 2D columns (weeks) × rows (days).
+        var columns = Array(
+            repeating: [HeatmapPeriodData?](repeating: nil, count: 7), count: weeksToShow)
+        for week in 0..<weeksToShow {
+            for day in 0..<7 {
+                let idx = week * 7 + day
+                columns[week][day] = flat[idx]
+            }
+        }
+
+        return columns
+    }
+
+    private static func buildMonthLabelsByColumn(
+        from columns: [[HeatmapPeriodData?]]
+    ) -> [Int: String] {
+        let cal = CommitmentScheduling.calendar
+
+        // Month labels centered over spans of weeks that belong to the same month.
+        var monthStartWeeks: [(weekIdx: Int, date: Date)] = []
+        for (weekIdx, column) in columns.enumerated() {
+            // First non-nil day in that week.
+            guard let first = column.compactMap({ $0 }).first else { continue }
+            if weekIdx == 0 {
+                monthStartWeeks.append((weekIdx, first.periodStartPsychDay))
+                continue
+            }
+            guard let prevFirst = columns[weekIdx - 1].compactMap({ $0 }).first else {
+                continue
+            }
+            if cal.component(.month, from: first.periodStartPsychDay)
+                != cal.component(.month, from: prevFirst.periodStartPsychDay)
+            {
+                // Month has changed from last week to current week.
+                monthStartWeeks.append((weekIdx, first.periodStartPsychDay))
+            }
+        }
+
+        let monthFormatter: DateFormatter = {
+            let fmt = DateFormatter()
+            fmt.dateFormat = "MMM"
+            return fmt
+        }()
+
+        var monthLabelsByColumn: [Int: String] = [:]
+        for (i, start) in monthStartWeeks.enumerated() {
+            let endIdx =
+                i + 1 < monthStartWeeks.count
+                // Not the last month: ends at the week just before the next start.
+                ? monthStartWeeks[i + 1].weekIdx - 1
+                    // Last month ends at the last column.
+                : columns.count - 1
+            let midIdx = (start.weekIdx + endIdx) / 2
+            monthLabelsByColumn[midIdx] = monthFormatter.string(from: start.date)
+        }
+
+        return monthLabelsByColumn
+    }
+
+    // MARK: Shared cell
+
+    private func periodCell(
+        _ period: HeatmapPeriodData, cellSize: CGFloat = cellSize
+    ) -> some View {
+        let isSelected = selectedPeriod?.id == period.id
+        let color = heatmapCellColor(for: period)
+        return RoundedRectangle(cornerRadius: 2)
+            .fill(period.isCurrent && !isSelected ? Color(.systemGray5) : color)
+            .opacity(period.isBeforeCreation ? 0.7 : 1.0)
+            .frame(width: cellSize, height: cellSize)
             .overlay {
                 if isSelected {
                     RoundedRectangle(cornerRadius: 2)
                         .strokeBorder(Color.white.opacity(0.9), lineWidth: 1.5)
-                } else if day.isToday {
+                } else if period.isCurrent {
                     RoundedRectangle(cornerRadius: 2)
-                        .stroke(semanticColor, lineWidth: 1.5)
+                        .stroke(color, lineWidth: 1.5)
                 }
             }
             .onTapGesture {
-                guard !day.isFuture else { return }
-                selectedDay = selectedDay?.date == day.date ? nil : day
+                guard !period.isFuture else { return }
+                selectedPeriod = selectedPeriod?.id == period.id ? nil : period
             }
     }
 
     // MARK: Info card
 
     @ViewBuilder
-    private func dayInfoCard(for day: HeatmapDayData) -> some View {
+    private func periodInfoCard(for period: HeatmapPeriodData) -> some View {
+        let color = heatmapCellColor(for: period)
         HStack(alignment: .top, spacing: 10) {
-            // Colored dot matching the cell
             RoundedRectangle(cornerRadius: 2)
-                .fill(cellColor(for: day).opacity(day.isBeforeCreation ? 0.7 : 1.0))
+                .fill(color.opacity(period.isBeforeCreation ? 0.7 : 1.0))
                 .frame(width: 9, height: 9)
                 .padding(.top, 3)
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(formattedDate(day.date))
+                Text(periodLabel(period))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.primary)
 
-                if day.isBeforeCreation {
+                if period.isBeforeCreation {
                     Text("Before tracking started")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 } else {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text("\(day.completedCount) / \(day.goal)")
-                            .font(.system(size: 12, weight: .medium).monospacedDigit())
-                            .foregroundStyle(.primary)
-                        Text(statusLabel(for: day))
-                            .font(.system(size: 11))
-                            .foregroundStyle(.secondary)
+                    if let goal = period.goal {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text("\(period.checkIns.count) / \(goal)")
+                                .font(.system(size: 12, weight: .medium).monospacedDigit())
+                                .foregroundStyle(.primary)
+                            Text(statusLabel(count: period.checkIns.count, goal: goal))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Text(
+                            "\(period.checkIns.count) check-in\(period.checkIns.count == 1 ? "" : "s")"
+                        )
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.primary)
                     }
 
-                    let times = checkInTimesByDay[day.date] ?? []
-                    if !times.isEmpty {
-                        Text(times.map { timeString($0) }.joined(separator: "  ·  "))
-                            .font(.system(size: 11))
-                            .foregroundStyle(.tertiary)
+                    if !period.checkIns.isEmpty {
+                        Text(
+                            period.checkIns.map { timeString($0.psychDay) }.joined(
+                                separator: "  ·  ")
+                        )
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
                     }
                 }
             }
@@ -275,26 +570,33 @@ struct CommitmentHeatmapView: View {
         .padding(.vertical, 9)
         .background(Color(.tertiarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 9))
-        .onTapGesture {
-            selectedDay = nil
+        .onTapGesture { selectedPeriod = nil }
+    }
+
+    private func periodLabel(_ period: HeatmapPeriodData) -> String {
+        let fmt = DateFormatter()
+        switch heatmapKind {
+        case .daily:
+            fmt.dateFormat = "EEE, MMM d"
+            return fmt.string(from: period.periodStartPsychDay)
+        case .weekly:
+            fmt.dateFormat = "MMM d"
+            let end =
+                CommitmentScheduling.calendar.date(
+                    byAdding: .day, value: -1, to: period.periodEndPsychDay)
+                ?? period.periodEndPsychDay
+            return "\(fmt.string(from: period.periodStartPsychDay)) – \(fmt.string(from: end))"
+        case .monthly:
+            fmt.dateFormat = "MMMM yyyy"
+            return fmt.string(from: period.periodStartPsychDay)
         }
     }
 
-    // MARK: Info card helpers
-
-    private func formattedDate(_ date: Date) -> String {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "EEE, MMM d"
-        return fmt.string(from: date)
-    }
-
-    private func statusLabel(for day: HeatmapDayData) -> String {
-        let c = day.completedCount
-        let g = day.goal
-        if c == 0 { return "Missed" }
-        if c < g { return "Partial" }
-        if c == g { return "Goal met ✓" }
-        return "+\(c - g) over goal"
+    private func statusLabel(count: Int, goal: Int) -> String {
+        if count == 0 { return "Missed" }
+        if count < goal { return "Partial" }
+        if count == goal { return "Goal met ✓" }
+        return "+\(count - goal) over goal"
     }
 
     private func timeString(_ date: Date) -> String {
@@ -303,77 +605,101 @@ struct CommitmentHeatmapView: View {
         fmt.dateStyle = .none
         return fmt.string(from: date)
     }
-
-    // MARK: Legend
-
-    private var naLegendColor: Color {
-        let base = Color(.systemGray4)
-        let opacity = 0.7
-        return base.opacity(opacity)
-    }
-
-    private var legendView: some View {
-        HStack(spacing: 8) {
-            legendItem(
-                Color(.systemGray5), "Today",
-                borderColor: Color.primary.opacity(0.45))
-            legendItem(naLegendColor, "N/A")
-            legendItem(Color(hue: 0.02, saturation: 0.88, brightness: 0.80), "Missed")
-            legendItem(Color(hue: 0.02, saturation: 0.40, brightness: 0.92), "Partial")
-            legendItem(Color(hue: 0.37, saturation: 0.50, brightness: 0.72), "Goal")
-            legendItem(Color(hue: 0.37, saturation: 0.92, brightness: 0.50), "Over")
-        }
-    }
-
-    private func legendItem(_ color: Color, _ label: String, borderColor: Color? = nil) -> some View
-    {
-        HStack(spacing: 4) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(color)
-                .frame(width: commitmentHeatmapCellSize, height: commitmentHeatmapCellSize)
-                .overlay {
-                    if let bc = borderColor {
-                        RoundedRectangle(cornerRadius: 2)
-                            .stroke(bc, lineWidth: 1.5)
-                    }
-                }
-            Text(label)
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
-        }
-    }
 }
 
-// Shared heatmap color logic so mini rows can reuse exact semantics.
-private func commitmentHeatmapCellColor(for day: HeatmapDayData) -> Color {
-    if day.isFuture { return .clear }
-    if day.isBeforeCreation { return Color(.systemGray4) }
+// MARK: Info card
 
-    let goal = day.goal
-    let count = day.completedCount
+struct CommitmentHeatmapInfoCard: View {
+    let period: HeatmapPeriodData
+    let heatmapKind: CycleKind
+    @Binding var selectedPeriod: HeatmapPeriodData?
 
-    switch count {
-    case 0:
-        // Most eye-catching — worst-day red
-        return Color(hue: 0.02, saturation: 0.88, brightness: 0.80)
+    var body: some View {
+        let color = heatmapCellColor(for: period)
+        HStack(alignment: .top, spacing: 10) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(color.opacity(period.isBeforeCreation ? 0.7 : 1.0))
+                .frame(width: 9, height: 9)
+                .padding(.top, 3)
 
-    case 1..<goal:
-        // Red scale: vivid at 1, fades to near-neutral approaching goal
-        let ratio = Double(count) / Double(goal)
-        return Color(
-            hue: 0.02,
-            saturation: 0.88 * (1 - ratio) + 0.15 * ratio,
-            brightness: 0.80 + 0.15 * ratio
-        )
+            VStack(alignment: .leading, spacing: 4) {
+                Text(periodLabel(period))
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.primary)
 
-    default:
-        // Green scale: base green at goal, deepens with each extra check-in (up to +3)
-        let ratio = min(Double(count - goal) / 3.0, 1.0)
-        return Color(
-            hue: 0.37,
-            saturation: 0.50 + 0.42 * ratio,
-            brightness: 0.72 - 0.22 * ratio
-        )
+                if period.isBeforeCreation {
+                    Text("Before tracking started")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                } else {
+                    if let goal = period.goal {
+                        HStack(alignment: .firstTextBaseline, spacing: 6) {
+                            Text("\(period.checkIns.count) / \(goal)")
+                                .font(.system(size: 12, weight: .medium).monospacedDigit())
+                                .foregroundStyle(.primary)
+                            Text(statusLabel(count: period.checkIns.count, goal: goal))
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                    } else {
+                        Text(
+                            "\(period.checkIns.count) check-in\(period.checkIns.count == 1 ? "" : "s")"
+                        )
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.primary)
+                    }
+
+                    if !period.checkIns.isEmpty {
+                        Text(
+                            period.checkIns.map { timeString($0.psychDay) }.joined(
+                                separator: "  ·  ")
+                        )
+                        .font(.system(size: 11))
+                        .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 9)
+        .background(Color(.tertiarySystemBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 9))
+        .onTapGesture { selectedPeriod = nil }
+    }
+
+    private func periodLabel(_ period: HeatmapPeriodData) -> String {
+        let fmt = DateFormatter()
+        switch heatmapKind {
+        case .daily:
+            fmt.dateFormat = "EEE, MMM d"
+            return fmt.string(from: period.periodStartPsychDay)
+        case .weekly:
+            fmt.dateFormat = "MMM d"
+            let end =
+                CommitmentScheduling.calendar.date(
+                    byAdding: .day, value: -1, to: period.periodEndPsychDay)
+                ?? period.periodEndPsychDay
+            return "\(fmt.string(from: period.periodStartPsychDay)) – \(fmt.string(from: end))"
+        case .monthly:
+            fmt.dateFormat = "MMMM yyyy"
+            return fmt.string(from: period.periodStartPsychDay)
+        }
+    }
+
+    private func statusLabel(count: Int, goal: Int) -> String {
+        if count == 0 { return "Missed" }
+        if count < goal { return "Partial" }
+        if count == goal { return "Goal met ✓" }
+        return "+\(count - goal) over goal"
+    }
+
+    private func timeString(_ date: Date) -> String {
+        let fmt = DateFormatter()
+        fmt.timeStyle = .short
+        fmt.dateStyle = .none
+        return fmt.string(from: date)
     }
 }
 
@@ -383,16 +709,12 @@ struct MiniCommitmentHeatmapRow: View {
     let commitment: Commitment
     let daysToShow: Int
 
-    private var today: Date {
+    private var psychToday: Date {
         CommitmentScheduling.psychDay(for: CommitmentScheduling.now())
     }
 
     private var createdPsychDay: Date {
         CommitmentScheduling.psychDay(for: commitment.createdAt)
-    }
-
-    private var goal: Int {
-        max(1, commitment.target.count)
     }
 
     private var completionsByDay: [Date: Int] {
@@ -403,34 +725,36 @@ struct MiniCommitmentHeatmapRow: View {
         return dict
     }
 
-    private var days: [HeatmapDayData] {
+    private var periods: [HeatmapPeriodData] {
         let cal = CommitmentScheduling.calendar
-        let counts = completionsByDay
-        let goal = goal
-        return (0..<daysToShow).compactMap { offset in
-            guard let date = cal.date(byAdding: .day, value: -(daysToShow - 1 - offset), to: today)
-            else { return nil }
-            return HeatmapDayData(
-                date: date,
-                completedCount: counts[date] ?? 0,
-                goal: goal,
+        return (0..<daysToShow).map { offset in
+            let date = cal.date(byAdding: .day, value: -(daysToShow - 1 - offset), to: psychToday)!
+            let start = cal.startOfDay(for: date)
+            let end = cal.date(byAdding: .day, value: 1, to: start) ?? start
+
+            let period = HeatmapPeriodData(
+                id: start,
+                periodStartPsychDay: start,
+                periodEndPsychDay: end,
+                goal: nil,
+                checkIns: commitment.checkInsInRange(
+                    startPsychDay: start, endPsychDay: end),
                 isBeforeCreation: date < createdPsychDay,
-                isFuture: date > today,
-                isToday: date == today
             )
+            return period
         }
     }
 
     var body: some View {
-        HStack(spacing: commitmentHeatmapCellSpacing) {
-            ForEach(Array(days.enumerated()), id: \.offset) { _, day in
-                let color = commitmentHeatmapCellColor(for: day)
+        HStack(spacing: cellSpacing) {
+            ForEach(Array(periods.enumerated()), id: \.offset) { _, period in
+                let color = heatmapCellColor(for: period)
 
                 RoundedRectangle(cornerRadius: 2)
-                    .fill(day.isToday ? Color(.systemGray5) : color)
-                    .frame(width: commitmentHeatmapCellSize, height: commitmentHeatmapCellSize)
+                    .fill(period.isCurrent ? Color(.systemGray5) : color)
+                    .frame(width: cellSize, height: cellSize)
                     .overlay {
-                        if day.isToday {
+                        if period.isCurrent {
                             RoundedRectangle(cornerRadius: 2)
                                 .stroke(color, lineWidth: 1.5)
                         }

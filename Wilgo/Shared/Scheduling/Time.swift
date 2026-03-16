@@ -66,7 +66,10 @@ enum CommitmentScheduling {
         // Shift back by the day-start offset before taking the calendar day.
         let shifted = utcTime.addingTimeInterval(TimeInterval(-dayStartHourOffset * 60 * 60))
         let comps = cal.dateComponents([.year, .month, .day], from: shifted)
-        return cal.date(from: comps) ?? utcTime
+        guard let result = cal.date(from: comps) else {
+            fatalError("Time.psychDay: Failed to create date from components: \(comps)")
+        }
+        return result
     }
 
 }

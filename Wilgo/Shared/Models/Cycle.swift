@@ -52,9 +52,9 @@ struct Cycle: Codable, Equatable, Hashable {
     private var referencePsychDay: Date  // psych-day; hour/minute ignored; it is one of the start day of the Cycle.
     var multiplier: Int
 
-    private init(kind: CycleKind, referenceDate: Date, multiplier: Int = 1, ) {
+    init(kind: CycleKind, referencePsychDay: Date, multiplier: Int = 1, ) {
         self.kind = kind
-        self.referencePsychDay = CommitmentScheduling.psychDay(for: referenceDate)
+        self.referencePsychDay = referencePsychDay
         self.multiplier = max(1, multiplier)
     }
 
@@ -90,10 +90,11 @@ struct Cycle: Codable, Equatable, Hashable {
 // MARK: - Cycle period boundaries
 
 extension Cycle {
+    // TODO: remove this function.
     /// Returns a cycle who start on `time`'s psych-day.
     static func anchored(_ kind: CycleKind, at time: Date, multiplier: Int = 1) -> Cycle {
         let psychDay = CommitmentScheduling.psychDay(for: time)
-        return Cycle(kind: kind, referenceDate: psychDay, multiplier: multiplier)
+        return Cycle(kind: kind, referencePsychDay: psychDay, multiplier: multiplier)
     }
 
     /// Start of the (multiplier × base-kind) period that contains `date`.

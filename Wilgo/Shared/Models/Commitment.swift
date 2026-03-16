@@ -57,6 +57,14 @@ final class Commitment {
         self.proofOfWorkType = proofOfWorkType
         self.punishment = punishment
     }
+
+    // checkins of a commitment in a given psych-day range [startPsychDay, endPsychDay)
+    func checkInsInRange(startPsychDay: Date, endPsychDay: Date) -> [CheckIn] {
+        let checkInsInRange = checkIns.filter {
+            $0.psychDay >= startPsychDay && $0.psychDay < endPsychDay
+        }
+        return checkInsInRange.sorted { $0.createdAt < $1.createdAt }
+    }
 }
 
 // MARK: - Slot queries
