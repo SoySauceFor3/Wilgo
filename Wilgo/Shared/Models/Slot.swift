@@ -1,6 +1,46 @@
 import Foundation
 import SwiftData
 
+enum SlotRecurrence: Codable, Hashable {
+    /// Active every calendar day.
+    case everyDay
+    /// Active only on specific weekdays (1 = Sunday … 7 = Saturday, `Calendar.current.weekday`).
+    case specificWeekdays(Set<Int>)
+    /// Active only on specific month days (1 … 31).
+    case specificMonthDays(Set<Int>)
+
+    var isValidSelection: Bool {
+        switch self {
+        case .everyDay:
+            return true
+        case .specificWeekdays(let weekdays):
+            return !weekdays.isEmpty
+        case .specificMonthDays(let days):
+            return !days.isEmpty
+        }
+    }
+
+    var summaryText: String {
+        let calendar = Calendar.current
+        switch self {
+        case .everyDay:
+            return "Every day"
+        case .specificWeekdays(let weekdays):
+            let symbols = calendar.shortWeekdaySymbols  // Sunday-first (localized)
+            let ordered = (1...7).filter { weekdays.contains($0) }
+            if ordered.count == 7 { return "Every day" }
+            if ordered.isEmpty { return "" }
+            let parts = ordered.map { String(symbols[$0 - 1].prefix(3)) }
+            return parts.joined(separator: ", ")
+        case .specificMonthDays(let days):
+            let ordered = days.sorted()
+            if ordered.isEmpty { return "" }
+            let joined = ordered.map(String.init).joined(separator: ", ")
+            return "day \(joined) every month"
+        }
+    }
+}
+
 @Model
 final class Slot {
     /// Start of this slot's ideal window (time-of-day only, arbitrary reference day).
@@ -8,14 +48,66 @@ final class Slot {
     /// End of this slot's ideal window (time-of-day only).
     var end: Date
 
+    // MARK: - Recurrence backing storage (SwiftData-friendly)
+
+    private enum RecurrenceKind: String, Codable {
+        case everyDay
+        case specificWeekdays
+        case specificMonthDays
+    }
+
+    /// Stored as a raw kind + payload arrays that are friendly to SwiftData.
+    private var recurrenceKindRaw: String = RecurrenceKind.everyDay.rawValue
+    private var activeWeekdays: [Int] = []
+    private var activeMonthDays: [Int] = []
+
     @Relationship var commitment: Commitment?
 
     init(
         start: Date,
-        end: Date
+        end: Date,
+        recurrence: SlotRecurrence = .everyDay
     ) {
         self.start = start
         self.end = end
+        self.recurrence = recurrence
+    }
+}
+
+// MARK: - High-level recurrence API
+
+extension Slot {
+    /// High-level recurrence API backed by primitive storage.
+    var recurrence: SlotRecurrence {
+        get {
+            let kind = RecurrenceKind(rawValue: recurrenceKindRaw) ?? .everyDay
+            switch kind {
+            case .everyDay:
+                return .everyDay
+            case .specificWeekdays:
+                return .specificWeekdays(Set(activeWeekdays))
+            case .specificMonthDays:
+                return .specificMonthDays(Set(activeMonthDays))
+            }
+        }
+        set {
+            switch newValue {
+            case .everyDay:
+                recurrenceKindRaw = RecurrenceKind.everyDay.rawValue
+                activeWeekdays = []
+                activeMonthDays = []
+
+            case .specificWeekdays(let weekdays):
+                recurrenceKindRaw = RecurrenceKind.specificWeekdays.rawValue
+                activeWeekdays = Array(weekdays).sorted()
+                activeMonthDays = []
+
+            case .specificMonthDays(let days):
+                recurrenceKindRaw = RecurrenceKind.specificMonthDays.rawValue
+                activeMonthDays = Array(days).sorted()
+                activeWeekdays = []
+            }
+        }
     }
 }
 
@@ -26,11 +118,19 @@ extension Slot {
     /// End of the slot mapped onto the current psychological day.
     var endToday: Date { CommitmentScheduling.resolve(timeOfDay: end) }
 
-    var slotTimeText: String {
+    var timeOfDayText: String {
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         formatter.dateStyle = .none
         return "\(formatter.string(from: start)) – \(formatter.string(from: end))"
+    }
+
+    var label: String {
+        let recurrenceText = recurrence.summaryText
+        if recurrenceText.isEmpty {
+            return timeOfDayText
+        }
+        return "\(timeOfDayText) on \(recurrenceText)"
     }
 
     /// Returns true if the given date's time-of-day falls within this slot's window.
@@ -86,6 +186,54 @@ extension Slot {
         }
 
         return remaining / duration
+    }
+
+    /// Returns true if, at the given **calendar** time, this slot is both
+    /// within its start–end window and active according to its recurrence rule.
+    ///
+    /// This deliberately ignores psychDay offsets. For example, if the user sets their
+    /// day-start offset to noon, a slot configured for "Monday 00:00–01:00" is still
+    /// considered to belong to **calendar Monday**, not Tuesday.
+    func isActive(on time: Date, calendar: Calendar = CommitmentScheduling.calendar) -> Bool {
+        // First ensure the time-of-day lies within this slot's window.
+        guard contains(timeOfDay: time) else { return false }
+        // Determine the "anchor" calendar date that this occurrence belongs to.
+        // For windows that cross midnight (e.g. 23:00–01:00), times between midnight
+        // and the end-of-window are attributed back to the *start* day.
+        let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
+        let startComponents = calendar.dateComponents([.hour, .minute], from: start)
+        let endComponents = calendar.dateComponents([.hour, .minute], from: end)
+        let timeMinutes = (timeComponents.hour ?? 0) * 60 + (timeComponents.minute ?? 0)
+        let startMinutes = (startComponents.hour ?? 0) * 60 + (startComponents.minute ?? 0)
+        let endMinutes = (endComponents.hour ?? 0) * 60 + (endComponents.minute ?? 0)
+
+        let anchorDate: Date
+        if startMinutes < endMinutes {
+            // Does not cross midnight: use the calendar day of `time` directly.
+            anchorDate = time
+        } else {
+            // Crosses midnight:
+            //  - times >= startMinutes are on the start day
+            //  - times < startMinutes (i.e. after midnight) belong to the previous calendar day
+            if timeMinutes >= startMinutes {
+                anchorDate = time
+            } else {
+                anchorDate = calendar.date(byAdding: .day, value: -1, to: time) ?? time
+            }
+        }
+
+        switch recurrence {
+        case .everyDay:
+            return true
+
+        case .specificWeekdays(let weekdays):
+            let weekday = calendar.component(.weekday, from: anchorDate)  // 1 = Sunday … 7 = Saturday
+            return weekdays.contains(weekday)
+
+        case .specificMonthDays(let days):
+            let day = calendar.component(.day, from: anchorDate)
+            return days.contains(day)
+        }
     }
 }
 

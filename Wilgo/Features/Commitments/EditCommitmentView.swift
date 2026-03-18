@@ -23,7 +23,9 @@ struct EditCommitmentView: View {
 
         _title = State(initialValue: commitment.title)
         _slotWindows = State(
-            initialValue: commitment.slots.sorted().map { SlotWindow(start: $0.start, end: $0.end) }
+            initialValue: commitment.slots.sorted().map {
+                SlotWindow(start: $0.start, end: $0.end, recurrence: $0.recurrence)
+            }
         )
         _target = State(initialValue: commitment.target)
         _skipBudget = State(initialValue: commitment.skipBudget)
@@ -66,6 +68,7 @@ struct EditCommitmentView: View {
 
     private var canSave: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && slotWindows.allSatisfy { $0.recurrence.isValidSelection }
     }
 
     /// True when any rule field (timesPerDay, skipCreditCount, cycle) changed.
@@ -106,12 +109,14 @@ struct EditCommitmentView: View {
         let oldSlots = commitment.slots.sorted()
         let slotsChanged =
             newWindows.count != oldSlots.count
-            || zip(newWindows, oldSlots).contains { w, s in w.start != s.start || w.end != s.end }
+            || zip(newWindows, oldSlots).contains { w, s in
+                w.start != s.start || w.end != s.end || w.recurrence != s.recurrence
+            }
 
         if slotsChanged {
             for old in commitment.slots { modelContext.delete(old) }
             let newSlots: [Slot] = newWindows.map { window in
-                let slot = Slot(start: window.start, end: window.end)
+                let slot = Slot(start: window.start, end: window.end, recurrence: window.recurrence)
                 modelContext.insert(slot)
                 return slot
             }

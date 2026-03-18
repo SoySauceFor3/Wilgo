@@ -13,7 +13,7 @@ struct UpcomingCommitmentRow: View {
                 Text(commitment.title)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                Text(slots[0].slotTimeText)
+                Text(slots[0].timeOfDayText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

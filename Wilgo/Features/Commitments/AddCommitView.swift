@@ -14,7 +14,7 @@ struct AddCommitmentView: View {
     @State private var punishment: String = ""
 
     init() {
-        let (start, end) = CommitmentFormFields.defaultFirstWindow()
+        let (start, end) = ReminderWindowsSection.defaultFirstWindow()
         _slotWindows = State(initialValue: [SlotWindow(start: start, end: end)])
         _skipBudget = State(
             initialValue: SkipBudget(
@@ -50,11 +50,12 @@ struct AddCommitmentView: View {
 
     private var canSave: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            && slotWindows.allSatisfy { $0.recurrence.isValidSelection }
     }
 
     private func saveCommitment() {
         let slots: [Slot] = slotWindows.map { window in
-            let slot = Slot(start: window.start, end: window.end)
+            let slot = Slot(start: window.start, end: window.end, recurrence: window.recurrence)
             modelContext.insert(slot)
             return slot
         }

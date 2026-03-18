@@ -14,7 +14,7 @@ struct CurrentCommitmentRow: View {
             topRightTitle: "Current Slot"
         ) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(slots.first?.slotTimeText ?? "No slot")
+                Text(slots.first?.timeOfDayText ?? "No slot")
                     .font(.caption2)
                     .foregroundStyle(.primary)
 

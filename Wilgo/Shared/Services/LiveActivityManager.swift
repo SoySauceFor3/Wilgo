@@ -131,7 +131,7 @@ final class LiveActivityManager {
         let slotId = slots[0].persistentModelID.encoded()
         return NowAttributes.ContentState(
             commitmentTitle: commitment.title,
-            slotTimeText: slots[0].slotTimeText,
+            slotTimeText: slots[0].timeOfDayText,
             commitmentId: commitmentId,
             slotId: slotId
         )

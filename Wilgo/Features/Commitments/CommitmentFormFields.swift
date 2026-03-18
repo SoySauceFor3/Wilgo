@@ -1,7 +1,5 @@
 import SwiftUI
 
-/// Shared form body used by both AddCommitmentView and EditCommitmentView.
-/// Owns no SwiftData interactions — all state is passed in via bindings.
 struct CommitmentFormFields: View {
     @Binding var title: String
     @Binding var slotWindows: [SlotWindow]
@@ -26,67 +24,7 @@ struct CommitmentFormFields: View {
         Section("Basics") {
             TextField("Title", text: $title)
         }
-
-        Section("Reminder windows") {
-            Text("Optional. Leave empty to allow any time of the day.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            ForEach(Array(slotWindows.enumerated()), id: \.element.id) { index, window in
-                HStack(spacing: 12) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Slot \(index + 1)")
-                            .font(.subheadline.weight(.semibold))
-
-                        HStack(spacing: 8) {
-                            DatePicker(
-                                "",
-                                selection: startBinding(for: index),
-                                displayedComponents: .hourAndMinute
-                            )
-                            .labelsHidden()
-
-                            Text("–")
-                                .foregroundStyle(.secondary)
-
-                            DatePicker(
-                                "",
-                                selection: endBinding(for: index),
-                                displayedComponents: .hourAndMinute
-                            )
-                            .labelsHidden()
-                        }
-                        .font(.footnote)
-
-                        if window.end < window.start {
-                            Text("Crosses midnight")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-
-                    Spacer()
-
-                    Button(role: .destructive) {
-                        slotWindows.remove(at: index)
-                    } label: {
-                        Image(systemName: "trash")
-                    }
-                    .buttonStyle(.borderless)
-                }
-                .padding(10)
-                .background(
-                    RoundedRectangle(cornerRadius: 10, style: .continuous)
-                        .fill(Color(.secondarySystemBackground))
-                )
-            }
-            Button {
-                let (defaultStart, defaultEnd) = defaultWindowForNewSlot()
-                slotWindows.append(SlotWindow(start: defaultStart, end: defaultEnd))
-            } label: {
-                Label("Add window", systemImage: "plus")
-            }
-        }
+        ReminderWindowsSection(slotWindows: $slotWindows)
 
         Section("Target") {
             HStack(spacing: 4) {
@@ -221,43 +159,6 @@ struct CommitmentFormFields: View {
         )
     }
 
-    static func defaultFirstWindow() -> (start: Date, end: Date) {
-        let now = Date()
-        let end = Calendar.current.date(byAdding: .hour, value: 1, to: now) ?? now
-        return (start: now, end: end)
-    }
-
-    private func defaultWindowForNewSlot() -> (start: Date, end: Date) {
-        if slotWindows.isEmpty {
-            return Self.defaultFirstWindow()
-        }
-
-        let last = slotWindows[slotWindows.count - 1]
-        return (last.start, last.end)
-    }
-
-    private func startBinding(for index: Int) -> Binding<Date> {
-        Binding(
-            get: { slotWindows[index].start },
-            set: { newValue in
-                var copy = slotWindows
-                copy[index].start = newValue
-                slotWindows = copy
-            }
-        )
-    }
-
-    private func endBinding(for index: Int) -> Binding<Date> {
-        Binding(
-            get: { slotWindows[index].end },
-            set: { newValue in
-                var copy = slotWindows
-                copy[index].end = newValue
-                slotWindows = copy
-            }
-        )
-    }
-
     /// Ensures the skip-budget cycle stays compatible with the selected target cycle.
     /// If the current skip cycle kind becomes invalid under Option B rules, it is
     /// reset to the first allowed kind, anchored to "today" (current psych-day).
@@ -270,12 +171,4 @@ struct CommitmentFormFields: View {
             skipBudget.cycle = Cycle.anchored(fallbackKind, at: .now)
         }
     }
-}
-
-// MARK: - SlotWindow (shared value type)
-
-struct SlotWindow: Identifiable {
-    let id = UUID()
-    var start: Date
-    var end: Date
 }

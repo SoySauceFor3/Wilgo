@@ -92,17 +92,10 @@ struct CommitmentRowView: View {
         .contentShape(Rectangle())
     }
 
-    private func formattedTime(from date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
-        formatter.dateStyle = .none
-        return formatter.string(from: date)
-    }
-
     private func slotWindowsSummary(_ commitment: Commitment) -> String {
         return commitment.slots.map {
-            "\(formattedTime(from: $0.start))–\(formattedTime(from: $0.end))"
+            $0.label
         }
-        .joined(separator: ", ")
+        .joined(separator: "\n")
     }
 }
