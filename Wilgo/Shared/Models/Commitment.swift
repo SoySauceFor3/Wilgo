@@ -126,74 +126,127 @@ extension Commitment {
         case current
         case future
         case catchUp
+        case others
     }
 
     struct StageStatus {
         let category: StageCategory
-        // /// The slot whose window currently contains `now`, if any.
-        // let currentSlot: Slot?
-        /// All unfinished slots whose windows have not yet ended today, sorted.
+        /// All unfinished slots whose windows have not yet ended in the target cycle, sorted.
         /// Includes the current slot (if any) and any later slots.
         /// IMPORTANT: it contains date info, not just time of day.
         let nextUpSlots: [Slot]
+        /// Minimal number of extra check-ins that must be done
+        /// outside the remaining scheduled slots in this cycle
+        /// in order to still hit the target.
+        let behindCount: Int
     }
 
     /// TODO: THIS NEED TO CHANGED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     /// Classifies this commitment for the current psychological day at the given time.
     ///
     /// Precedence:
-    /// - `metGoal`: today's goal already met.
-    /// - `current`: otherwise, if there is a slot whose window contains `now`.
-    /// - `future`: otherwise, if remainingNeeded ≤ remainingSlotsToday.count.
-    /// - `catchUp`: all other cases.
+    /// - `metGoal`: if cycle's goal already met.
+    /// - `current`: elif there is a slot whose window contains `now`.
+    /// - `future`: elif there are slots within the today (psych day)
+    /// - `catchUp`: elif the count of remaining slots < leftToDo.
+    /// - `others`: all other cases.
     func stageStatus(
         now: Date = CommitmentScheduling.now()
     ) -> StageStatus {
-        let psychToday = CommitmentScheduling.psychDay(for: now)
-        let completed = completedCount(for: psychToday)
+        let target = self.target
+        let nowPsychDay = CommitmentScheduling.psychDay(for: now)
+        let startDay = target.cycle.startDayOfCycle(including: nowPsychDay)
+        let endDay = target.cycle.endDayOfCycle(including: nowPsychDay)
+        let checkInsInCycle = checkInsInRange(startPsychDay: startDay, endPsychDay: endDay)
+        let leftToDo = max(0, target.count - checkInsInCycle.count)
 
-        if hasMetDailyGoal(for: psychToday) {
-            return StageStatus(category: .metGoal, nextUpSlots: [])
+        if leftToDo == 0 {
+            return StageStatus(category: .metGoal, nextUpSlots: [], behindCount: 0)
         }
 
-        // To avoid weird bug caused by slots crossing the StartDayHourOffset,
-        // resolve slots to their concrete dates and then sort and filter.
-        // Also, if there are slots crossing the StartDayHourOffset, we add (yesterday start, today end) and (today start, tomorrow end) to the candidates.
-        var candidateResolvedSlots: [Slot] = []  // Important! Here the Slot contains date info, not just time of day.
-        for slot in slots {
-            let start = slot.startToday
-            let end = slot.endToday
-            if start > end {
-                // means the slot is not crossing the StartDayHourOffset
-                candidateResolvedSlots.append(
-                    Slot(start: start - TimeInterval(24 * 60 * 60), end: end))
-                candidateResolvedSlots.append(
-                    Slot(start: start, end: end + TimeInterval(24 * 60 * 60)))
-            } else {
-                candidateResolvedSlots.append(Slot(start: start, end: end))
+        let cal = CommitmentScheduling.calendar
+
+        func psychDayStartTime(_ psychDay: Date) -> Date {
+            // psychDay is pinned to midnight; real day start is midnight + offset.
+            psychDay.addingTimeInterval(
+                TimeInterval(CommitmentScheduling.dayStartHourOffset * 3_600))
+        }
+
+        func resolveSlotOccurrence(slot: Slot, psychDay: Date) -> Slot? {
+            let start = CommitmentScheduling.resolve(timeOfDay: slot.start, psychDay: psychDay)
+            var end = CommitmentScheduling.resolve(timeOfDay: slot.end, psychDay: psychDay)
+            if end <= start {
+                end = cal.date(byAdding: .day, value: 1, to: end) ?? end
             }
+
+            // Respect recurrence (if any). Evaluate at the concrete start time.
+            guard slot.isActive(on: start, calendar: cal) else { return nil }
+
+            // IMPORTANT: This Slot carries concrete datetimes in start/end.
+            return Slot(start: start, end: end)
         }
-        candidateResolvedSlots.sort {
+
+        // Get all slot occurrences in the target cycle (with concrete datetimes), then sort.
+        var resolvedOccurrences: [Slot] = []
+        var dayCursor = startDay
+        while dayCursor < endDay {
+            for slot in slots {
+                if let occurrence = resolveSlotOccurrence(slot: slot, psychDay: dayCursor) {
+                    resolvedOccurrences.append(occurrence)
+                }
+            }
+            dayCursor = cal.date(byAdding: .day, value: 1, to: dayCursor) ?? endDay
+        }
+
+        resolvedOccurrences.sort {
             if $0.start == $1.start { return $0.end < $1.end } else { return $0.start < $1.start }
         }
 
-        let notPassedResolvedSlots = candidateResolvedSlots.filter { now <= $0.end }
-
-        if notPassedResolvedSlots.isEmpty {
-            return StageStatus(category: .catchUp, nextUpSlots: [])
+        // Remaining slot occurrences in the cycle that have not yet ended.
+        let remainingInCycle: [Slot]
+        if let firstNotEndedIndex = resolvedOccurrences.firstIndex(where: { $0.end >= now }) {
+            remainingInCycle = Array(resolvedOccurrences[firstNotEndedIndex...])
+        } else {
+            remainingInCycle = []
         }
 
-        if notPassedResolvedSlots[0].start <= now {
-            // now <= notPassedResolvedSlots[0].1 is calculated in the filter step.
-            // it means the first element is a current slot.
-            return StageStatus(category: .current, nextUpSlots: notPassedResolvedSlots)
+        let remainingSlotsCount = remainingInCycle.count
+        let behindCount = max(0, leftToDo - remainingSlotsCount)
+
+        // If there is slot overlapping with now, it's current.
+        if let first = remainingInCycle.first, first.start <= now {
+            return StageStatus(
+                category: .current,
+                nextUpSlots: remainingInCycle,
+                behindCount: behindCount
+            )
         }
 
-        // now < notPassedResolvedSlots[0].0, the first element is a future slot.
-        if notPassedResolvedSlots.count >= target.count - completed {
-            return StageStatus(category: .future, nextUpSlots: notPassedResolvedSlots)
+        // Else if there is slot in the rest of the psych-day, it's future.
+        let todayStart = psychDayStartTime(nowPsychDay)
+        let todayEnd = todayStart.addingTimeInterval(24 * 60 * 60)
+        let hasSlotInRestOfPsychDay = remainingInCycle.contains { $0.start < todayEnd }
+        if hasSlotInRestOfPsychDay {
+            return StageStatus(
+                category: .future,
+                nextUpSlots: remainingInCycle,
+                behindCount: behindCount
+            )
         }
 
-        return StageStatus(category: .catchUp, nextUpSlots: notPassedResolvedSlots)
+        // If the count of remaining slots < leftToDo, it's catchUp. Else it's others.
+        if remainingSlotsCount < leftToDo {
+            return StageStatus(
+                category: .catchUp,
+                nextUpSlots: remainingInCycle,
+                behindCount: behindCount
+            )
+        }
+
+        return StageStatus(
+            category: .others,
+            nextUpSlots: remainingInCycle,
+            behindCount: behindCount
+        )
     }
 }

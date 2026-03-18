@@ -8,6 +8,9 @@ struct CurrentCommitmentRow: View {
     @State private var isPresentingEdit = false
 
     var body: some View {
+        let status = commitment.stageStatus(now: CommitmentScheduling.now())
+        let behindCount = status.behindCount
+
         CommitmentStatsCard(
             commitment: commitment,
             slots: slots,
@@ -26,6 +29,16 @@ struct CurrentCommitmentRow: View {
                 )
                 .font(.caption2)
                 .foregroundStyle(.secondary)
+
+                if behindCount > 0 {
+                    Text(
+                        behindCount == 1
+                            ? "Behind"
+                            : "Behind +\(behindCount)"
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+                }
             }
         }
         .contentShape(Rectangle())

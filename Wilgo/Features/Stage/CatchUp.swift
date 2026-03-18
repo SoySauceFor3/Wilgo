@@ -9,19 +9,32 @@ struct CatchUpCommitmentRow: View {
     @State private var isPresentingEdit = false
 
     var body: some View {
+        let status = commitment.stageStatus(now: CommitmentScheduling.now())
+        let behindCount = status.behindCount
+
         CommitmentStatsCard(
             commitment: commitment,
             slots: slots,
             topRightTitle: "Next up Slots"
         ) {
             let count = slots.count
-            Text(
-                count == 0
-                    ? "whole day"
-                    : "\(count) " + (count == 1 ? "slot" : "slots")
-            )
-            .font(.caption2)
-            .foregroundStyle(.primary)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(
+                    count == 0
+                        ? "whole day"
+                        : "\(count) " + (count == 1 ? "slot" : "slots")
+                )
+                .font(.caption2)
+                .foregroundStyle(.primary)
+
+                if behindCount > 0 {
+                    Text(
+                        "Behind \(behindCount)"
+                    )
+                    .font(.caption2)
+                    .foregroundStyle(.red)
+                }
+            }
         }
         .contentShape(Rectangle())
         .onTapGesture {

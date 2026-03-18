@@ -37,7 +37,7 @@ enum CatchUpReminderService {
     ) {
         let context = ModelContext(WilgoApp.sharedModelContainer)
         let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
-        let catchUp = CommitmentAndSlot.catchUp(commitments: commitments)
+        let catchUp = CommitmentAndSlot.catchUpWithBehind(commitments: commitments)
 
         updateCatchUpCommitmentsStorage(catchUp: catchUp, now: now)
         scheduleNotificationPost(for: catchUp, now: now)
@@ -61,7 +61,7 @@ enum CatchUpReminderService {
 
     // NOTE: because this function runs roughly 1/hour when the app is not active, so the date might be slightly outdated.
     private static func updateCatchUpCommitmentsStorage(
-        catchUp: [(Commitment, [Slot])],
+        catchUp: [CommitmentAndSlot.WithBehind],
         now: Date = CommitmentScheduling.now()
     ) {
         // 1. Get the currently stored catch-up commitments from UserDefaults.
@@ -119,7 +119,7 @@ enum CatchUpReminderService {
     }
 
     private static func makeNotificationContent(
-        for catchUp: [(Commitment, [Slot])]
+        for catchUp: [CommitmentAndSlot.WithBehind]
     ) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.sound = .default
@@ -154,7 +154,9 @@ enum CatchUpReminderService {
     }
 
     private static let notificationID: String = "wilgo.catchup"
-    private static func scheduleNotificationPost(for catchUp: [(Commitment, [Slot])], now: Date) {
+    private static func scheduleNotificationPost(
+        for catchUp: [CommitmentAndSlot.WithBehind], now: Date
+    ) {
         let center: UNUserNotificationCenter = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
             guard granted else { return }

@@ -8,6 +8,9 @@ struct UpcomingCommitmentRow: View {
     @State private var isPresentingEdit = false
 
     var body: some View {
+        let status = commitment.stageStatus(now: CommitmentScheduling.now())
+        let behindCount = status.behindCount
+
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(commitment.title)
@@ -18,6 +21,21 @@ struct UpcomingCommitmentRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
+            if behindCount > 0 {
+                Text(
+                    behindCount == 1
+                        ? "Behind"
+                        : "Behind +\(behindCount)"
+                )
+                .font(.caption2)
+                .padding(.horizontal, 8)
+                .padding(.vertical, 4)
+                .background(
+                    Capsule()
+                        .fill(Color.red.opacity(0.12))
+                )
+                .foregroundStyle(.red)
+            }
         }
         .padding(12)
         .background(

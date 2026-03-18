@@ -16,16 +16,16 @@ struct StageView: View {
     /// actually change the value of it will trigger a rerender.
     @State private var rewrite = false
 
-    private var current: [(Commitment, [Slot])] {
-        CommitmentAndSlot.current(commitments: commitments, now: Date())
+    private var current: [CommitmentAndSlot.WithBehind] {
+        CommitmentAndSlot.currentWithBehind(commitments: commitments, now: Date())
     }
 
-    private var upcoming: [(Commitment, [Slot])] {
-        CommitmentAndSlot.upcoming(commitments: commitments, after: Date())
+    private var upcoming: [CommitmentAndSlot.WithBehind] {
+        CommitmentAndSlot.upcomingWithBehind(commitments: commitments, after: Date())
     }
 
-    private var catchUp: [(Commitment, [Slot])] {
-        CommitmentAndSlot.catchUp(commitments: commitments, now: Date())
+    private var catchUp: [CommitmentAndSlot.WithBehind] {
+        CommitmentAndSlot.catchUpWithBehind(commitments: commitments, now: Date())
     }
 
     var body: some View {
@@ -39,8 +39,11 @@ struct StageView: View {
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(current, id: \.0.id) { commitment, slots in
-                                CurrentCommitmentRow(commitment: commitment, slots: slots)
+                            ForEach(current, id: \.commitment.id) { item in
+                                CurrentCommitmentRow(
+                                    commitment: item.commitment,
+                                    slots: item.slots
+                                )
                             }
                         }
                     }
@@ -52,8 +55,11 @@ struct StageView: View {
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(catchUp, id: \.0.id) { commitment, slots in
-                                CatchUpCommitmentRow(commitment: commitment, slots: slots)
+                            ForEach(catchUp, id: \.commitment.id) { item in
+                                CatchUpCommitmentRow(
+                                    commitment: item.commitment,
+                                    slots: item.slots
+                                )
                             }
                         }
                     }
@@ -65,8 +71,11 @@ struct StageView: View {
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(upcoming, id: \.0.id) { commitment, slots in
-                                UpcomingCommitmentRow(commitment: commitment, slots: slots)
+                            ForEach(upcoming, id: \.commitment.id) { item in
+                                UpcomingCommitmentRow(
+                                    commitment: item.commitment,
+                                    slots: item.slots
+                                )
                             }
                         }
                     }
@@ -99,7 +108,11 @@ struct StageView: View {
                 // Not very necessary, just a safety net.
                 if phase == .active { rewrite.toggle() }
             }
-            .onChange(of: liveActivityManager.makeFirstLiveActivityContentState(from: current)) {
+            .onChange(
+                of: liveActivityManager.makeFirstLiveActivityContentState(
+                    from: current
+                )
+            ) {
                 _, _ in
                 liveActivityManager.sync()
             }

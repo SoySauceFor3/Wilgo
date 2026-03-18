@@ -110,7 +110,7 @@ final class LiveActivityManager {
         commitments: [Commitment],
         now: Date
     ) -> LiveActivityUpdate {
-        let current = CommitmentAndSlot.current(
+        let current = CommitmentAndSlot.currentWithBehind(
             commitments: commitments,
             now: now,
         )
@@ -124,9 +124,9 @@ final class LiveActivityManager {
     }
 
     func makeFirstLiveActivityContentState(
-        from currentSlots: [(Commitment, [Slot])]
+        from currentSlots: [CommitmentAndSlot.WithBehind]
     ) -> NowAttributes.ContentState? {
-        guard let (commitment, slots) = currentSlots.first else { return nil }
+        guard let (commitment, slots, _) = currentSlots.first else { return nil }
         let commitmentId = commitment.persistentModelID.encoded()
         let slotId = slots[0].persistentModelID.encoded()
         return NowAttributes.ContentState(

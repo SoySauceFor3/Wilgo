@@ -1,92 +1,96 @@
 import Foundation
 
 enum CommitmentAndSlot {
-    static func current(
+    /// Shared tuple used by Stage to render rows with behind information.
+    typealias WithBehind = (commitment: Commitment, slots: [Slot], behindCount: Int)
+
+    static func currentWithBehind(
         commitments: [Commitment],
         now: Date = CommitmentScheduling.now()
-    ) -> [(Commitment, [Slot])] {
-        let currentCommitmentAndSlots = commitments.compactMap {
-            commitment -> (Commitment, [Slot])? in
+    ) -> [WithBehind] {
+        let currentCommitmentAndSlots: [WithBehind] = commitments.compactMap { commitment in
             let stageStatus = commitment.stageStatus(now: now)
-            if stageStatus.category == .current {
-                return (commitment, stageStatus.nextUpSlots)
-            }
-            return nil
+            guard stageStatus.category == .current else { return nil }
+            return (
+                commitment: commitment,
+                slots: stageStatus.nextUpSlots,
+                behindCount: stageStatus.behindCount
+            )
         }
 
-        // sort currentCommitmentAndSlots by currentCommitmentAndSlots.nextUpSlots[0]'s fraction of remaining time
+        // Sort by remaining fraction of the current slot window (sooner-to-end first).
         return currentCommitmentAndSlots.sorted {
-            $0.1[0].remainingFraction(at: now) < $1.1[0].remainingFraction(at: now)
+            $0.slots[0].remainingFraction(at: now) < $1.slots[0].remainingFraction(at: now)
         }
     }
 
-    // For each commitment that has NOT yet met today (psychological day)'s goal,
-    // return the first slot that hasn't started yet.
-    static func upcoming(
+    static func upcomingWithBehind(
         commitments: [Commitment],
         after time: Date
-    ) -> [(Commitment, [Slot])] {
-        let upcomingCommitmentAndSlots = commitments.compactMap {
-            commitment -> (Commitment, [Slot])? in
+    ) -> [WithBehind] {
+        let upcomingCommitmentAndSlots: [WithBehind] = commitments.compactMap { commitment in
             let stageStatus = commitment.stageStatus(now: time)
-            if stageStatus.category == .future {
-                return (commitment, stageStatus.nextUpSlots)
-            }
-            return nil
+            guard stageStatus.category == .future else { return nil }
+            return (
+                commitment: commitment,
+                slots: stageStatus.nextUpSlots,
+                behindCount: stageStatus.behindCount
+            )
         }
 
-        // sort upcomingCommitmentAndSlots by upcomingCommitmentAndSlots.nextUpSlots[0]
+        // Sort by first upcoming slot start, then end.
         return upcomingCommitmentAndSlots.sorted {
-            if $0.1[0].start == $1.1[0].start {
-                return $0.1[0].end < $1.1[0].end
+            guard let lhs = $0.slots.first, let rhs = $1.slots.first else { return false }
+            if lhs.start == rhs.start {
+                return lhs.end < rhs.end
             } else {
-                return $0.1[0].start < $1.1[0].start
+                return lhs.start < rhs.start
             }
         }
     }
 
-    static func catchUp(
+    static func catchUpWithBehind(
         commitments: [Commitment],
         now: Date = CommitmentScheduling.now()
-    ) -> [(Commitment, [Slot])] {
-        let catchUpCommitmentAndSlots = commitments.compactMap {
-            commitment -> (Commitment, [Slot])? in
+    ) -> [WithBehind] {
+        let catchUpCommitmentAndSlots: [WithBehind] = commitments.compactMap { commitment in
             let stageStatus = commitment.stageStatus(now: now)
-            if stageStatus.category == .catchUp {
-                return (commitment, stageStatus.nextUpSlots)
-            }
-            return nil
+            guard stageStatus.category == .catchUp else { return nil }
+            return (
+                commitment: commitment,
+                slots: stageStatus.nextUpSlots,
+                behindCount: stageStatus.behindCount
+            )
         }
 
-        return catchUpCommitmentAndSlots.sorted {
-            // TODO: THIS NEED TO CHANGED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! It only supports daily cycle for target.
-            // Calculate the fraction of "late progress"/"total target" and use it to sort, higher fraction in front.
-            // If fractions are equal to 1, then commitment with larger goalCountPerDay comes first.
+        // Sort primarily by behindCount/targetCount (higher is better),
+        // then by larger target count,
+        // then by earliest next slot (if any).
+        return catchUpCommitmentAndSlots.sorted { lhs, rhs in
+            // Compute "urgency" as the ratio, larger is more urgent
+            let lhsTargetCount = max(lhs.commitment.target.count, 1)
+            let rhsTargetCount = max(rhs.commitment.target.count, 1)
+            let lhsUrgency = Double(lhs.behindCount) / Double(lhsTargetCount)
+            let rhsUrgency = Double(rhs.behindCount) / Double(rhsTargetCount)
 
-            func catchUpFraction(_ tuple: (Commitment, [Slot])) -> Double {
-                let (commitment, nextUpSlots) = tuple
-                let catchUpCount = max(
-                    commitment.target.count
-                        - commitment.completedCount(for: CommitmentScheduling.psychDay(for: now))
-                        - nextUpSlots.count, 0)
-                guard commitment.target.count > 0 else { return 0 }
-                return Double(catchUpCount) / Double(commitment.target.count)
+            if lhsUrgency != rhsUrgency {
+                return lhsUrgency > rhsUrgency
             }
 
-            let lhsFraction = catchUpFraction($0)
-            let rhsFraction = catchUpFraction($1)
+            if lhs.commitment.target.count != rhs.commitment.target.count {
+                return lhs.commitment.target.count > rhs.commitment.target.count
+            }
 
-            if lhsFraction == rhsFraction {
-                if lhsFraction == 1.0 {
-                    // Larger goalCountPerDay first if both at max fraction.
-                    return $0.0.target.count > $1.0.target.count
-                } else {
-                    // Tiebreaker: start of first slot
-                    return $0.1[0].start < $1.1[0].start
-                }
+            guard let lhsSlot = lhs.slots.first, let rhsSlot = rhs.slots.first else {
+                if lhs.slots.isEmpty && !rhs.slots.isEmpty { return false }
+                if !lhs.slots.isEmpty && rhs.slots.isEmpty { return true }
+                return false
+            }
+
+            if lhsSlot.start == rhsSlot.start {
+                return lhsSlot.end < rhsSlot.end
             } else {
-                // Higher fraction comes first
-                return lhsFraction > rhsFraction
+                return lhsSlot.start < rhsSlot.start
             }
         }
     }
