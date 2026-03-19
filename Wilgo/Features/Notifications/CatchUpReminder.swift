@@ -3,7 +3,7 @@ import Foundation
 import SwiftData
 import UserNotifications
 
-enum CatchUpReminderService {
+enum CatchUpReminder {
     // scheduler to make the "real work" run once a hour as long as the app is active.
     // if the app get's inactive/background, if during the hour-long gap, nothing changes.
     // if the app get's inactive/background when the timer fires, that time's handler exeuction will be missed.
@@ -11,7 +11,7 @@ enum CatchUpReminderService {
     static func startHourlyRunWhileActive() {
         guard scheduler == nil else { return }  // avoid double-start
         scheduler = InAppScheduler(interval: 60 * 60) {
-            CatchUpReminderService.updateAndScheduleNotificationAndBackgroundTask()
+            CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()
         }
         scheduler?.start()
     }

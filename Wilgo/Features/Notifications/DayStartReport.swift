@@ -17,14 +17,14 @@ import UserNotifications
 ///
 /// 3. If the user opens the app instead of relying on the notification, the Stage view
 ///    shows the live credit state directly — no separate notification needed.
-enum DayStartReportService {
+enum DayStartReport {
 
     private static let backgroundTaskIdentifier = "wilgo.day-start-report-scheduler"
 
     // MARK: - Public
     static func registerBackgroundTask() {
         BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: DayStartReportService.backgroundTaskIdentifier,
+            forTaskWithIdentifier: DayStartReport.backgroundTaskIdentifier,
             using: nil
         ) { task in
             guard let refreshTask = task as? BGAppRefreshTask else {
@@ -33,7 +33,7 @@ enum DayStartReportService {
             }
             let context = ModelContext(WilgoApp.sharedModelContainer)
             let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
-            DayStartReportService.handleBackgroundTask(for: commitments)
+            DayStartReport.handleBackgroundTask(for: commitments)
             refreshTask.setTaskCompleted(success: true)
         }
     }

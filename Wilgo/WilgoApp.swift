@@ -44,15 +44,15 @@ struct WilgoApp: App {
         // before any other code that could race with a pending task being dispatched.
         // BGTaskScheduler crashes if an identifier listed in BGTaskSchedulerPermittedIdentifiers
         // has no registered handler at the moment the system tries to dispatch it.
-        DayStartReportService.registerBackgroundTask()
+        DayStartReport.registerBackgroundTask()
 
         // Bootstrap: queue the day-start report wakeup at the user's preferred day-start hour.
         // After it fires once, handleBackgroundTask re-schedules it each day automatically.
-        DayStartReportService.scheduleBackgroundTask()
+        DayStartReport.scheduleBackgroundTask()
 
         // Set up CatchUpReminderService.
-        CatchUpReminderService.registerBackgroundTask()
-        CatchUpReminderService.startHourlyRunWhileActive()
+        CatchUpReminder.registerBackgroundTask()
+        CatchUpReminder.startHourlyRunWhileActive()
 
         liveActivityManager = LiveActivityManager(
             modelContext: Self.sharedModelContainer.mainContext)
@@ -71,10 +71,10 @@ struct WilgoApp: App {
             if newPhase == .active {
                 liveActivityManager.sync()
                 // Watchdog: re-queue in case iOS skipped a BGTask fire.
-                DayStartReportService.scheduleBackgroundTask()
+                DayStartReport.scheduleBackgroundTask()
             } else {
                 // the app is not active (inactive, or background), use this "last chance" to update and schedule the catch-up reminders.
-                CatchUpReminderService.updateAndScheduleNotificationAndBackgroundTask()
+                CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()
             }
         }
     }
