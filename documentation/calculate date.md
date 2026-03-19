@@ -60,8 +60,8 @@ We keep slots (`Slot` with `start`, `end`) and **do not store a per-slot index o
     - `createdAt: Date`
   - New:
     - `timeZoneIdentifier: String` (defaults to `TimeZone.current.identifier`).
-    - `commitmentDay: Date` (computed via `CommitmentScheduling.commitmentDay` at init).
-- `**CommitmentScheduling`\*\*:
+    - `commitmentDay: Date` (computed via `Time.commitmentDay` at init).
+- `**Time`\*\*:
   - `dayStartHourOffset: Int = 0` (placeholder; later configurable per user).
   - `commitmentDay(for:timeZoneIdentifier:dayStartHourOffset:)`:
     - Uses the specified time zone.

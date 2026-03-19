@@ -8,7 +8,7 @@ struct UpcomingCommitmentRow: View {
     @State private var isPresentingEdit = false
 
     var body: some View {
-        let status = commitment.stageStatus(now: CommitmentScheduling.now())
+        let status = commitment.stageStatus(now: Time.now())
         let behindCount = status.behindCount
 
         HStack {

@@ -5,7 +5,7 @@ import Testing
 
 // MARK: - Helpers
 
-/// Builds a concrete Date at the given y/m/d h:m using the same calendar as CommitmentScheduling.
+/// Builds a concrete Date at the given y/m/d h:m using the same calendar as Time.
 private func date(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 0) -> Date {
     var comps = DateComponents()
     comps.year = year
@@ -23,8 +23,8 @@ private func timeOfDay(hour: Int, minute: Int = 0) -> Date {
     date(year: 2000, month: 1, day: 1, hour: hour, minute: minute)
 }
 
-@Suite("CommitmentScheduling.resolve()")
-struct CommitmentSchedulingResolveTests {
+@Suite("Time.resolve()")
+struct TimeResolveTests {
 
     // MARK: offset 0
 
@@ -37,7 +37,7 @@ struct CommitmentSchedulingResolveTests {
         @Test("morning time lands on the same calendar day")
         func morningLandsSameday() {
             let psychDay = date(year: 2026, month: 1, day: 1)
-            let result = CommitmentScheduling.resolve(
+            let result = Time.resolve(
                 timeOfDay: timeOfDay(hour: 8), psychDay: psychDay, dayStartHourOffset: 0)
             #expect(result == date(year: 2026, month: 1, day: 1, hour: 8))
         }
@@ -45,7 +45,7 @@ struct CommitmentSchedulingResolveTests {
         @Test("midnight (00:00) time")
         func midnight() {
             let psychDay = date(year: 2026, month: 1, day: 1)
-            let result = CommitmentScheduling.resolve(
+            let result = Time.resolve(
                 timeOfDay: timeOfDay(hour: 0), psychDay: psychDay, dayStartHourOffset: 0)
             #expect(result == date(year: 2026, month: 1, day: 1, hour: 0))
         }
@@ -53,7 +53,7 @@ struct CommitmentSchedulingResolveTests {
         @Test("late-night time")
         func lateNight() {
             let psychDay = date(year: 2026, month: 1, day: 1)
-            let result = CommitmentScheduling.resolve(
+            let result = Time.resolve(
                 timeOfDay: timeOfDay(hour: 23, minute: 30), psychDay: psychDay,
                 dayStartHourOffset: 0)
             #expect(result == date(year: 2026, month: 1, day: 1, hour: 23, minute: 30))
@@ -62,7 +62,7 @@ struct CommitmentSchedulingResolveTests {
         @Test("minute component is preserved")
         func minutePreserved() {
             let psychDay = date(year: 2026, month: 1, day: 1)
-            let result = CommitmentScheduling.resolve(
+            let result = Time.resolve(
                 timeOfDay: timeOfDay(hour: 9, minute: 45), psychDay: psychDay, dayStartHourOffset: 0
             )
             #expect(result == date(year: 2026, month: 1, day: 1, hour: 9, minute: 45))
@@ -85,7 +85,7 @@ struct CommitmentSchedulingResolveTests {
         func afternoonStaysSameDay() {
             // now = Jan 1 15:00 → psych day started Jan 1
             let psychDay = date(year: 2026, month: 1, day: 1)
-            let result = CommitmentScheduling.resolve(
+            let result = Time.resolve(
                 timeOfDay: timeOfDay(hour: 20), psychDay: psychDay, dayStartHourOffset: 14)
             #expect(result == date(year: 2026, month: 1, day: 1, hour: 20))
         }
@@ -93,7 +93,7 @@ struct CommitmentSchedulingResolveTests {
         @Test("exact day-start boundary time (14:00) stays on the psych-day-start date")
         func exactOffsetBoundaryStaysSameDay() {
             let psychDay = date(year: 2026, month: 1, day: 1)
-            let result = CommitmentScheduling.resolve(
+            let result = Time.resolve(
                 timeOfDay: timeOfDay(hour: 14), psychDay: psychDay, dayStartHourOffset: 14)
             #expect(result == date(year: 2026, month: 1, day: 1, hour: 14))
         }
@@ -102,7 +102,7 @@ struct CommitmentSchedulingResolveTests {
         func earlyMorningPushesNextDay() {
             // now = Jan 1 15:00 → psych day started Jan 1 → 2am < 14 → Jan 2 02:00
             let psychDay = date(year: 2026, month: 1, day: 1)
-            let result = CommitmentScheduling.resolve(
+            let result = Time.resolve(
                 timeOfDay: timeOfDay(hour: 2), psychDay: psychDay, dayStartHourOffset: 14)
             #expect(result == date(year: 2026, month: 1, day: 2, hour: 2))
         }
@@ -110,7 +110,7 @@ struct CommitmentSchedulingResolveTests {
         @Test("one minute before day-start boundary (13:59) goes to the next calendar day")
         func oneMinuteBeforeBoundaryPushesNextDay() {
             let psychDay = date(year: 2026, month: 1, day: 1)
-            let result = CommitmentScheduling.resolve(
+            let result = Time.resolve(
                 timeOfDay: timeOfDay(hour: 13, minute: 59), psychDay: psychDay,
                 dayStartHourOffset: 14)
             #expect(result == date(year: 2026, month: 1, day: 2, hour: 13, minute: 59))
@@ -124,7 +124,7 @@ struct CommitmentSchedulingResolveTests {
         @Test("1am, goes to next calendar day")
         func oneAm() {
             let psychDay = date(year: 2026, month: 1, day: 1)
-            let result = CommitmentScheduling.resolve(
+            let result = Time.resolve(
                 timeOfDay: timeOfDay(hour: 1), psychDay: psychDay, dayStartHourOffset: 2)
             #expect(result == date(year: 2026, month: 1, day: 2, hour: 1))
         }
@@ -132,7 +132,7 @@ struct CommitmentSchedulingResolveTests {
         @Test("3am, stays on the same day")
         func threeAmStaysSameDay() {
             let psychDay = date(year: 2026, month: 1, day: 1)
-            let result = CommitmentScheduling.resolve(
+            let result = Time.resolve(
                 timeOfDay: timeOfDay(hour: 3), psychDay: psychDay, dayStartHourOffset: 2)
             #expect(result == date(year: 2026, month: 1, day: 1, hour: 3))
         }
@@ -140,7 +140,7 @@ struct CommitmentSchedulingResolveTests {
         @Test("10pm")
         func tenPm() {
             let psychDay = date(year: 2026, month: 1, day: 1)
-            let result = CommitmentScheduling.resolve(
+            let result = Time.resolve(
                 timeOfDay: timeOfDay(hour: 22), psychDay: psychDay, dayStartHourOffset: 2)
             #expect(result == date(year: 2026, month: 1, day: 1, hour: 22))
         }
@@ -151,7 +151,7 @@ struct CommitmentSchedulingResolveTests {
         @Test("psychDay has hour set as 11pm")
         func psychDay11pm() {
             let psychDay = date(year: 2026, month: 1, day: 1, hour: 23)
-            let result = CommitmentScheduling.resolve(
+            let result = Time.resolve(
                 timeOfDay: timeOfDay(hour: 23), psychDay: psychDay, dayStartHourOffset: 0)
             #expect(result == date(year: 2026, month: 1, day: 1, hour: 23))
         }
@@ -171,9 +171,9 @@ struct CommitmentSchedulingResolveTests {
         func eveningBeforeOvernightOffset14() {
             let psychDay = date(year: 2026, month: 1, day: 1)
 
-            let evening = CommitmentScheduling.resolve(
+            let evening = Time.resolve(
                 timeOfDay: timeOfDay(hour: 20), psychDay: psychDay, dayStartHourOffset: 14)
-            let overnight = CommitmentScheduling.resolve(
+            let overnight = Time.resolve(
                 timeOfDay: timeOfDay(hour: 2), psychDay: psychDay, dayStartHourOffset: 14)
 
             #expect(evening < overnight)
@@ -185,9 +185,9 @@ struct CommitmentSchedulingResolveTests {
         func eveningBeforeOvernightOffset2() {
             let psychDay = date(year: 2026, month: 1, day: 1)
 
-            let evening = CommitmentScheduling.resolve(
+            let evening = Time.resolve(
                 timeOfDay: timeOfDay(hour: 20), psychDay: psychDay, dayStartHourOffset: 2)
-            let overnight = CommitmentScheduling.resolve(
+            let overnight = Time.resolve(
                 timeOfDay: timeOfDay(hour: 1), psychDay: psychDay, dayStartHourOffset: 2)
 
             #expect(evening < overnight)
@@ -197,9 +197,9 @@ struct CommitmentSchedulingResolveTests {
         func twoEveningSlotsSorted() {
             let psychDay = date(year: 2026, month: 1, day: 1)
 
-            let first = CommitmentScheduling.resolve(
+            let first = Time.resolve(
                 timeOfDay: timeOfDay(hour: 16), psychDay: psychDay, dayStartHourOffset: 14)
-            let second = CommitmentScheduling.resolve(
+            let second = Time.resolve(
                 timeOfDay: timeOfDay(hour: 21), psychDay: psychDay, dayStartHourOffset: 14)
 
             #expect(first < second)
@@ -209,9 +209,9 @@ struct CommitmentSchedulingResolveTests {
         func twoOvernightSlotsSorted() {
             let psychDay = date(year: 2026, month: 1, day: 1)
 
-            let first = CommitmentScheduling.resolve(
+            let first = Time.resolve(
                 timeOfDay: timeOfDay(hour: 1), psychDay: psychDay, dayStartHourOffset: 14)
-            let second = CommitmentScheduling.resolve(
+            let second = Time.resolve(
                 timeOfDay: timeOfDay(hour: 12), psychDay: psychDay, dayStartHourOffset: 14)
 
             #expect(first < second)

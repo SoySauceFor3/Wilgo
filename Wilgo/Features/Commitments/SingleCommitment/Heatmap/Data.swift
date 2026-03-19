@@ -54,12 +54,12 @@ extension Heatmap {
         let isBeforeCreation: Bool
 
         var isCurrent: Bool {
-            let today = CommitmentScheduling.psychDay(for: CommitmentScheduling.now())
+            let today = Time.psychDay(for: Time.now())
             return periodStartPsychDay <= today && today < periodEndPsychDay
         }
 
         var isFuture: Bool {
-            let today = CommitmentScheduling.psychDay(for: CommitmentScheduling.now())
+            let today = Time.psychDay(for: Time.now())
             return periodStartPsychDay > today
         }
     }
@@ -70,10 +70,10 @@ extension Heatmap {
     struct Context {
         let commitment: Commitment
 
-        var today: Date { CommitmentScheduling.psychDay(for: CommitmentScheduling.now()) }
-        var createdPsychDay: Date { CommitmentScheduling.psychDay(for: commitment.createdAt) }
+        var today: Date { Time.psychDay(for: Time.now()) }
+        var createdPsychDay: Date { Time.psychDay(for: commitment.createdAt) }
         var target: Cycle { commitment.target.cycle }
-        var cal: Calendar { CommitmentScheduling.calendar }
+        var cal: Calendar { Time.calendar }
 
         var checkInTimesByDay: [Date: [Date]] {
             var d: [Date: [Date]] = [:]
@@ -156,7 +156,7 @@ extension Heatmap {
                 if target.kind == .weekly { return target }
                 return Cycle(
                     kind: .weekly,
-                    referencePsychDay: CommitmentScheduling.calendar.date(
+                    referencePsychDay: Time.calendar.date(
                         from: DateComponents(year: 2026, month: 3, day: 2))!)  // 03/02/2026 is a Monday
             }()
             let currentStart = cycle.startDayOfCycle(including: today)
@@ -208,12 +208,14 @@ extension Heatmap {
                 if target.kind == .monthly { return target }
                 return Cycle(
                     kind: .monthly,
-                    referencePsychDay: CommitmentScheduling.calendar.date(
+                    referencePsychDay: Time.calendar.date(
                         from: DateComponents(year: 2026, month: 3, day: 1))!)  // 03/01/2026 is the first day of the month
             }()
             var currentStart = cycle.startDayOfCycle(including: today)
             for _ in 0..<(monthsToShow - 1) {
-                guard let prevDay = cal.date(byAdding: .day, value: -1, to: currentStart) else { break }
+                guard let prevDay = cal.date(byAdding: .day, value: -1, to: currentStart) else {
+                    break
+                }
                 currentStart = cycle.startDayOfCycle(including: prevDay)
             }
             var periods: [PeriodData] = []

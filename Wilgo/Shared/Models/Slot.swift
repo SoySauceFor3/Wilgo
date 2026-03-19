@@ -113,10 +113,10 @@ extension Slot {
 
 extension Slot {
     /// Start of the slot mapped onto the current psychological day.
-    var startToday: Date { CommitmentScheduling.resolve(timeOfDay: start) }
+    var startToday: Date { Time.resolve(timeOfDay: start) }
 
     /// End of the slot mapped onto the current psychological day.
-    var endToday: Date { CommitmentScheduling.resolve(timeOfDay: end) }
+    var endToday: Date { Time.resolve(timeOfDay: end) }
 
     var timeOfDayText: String {
         let formatter = DateFormatter()
@@ -194,7 +194,7 @@ extension Slot {
     /// This deliberately ignores psychDay offsets. For example, if the user sets their
     /// day-start offset to noon, a slot configured for "Monday 00:00–01:00" is still
     /// considered to belong to **calendar Monday**, not Tuesday.
-    func isActive(on time: Date, calendar: Calendar = CommitmentScheduling.calendar) -> Bool {
+    func isActive(on time: Date, calendar: Calendar = Time.calendar) -> Bool {
         // First ensure the time-of-day lies within this slot's window.
         guard contains(timeOfDay: time) else { return false }
         // Determine the "anchor" calendar date that this occurrence belongs to.

@@ -64,7 +64,7 @@ private func makeCommitment(
 
 // MARK: - UserDefaults isolation
 //
-// CommitmentScheduling.dayStartHourOffset reads UserDefaults.standard live. In a
+// Time.dayStartHourOffset reads UserDefaults.standard live. In a
 // unit-test host the standard suite IS the real app's suite (shared with device
 // data), so we must save and restore the value around every test.
 //
@@ -335,19 +335,19 @@ struct SlotsQueriesTests {
         // Frozen instant used as the injectable clock for the entire suite.
         private static let fakeNow = date(year: 2000, month: 1, day: 1, hour: 12)
 
-        private let savedNow = CommitmentScheduling.now
+        private let savedNow = Time.now
         private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
 
         init() {
             UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey)
-            CommitmentScheduling.now = { return CommitmentFirstCurrentSlotTests.fakeNow }
+            Time.now = { return CommitmentFirstCurrentSlotTests.fakeNow }
         }
 
         deinit {
             let savedNow = savedNow
             let savedOffset = savedOffset
             UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey)
-            CommitmentScheduling.now = savedNow
+            Time.now = savedNow
         }
 
         private func wideSlot(startHour: Int = 0) -> Slot {
@@ -361,7 +361,7 @@ struct SlotsQueriesTests {
             let commitment = makeCommitment(in: ctx, slots: [wideSlot()])
             #expect(
                 commitment.firstCurrentSlot(
-                    now: CommitmentScheduling.now(), excluding: []) != nil)
+                    now: Time.now(), excluding: []) != nil)
         }
 
         @Test("only slot is excluded → nil")
@@ -372,7 +372,7 @@ struct SlotsQueriesTests {
             let commitment = makeCommitment(in: ctx, slots: [s])
             #expect(
                 commitment.firstCurrentSlot(
-                    now: CommitmentScheduling.now(), excluding: [s]) == nil)
+                    now: Time.now(), excluding: [s]) == nil)
         }
 
         @Test("first slot excluded → second slot returned")
@@ -384,7 +384,7 @@ struct SlotsQueriesTests {
             let s2 = wideSlot(startHour: 1)
             let commitment = makeCommitment(in: ctx, slots: [s1, s2])
             let result = commitment.firstCurrentSlot(
-                now: CommitmentScheduling.now(), excluding: [s1])
+                now: Time.now(), excluding: [s1])
             #expect(result != nil)
             #expect(result?.start == s2.start)
         }
@@ -396,7 +396,7 @@ struct SlotsQueriesTests {
             let s1 = makeSlot(startHour: 11, endHour: 13)
             let commitment = makeCommitment(in: ctx, slots: [s1])
             let result = commitment.firstCurrentSlot(
-                now: CommitmentScheduling.now(), excluding: [])
+                now: Time.now(), excluding: [])
             #expect(result != nil)
             #expect(result == s1)
         }
@@ -408,7 +408,7 @@ struct SlotsQueriesTests {
             let s1 = makeSlot(startHour: 9, endHour: 10)
             let commitment = makeCommitment(in: ctx, slots: [s1])
             let result = commitment.firstCurrentSlot(
-                now: CommitmentScheduling.now(), excluding: [])
+                now: Time.now(), excluding: [])
             #expect(result == nil)
         }
 
@@ -419,7 +419,7 @@ struct SlotsQueriesTests {
             let s1 = makeSlot(startHour: 23, endHour: 13)
             let commitment = makeCommitment(in: ctx, slots: [s1])
             let result = commitment.firstCurrentSlot(
-                now: CommitmentScheduling.now(), excluding: [])
+                now: Time.now(), excluding: [])
             #expect(result != nil)
             #expect(result == s1)
         }
@@ -431,7 +431,7 @@ struct SlotsQueriesTests {
             let s1 = makeSlot(startHour: 23, endHour: 11)
             let commitment = makeCommitment(in: ctx, slots: [s1])
             let result = commitment.firstCurrentSlot(
-                now: CommitmentScheduling.now(), excluding: [])
+                now: Time.now(), excluding: [])
             #expect(result == nil)
         }
     }
@@ -440,7 +440,7 @@ struct SlotsQueriesTests {
 
     @Suite("Commitment — firstSlotAfter")
     final class CommitmentFirstSlotAfterTests {
-        private let savedNow = CommitmentScheduling.now
+        private let savedNow = Time.now
         private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
 
         init() {
@@ -451,7 +451,7 @@ struct SlotsQueriesTests {
             // let savedNow = savedNow
             let savedOffset = savedOffset
             UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey)
-            // CommitmentScheduling.now = savedNow
+            // Time.now = savedNow
         }
 
         @Test("slot in the future → returned")

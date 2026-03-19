@@ -60,19 +60,19 @@ struct CommitmentAndSlotTests {
         // noonNow (passed as `now`) falls within the wide window (00:00–23:00).
         private static let frozenNoon = date(year: 2025, month: 6, day: 15, hour: 12)
 
-        private let savedNow = CommitmentScheduling.now
+        private let savedNow = Time.now
         private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
 
         init() {
             UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey)
-            CommitmentScheduling.now = { CommitmentAndSlotCurrentTests.frozenNoon }
+            Time.now = { CommitmentAndSlotCurrentTests.frozenNoon }
         }
 
         deinit {
             let savedNow = savedNow
             let savedOffset = savedOffset
             UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey)
-            CommitmentScheduling.now = savedNow
+            Time.now = savedNow
         }
 
         private func wideSlot(endHour: Int = 23) -> Slot {
@@ -91,7 +91,7 @@ struct CommitmentAndSlotTests {
             let ctx = container.mainContext
             let commitment = makeCommitment(in: ctx, slots: [wideSlot()])
             ctx.insert(
-                CheckIn(commitment: commitment, createdAt: CommitmentScheduling.now()))  // met daily goal
+                CheckIn(commitment: commitment, createdAt: Time.now()))  // met daily goal
             let result = CommitmentAndSlot.current(commitments: [commitment])
             #expect(result.isEmpty)
         }
@@ -126,19 +126,19 @@ struct CommitmentAndSlotTests {
         // // Frozen instant used as the injectable clock for the entire suite.
         // private static let fakeNow = date(year: 2025, month: 6, day: 15, hour: 0)
 
-        // private let savedNow = CommitmentScheduling.now
+        // private let savedNow = Time.now
         private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
 
         init() {
             UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey)
-            // CommitmentScheduling.now = { return CommitmentAndSlotUpcomingTests.fakeNow }
+            // Time.now = { return CommitmentAndSlotUpcomingTests.fakeNow }
         }
 
         deinit {
             // let savedNow = savedNow
             let savedOffset = savedOffset
             UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey)
-            // CommitmentScheduling.now = savedNow
+            // Time.now = savedNow
         }
 
         @Test("empty commitments → empty")
@@ -222,24 +222,24 @@ struct CommitmentAndSlotTests {
         private static let fakeNow = date(year: 2025, month: 6, day: 15, hour: 6)
         private static let nextPsychDayStart = date(year: 2025, month: 6, day: 16, hour: 0)
 
-        private let savedNow = CommitmentScheduling.now
+        private let savedNow = Time.now
         private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
 
         init() {
             UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey)
-            CommitmentScheduling.now = { return CommitmentAndSlotNextTransitionDateTests.fakeNow }
+            Time.now = { return CommitmentAndSlotNextTransitionDateTests.fakeNow }
         }
 
         deinit {
             let savedNow = savedNow
             let savedOffset = savedOffset
             UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey)
-            CommitmentScheduling.now = savedNow
+            Time.now = savedNow
         }
 
         @Test("empty commitments → returns the next psychDay boundary")
         @MainActor func emptyCommitmentsReturnsPsychDayBoundary() throws {
-            print("111CommitmentScheduling.now() = \(CommitmentScheduling.now())")
+            print("111Time.now() = \(Time.now())")
             let result = CommitmentAndSlot.nextTransitionDate(commitments: [])
             #expect(result == CommitmentAndSlotNextTransitionDateTests.nextPsychDayStart)
         }

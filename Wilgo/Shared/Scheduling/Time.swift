@@ -3,12 +3,12 @@
 
 import Foundation
 
-/// Shared scheduling and calendar utilities for commitments.
-enum CommitmentScheduling {
+/// Shared time, date, and calendar utilities.
+enum Time {
     static let calendar = Calendar.current
 
     /// Returns the current date. Override in tests to freeze time.
-    /// Production code must never call `Date()` directly — use `CommitmentScheduling.now()` instead.
+    /// Production code must never call `Date()` directly — use `Time.now()` instead.
     static var now: () -> Date = { Date() }
 
     /// Hour of day when a "psych day" starts. Reads live from UserDefaults so it

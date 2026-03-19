@@ -29,7 +29,7 @@ Code is organized **by feature/screen**, with shared domain code in `Shared/`:
 
 - **Shared/Scheduling**
   - `PhaseEngine.swift` – phase/pressure logic and UI styling used by Stage (and later notifications).
-  - `CommitmentScheduling.swift` – reusable “today” time-window helpers for commitments.
+  - `Time.swift` – reusable “today” time-window helpers for commitments.
 
 ## iOS/Swift conventions (feature-first)
 

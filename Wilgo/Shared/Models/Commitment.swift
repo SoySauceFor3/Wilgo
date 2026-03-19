@@ -82,7 +82,7 @@ extension Commitment {
 
     /// The first slot whose window overlaps with `now`, skipping excluded ones.
     func firstCurrentSlot(
-        now: Date = CommitmentScheduling.now(),
+        now: Date = Time.now(),
         excluding excluded: [Slot]
     ) -> Slot? {
         return slots.first(where: { slot in
@@ -95,11 +95,11 @@ extension Commitment {
     }
 
     /// The first slot after `time`.
-    func firstSlotAfter(time: Date = CommitmentScheduling.now()) -> Slot? {
+    func firstSlotAfter(time: Date = Time.now()) -> Slot? {
         return slots.sorted().first(where: {
             time
-                <= CommitmentScheduling.resolve(
-                    timeOfDay: $0.start, psychDay: CommitmentScheduling.psychDay(for: time))
+                <= Time.resolve(
+                    timeOfDay: $0.start, psychDay: Time.psychDay(for: time))
         })
     }
 
@@ -110,7 +110,7 @@ extension Commitment {
 
     func checkInsInCycle(
         cycle: Cycle,
-        until psychDay: Date = CommitmentScheduling.psychDay(for: CommitmentScheduling.now()),
+        until psychDay: Date = Time.psychDay(for: Time.now()),
         inclusive: Bool = true
     ) -> [CheckIn] {
         let start = cycle.startDayOfCycle(including: psychDay)
@@ -151,10 +151,10 @@ extension Commitment {
     /// - `catchUp`: elif the count of remaining slots < leftToDo.
     /// - `others`: all other cases.
     func stageStatus(
-        now: Date = CommitmentScheduling.now()
+        now: Date = Time.now()
     ) -> StageStatus {
         let target = self.target
-        let nowPsychDay = CommitmentScheduling.psychDay(for: now)
+        let nowPsychDay = Time.psychDay(for: now)
         let startDay = target.cycle.startDayOfCycle(including: nowPsychDay)
         let endDay = target.cycle.endDayOfCycle(including: nowPsychDay)
         let checkInsInCycle = checkInsInRange(startPsychDay: startDay, endPsychDay: endDay)
@@ -164,17 +164,17 @@ extension Commitment {
             return StageStatus(category: .metGoal, nextUpSlots: [], behindCount: 0)
         }
 
-        let cal = CommitmentScheduling.calendar
+        let cal = Time.calendar
 
         func psychDayStartTime(_ psychDay: Date) -> Date {
             // psychDay is pinned to midnight; real day start is midnight + offset.
             psychDay.addingTimeInterval(
-                TimeInterval(CommitmentScheduling.dayStartHourOffset * 3_600))
+                TimeInterval(Time.dayStartHourOffset * 3_600))
         }
 
         func resolveSlotOccurrence(slot: Slot, psychDay: Date) -> Slot? {
-            let start = CommitmentScheduling.resolve(timeOfDay: slot.start, psychDay: psychDay)
-            var end = CommitmentScheduling.resolve(timeOfDay: slot.end, psychDay: psychDay)
+            let start = Time.resolve(timeOfDay: slot.start, psychDay: psychDay)
+            var end = Time.resolve(timeOfDay: slot.end, psychDay: psychDay)
             if end <= start {
                 end = cal.date(byAdding: .day, value: 1, to: end) ?? end
             }

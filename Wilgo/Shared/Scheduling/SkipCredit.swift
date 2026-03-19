@@ -14,7 +14,7 @@ enum SkipCredit {
     )
         -> Int
     {
-        let calendar = CommitmentScheduling.calendar
+        let calendar = Time.calendar
         let targetCycle = commitment.target.cycle
         let skipCycle = commitment.skipBudget.cycle
 

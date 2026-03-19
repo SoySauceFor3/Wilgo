@@ -88,7 +88,7 @@ struct StageView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle(
-                CommitmentScheduling.psychDay(for: CommitmentScheduling.now()).formatted(
+                Time.psychDay(for: Time.now()).formatted(
                     date: .abbreviated, time: .omitted)
             )
             .task(id: rewrite) {

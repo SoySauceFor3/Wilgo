@@ -6,7 +6,7 @@ enum CommitmentAndSlot {
 
     static func currentWithBehind(
         commitments: [Commitment],
-        now: Date = CommitmentScheduling.now()
+        now: Date = Time.now()
     ) -> [WithBehind] {
         let currentCommitmentAndSlots: [WithBehind] = commitments.compactMap { commitment in
             let stageStatus = commitment.stageStatus(now: now)
@@ -51,7 +51,7 @@ enum CommitmentAndSlot {
 
     static func catchUpWithBehind(
         commitments: [Commitment],
-        now: Date = CommitmentScheduling.now()
+        now: Date = Time.now()
     ) -> [WithBehind] {
         let catchUpCommitmentAndSlots: [WithBehind] = commitments.compactMap { commitment in
             let stageStatus = commitment.stageStatus(now: now)
@@ -97,7 +97,7 @@ enum CommitmentAndSlot {
 
     /// Earliest upcoming windowStart, windowEnd, or psychDay boundary across all commitments' slots.
     static func nextTransitionDate(
-        commitments: [Commitment], now: Date = CommitmentScheduling.now()
+        commitments: [Commitment], now: Date = Time.now()
     ) -> Date? {
         var candidates: [Date] = []
         for commitment in commitments {
@@ -110,12 +110,12 @@ enum CommitmentAndSlot {
         }
         // Wake up exactly at the next psychDay boundary so the Stage resets on time
         // even when no slot transitions remain in the current day.
-        let currentPsychDayBase = CommitmentScheduling.psychDay(for: now)
-        if let nextPsychDayBase = CommitmentScheduling.calendar.date(
+        let currentPsychDayBase = Time.psychDay(for: now)
+        if let nextPsychDayBase = Time.calendar.date(
             byAdding: .day, value: 1, to: currentPsychDayBase)
         {
             let nextPsychDayStart = nextPsychDayBase.addingTimeInterval(
-                TimeInterval(CommitmentScheduling.dayStartHourOffset * 3_600))
+                TimeInterval(Time.dayStartHourOffset * 3_600))
             if nextPsychDayStart > now { candidates.append(nextPsychDayStart) }
         }
 

@@ -33,7 +33,7 @@ enum CatchUpReminderService {
 
     // The real work that we should do once in a while (hour)
     static func updateAndScheduleNotificationAndBackgroundTask(
-        now: Date = CommitmentScheduling.now()
+        now: Date = Time.now()
     ) {
         let context = ModelContext(WilgoApp.sharedModelContainer)
         let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
@@ -46,7 +46,7 @@ enum CatchUpReminderService {
 
     /// Queue the next catch-up reminder.
     static func scheduleBackgroundTask(
-        now: Date = CommitmentScheduling.now()
+        now: Date = Time.now()
     ) {
         let request = BGAppRefreshTaskRequest(identifier: backgroundTaskIdentifier)
 
@@ -62,7 +62,7 @@ enum CatchUpReminderService {
     // NOTE: because this function runs roughly 1/hour when the app is not active, so the date might be slightly outdated.
     private static func updateCatchUpCommitmentsStorage(
         catchUp: [CommitmentAndSlot.WithBehind],
-        now: Date = CommitmentScheduling.now()
+        now: Date = Time.now()
     ) {
         // 1. Get the currently stored catch-up commitments from UserDefaults.
         let defaults = UserDefaults.standard
@@ -95,7 +95,7 @@ enum CatchUpReminderService {
 
     private static func nextNotificationDate(
         lastNewCatchUpCommitmentDate: Date,
-        now: Date = CommitmentScheduling.now()
+        now: Date = Time.now()
     ) -> Date {
         let defaults = UserDefaults.standard
         guard

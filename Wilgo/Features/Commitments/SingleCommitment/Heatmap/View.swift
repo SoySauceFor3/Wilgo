@@ -25,8 +25,8 @@ struct CommitmentHeatmapLegendView: View {
     private struct LegendSample: Identifiable {
         let id = UUID()
         let progress: Double  // 0...1
-            let label: String
-            let value: Int
+        let label: String
+        let value: Int
     }
 
     private var expectedGoal: Int? {
@@ -428,7 +428,7 @@ struct CommitmentHeatmapView: View {
     private static func buildDailyColumns(
         from periods: [Heatmap.PeriodData]
     ) -> [[Heatmap.PeriodData?]] {
-        let cal = CommitmentScheduling.calendar
+        let cal = Time.calendar
 
         guard let firstPeriod = periods.first else {
             return []
@@ -463,7 +463,7 @@ struct CommitmentHeatmapView: View {
     private static func buildMonthLabelsByColumn(
         from columns: [[Heatmap.PeriodData?]]
     ) -> [Int: String] {
-        let cal = CommitmentScheduling.calendar
+        let cal = Time.calendar
 
         // Month labels centered over spans of weeks that belong to the same month.
         var monthStartWeeks: [(weekIdx: Int, date: Date)] = []
@@ -599,7 +599,7 @@ struct CommitmentHeatmapView: View {
         case .weekly:
             fmt.dateFormat = "MMM d"
             let end =
-                CommitmentScheduling.calendar.date(
+                Time.calendar.date(
                     byAdding: .day, value: -1, to: period.periodEndPsychDay)
                 ?? period.periodEndPsychDay
             return "\(fmt.string(from: period.periodStartPsychDay)) – \(fmt.string(from: end))"
@@ -633,11 +633,11 @@ struct MiniCommitmentHeatmapRow: View {
     let daysToShow: Int
 
     private var psychToday: Date {
-        CommitmentScheduling.psychDay(for: CommitmentScheduling.now())
+        Time.psychDay(for: Time.now())
     }
 
     private var createdPsychDay: Date {
-        CommitmentScheduling.psychDay(for: commitment.createdAt)
+        Time.psychDay(for: commitment.createdAt)
     }
 
     private var completionsByDay: [Date: Int] {
@@ -649,7 +649,7 @@ struct MiniCommitmentHeatmapRow: View {
     }
 
     private var periods: [Heatmap.PeriodData] {
-        let cal = CommitmentScheduling.calendar
+        let cal = Time.calendar
         return (0..<daysToShow).map { offset in
             let date = cal.date(byAdding: .day, value: -(daysToShow - 1 - offset), to: psychToday)!
             let start = cal.startOfDay(for: date)

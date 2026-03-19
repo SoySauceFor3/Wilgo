@@ -92,14 +92,14 @@ struct EditCommitmentView: View {
         // See documentation/Edit Commitment Feature.md for rationale.
         if anyRuleChanged {
             // Reanchor the target cycle to today as the reference day.
-            target.cycle = Cycle.anchored(target.cycle.kind, at: CommitmentScheduling.now())
+            target.cycle = Cycle.anchored(target.cycle.kind, at: Time.now())
         }
         commitment.target = target
 
         if anyRuleChanged {
             // Reanchor the skip budget cycle to today as the reference day.
             skipBudget.cycle = Cycle.anchored(
-                skipBudget.cycle.kind, at: CommitmentScheduling.now(),
+                skipBudget.cycle.kind, at: Time.now(),
                 multiplier: skipBudget.cycle.multiplier)
         }
         commitment.skipBudget = skipBudget

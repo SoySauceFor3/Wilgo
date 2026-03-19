@@ -32,7 +32,7 @@ private func midnight(_ year: Int, _ month: Int, _ day: Int, tz: String) -> Date
     return Calendar(identifier: .gregorian).date(from: comps)!
 }
 
-// MARK: - CommitmentScheduling.psychDay(for:)
+// MARK: - Time.psychDay(for:)
 //
 // Algorithm recap:
 //   1. Shift the input Date back by `dayStartHourOffset` hours.
@@ -41,8 +41,8 @@ private func midnight(_ year: Int, _ month: Int, _ day: Int, tz: String) -> Date
 //
 // All tests below pass an explicit timezone ("UTC") so results are stable on any machine.
 
-@Suite("CommitmentScheduling.psychDay(for:)")
-struct CommitmentSchedulingPsychDayTests {
+@Suite("Time.psychDay(for:)")
+struct TimePsychDayTests {
 
     // MARK: offset 0
 
@@ -52,7 +52,7 @@ struct CommitmentSchedulingPsychDayTests {
         @Test("morning → midnight of the same day")
         func morningMapsToday() {
             let now = utcDate(year: 2026, month: 1, day: 1, hour: 9)
-            let result = CommitmentScheduling.psychDay(
+            let result = Time.psychDay(
                 for: now, timeZoneIdentifier: "UTC", dayStartHourOffset: 0)
             #expect(result == utcDate(year: 2026, month: 1, day: 1))
         }
@@ -60,7 +60,7 @@ struct CommitmentSchedulingPsychDayTests {
         @Test("evening → midnight of the same day")
         func eveningMapsToday() {
             let now = utcDate(year: 2026, month: 1, day: 1, hour: 22)
-            let result = CommitmentScheduling.psychDay(
+            let result = Time.psychDay(
                 for: now, timeZoneIdentifier: "UTC", dayStartHourOffset: 0)
             #expect(result == utcDate(year: 2026, month: 1, day: 1))
         }
@@ -68,7 +68,7 @@ struct CommitmentSchedulingPsychDayTests {
         @Test("midnight itself → midnight of the same day (no shift)")
         func midnightMapsToday() {
             let now = utcDate(year: 2026, month: 1, day: 1, hour: 0)
-            let result = CommitmentScheduling.psychDay(
+            let result = Time.psychDay(
                 for: now, timeZoneIdentifier: "UTC", dayStartHourOffset: 0)
             #expect(result == utcDate(year: 2026, month: 1, day: 1))
         }
@@ -88,7 +88,7 @@ struct CommitmentSchedulingPsychDayTests {
         @Test("time after offset (15:00) → psych day is today")
         func afterOffsetIsToday() {
             let now = utcDate(year: 2026, month: 1, day: 1, hour: 15)
-            let result = CommitmentScheduling.psychDay(
+            let result = Time.psychDay(
                 for: now, timeZoneIdentifier: "UTC", dayStartHourOffset: 14)
             #expect(result == utcDate(year: 2026, month: 1, day: 1))
         }
@@ -96,7 +96,7 @@ struct CommitmentSchedulingPsychDayTests {
         @Test("time before offset (13:00) → psych day is yesterday")
         func beforeOffsetIsYesterday() {
             let now = utcDate(year: 2026, month: 1, day: 1, hour: 13)
-            let result = CommitmentScheduling.psychDay(
+            let result = Time.psychDay(
                 for: now, timeZoneIdentifier: "UTC", dayStartHourOffset: 14)
             #expect(result == utcDate(year: 2025, month: 12, day: 31))
         }
@@ -104,7 +104,7 @@ struct CommitmentSchedulingPsychDayTests {
         @Test("exactly at offset (14:00) → psych day is today")
         func exactlyAtOffsetIsToday() {
             let now = utcDate(year: 2026, month: 1, day: 1, hour: 14)
-            let result = CommitmentScheduling.psychDay(
+            let result = Time.psychDay(
                 for: now, timeZoneIdentifier: "UTC", dayStartHourOffset: 14)
             #expect(result == utcDate(year: 2026, month: 1, day: 1))
         }
@@ -112,7 +112,7 @@ struct CommitmentSchedulingPsychDayTests {
         @Test("one minute before offset (13:59) → psych day is yesterday")
         func oneMinuteBeforeOffsetIsYesterday() {
             let now = utcDate(year: 2026, month: 1, day: 1, hour: 13, minute: 59)
-            let result = CommitmentScheduling.psychDay(
+            let result = Time.psychDay(
                 for: now, timeZoneIdentifier: "UTC", dayStartHourOffset: 14)
             #expect(result == utcDate(year: 2025, month: 12, day: 31))
         }
@@ -120,7 +120,7 @@ struct CommitmentSchedulingPsychDayTests {
         @Test("overnight tail (Jan 2 01:00) → psych day is still Jan 1")
         func overnightTailIsYesterday() {
             let now = utcDate(year: 2026, month: 1, day: 2, hour: 1)
-            let result = CommitmentScheduling.psychDay(
+            let result = Time.psychDay(
                 for: now, timeZoneIdentifier: "UTC", dayStartHourOffset: 14)
             #expect(result == utcDate(year: 2026, month: 1, day: 1))
         }
@@ -128,7 +128,7 @@ struct CommitmentSchedulingPsychDayTests {
         @Test("Jan 2 14:00 — new psych day starts, result advances to Jan 2")
         func newPsychDayStartsJan2() {
             let now = utcDate(year: 2026, month: 1, day: 2, hour: 14)
-            let result = CommitmentScheduling.psychDay(
+            let result = Time.psychDay(
                 for: now, timeZoneIdentifier: "UTC", dayStartHourOffset: 14)
             #expect(result == utcDate(year: 2026, month: 1, day: 2))
         }
@@ -138,9 +138,9 @@ struct CommitmentSchedulingPsychDayTests {
             let before = utcDate(year: 2026, month: 1, day: 1, hour: 13, minute: 59)
             let after = utcDate(year: 2026, month: 1, day: 1, hour: 14, minute: 0)
 
-            let dayBefore = CommitmentScheduling.psychDay(
+            let dayBefore = Time.psychDay(
                 for: before, timeZoneIdentifier: "UTC", dayStartHourOffset: 14)
-            let dayAfter = CommitmentScheduling.psychDay(
+            let dayAfter = Time.psychDay(
                 for: after, timeZoneIdentifier: "UTC", dayStartHourOffset: 14)
 
             #expect(dayBefore < dayAfter)
@@ -165,7 +165,7 @@ struct CommitmentSchedulingPsychDayTests {
         @Test("3 am → psych day is today")
         func threeAmIsToday() {
             let now = utcDate(year: 2026, month: 1, day: 1, hour: 3)
-            let result = CommitmentScheduling.psychDay(
+            let result = Time.psychDay(
                 for: now, timeZoneIdentifier: "UTC", dayStartHourOffset: 2)
             #expect(result == utcDate(year: 2026, month: 1, day: 1))
         }
@@ -173,7 +173,7 @@ struct CommitmentSchedulingPsychDayTests {
         @Test("1 am → shifted to yesterday, psych day is yesterday")
         func oneAmIsYesterday() {
             let now = utcDate(year: 2026, month: 1, day: 1, hour: 1)
-            let result = CommitmentScheduling.psychDay(
+            let result = Time.psychDay(
                 for: now, timeZoneIdentifier: "UTC", dayStartHourOffset: 2)
             #expect(result == utcDate(year: 2025, month: 12, day: 31))
         }
@@ -181,7 +181,7 @@ struct CommitmentSchedulingPsychDayTests {
         @Test("exactly 2 am → psych day is today")
         func exactlyAtOffsetIsToday() {
             let now = utcDate(year: 2026, month: 1, day: 1, hour: 2)
-            let result = CommitmentScheduling.psychDay(
+            let result = Time.psychDay(
                 for: now, timeZoneIdentifier: "UTC", dayStartHourOffset: 2)
             #expect(result == utcDate(year: 2026, month: 1, day: 1))
         }
@@ -201,9 +201,9 @@ struct CommitmentSchedulingPsychDayTests {
         func utcVsNewYork_offset0() {
             let instant = utcDate(year: 2026, month: 1, day: 1, hour: 2)
 
-            let utcDay = CommitmentScheduling.psychDay(
+            let utcDay = Time.psychDay(
                 for: instant, timeZoneIdentifier: "UTC", dayStartHourOffset: 0)
-            let nyDay = CommitmentScheduling.psychDay(
+            let nyDay = Time.psychDay(
                 for: instant, timeZoneIdentifier: "America/New_York", dayStartHourOffset: 0)
 
             #expect(utcDay == midnight(2026, 1, 1, tz: "UTC"))
@@ -214,7 +214,7 @@ struct CommitmentSchedulingPsychDayTests {
         @Test("explicit UTC timezone matches expected midnight UTC")
         func explicitUTCMatchesMidnight() {
             let now = utcDate(year: 2026, month: 6, day: 15, hour: 18)
-            let result = CommitmentScheduling.psychDay(
+            let result = Time.psychDay(
                 for: now, timeZoneIdentifier: "UTC", dayStartHourOffset: 0)
             #expect(result == utcDate(year: 2026, month: 6, day: 15))
         }
@@ -222,7 +222,7 @@ struct CommitmentSchedulingPsychDayTests {
         @Test("month-end boundary: Dec 31 23:30 UTC with offset 0 stays in December")
         func decemberEndStaysInDecember() {
             let now = utcDate(year: 2025, month: 12, day: 31, hour: 23, minute: 30)
-            let result = CommitmentScheduling.psychDay(
+            let result = Time.psychDay(
                 for: now, timeZoneIdentifier: "UTC", dayStartHourOffset: 0)
             #expect(result == utcDate(year: 2025, month: 12, day: 31))
         }
@@ -233,7 +233,7 @@ struct CommitmentSchedulingPsychDayTests {
         func yearBoundaryCrossing() {
             // 00:30 UTC Jan 1 2026 -2h → Dec 31 2025 22:30 UTC → psych day Dec 31 2025
             let now = utcDate(year: 2026, month: 1, day: 1, hour: 0, minute: 30)
-            let result = CommitmentScheduling.psychDay(
+            let result = Time.psychDay(
                 for: now, timeZoneIdentifier: "UTC", dayStartHourOffset: 2)
             #expect(result == utcDate(year: 2025, month: 12, day: 31))
         }

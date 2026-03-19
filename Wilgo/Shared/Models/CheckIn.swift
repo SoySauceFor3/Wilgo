@@ -31,6 +31,6 @@ final class CheckIn {
 
         let tzId = TimeZone.current.identifier
         self.timeZoneIdentifier = tzId
-        self.psychDay = CommitmentScheduling.psychDay(for: createdAt, timeZoneIdentifier: tzId)
+        self.psychDay = Time.psychDay(for: createdAt, timeZoneIdentifier: tzId)
     }
 }

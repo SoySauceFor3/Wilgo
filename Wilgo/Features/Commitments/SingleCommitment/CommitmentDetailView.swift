@@ -15,7 +15,7 @@ struct CommitmentDetailView: View {
     // MARK: - Derived data
 
     private var psychToday: Date {
-        CommitmentScheduling.psychDay(for: CommitmentScheduling.now())
+        Time.psychDay(for: Time.now())
     }
 
     private var checkInsInCurrentTargetCycle: [CheckIn] {
@@ -27,7 +27,7 @@ struct CommitmentDetailView: View {
     private var daysTracked: String {
         let days =
             Calendar.current
-            .dateComponents([.day], from: commitment.createdAt, to: CommitmentScheduling.now())
+            .dateComponents([.day], from: commitment.createdAt, to: Time.now())
             .day ?? 0
         return "\(max(1, days + 1))"
     }

@@ -3,7 +3,7 @@
 //  Wilgo
 //
 //  UserDefaults key constants. Centralised here so non-SwiftUI code
-//  (CommitmentScheduling, WilgoApp) shares the same string as @AppStorage views.
+//  (Time, WilgoApp) shares the same string as @AppStorage views.
 //
 
 import Foundation

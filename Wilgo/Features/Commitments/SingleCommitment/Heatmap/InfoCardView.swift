@@ -75,7 +75,7 @@ struct CommitmentHeatmapInfoCard: View {
         case .weekly:
             fmt.dateFormat = "MMM d"
             let end =
-                CommitmentScheduling.calendar.date(
+                Time.calendar.date(
                     byAdding: .day, value: -1, to: period.periodEndPsychDay)
                 ?? period.periodEndPsychDay
             return "\(fmt.string(from: period.periodStartPsychDay)) – \(fmt.string(from: end))"
@@ -129,14 +129,14 @@ private struct CommitmentHeatmapInfoCardPreviewWrapper: View {
 
 private enum CommitmentHeatmapInfoCardPreviewData {
     static var todayStart: Date {
-        CommitmentScheduling.calendar.startOfDay(for: .now)
+        Time.calendar.startOfDay(for: .now)
     }
 
     static var dailyBeforeTracking: Heatmap.PeriodData {
         let start =
-            CommitmentScheduling.calendar.date(byAdding: .day, value: -14, to: todayStart)
+            Time.calendar.date(byAdding: .day, value: -14, to: todayStart)
             ?? todayStart
-        let end = CommitmentScheduling.calendar.date(byAdding: .day, value: 1, to: start) ?? start
+        let end = Time.calendar.date(byAdding: .day, value: 1, to: start) ?? start
         return Heatmap.PeriodData(
             id: start,
             periodStartPsychDay: start,
@@ -149,9 +149,9 @@ private enum CommitmentHeatmapInfoCardPreviewData {
 
     static var dailyGoalMissed: Heatmap.PeriodData {
         let start =
-            CommitmentScheduling.calendar.date(byAdding: .day, value: -1, to: todayStart)
+            Time.calendar.date(byAdding: .day, value: -1, to: todayStart)
             ?? todayStart
-        let end = CommitmentScheduling.calendar.date(byAdding: .day, value: 1, to: start) ?? start
+        let end = Time.calendar.date(byAdding: .day, value: 1, to: start) ?? start
         return Heatmap.PeriodData(
             id: start,
             periodStartPsychDay: start,
@@ -164,9 +164,9 @@ private enum CommitmentHeatmapInfoCardPreviewData {
 
     static var weeklyNoGoal: Heatmap.PeriodData {
         let start =
-            CommitmentScheduling.calendar.date(byAdding: .day, value: -7, to: todayStart)
+            Time.calendar.date(byAdding: .day, value: -7, to: todayStart)
             ?? todayStart
-        let end = CommitmentScheduling.calendar.date(byAdding: .day, value: 7, to: start) ?? start
+        let end = Time.calendar.date(byAdding: .day, value: 7, to: start) ?? start
         return Heatmap.PeriodData(
             id: start,
             periodStartPsychDay: start,

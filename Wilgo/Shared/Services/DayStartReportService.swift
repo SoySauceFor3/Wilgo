@@ -40,10 +40,10 @@ enum DayStartReportService {
 
     /// Queue the background wakeup for the next day-start hour. Safe to call on every app-active event.
     static func scheduleBackgroundTask(
-        dayStartHour: Int = CommitmentScheduling.dayStartHourOffset,
+        dayStartHour: Int = Time.dayStartHourOffset,
         now: Date = .now
     ) {
-        let cal = CommitmentScheduling.calendar
+        let cal = Time.calendar
         var fireDate = cal.date(bySettingHour: dayStartHour, minute: 0, second: 0, of: now) ?? now
         if fireDate <= now {
             fireDate = cal.date(byAdding: .day, value: 1, to: fireDate) ?? fireDate
@@ -56,7 +56,7 @@ enum DayStartReportService {
     /// Called from the BGTask handler in WilgoApp: post notifications, then re-queue for tomorrow.
     private static func handleBackgroundTask(
         for commitments: [Commitment],
-        dayStartHour: Int = CommitmentScheduling.dayStartHourOffset,
+        dayStartHour: Int = Time.dayStartHourOffset,
         now: Date = .now
     ) {
         postNotifications(for: commitments, now: now)
@@ -115,8 +115,8 @@ enum DayStartReportService {
         center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
             guard granted else { return }
 
-            let cal = CommitmentScheduling.calendar
-            let today = CommitmentScheduling.psychDay(for: now)
+            let cal = Time.calendar
+            let today = Time.psychDay(for: now)
             let yesterday = cal.date(byAdding: .day, value: -1, to: today)!
 
             center.removePendingNotificationRequests(withIdentifiers: [summaryNotificationID])

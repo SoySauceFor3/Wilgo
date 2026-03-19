@@ -12,7 +12,7 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
     // MARK: - Derived data
 
     private var psychToday: Date {
-        CommitmentScheduling.psychDay(for: CommitmentScheduling.now())
+        Time.psychDay(for: Time.now())
     }
 
     private var skipCreditsUsed: Int {
