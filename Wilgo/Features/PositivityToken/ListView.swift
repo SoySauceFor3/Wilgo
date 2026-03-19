@@ -4,6 +4,7 @@ import SwiftUI
 struct ListPositivityTokenView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \PositivityToken.createdAt, order: .reverse) private var tokens: [PositivityToken]
+    @State private var isPresentingAddToken: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -15,11 +16,18 @@ struct ListPositivityTokenView: View {
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Positivity Tokens")
-            // .toolbar {
-            //     // ToolbarItem(placement: .topBarTrailing) {
-            //     //     EditButton()
-            //     // }
-            // }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isPresentingAddToken = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                }
+            }
+            .sheet(isPresented: $isPresentingAddToken) {
+                AddPositivityTokenView()
+            }
         }
     }
 
