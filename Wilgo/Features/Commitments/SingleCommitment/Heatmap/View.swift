@@ -55,12 +55,14 @@ struct CommitmentHeatmapLegendView: View {
 
         let uniqueValues = Array(Set(rawValues)).sorted()
 
-        return uniqueValues.map { value in
+        return uniqueValues.enumerated().map { index, value in
             // Map counts to intensity such that:
             // count == goal   → 0.5 intensity
             // count >= 2*goal → 1.0 intensity
             let scaled = min(Double(value) / Double(2 * goal), 1.0)
-            return LegendSample(progress: scaled, label: "\(value)")
+            let isMaxBucket = index == uniqueValues.count - 1
+            let label = isMaxBucket ? "\(value)+" : "\(value)"
+            return LegendSample(progress: scaled, label: label)
         }
     }
 
