@@ -25,6 +25,12 @@ struct MainTabView: View {
                 }
                 .tag(1)
 
+            ListPositivityTokenView()
+                .tabItem {
+                    Label("Positivity Tokens", systemImage: "sun.max")
+                }
+                .tag(2)
+
             SettingsView()
                 .tabItem {
                     Label("Settings", systemImage: "gearshape")

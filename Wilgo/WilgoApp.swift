@@ -27,6 +27,7 @@ struct WilgoApp: App {
             Commitment.self,
             Slot.self,
             CheckIn.self,
+            PositivityToken.self,
         ])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
         do {
