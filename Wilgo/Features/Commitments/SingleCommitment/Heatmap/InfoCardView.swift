@@ -4,6 +4,7 @@ import SwiftUI
 struct CommitmentHeatmapInfoCard: View {
     let period: Heatmap.PeriodData
     let heatmapKind: CycleKind
+    let targetKind: CycleKind
     @Binding var selectedPeriod: Heatmap.PeriodData?
 
     var body: some View {
@@ -24,7 +25,11 @@ struct CommitmentHeatmapInfoCard: View {
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 } else {
-                    if let goal = period.goal {
+                    // Only show goal/comparison when this heatmap mode matches the
+                    // commitment's actual target cycle kind. In other modes the
+                    // goal is derived for color scaling only and shouldn't be
+                    // surfaced as a "goal" in the UI.
+                    if let goal = period.goal, targetKind == heatmapKind {
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
                             Text("\(period.checkIns.count) / \(goal)")
                                 .font(.system(size: 12, weight: .medium).monospacedDigit())
@@ -86,13 +91,6 @@ struct CommitmentHeatmapInfoCard: View {
         if count == goal { return "Goal met ✓" }
         return "+\(count - goal) over goal"
     }
-
-    // private func timeString(_ date: Date) -> String {
-    //     let fmt = DateFormatter()
-    //     fmt.timeStyle = .short
-    //     fmt.dateStyle = .none
-    //     return fmt.string(from: date)
-    // }
 }
 
 // MARK: - Previews
@@ -117,6 +115,7 @@ private struct CommitmentHeatmapInfoCardPreviewWrapper: View {
             CommitmentHeatmapInfoCard(
                 period: selected ?? period,
                 heatmapKind: heatmapKind,
+                targetKind: .daily,
                 selectedPeriod: $selected
             )
 

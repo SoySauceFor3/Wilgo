@@ -25,7 +25,8 @@ struct CommitmentHeatmapLegendView: View {
     private struct LegendSample: Identifiable {
         let id = UUID()
         let progress: Double  // 0...1
-        let label: String
+            let label: String
+            let value: Int
     }
 
     private var expectedGoal: Int? {
@@ -39,7 +40,7 @@ struct CommitmentHeatmapLegendView: View {
             let uniqueValues = Array(Set(rawValues)).sorted()
             return uniqueValues.map { value in
                 let progress = min(Double(value) / 4.0, 1.0)
-                return LegendSample(progress: progress, label: "\(value)")
+                return LegendSample(progress: progress, label: "\(value)", value: value)
             }
         }
 
@@ -62,7 +63,7 @@ struct CommitmentHeatmapLegendView: View {
             let scaled = min(Double(value) / Double(2 * goal), 1.0)
             let isMaxBucket = index == uniqueValues.count - 1
             let label = isMaxBucket ? "\(value)+" : "\(value)"
-            return LegendSample(progress: scaled, label: label)
+            return LegendSample(progress: scaled, label: label, value: value)
         }
     }
 
@@ -71,13 +72,24 @@ struct CommitmentHeatmapLegendView: View {
             legendItem(Color(.systemGray5), "Today", borderColor: Color.primary.opacity(0.45))
             legendItem(Color(.systemGray3), "N/A")
             ForEach(samples) { sample in
-                legendItem(heatmapLegendColorSample(progress: sample.progress), sample.label)
+                let isTargetBucket =
+                    (commitment.target.cycle.kind == heatmapKind)
+                    && (expectedGoal != nil && sample.value == expectedGoal)
+                legendItem(
+                    heatmapLegendColorSample(progress: sample.progress),
+                    sample.label,
+                    isTarget: isTargetBucket
+                )
             }
         }
     }
 
-    private func legendItem(_ color: Color, _ label: String, borderColor: Color? = nil) -> some View
-    {
+    private func legendItem(
+        _ color: Color,
+        _ label: String,
+        borderColor: Color? = nil,
+        isTarget: Bool = false
+    ) -> some View {
         HStack(spacing: 4) {
             RoundedRectangle(cornerRadius: 2)
                 .fill(color)
@@ -88,8 +100,9 @@ struct CommitmentHeatmapLegendView: View {
                     }
                 }
             Text(label)
-                .font(.system(size: 9))
-                .foregroundStyle(.secondary)
+                .font(.system(size: 9, weight: isTarget ? .semibold : .regular))
+                .underline(isTarget)
+                .foregroundStyle(isTarget ? .primary : .secondary)
         }
     }
 
@@ -162,6 +175,7 @@ struct CommitmentHeatmapView: View {
                 CommitmentHeatmapInfoCard(
                     period: selected,
                     heatmapKind: heatmapKind,
+                    targetKind: context.target.kind,
                     selectedPeriod: $selectedPeriod,
                 )
                 .transition(.opacity.combined(with: .move(edge: .top)))
