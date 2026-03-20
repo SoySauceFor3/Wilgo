@@ -117,7 +117,9 @@ struct WilgoApp: App {
 
 private struct AppRootView: View {
     @Environment(\.scenePhase) private var scenePhase
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
+    @Query(sort: \PositivityToken.createdAt, order: .forward) private var positivityTokens: [PositivityToken]
     @State private var finishedCycleReport: FinishedCycleReport?
 
     var body: some View {
@@ -137,7 +139,11 @@ private struct AppRootView: View {
     }
 
     private func refreshFinishedCycleReportIfNeeded() {
-        let report = FinishedCycleReportBuilder.consumePendingReport(commitments: commitments)
+        let report = FinishedCycleReportBuilder.consumePendingReport(
+            commitments: commitments,
+            allTokens: positivityTokens
+        )
+        try? modelContext.save()
         // Only set/replace the sheet when there's an actual report to show.
         // If the user is currently looking at the sheet, we don't want to
         // automatically dismiss it due to a refresh tick.

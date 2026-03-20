@@ -9,8 +9,8 @@ final class PositivityToken {
 
     enum Status: Codable {
         case active
-        case used(Date)
-        case expired(Date)
+        case used(Date)  // Date is the psych day of when the token was used, a token is used at the last day (inclusive) of the cycle.
+        case expired(Date)  // Currently not supported.
 
         private enum CodingKeys: String, CodingKey { case type, date }
 

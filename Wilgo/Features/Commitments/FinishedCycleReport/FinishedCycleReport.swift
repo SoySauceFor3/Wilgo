@@ -13,8 +13,11 @@ struct FinishedCycleReport: Identifiable {
         let actualCheckIns: Int
         let targetCheckIns: Int
         let cycleLabel: String
+        let aidedByPositivityTokenCount: Int
 
-        var metTarget: Bool { actualCheckIns >= targetCheckIns }
+        var compensatedCheckIns: Int { actualCheckIns + aidedByPositivityTokenCount }
+        var metTarget: Bool { compensatedCheckIns >= targetCheckIns }
+        var isAidedByPositivityToken: Bool { aidedByPositivityTokenCount > 0 }
     }
 
     let id = UUID()
@@ -23,48 +26,86 @@ struct FinishedCycleReport: Identifiable {
 
 enum FinishedCycleReportBuilder {
     private static var calendar: Calendar { Time.calendar }
+    private static let monthlyCapDefault = 5
+
+    private struct CycleDraft {
+        let commitmentID: String
+        let commitmentTitle: String
+        let cycleID: String
+        let cycleLabel: String
+        let cycleEndPsychDay: Date
+        let actualCheckIns: Int
+        let targetCheckIns: Int
+    }
 
     static func build(
         commitments: [Commitment],
         startPsychDay: Date,  // inclusive
-        endPsychDay: Date  // exclusive
+        endPsychDay: Date,  // exclusive
+        allTokens: [PositivityToken],
+        monthlyCap: Int? = nil
     ) -> FinishedCycleReport {
-        // let windowStart = startOfPsychDay(startPsychDay)
-        // let windowEnd = startOfPsychDay(endPsychDay)
-
         guard startPsychDay < endPsychDay else {
             return FinishedCycleReport(commitments: [])
         }
 
-        let commitmentReports =
+        let cycleDrafts =
             commitments
-            .compactMap { commitmentReport(for: $0, from: startPsychDay, to: endPsychDay) }
+            .flatMap { cyclesForCommitment(for: $0, from: startPsychDay, to: endPsychDay) }
+        guard !cycleDrafts.isEmpty else {
+            return FinishedCycleReport(commitments: [])
+        }
+
+        let cap = monthlyCap ?? positivityTokenMonthlyCap()
+        let cycleNeeds = cycleDrafts.map { draft in
+            PositivityCycleNeed(
+                cycleID: draft.cycleID,
+                commitmentID: draft.commitmentID,
+                cycleEndPsychDay: draft.cycleEndPsychDay,
+                missingCheckIns: max(0, draft.targetCheckIns - draft.actualCheckIns)
+            )
+        }
+        let aidedTokenCountByCycleID = PositivityTokenCompensator.apply(
+            cycleNeeds: cycleNeeds,
+            tokens: allTokens,
+            monthlyCap: cap,
+            calendar: calendar
+        )
+
+        let commitmentReports: [FinishedCycleReport.CommitmentReport] = Dictionary(
+            grouping: cycleDrafts, by: \.commitmentID
+        )
+        .compactMap { commitmentID, drafts -> FinishedCycleReport.CommitmentReport? in
+            guard let first = drafts.first else { return nil }
+            let sortedDrafts = drafts.sorted { $0.cycleEndPsychDay < $1.cycleEndPsychDay }
+            return FinishedCycleReport.CommitmentReport(
+                id: commitmentID,
+                commitmentTitle: first.commitmentTitle,
+                cycles: sortedDrafts.map { draft in
+                    FinishedCycleReport.CycleReport(
+                        id: draft.cycleID,
+                        actualCheckIns: draft.actualCheckIns,
+                        targetCheckIns: draft.targetCheckIns,
+                        cycleLabel: draft.cycleLabel,
+                        aidedByPositivityTokenCount: aidedTokenCountByCycleID[
+                            draft.cycleID, default: 0]
+                    )
+                }
+            )
+        }
+        .sorted { $0.commitmentTitle < $1.commitmentTitle }
 
         return FinishedCycleReport(commitments: commitmentReports)
-    }
-
-    private static func commitmentReport(
-        for commitment: Commitment,
-        from startPsychDay: Date,  // inclusive
-        to endPsychDay: Date  // exclusive
-    ) -> FinishedCycleReport.CommitmentReport? {
-        let cycles = cyclesForCommitment(for: commitment, from: startPsychDay, to: endPsychDay)
-        guard !cycles.isEmpty else { return nil }
-        return FinishedCycleReport.CommitmentReport(
-            id: commitment.persistentModelID.encoded(),
-            commitmentTitle: commitment.title,
-            cycles: cycles
-        )
     }
 
     private static func cyclesForCommitment(
         for commitment: Commitment,
         from startPsychDay: Date,  // inclusive
         to endPsychDay: Date  // exclusive
-    ) -> [FinishedCycleReport.CycleReport] {
+    ) -> [CycleDraft] {
         let cycle = commitment.target.cycle
         var cycleCursorDay = startPsychDay
-        var cycles: [FinishedCycleReport.CycleReport] = []
+        var cycles: [CycleDraft] = []
 
         while let cycleEnd = nextCompletedCycleEnd(
             for: cycle,
@@ -78,12 +119,16 @@ enum FinishedCycleReportBuilder {
                 endPsychDay: cycleEnd
             ).count
 
+            let cycleID = reportItemID(for: commitment, cycleEndPsychDay: cycleEnd)
             cycles.append(
-                FinishedCycleReport.CycleReport(
-                    id: reportItemID(for: commitment, cycleEndPsychDay: cycleEnd),
+                CycleDraft(
+                    commitmentID: commitment.persistentModelID.encoded(),
+                    commitmentTitle: commitment.title,
+                    cycleID: cycleID,
+                    cycleLabel: cycle.label(of: cycleLabelDay),
+                    cycleEndPsychDay: cycleEnd,
                     actualCheckIns: actualCheckIns,
                     targetCheckIns: commitment.target.count,
-                    cycleLabel: cycle.label(of: cycleLabelDay),
                 )
             )
             cycleCursorDay = cycleEnd
@@ -116,6 +161,16 @@ enum FinishedCycleReportBuilder {
         Date(timeIntervalSinceReferenceDate: ref)
     }
 
+    private static func positivityTokenMonthlyCap() -> Int {
+        let value: Int
+        if UserDefaults.standard.object(forKey: AppSettings.positivityTokenMonthlyCapKey) == nil {
+            value = monthlyCapDefault
+        } else {
+            value = UserDefaults.standard.integer(forKey: AppSettings.positivityTokenMonthlyCapKey)
+        }
+        return max(0, value)
+    }
+
     /// Full entry-point for UI callers.
     /// Reads persisted watermark, computes report decision, persists updated
     /// watermark, and returns the report to present (if any).
@@ -126,12 +181,12 @@ enum FinishedCycleReportBuilder {
     /// - Empty reports still advance watermark, but return `nil`.
     static func consumePendingReport(
         commitments: [Commitment],
-        now: Date = Time.now()
+        allTokens: [PositivityToken]
     ) -> FinishedCycleReport? {
         let previousRef = UserDefaults.standard.double(
             forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
         )
-        let nowPsychDay = Time.psychDay(for: now)
+        let nowPsychDay = Time.psychDay(for: Time.now())
         let nowPsychDayRef = toPsychDayRef(nowPsychDay)
         // Persist watermark updates regardless of whether we show anything.
         UserDefaults.standard.set(
@@ -146,7 +201,8 @@ enum FinishedCycleReportBuilder {
         let report = build(
             commitments: commitments,
             startPsychDay: fromPsychDayRef(previousRef),
-            endPsychDay: nowPsychDay
+            endPsychDay: nowPsychDay,
+            allTokens: allTokens
         )
 
         return report.commitments.isEmpty ? nil : report

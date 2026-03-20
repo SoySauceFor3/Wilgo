@@ -28,9 +28,18 @@ struct FinishedCycleReportSheet: View {
                                         .foregroundStyle(.secondary)
 
                                     Text(
-                                        "\(cycle.actualCheckIns)/\(cycle.targetCheckIns) check-ins"
+                                        "\(cycle.compensatedCheckIns)/\(cycle.targetCheckIns) check-ins"
                                     )
                                     .font(.body)
+
+                                    if cycle.isAidedByPositivityToken {
+                                        Label(
+                                            "Aided by \(cycle.aidedByPositivityTokenCount) positivity token\(cycle.aidedByPositivityTokenCount == 1 ? "" : "s")",
+                                            systemImage: "sparkles"
+                                        )
+                                            .font(.caption)
+                                            .foregroundStyle(.blue)
+                                    }
                                 }
                             }
                             .padding(.vertical, 2)
@@ -61,12 +70,14 @@ struct FinishedCycleReportSheet: View {
                             actualCheckIns: 12,
                             targetCheckIns: 10,
                             cycleLabel: "Mar 10 - Mar 16",
+                            aidedByPositivityTokenCount: 0
                         ),
                         .init(
                             id: "morning-run-2026-03-17",
                             actualCheckIns: 10,
                             targetCheckIns: 10,
                             cycleLabel: "Mar 17 - Mar 23",
+                            aidedByPositivityTokenCount: 0
                         ),
                     ]
                 ),
@@ -79,6 +90,7 @@ struct FinishedCycleReportSheet: View {
                             actualCheckIns: 4,
                             targetCheckIns: 7,
                             cycleLabel: "Mar 10 - Mar 16",
+                            aidedByPositivityTokenCount: 1
                         )
                     ]
                 ),
