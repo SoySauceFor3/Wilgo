@@ -10,13 +10,11 @@ struct EditCommitmentView: View {
     @State private var title: String
     @State private var slotWindows: [SlotWindow]
     @State private var target: Target
-    @State private var skipBudget: SkipBudget
     @State private var proofOfWorkType: ProofOfWorkType
     @State private var punishment: String
 
     /// Snapshot of rule values at open time, used to detect if any rule changed.
     private let originalTarget: Target
-    private let originalSkipBudget: SkipBudget
 
     init(commitment: Commitment) {
         self.commitment = commitment
@@ -28,12 +26,10 @@ struct EditCommitmentView: View {
             }
         )
         _target = State(initialValue: commitment.target)
-        _skipBudget = State(initialValue: commitment.skipBudget)
         _proofOfWorkType = State(initialValue: commitment.proofOfWorkType)
         _punishment = State(initialValue: commitment.punishment ?? "")
 
         originalTarget = commitment.target
-        originalSkipBudget = commitment.skipBudget
     }
 
     var body: some View {
@@ -43,7 +39,6 @@ struct EditCommitmentView: View {
                     title: $title,
                     slotWindows: $slotWindows,
                     target: $target,
-                    skipBudget: $skipBudget,
                     proofOfWorkType: $proofOfWorkType,
                     punishment: $punishment,
                     rulesChangedNote: anyRuleChanged
@@ -74,7 +69,7 @@ struct EditCommitmentView: View {
     /// True when any rule field (timesPerDay, skipCreditCount, cycle) changed.
     /// Rule changes re-anchor the cycle to today so the new rules start from a clean slate.
     private var anyRuleChanged: Bool {
-        target != originalTarget || skipBudget != originalSkipBudget
+        target != originalTarget  // || skipBudget != originalSkipBudget
     }
 
     // MARK: - Save
@@ -95,14 +90,6 @@ struct EditCommitmentView: View {
             target.cycle = Cycle.anchored(target.cycle.kind, at: Time.now())
         }
         commitment.target = target
-
-        if anyRuleChanged {
-            // Reanchor the skip budget cycle to today as the reference day.
-            skipBudget.cycle = Cycle.anchored(
-                skipBudget.cycle.kind, at: Time.now(),
-                multiplier: skipBudget.cycle.multiplier)
-        }
-        commitment.skipBudget = skipBudget
 
         // Replace slots only if the count or any window changed.
         let newWindows = slotWindows

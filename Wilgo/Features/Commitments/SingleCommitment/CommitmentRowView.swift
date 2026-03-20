@@ -48,20 +48,6 @@ struct CommitmentRowView: View {
                     .foregroundStyle(.secondary)
             }
 
-            // Fourth line: skip credits
-            HStack(spacing: 8) {
-                HStack(spacing: 4) {
-                    Label("Skip", systemImage: "arrow.uturn.left")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    let budget = commitment.skipBudget
-                    Text("\(budget.count)cr every \(budget.cycle.periodicRepresentation())")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
-            }
-
             // Fifth line: skip credits + proof-of-work
             HStack(spacing: 8) {
                 HStack(spacing: 4) {

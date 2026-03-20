@@ -36,14 +36,6 @@ struct CommitmentDetailView: View {
         commitment.target.cycle.label(of: psychToday)
     }
 
-    private var skipCycleLabel: String {
-        commitment.skipBudget.cycle.label(of: psychToday)
-    }
-
-    private var skipCreditsUsed: Int {
-        SkipCredit.creditsUsedInCycle(for: commitment, until: psychToday, inclusive: false)
-    }
-
     private var hasPunishment: Bool {
         if let punishment = commitment.punishment {
             return !punishment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -96,20 +88,6 @@ struct CommitmentDetailView: View {
 
                 }
 
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("Skip credits")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.primary)
-                    Text(skipCycleLabel)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-
-                    statTile(
-                        value: "\(skipCreditsUsed)/\(commitment.skipBudget.count)",
-                        label: "Credits used"
-                    )
-
-                }
             }
         }
         .padding(.vertical, 16)

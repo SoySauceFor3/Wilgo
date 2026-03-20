@@ -29,7 +29,6 @@ struct AddCommitmentView: View {
                     title: $title,
                     slotWindows: $slotWindows,
                     target: $target,
-                    skipBudget: $skipBudget,
                     proofOfWorkType: $proofOfWorkType,
                     punishment: $punishment
                 )

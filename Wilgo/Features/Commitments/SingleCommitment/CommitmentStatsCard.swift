@@ -15,10 +15,6 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
         Time.psychDay(for: Time.now())
     }
 
-    private var skipCreditsUsed: Int {
-        SkipCredit.creditsUsedInCycle(for: commitment, until: psychToday, inclusive: false)
-    }
-
     private var checkInsInCurrentTargetCycle: [CheckIn] {
         commitment.checkInsInCycle(
             cycle: commitment.target.cycle, until: psychToday, inclusive: true
@@ -119,27 +115,6 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
                         .frame(height: cellWidth)
                         .gridCellColumns(2)
 
-                        statTile(
-                            title:
-                                "Budget \(commitment.skipBudget.cycle.label(of: psychToday))",
-                            background: tileBackground,
-                            cornerRadius: cornerRadius
-                        ) {
-
-                            HStack(alignment: .bottom, spacing: 4) {
-                                Text(
-                                    "\(skipCreditsUsed)/\(commitment.skipBudget.count)"
-                                )
-                                .font(.title3.bold())
-                                .foregroundStyle(.primary)
-                                Text("skip cr used")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .padding(.bottom, 2)
-                            }
-                        }
-                        .frame(height: cellWidth)
-                        .gridCellColumns(2)
                     }
 
                     // Row B: Last 14 days spanning 4 columns

@@ -4,7 +4,6 @@ struct CommitmentFormFields: View {
     @Binding var title: String
     @Binding var slotWindows: [SlotWindow]
     @Binding var target: Target
-    @Binding var skipBudget: SkipBudget
     @Binding var proofOfWorkType: ProofOfWorkType
     @Binding var punishment: String
 
@@ -46,33 +45,6 @@ struct CommitmentFormFields: View {
             }
         }
 
-        Section("Skip credits") {
-            HStack(spacing: 4) {
-                Picker("", selection: skipBudgetCountBinding) {
-                    ForEach(0..<31, id: \.self) { value in
-                        Text("\(value)").tag(value)
-                    }
-                }
-                .labelsHidden()
-
-                Text("every")
-
-                Picker("", selection: skipBudgetMultiplierBinding) {
-                    ForEach(1..<30, id: \.self) { value in
-                        Text("\(value)").tag(value)
-                    }
-                }
-                .labelsHidden()
-
-                Picker("", selection: skipBudgetCycleKindBinding) {
-                    ForEach(allowedSkipBudgetCycleKinds, id: \.self) { kind in
-                        Text(kind.rawValue.lowercased()).tag(kind)
-                    }
-                }
-                .labelsHidden()
-            }
-        }
-
         Section {
             TextField("e.g. Give robaroba 20 RMB", text: $punishment, axis: .vertical)
                 .lineLimit(2...4)
@@ -99,7 +71,6 @@ struct CommitmentFormFields: View {
             get: { target.cycle.kind },
             set: { newKind in
                 target.cycle = Cycle.anchored(newKind, at: .now)
-                enforceCompatibleSkipBudgetCycle()
             }
         )
     }
@@ -127,48 +98,5 @@ struct CommitmentFormFields: View {
                 target.count = newValue
             }
         )
-    }
-    /// Maps the cycle binding to/from a CycleKind for the Picker.
-    /// When the kind changes, a new Cycle is constructed anchored to today(PsychDay).
-    private var skipBudgetCycleKindBinding: Binding<CycleKind> {
-        Binding(
-            get: { skipBudget.cycle.kind },
-            set: { newKind in
-                skipBudget.cycle = Cycle.anchored(newKind, at: .now)
-            }
-        )
-    }
-
-    /// Exposes the skipBudget's count as a Binding<Int> for the Picker.
-    private var skipBudgetCountBinding: Binding<Int> {
-        Binding(
-            get: { skipBudget.count },
-            set: { newValue in
-                skipBudget.count = newValue
-            }
-        )
-    }
-
-    /// Exposes the skipBudget's multiplier as a Binding<Int> for the Picker.
-    private var skipBudgetMultiplierBinding: Binding<Int> {
-        Binding(
-            get: { skipBudget.cycle.multiplier },
-            set: { newValue in
-                skipBudget.cycle.multiplier = newValue
-            }
-        )
-    }
-
-    /// Ensures the skip-budget cycle stays compatible with the selected target cycle.
-    /// If the current skip cycle kind becomes invalid under Option B rules, it is
-    /// reset to the first allowed kind, anchored to "today" (current psych-day).
-    private func enforceCompatibleSkipBudgetCycle() {
-        let allowedKinds = allowedSkipBudgetCycleKinds
-        guard !allowedKinds.isEmpty else { return }
-        if !allowedKinds.contains(skipBudget.cycle.kind),
-            let fallbackKind = allowedKinds.first
-        {
-            skipBudget.cycle = Cycle.anchored(fallbackKind, at: .now)
-        }
     }
 }

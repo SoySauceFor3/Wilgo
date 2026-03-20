@@ -32,8 +32,6 @@ final class Commitment {
 
     var target: Target
 
-    var skipBudget: SkipBudget
-
     /// How completion is verified.
     var proofOfWorkType: ProofOfWorkType
     /// What the user owes if skip credits are exhausted (e.g. "Give robaroba 20 RMB").
@@ -53,7 +51,6 @@ final class Commitment {
         self.createdAt = createdAt
         self.slots = slots
         self.target = target
-        self.skipBudget = skipBudget
         self.proofOfWorkType = proofOfWorkType
         self.punishment = punishment
     }
