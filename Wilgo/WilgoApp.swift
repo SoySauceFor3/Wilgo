@@ -61,7 +61,7 @@ struct WilgoApp: App {
 
     var body: some Scene {
         WindowGroup {
-            MainTabView()
+            AppRootView()
                 .environment(liveActivityManager)
                 .onOpenURL { url in
                     handleDeepLink(url)
@@ -111,6 +111,38 @@ struct WilgoApp: App {
 
         default:
             break
+        }
+    }
+}
+
+private struct AppRootView: View {
+    @Environment(\.scenePhase) private var scenePhase
+    @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
+    @State private var finishedCycleReport: FinishedCycleReport?
+
+    var body: some View {
+        MainTabView()
+            .sheet(item: $finishedCycleReport) { report in
+                FinishedCycleReportSheet(report: report)
+            }
+            .task {
+                // For initialisation.
+                refreshFinishedCycleReportIfNeeded()
+            }
+            .onChange(of: scenePhase) { _, newPhase in
+                if newPhase == .active {
+                    refreshFinishedCycleReportIfNeeded()
+                }
+            }
+    }
+
+    private func refreshFinishedCycleReportIfNeeded() {
+        let report = FinishedCycleReportBuilder.consumePendingReport(commitments: commitments)
+        // Only set/replace the sheet when there's an actual report to show.
+        // If the user is currently looking at the sheet, we don't want to
+        // automatically dismiss it due to a refresh tick.
+        if let report {
+            finishedCycleReport = report
         }
     }
 }

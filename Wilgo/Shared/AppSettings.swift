@@ -14,4 +14,7 @@ enum AppSettings {
 
     /// Monthly cap for positivity token usage (instead of creation). Default: 5.
     static let positivityTokenMonthlyCapKey = "positivityTokenMonthlyCap"
+
+    /// Last psych-day up to which the finished-cycle popup has been shown.
+    static let finishedCycleReportLastShownPsychDayKey = "finishedCycleReportLastShownPsychDay"
 }

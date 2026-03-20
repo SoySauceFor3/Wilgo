@@ -3,6 +3,12 @@ import Foundation
 import SwiftData
 import UserNotifications
 
+/////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+// TODO: TO BE DELETED! It will be replaced with widget.
+/////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+
 /// Delivers the "day-start report" notification by waking the app at the user's
 /// configured `dayStartHourOffset` via BGAppRefreshTask.
 ///
@@ -92,15 +98,15 @@ enum DayStartReport {
 
         // Missed commitments sorted by urgency: punishment first, then fewest credits left.
         let sortedMissed = missed.sorted { a, b in
-            let aLeft = SkipCredit.creditsRemaining(for: a, until: yesterday)
-            let bLeft = SkipCredit.creditsRemaining(for: b, until: yesterday)
+            let aLeft = 0
+            let bLeft = 0
             let aPunished = aLeft == 0 && a.punishment != nil
             let bPunished = bLeft == 0 && b.punishment != nil
             if aPunished != bPunished { return aPunished }
             return aLeft < bLeft
         }
 
-        var lines = sortedMissed.map { SkipCredit.notificationLine(for: $0, on: yesterday) }
+        var lines = [""] ///sortedMissed.map { SkipCredit.notificationLine(for: $0, on: yesterday) }
 
         if !done.isEmpty {
             lines.append("✓ " + done.map(\.title).joined(separator: ", "))
