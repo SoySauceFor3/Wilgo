@@ -12,11 +12,37 @@ enum PositivityTokenMinting {
         now: Date = .now
     ) -> CheckIn? {
         for checkIn in checkIns.sorted(by: { $0.createdAt < $1.createdAt }) {
-            guard checkIn.positivityToken == nil else { continue }
-            let elapsed = now.timeIntervalSince(checkIn.createdAt)
-            guard elapsed >= 0, elapsed <= windowAfterCheckIn else { continue }
+            guard checkIn.isSponsorableForPositivityToken(now: now) else { continue }
             return checkIn
         }
         return nil
+    }
+
+    /// Seconds remaining in the mint window after `checkIn`, or `nil` if the window has closed.
+    static func secondsRemainingInMintWindow(for checkIn: CheckIn, now: Date = .now)
+        -> TimeInterval?
+    {
+        let remaining = windowAfterCheckIn - now.timeIntervalSince(checkIn.createdAt)
+        return remaining > 0 ? remaining : nil
+    }
+
+    /// Only check-ins at or after this time can still be inside the mint window (used to avoid loading full history).
+    static func recentCheckInsLowerBound(now: Date = .now) -> Date {
+        now.addingTimeInterval(-windowAfterCheckIn)
+    }
+
+    /// Bounded fetch for eligibility checks (main context; call on the main actor).
+    static func fetchRecentCheckInsForMint(context: ModelContext, now: Date = .now) throws
+        -> [CheckIn]
+    {
+        let lowerBound = recentCheckInsLowerBound(now: now)
+        var descriptor = FetchDescriptor<CheckIn>(
+            predicate: #Predicate<CheckIn> { checkIn in
+                checkIn.createdAt >= lowerBound
+            },
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+        )
+        descriptor.fetchLimit = 500
+        return try context.fetch(descriptor)
     }
 }

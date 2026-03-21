@@ -3,15 +3,30 @@ import SwiftUI
 
 struct ListPositivityTokenView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \CheckIn.createdAt, order: .reverse) private var checkIns: [CheckIn]
     @Query(sort: \PositivityToken.createdAt, order: .reverse) private var tokens: [PositivityToken]
     @State private var isPresentingAddToken: Bool = false
     @State private var sponsoringCheckIn: CheckIn?
 
     var body: some View {
-        TimelineView(.periodic(from: .now, by: 10)) { timeline in
+        TimelineView(.periodic(from: .now, by: 60)) { timeline in
             NavigationStack {
                 List {
+                    if let checkIn = sponsoringCheckIn,
+                        let secondsLeft = PositivityTokenMinting.secondsRemainingInMintWindow(
+                            for: checkIn,
+                            now: timeline.date
+                        )
+                    {
+                        Section {
+                            MintWindowBanner(
+                                secondsLeft: secondsLeft,
+                                onAdd: { isPresentingAddToken = true }
+                            )
+                        }
+                        .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                        .listRowBackground(Color.clear)
+                    }
+
                     ForEach(tokens) { token in
                         TokenRowView(token: token)
                     }
@@ -34,15 +49,31 @@ struct ListPositivityTokenView: View {
                         AddPositivityTokenView(sponsoringCheckIn: sponsoringCheckIn!)
                     }
                 }
-                .task(id: timeline.date) {
-                    guard !isPresentingAddToken else { return }
-                    sponsoringCheckIn = PositivityTokenMinting.eligibleCheckIn(
-                        checkIns: checkIns,
-                        now: timeline.date
-                    )
+                .task {
+                    await maintainSponsoringCheckInEligibility()
+                }
+                .onChange(of: tokens.count) { _, _ in
+                    Task { await refreshSponsoringCheckIn() }
                 }
             }
         }
+    }
+
+    private func maintainSponsoringCheckInEligibility() async {
+        while !Task.isCancelled {
+            guard !isPresentingAddToken else {
+                try? await Task.sleep(for: .seconds(1))
+                continue
+            }
+            await refreshSponsoringCheckIn()
+            try? await Task.sleep(for: .seconds(30))
+        }
+    }
+
+    private func refreshSponsoringCheckIn() async {
+        let recent =
+            (try? PositivityTokenMinting.fetchRecentCheckInsForMint(context: modelContext)) ?? []
+        sponsoringCheckIn = PositivityTokenMinting.eligibleCheckIn(checkIns: recent, now: .now)
     }
 
     private func deleteTokens(offsets: IndexSet) {
@@ -51,6 +82,61 @@ struct ListPositivityTokenView: View {
                 modelContext.delete(tokens[index])
             }
         }
+    }
+}
+
+private struct MintWindowBanner: View {
+    let secondsLeft: TimeInterval
+    let onAdd: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(alignment: .top, spacing: 10) {
+                Image(systemName: "sun.max.fill")
+                    .font(.title2)
+                    .foregroundStyle(.orange)
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Mint a Positivity Token")
+                        .font(.subheadline.weight(.semibold))
+                    Text(
+                        "Unlocked by your latest check-in. \(timeLabel) to capture a reason you feel good."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                }
+                Spacer(minLength: 0)
+            }
+            Button(action: onAdd) {
+                Text("Add now")
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+        .padding(14)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
+        .accessibilityElement(children: .combine)
+    }
+
+    private var timeLabel: String {
+        let minutes = Int(ceil(secondsLeft / 60))
+        if minutes <= 1 {
+            return "About a minute"
+        }
+        if minutes < 60 {
+            return "\(minutes) minutes"
+        }
+        let h = minutes / 60
+        let m = minutes % 60
+        if m == 0 {
+            return "\(h) hour\(h == 1 ? "" : "s")"
+        }
+        return "\(h)h \(m)m"
     }
 }
 
