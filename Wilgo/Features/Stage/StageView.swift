@@ -16,19 +16,12 @@ struct StageView: View {
     /// actually change the value of it will trigger a rerender.
     @State private var rewrite = false
 
-    private var current: [CommitmentAndSlot.WithBehind] {
-        CommitmentAndSlot.currentWithBehind(commitments: commitments, now: Date())
-    }
-
-    private var upcoming: [CommitmentAndSlot.WithBehind] {
-        CommitmentAndSlot.upcomingWithBehind(commitments: commitments, after: Date())
-    }
-
-    private var catchUp: [CommitmentAndSlot.WithBehind] {
-        CommitmentAndSlot.catchUpWithBehind(commitments: commitments, now: Date())
-    }
-
     var body: some View {
+        let now = Date()
+        let current = CommitmentAndSlot.currentWithBehind(commitments: commitments, now: now)
+        let upcoming = CommitmentAndSlot.upcomingWithBehind(commitments: commitments, after: now)
+        let catchUp = CommitmentAndSlot.catchUpWithBehind(commitments: commitments, now: now)
+
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
