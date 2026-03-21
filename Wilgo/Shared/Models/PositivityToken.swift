@@ -5,45 +5,29 @@ import SwiftData
 final class PositivityToken {
     var reason: String
     var createdAt: Date
+
     var status: Status
+    /// Psych day when the token was used or expired; meaningless when `status == .active`.
+    var dayOfStatus: Date?
 
-    enum Status: Codable {
+    /// Set when minted so we enforce at most one token per check-in.
+    @Relationship(deleteRule: .nullify, inverse: \CheckIn.positivityToken)
+    var checkIn: CheckIn?
+
+    enum Status: String, Codable {
         case active
-        case used(Date)  // Date is the psych day of when the token was used, a token is used at the last day (inclusive) of the cycle.
-        case expired(Date)  // Currently not supported.
-
-        private enum CodingKeys: String, CodingKey { case type, date }
-
-        init(from decoder: Decoder) throws {
-            let c = try decoder.container(keyedBy: CodingKeys.self)
-            switch try c.decode(String.self, forKey: .type) {
-            case "used":
-                self = .used(try c.decode(Date.self, forKey: .date))
-            case "expired":
-                self = .expired(try c.decode(Date.self, forKey: .date))
-            default:
-                self = .active
-            }
-        }
-
-        func encode(to encoder: Encoder) throws {
-            var c = encoder.container(keyedBy: CodingKeys.self)
-            switch self {
-            case .active:
-                try c.encode("active", forKey: .type)
-            case .used(let date):
-                try c.encode("used", forKey: .type)
-                try c.encode(date, forKey: .date)
-            case .expired(let date):
-                try c.encode("expired", forKey: .type)
-                try c.encode(date, forKey: .date)
-            }
-        }
+        case used
+        case expired
     }
 
-    init(reason: String, createdAt: Date = .now) {
+    init(reason: String, createdAt: Date = .now, checkIn: CheckIn? = nil) {
         self.reason = reason
         self.createdAt = createdAt
         self.status = .active
+        self.dayOfStatus = nil
+        self.checkIn = checkIn
+
+        // help the reverse propogation because otherwise it is pretty slow.
+        checkIn?.positivityToken = self
     }
 }

@@ -67,9 +67,11 @@ private struct TokenRowView: View {
         switch token.status {
         case .active:
             return nil
-        case .used(let date):
+        case .used:
+            guard let date = token.dayOfStatus else { return nil }
             return "Used on \(date.formatted(date: .abbreviated, time: .omitted))"
-        case .expired(let date):
+        case .expired:
+            guard let date = token.dayOfStatus else { return nil }
             return "Expired on \(date.formatted(date: .abbreviated, time: .omitted))"
         }
     }
@@ -108,7 +110,7 @@ private struct StatusBadge: View {
 
 private func makePreviewContainer() throws -> ModelContainer {
     let container = try ModelContainer(
-        for: PositivityToken.self,
+        for: Commitment.self, Slot.self, CheckIn.self, PositivityToken.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
     let ctx = container.mainContext
@@ -120,18 +122,19 @@ private func makePreviewContainer() throws -> ModelContainer {
         calendar.date(byAdding: .day, value: -n, to: now) ?? now
     }
 
-    let samples: [(String, Date, PositivityToken.Status)] = [
-        ("Completed a full week of workouts", daysAgo(1), .active),
-        ("Meditated every morning this week", daysAgo(4), .used(daysAgo(2))),
-        ("Finished the book I started", daysAgo(10), .active),
-        ("Helped a friend move", daysAgo(15), .expired(daysAgo(5))),
-        ("Drank 2L of water for 7 days straight", daysAgo(20), .used(daysAgo(12))),
-        ("Journaled every night this week", daysAgo(30), .expired(daysAgo(20))),
+    let samples: [(String, Date, PositivityToken.Status, Date?)] = [
+        ("Completed a full week of workouts", daysAgo(1), .active, nil),
+        ("Meditated every morning this week", daysAgo(4), .used, daysAgo(2)),
+        ("Finished the book I started", daysAgo(10), .active, nil),
+        ("Helped a friend move", daysAgo(15), .expired, daysAgo(5)),
+        ("Drank 2L of water for 7 days straight", daysAgo(20), .used, daysAgo(12)),
+        ("Journaled every night this week", daysAgo(30), .expired, daysAgo(20)),
     ]
 
-    for (reason, createdAt, status) in samples {
+    for (reason, createdAt, status, day) in samples {
         let token = PositivityToken(reason: reason, createdAt: createdAt)
         token.status = status
+        token.dayOfStatus = day
         ctx.insert(token)
     }
 

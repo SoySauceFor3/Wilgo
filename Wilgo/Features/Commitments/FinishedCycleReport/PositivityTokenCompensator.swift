@@ -17,8 +17,7 @@ enum PositivityTokenCompensator {
         guard monthlyCap > 0 else { return [:] }
 
         var activeTokens = tokens.filter { token in
-            if case .active = token.status { return true }
-            return false
+            token.status == .active
         }
         .sorted { $0.createdAt < $1.createdAt }
 
@@ -53,7 +52,8 @@ enum PositivityTokenCompensator {
                     break
                 }
                 let token = activeTokens.removeFirst()
-                token.status = .used(usagePsychDay)
+                token.status = .used
+                token.dayOfStatus = usagePsychDay
                 compensated += 1
                 usageCountByMonth[monthKey, default: 0] += 1
             }
@@ -72,7 +72,7 @@ enum PositivityTokenCompensator {
     ) -> [String: Int] {
         var result: [String: Int] = [:]
         for token in tokens {
-            if case .used(let usedAtPsychDay) = token.status {
+            if token.status == .used, let usedAtPsychDay = token.dayOfStatus {
                 let key = psychMonthKey(of: usedAtPsychDay, calendar: calendar)
                 result[key, default: 0] += 1
             }

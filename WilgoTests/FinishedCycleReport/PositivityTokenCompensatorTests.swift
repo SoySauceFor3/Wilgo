@@ -43,16 +43,10 @@ struct PositivityTokenCompensatorTests {
         } else {
             Issue.record("t3 should remain active")
         }
-        if case .used(let usedDay1) = t1.status {
-            #expect(usedDay1 == date(year: 2026, month: 3, day: 9))
-        } else {
-            Issue.record("t1 should be used")
-        }
-        if case .used(let usedDay2) = t2.status {
-            #expect(usedDay2 == date(year: 2026, month: 3, day: 9))
-        } else {
-            Issue.record("t2 should be used")
-        }
+        #expect(t1.status == .used)
+        #expect(t1.dayOfStatus == date(year: 2026, month: 3, day: 9))
+        #expect(t2.status == .used)
+        #expect(t2.dayOfStatus == date(year: 2026, month: 3, day: 9))
     }
 
     @Test("allocates FCFS by cycle end psych day")
@@ -95,7 +89,8 @@ struct PositivityTokenCompensatorTests {
             )
         ]
         let alreadyUsed = PositivityToken(reason: "used", createdAt: date(year: 2026, month: 1, day: 1))
-        alreadyUsed.status = .used(date(year: 2026, month: 2, day: 5))
+        alreadyUsed.status = .used
+        alreadyUsed.dayOfStatus = date(year: 2026, month: 2, day: 5)
         let active = PositivityToken(reason: "active", createdAt: date(year: 2026, month: 2, day: 6))
 
         let aided = PositivityTokenCompensator.apply(
