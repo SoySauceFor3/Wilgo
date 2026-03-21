@@ -5,6 +5,8 @@ struct AddPositivityTokenView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
 
+    let sponsoringCheckIn: CheckIn
+
     @State private var reason: String = ""
 
     var body: some View {
@@ -44,15 +46,33 @@ struct AddPositivityTokenView: View {
     }
 
     private func saveToken() {
-        let token = PositivityToken(reason: trimmedReason)
+        let token = PositivityToken(reason: trimmedReason, checkIn: sponsoringCheckIn)
         modelContext.insert(token)
         dismiss()
     }
 }
 
-struct AddPositivityTokenView_Previews: PreviewProvider {
-    static var previews: some View {
-        AddPositivityTokenView()
-            .modelContainer(for: PositivityToken.self, inMemory: true)
-    }
+#Preview {
+    let calendar = Calendar.current
+    let today = Date()
+    let start = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: today) ?? today
+    let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: today) ?? today
+    let slot = Slot(start: start, end: end)
+    let commitment = Commitment(
+        title: "Preview",
+        slots: [slot],
+        target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
+        skipBudget: SkipBudget(cycle: Cycle.anchored(.weekly, at: .now), count: 3),
+    )
+    let checkIn = CheckIn(commitment: commitment)
+
+    let container = try! ModelContainer(
+        for: Commitment.self, Slot.self, CheckIn.self, PositivityToken.self,
+        configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+    )
+    container.mainContext.insert(commitment)
+    container.mainContext.insert(checkIn)
+
+    return AddPositivityTokenView(sponsoringCheckIn: checkIn)
+        .modelContainer(container)
 }

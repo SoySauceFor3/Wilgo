@@ -3,30 +3,44 @@ import SwiftUI
 
 struct ListPositivityTokenView: View {
     @Environment(\.modelContext) private var modelContext
+    @Query(sort: \CheckIn.createdAt, order: .reverse) private var checkIns: [CheckIn]
     @Query(sort: \PositivityToken.createdAt, order: .reverse) private var tokens: [PositivityToken]
     @State private var isPresentingAddToken: Bool = false
+    @State private var sponsoringCheckIn: CheckIn?
 
     var body: some View {
-        NavigationStack {
-            List {
-                ForEach(tokens) { token in
-                    TokenRowView(token: token)
+        TimelineView(.periodic(from: .now, by: 10)) { timeline in
+            NavigationStack {
+                List {
+                    ForEach(tokens) { token in
+                        TokenRowView(token: token)
+                    }
+                    .onDelete(perform: deleteTokens)
                 }
-                .onDelete(perform: deleteTokens)
-            }
-            .listStyle(.insetGrouped)
-            .navigationTitle("Positivity Tokens")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        isPresentingAddToken = true
-                    } label: {
-                        Image(systemName: "plus")
+                .listStyle(.insetGrouped)
+                .navigationTitle("Positivity Tokens")
+                .toolbar {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button {
+                            isPresentingAddToken = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
+                        .disabled(sponsoringCheckIn == nil)
                     }
                 }
-            }
-            .sheet(isPresented: $isPresentingAddToken) {
-                AddPositivityTokenView()
+                .sheet(isPresented: $isPresentingAddToken) {
+                    if sponsoringCheckIn != nil {
+                        AddPositivityTokenView(sponsoringCheckIn: sponsoringCheckIn!)
+                    }
+                }
+                .task(id: timeline.date) {
+                    guard !isPresentingAddToken else { return }
+                    sponsoringCheckIn = PositivityTokenMinting.eligibleCheckIn(
+                        checkIns: checkIns,
+                        now: timeline.date
+                    )
+                }
             }
         }
     }
