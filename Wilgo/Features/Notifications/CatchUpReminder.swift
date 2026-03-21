@@ -11,7 +11,9 @@ enum CatchUpReminder {
     static func startHourlyRunWhileActive() {
         guard scheduler == nil else { return }  // avoid double-start
         scheduler = InAppScheduler(interval: 60 * 60) {
-            CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()
+            Task.detached(priority: .utility) {
+                CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()
+            }
         }
         scheduler?.start()
     }
