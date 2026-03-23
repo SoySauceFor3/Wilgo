@@ -39,6 +39,7 @@ struct WilgoApp: App {
 
     let liveActivityManager: LiveActivityManager
     @Environment(\.scenePhase) private var scenePhase
+    @StateObject private var checkInUndoManager = CheckInUndoManager()
 
     init() {
         // BGTask handler registration MUST come first — before any submit() call and
@@ -63,6 +64,7 @@ struct WilgoApp: App {
         WindowGroup {
             AppRootView()
                 .environment(liveActivityManager)
+                .environmentObject(checkInUndoManager)
                 .onOpenURL { url in
                     handleDeepLink(url)
                 }
@@ -83,6 +85,7 @@ struct WilgoApp: App {
     // MARK: - Deep link handling
 
     /// Handles `wilgo://done?commitmentId=...` deep links produced by the Live Activity's Done button.
+    @MainActor
     private func handleDeepLink(_ url: URL) {
         guard url.scheme == "wilgo" else { return }
         let context = Self.sharedModelContainer.mainContext
@@ -107,6 +110,14 @@ struct WilgoApp: App {
             let checkIn = CheckIn(commitment: commitment)
             context.insert(checkIn)
             commitment.checkIns.append(checkIn)  // keep inverse in sync immediately, as inverse relationship propogation takes time.
+            checkInUndoManager.enqueue(checkIn: checkIn, title: "Check-in saved") {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                    if let token = checkIn.positivityToken {
+                        context.delete(token)
+                    }
+                    context.delete(checkIn)
+                }
+            }
             liveActivityManager.sync()
 
         default:
@@ -123,19 +134,23 @@ private struct AppRootView: View {
     @State private var finishedCycleReport: FinishedCycleReport?
 
     var body: some View {
-        MainTabView()
-            .sheet(item: $finishedCycleReport) { report in
-                FinishedCycleReportSheet(report: report)
-            }
-            .task {
-                // For initialisation.
-                refreshFinishedCycleReportIfNeeded()
-            }
-            .onChange(of: scenePhase) { _, newPhase in
-                if newPhase == .active {
+        ZStack(alignment: .bottom) {
+            MainTabView()
+                .sheet(item: $finishedCycleReport) { report in
+                    FinishedCycleReportSheet(report: report)
+                }
+                .task {
+                    // For initialisation.
                     refreshFinishedCycleReportIfNeeded()
                 }
-            }
+                .onChange(of: scenePhase) { _, newPhase in
+                    if newPhase == .active {
+                        refreshFinishedCycleReportIfNeeded()
+                    }
+                }
+
+            CheckInUndoBannerOverlay()
+        }
     }
 
     private func refreshFinishedCycleReportIfNeeded() {

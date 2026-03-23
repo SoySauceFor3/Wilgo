@@ -80,4 +80,5 @@ struct CurrentCommitmentRow: View {
             for: [Commitment.self, Slot.self, CheckIn.self], inMemory: true
         )
         .padding()
+        .environmentObject(CheckInUndoManager())
 }

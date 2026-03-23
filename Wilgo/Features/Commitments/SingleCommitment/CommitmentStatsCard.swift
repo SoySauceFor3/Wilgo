@@ -5,6 +5,7 @@ import UIKit
 struct CommitmentStatsCard<TopRightContent: View>: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var commitment: Commitment
+    @EnvironmentObject private var checkInUndoManager: CheckInUndoManager
     let slots: [Slot]
     let topRightTitle: String
     @ViewBuilder var topRightContent: () -> TopRightContent
@@ -140,6 +141,16 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
                         )
                         modelContext.insert(checkIn)
                         commitment.checkIns.append(checkIn)  // keep inverse in sync immediately, as inverse relationship propagation takes time.
+                        checkInUndoManager.enqueue(checkIn: checkIn, title: "Check-in saved") {
+                            withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+                                // Undo deletes the check-in and any linked token (including a token
+                                // that might have been minted after the toast appeared).
+                                if let token = checkIn.positivityToken {
+                                    modelContext.delete(token)
+                                }
+                                modelContext.delete(checkIn)
+                            }
+                        }
                     }
                 } label: {
                     Label("Done", systemImage: "checkmark.circle.fill")
