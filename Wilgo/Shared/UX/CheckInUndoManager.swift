@@ -18,23 +18,33 @@ enum CheckInRevokedUserInfoKeys {
 /// so that `checkIn.persistentModelID` is valid/stable.
 @MainActor
 final class CheckInUndoManager: ObservableObject {
+    enum NoticeKind {
+        case undo
+        case info
+    }
+
     struct Notice: Identifiable {
         let id: String
         let persistentModelID: PersistentIdentifier
         let createdAt: Date
         let title: String
+        let kind: NoticeKind
     }
 
     @Published private(set) var notices: [Notice] = []
 
     private struct NoticeState {
-        let undoClosure: () -> Void
+        let undoClosure: (() -> Void)?
         let autoDismissTask: Task<Void, Never>
     }
 
     private var stateByNoticeID: [String: NoticeState] = [:]
 
     private let autoDismissDuration: TimeInterval = 5
+
+    // Stores the last drafted PositivityToken reason so we can prefill the
+    // Add view even if its sponsoring check-in is undone.
+    private let lastPTDraftReasonKey = "wilgo.lastPositivityTokenDraftReason"
 
     init() {
     }
@@ -50,47 +60,33 @@ final class CheckInUndoManager: ObservableObject {
         title: String = "Check-in saved",
         undo: @escaping () -> Void
     ) {
-        let pid = checkIn.persistentModelID
-        let noticeID = encodePersistentModelID(pid)
-
-        // Replace any in-flight notice with the same identifier; avoids duplicate entries
-        // if a call site accidentally enqueues twice for the same check-in.
-        if let repeated = notices.first(where: { $0.id == noticeID }) {
-            removeNotice(noticeID: repeated.id)
-        }
-
-        let notice = Notice(
-            id: noticeID,
-            persistentModelID: pid,
-            createdAt: Date(),
-            title: title
+        enqueueInternal(
+            checkIn: checkIn,
+            title: title,
+            kind: .undo,
+            undoClosure: undo
         )
-        notices.append(notice)
-        let duration = autoDismissDuration
-        let task = Task { [weak self] in  // runs immediately
-            try? await Task.sleep(
-                nanoseconds: UInt64(duration * 1_000_000_000)
-            )
-            await MainActor.run {
-                self?.autoDismiss(noticeID: noticeID)
-            }
-        }
-        stateByNoticeID[noticeID] = NoticeState(
-            undoClosure: undo,
-            autoDismissTask: task
-        )
+    }
 
-        // Note: `task` is stored so we can cancel it on user-initiated Undo.
+    /// Enqueue an info notice (no `Undo`) tied to a check-in.
+    func enqueueInfo(checkIn: CheckIn, title: String) {
+        enqueueInternal(
+            checkIn: checkIn,
+            title: title,
+            kind: .info,
+            undoClosure: nil
+        )
     }
 
     /// Executes the stored undo closure for the provided notice and removes the notice immediately.
     func undo(_ notice: Notice) {
-        guard let state = stateByNoticeID[notice.id] else { return }
+        guard notice.kind == .undo else { return }
+        guard let state = stateByNoticeID[notice.id], let undoClosure = state.undoClosure else {
+            return
+        }
 
         // Ensure idempotency: prevent double-undo if the user taps quickly.
-        let undoClosure = state.undoClosure
         removeNotice(noticeID: notice.id)
-
         undoClosure()
         postCheckInRevoked(persistentModelID: notice.persistentModelID)
     }
@@ -126,5 +122,58 @@ final class CheckInUndoManager: ObservableObject {
     /// Returns `""` if encoding fails (call sites should treat `enqueue()` as best-effort).
     private func encodePersistentModelID(_ pid: PersistentIdentifier) -> String {
         (try? JSONEncoder().encode(pid)).map { $0.base64EncodedString() } ?? ""
+    }
+
+    // MARK: Draft storage (PositivityToken reason)
+
+    func lastPositivityTokenDraftReason() -> String {
+        UserDefaults.standard.string(forKey: lastPTDraftReasonKey) ?? ""
+    }
+
+    func saveLastPositivityTokenDraftReason(_ reason: String) {
+        let trimmed = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        UserDefaults.standard.set(trimmed, forKey: lastPTDraftReasonKey)
+    }
+
+    // MARK: Internals
+
+    private func enqueueInternal(
+        checkIn: CheckIn,
+        title: String,
+        kind: NoticeKind,
+        undoClosure: (() -> Void)?
+    ) {
+        let pid = checkIn.persistentModelID
+        let noticeID = encodePersistentModelID(pid)
+
+        // Replace any in-flight notice with the same identifier; avoids duplicate entries
+        // if a call site accidentally enqueues twice for the same check-in.
+        if let repeated = notices.first(where: { $0.id == noticeID }) {
+            removeNotice(noticeID: repeated.id)
+        }
+
+        let notice = Notice(
+            id: noticeID,
+            persistentModelID: pid,
+            createdAt: Date(),
+            title: title,
+            kind: kind
+        )
+        notices.append(notice)
+        let duration = autoDismissDuration
+        let task = Task { [weak self] in  // runs immediately
+            try? await Task.sleep(
+                nanoseconds: UInt64(duration * 1_000_000_000)
+            )
+            await MainActor.run {
+                self?.autoDismiss(noticeID: noticeID)
+            }
+        }
+        stateByNoticeID[noticeID] = NoticeState(
+            undoClosure: undoClosure,
+            autoDismissTask: task
+        )
+
+        // Note: `task` is stored so we can cancel it on user-initiated Undo.
     }
 }

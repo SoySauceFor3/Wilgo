@@ -1,13 +1,16 @@
+import Combine
 import SwiftData
 import SwiftUI
 
 struct AddPositivityTokenView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @EnvironmentObject private var checkInUndoManager: CheckInUndoManager
 
     let sponsoringCheckIn: CheckIn
 
     @State private var reason: String = ""
+    @State private var didHandleRevocation: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -38,6 +41,35 @@ struct AddPositivityTokenView: View {
                     .disabled(trimmedReason.isEmpty)
                 }
             }
+            .onAppear {
+                // Prefill from the most recent saved typing (e.g. from an undone check-in).
+                if reason.isEmpty {
+                    let draft = checkInUndoManager.lastPositivityTokenDraftReason()
+                    if !draft.isEmpty {
+                        reason = draft
+                    }
+                }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: .CheckInRevoked)) { notification in
+                guard !didHandleRevocation else { return }
+
+                guard
+                    let pidEncoded = notification.userInfo?[CheckInRevokedUserInfoKeys
+                        .persistentModelID] as? String
+                else {
+                    return
+                }
+
+                guard sponsoringCheckIn.persistentModelID.encoded() == pidEncoded else { return }
+
+                didHandleRevocation = true
+                checkInUndoManager.saveLastPositivityTokenDraftReason(reason)
+                checkInUndoManager.enqueueInfo(
+                    checkIn: sponsoringCheckIn,
+                    title: "PT no longer mintable. Your typing is saved for next minting."
+                )
+                dismiss()
+            }
         }
     }
 
@@ -48,6 +80,7 @@ struct AddPositivityTokenView: View {
     private func saveToken() {
         let token = PositivityToken(reason: trimmedReason, checkIn: sponsoringCheckIn)
         modelContext.insert(token)
+        checkInUndoManager.saveLastPositivityTokenDraftReason(trimmedReason)
         dismiss()
     }
 }

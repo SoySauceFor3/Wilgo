@@ -146,6 +146,7 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
                                 // Undo deletes the check-in and any linked token (including a token
                                 // that might have been minted after the toast appeared).
                                 if let token = checkIn.positivityToken {
+                                    checkInUndoManager.saveLastPositivityTokenDraftReason(token.reason)
                                     modelContext.delete(token)
                                 }
                                 modelContext.delete(checkIn)

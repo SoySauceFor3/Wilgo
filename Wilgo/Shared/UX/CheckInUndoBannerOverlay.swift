@@ -37,14 +37,16 @@ private struct CheckInUndoToastRow: View {
 
             Spacer(minLength: 8)
 
-            Button(action: onUndo) {
-                Text("Undo")
-                    .font(.subheadline.weight(.semibold))
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+            if notice.kind == .undo {
+                Button(action: onUndo) {
+                    Text("Undo")
+                        .font(.subheadline.weight(.semibold))
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                }
+                .buttonStyle(.borderedProminent)
+                .accessibilityLabel("Undo check-in")
             }
-            .buttonStyle(.borderedProminent)
-            .accessibilityLabel("Undo check-in")
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 12)

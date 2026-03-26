@@ -113,6 +113,7 @@ struct WilgoApp: App {
             checkInUndoManager.enqueue(checkIn: checkIn, title: "Check-in saved") {
                 withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                     if let token = checkIn.positivityToken {
+                        checkInUndoManager.saveLastPositivityTokenDraftReason(token.reason)
                         context.delete(token)
                     }
                     context.delete(checkIn)

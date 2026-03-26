@@ -1,3 +1,4 @@
+import Combine
 import SwiftData
 import SwiftUI
 
@@ -53,6 +54,26 @@ struct ListPositivityTokenView: View {
                     await maintainSponsoringCheckInEligibility()
                 }
                 .onChange(of: tokens.count) { _, _ in
+                    Task { await refreshSponsoringCheckIn() }
+                }
+                .onReceive(NotificationCenter.default.publisher(for: .CheckInRevoked)) {
+                    notification in
+                    guard
+                        let pidEncoded = notification.userInfo?[CheckInRevokedUserInfoKeys
+                            .persistentModelID] as? String
+                    else {
+                        return
+                    }
+
+                    guard
+                        let presenting = sponsoringCheckIn,
+                        presenting.persistentModelID.encoded() == pidEncoded
+                    else {
+                        return
+                    }
+
+                    guard isPresentingAddToken else { return }
+                    isPresentingAddToken = false
                     Task { await refreshSponsoringCheckIn() }
                 }
             }
