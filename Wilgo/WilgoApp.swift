@@ -110,10 +110,11 @@ struct WilgoApp: App {
             let checkIn = CheckIn(commitment: commitment)
             context.insert(checkIn)
             commitment.checkIns.append(checkIn)  // keep inverse in sync immediately, as inverse relationship propogation takes time.
-            checkInUndoManager.enqueue(checkIn: checkIn, title: "Check-in saved") {
+            checkInUndoManager.enqueue(
+                checkIn: checkIn, title: "A check-in made for \(commitment.title)"
+            ) {
                 withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                     if let token = checkIn.positivityToken {
-                        checkInUndoManager.saveLastPositivityTokenDraftReason(token.reason)
                         context.delete(token)
                     }
                     context.delete(checkIn)
@@ -131,7 +132,8 @@ private struct AppRootView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
-    @Query(sort: \PositivityToken.createdAt, order: .forward) private var positivityTokens: [PositivityToken]
+    @Query(sort: \PositivityToken.createdAt, order: .forward) private var positivityTokens:
+        [PositivityToken]
     @State private var finishedCycleReport: FinishedCycleReport?
 
     var body: some View {

@@ -42,10 +42,6 @@ final class CheckInUndoManager: ObservableObject {
 
     private let autoDismissDuration: TimeInterval = 5
 
-    // Stores the last drafted PositivityToken reason so we can prefill the
-    // Add view even if its sponsoring check-in is undone.
-    private let lastPTDraftReasonKey = "wilgo.lastPositivityTokenDraftReason"
-
     init() {
     }
 
@@ -65,16 +61,6 @@ final class CheckInUndoManager: ObservableObject {
             title: title,
             kind: .undo,
             undoClosure: undo
-        )
-    }
-
-    /// Enqueue an info notice (no `Undo`) tied to a check-in.
-    func enqueueInfo(checkIn: CheckIn, title: String) {
-        enqueueInternal(
-            checkIn: checkIn,
-            title: title,
-            kind: .info,
-            undoClosure: nil
         )
     }
 
@@ -102,6 +88,13 @@ final class CheckInUndoManager: ObservableObject {
         )
     }
 
+    /// Immediately dismisses all pending notices (e.g. when a competing sheet opens).
+    func dismissAll() {
+        for noticeID in stateByNoticeID.keys {
+            removeNotice(noticeID: noticeID)
+        }
+    }
+
     // Removes the notice and its undo closure, and cancels the auto-dismiss task.
     private func autoDismiss(noticeID: String) {
         // If the notice already got removed (e.g. user tapped Undo), do nothing.
@@ -122,17 +115,6 @@ final class CheckInUndoManager: ObservableObject {
     /// Returns `""` if encoding fails (call sites should treat `enqueue()` as best-effort).
     private func encodePersistentModelID(_ pid: PersistentIdentifier) -> String {
         (try? JSONEncoder().encode(pid)).map { $0.base64EncodedString() } ?? ""
-    }
-
-    // MARK: Draft storage (PositivityToken reason)
-
-    func lastPositivityTokenDraftReason() -> String {
-        UserDefaults.standard.string(forKey: lastPTDraftReasonKey) ?? ""
-    }
-
-    func saveLastPositivityTokenDraftReason(_ reason: String) {
-        let trimmed = reason.trimmingCharacters(in: .whitespacesAndNewlines)
-        UserDefaults.standard.set(trimmed, forKey: lastPTDraftReasonKey)
     }
 
     // MARK: Internals

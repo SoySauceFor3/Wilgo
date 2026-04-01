@@ -141,12 +141,13 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
                         )
                         modelContext.insert(checkIn)
                         commitment.checkIns.append(checkIn)  // keep inverse in sync immediately, as inverse relationship propagation takes time.
-                        checkInUndoManager.enqueue(checkIn: checkIn, title: "Check-in saved") {
+                        checkInUndoManager.enqueue(
+                            checkIn: checkIn, title: "A check-in made for \(commitment.title)"
+                        ) {
                             withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                                 // Undo deletes the check-in and any linked token (including a token
                                 // that might have been minted after the toast appeared).
                                 if let token = checkIn.positivityToken {
-                                    checkInUndoManager.saveLastPositivityTokenDraftReason(token.reason)
                                     modelContext.delete(token)
                                 }
                                 modelContext.delete(checkIn)

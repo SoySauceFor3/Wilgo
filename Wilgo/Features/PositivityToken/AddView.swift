@@ -42,20 +42,15 @@ struct AddPositivityTokenView: View {
                 }
             }
             .onAppear {
-                // Prefill from the most recent saved typing (e.g. from an undone check-in).
-                if reason.isEmpty {
-                    let draft = checkInUndoManager.lastPositivityTokenDraftReason()
-                    if !draft.isEmpty {
-                        reason = draft
-                    }
-                }
+                checkInUndoManager.dismissAll()
             }
             .onReceive(NotificationCenter.default.publisher(for: .CheckInRevoked)) { notification in
                 guard !didHandleRevocation else { return }
 
                 guard
-                    let pidEncoded = notification.userInfo?[CheckInRevokedUserInfoKeys
-                        .persistentModelID] as? String
+                    let pidEncoded = notification.userInfo?[
+                        CheckInRevokedUserInfoKeys
+                            .persistentModelID] as? String
                 else {
                     return
                 }
@@ -63,11 +58,6 @@ struct AddPositivityTokenView: View {
                 guard sponsoringCheckIn.persistentModelID.encoded() == pidEncoded else { return }
 
                 didHandleRevocation = true
-                checkInUndoManager.saveLastPositivityTokenDraftReason(reason)
-                checkInUndoManager.enqueueInfo(
-                    checkIn: sponsoringCheckIn,
-                    title: "PT no longer mintable. Your typing is saved for next minting."
-                )
                 dismiss()
             }
         }
@@ -80,7 +70,6 @@ struct AddPositivityTokenView: View {
     private func saveToken() {
         let token = PositivityToken(reason: trimmedReason, checkIn: sponsoringCheckIn)
         modelContext.insert(token)
-        checkInUndoManager.saveLastPositivityTokenDraftReason(trimmedReason)
         dismiss()
     }
 }
