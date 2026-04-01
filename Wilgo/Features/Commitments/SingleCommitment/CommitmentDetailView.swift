@@ -6,6 +6,7 @@ struct CommitmentDetailView: View {
     let onEdit: (() -> Void)?
 
     @Environment(\.dismiss) private var dismiss
+    @State private var isPresentingBackfill = false
 
     init(commitment: Commitment, onEdit: (() -> Void)? = nil) {
         self.commitment = commitment
@@ -50,6 +51,7 @@ struct CommitmentDetailView: View {
                     CommitmentRowView(commitment: commitment, variant: .settings)
                     currentSection
                     historySection
+                    backfillButton
                 }
                 .padding()
             }
@@ -63,7 +65,26 @@ struct CommitmentDetailView: View {
                     Button("Edit") { onEdit?() }
                 }
             }
+            .sheet(isPresented: $isPresentingBackfill) {
+                BackfillSheet(commitment: commitment, isPresented: $isPresentingBackfill)
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+            }
         }
+    }
+
+    // MARK: - Backfill
+
+    private var backfillButton: some View {
+        Button {
+            isPresentingBackfill = true
+        } label: {
+            Label("Backfill a Check-in", systemImage: "clock.arrow.circlepath")
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 14)
+        }
+        .buttonStyle(.bordered)
+        .tint(.secondary)
     }
 
     // MARK: - Current
