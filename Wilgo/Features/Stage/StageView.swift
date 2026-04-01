@@ -9,71 +9,68 @@ struct StageView: View {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(LiveActivityManager.self) private var liveActivityManager
     @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
-    /// Observed only to force a re-render when check-ins are inserted/deleted,
+    /// Observed only to force a refresh when check-ins are inserted/deleted,
     /// since @Query for Commitment does not re-fire on child relationship changes.
     @Query private var checkIns: [CheckIn]
 
-    /// actually change the value of it will trigger a rerender.
-    @State private var rewrite = false
+    @State private var viewModel = StageViewModel()
 
     var body: some View {
-        let now = Date()
-        let current = CommitmentAndSlot.currentWithBehind(commitments: commitments, now: now)
-        let upcoming = CommitmentAndSlot.upcomingWithBehind(commitments: commitments, after: now)
-        let catchUp = CommitmentAndSlot.catchUpWithBehind(commitments: commitments, now: now)
-
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    if !current.isEmpty {
+                    if !viewModel.current.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Current")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(current, id: \.commitment.id) { item in
+                            ForEach(viewModel.current, id: \.commitment.id) { item in
                                 CurrentCommitmentRow(
                                     commitment: item.commitment,
-                                    slots: item.slots
+                                    slots: item.slots,
+                                    behindCount: item.behindCount
                                 )
                             }
                         }
                     }
 
-                    if !catchUp.isEmpty {
+                    if !viewModel.catchUp.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Catch up")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(catchUp, id: \.commitment.id) { item in
+                            ForEach(viewModel.catchUp, id: \.commitment.id) { item in
                                 CatchUpCommitmentRow(
                                     commitment: item.commitment,
-                                    slots: item.slots
+                                    slots: item.slots,
+                                    behindCount: item.behindCount
                                 )
                             }
                         }
                     }
 
-                    if !upcoming.isEmpty {
+                    if !viewModel.upcoming.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Upcoming")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(upcoming, id: \.commitment.id) { item in
+                            ForEach(viewModel.upcoming, id: \.commitment.id) { item in
                                 UpcomingCommitmentRow(
                                     commitment: item.commitment,
-                                    slots: item.slots
+                                    slots: item.slots,
+                                    behindCount: item.behindCount
                                 )
                             }
                         }
                     }
 
-                    if current.isEmpty && upcoming.isEmpty && catchUp.isEmpty {
+                    if viewModel.current.isEmpty && viewModel.upcoming.isEmpty && viewModel.catchUp.isEmpty {
                         EmptyStageCard()
                     }
                 }
@@ -84,29 +81,22 @@ struct StageView: View {
                 Time.psychDay(for: Time.now()).formatted(
                     date: .abbreviated, time: .omitted)
             )
-            .task(id: rewrite) {
-                let nextTransitionDate = CommitmentAndSlot.nextTransitionDate(
-                    commitments: commitments, now: Date())
-                let delay = nextTransitionDate?.timeIntervalSince(Date()) ?? 60
-                if delay > 0 {
-                    try? await Task.sleep(until: .now + .seconds(delay), clock: .continuous)
-                }
-                rewrite.toggle()
+            // Fire immediately on first appearance and on every commitment change.
+            .onChange(of: commitments, initial: true) {
+                viewModel.refresh(commitments: commitments)
             }
-            .onAppear {
-                rewrite.toggle()
+            // Check-ins don't surface through the commitments query; watch separately.
+            .onChange(of: checkIns) {
+                viewModel.refresh(commitments: commitments)
             }
             .onChange(of: scenePhase) { _, phase in
-                // When the app is brought back to the foreground, force a re-render.
-                // Not very necessary, just a safety net.
-                if phase == .active { rewrite.toggle() }
+                if phase == .active { viewModel.refresh(commitments: commitments) }
             }
             .onChange(
                 of: liveActivityManager.makeFirstLiveActivityContentState(
-                    from: current
+                    from: viewModel.current
                 )
-            ) {
-                _, _ in
+            ) { _, _ in
                 liveActivityManager.sync()
             }
         }

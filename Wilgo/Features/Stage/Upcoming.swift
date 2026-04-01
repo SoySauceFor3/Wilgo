@@ -4,13 +4,12 @@ import SwiftUI
 struct UpcomingCommitmentRow: View {
     let commitment: Commitment
     let slots: [Slot]
+    /// Pre-computed by `StageViewModel`; avoids re-running `stageStatus` per row.
+    let behindCount: Int
     @State private var isPresentingDetail = false
     @State private var isPresentingEdit = false
 
     var body: some View {
-        let status = commitment.stageStatus(now: Time.now())
-        let behindCount = status.behindCount
-
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(commitment.title)
@@ -76,7 +75,7 @@ struct UpcomingCommitmentRow: View {
         skipBudget: SkipBudget(cycle: Cycle.anchored(.weekly, at: .now), count: 3),
     )
 
-    return UpcomingCommitmentRow(commitment: commitment, slots: [slot])
+    return UpcomingCommitmentRow(commitment: commitment, slots: [slot], behindCount: 0)
         .modelContainer(
             for: [Commitment.self, Slot.self, CheckIn.self], inMemory: true
         )
