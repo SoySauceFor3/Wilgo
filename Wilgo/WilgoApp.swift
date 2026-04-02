@@ -129,38 +129,12 @@ struct WilgoApp: App {
 }
 
 private struct AppRootView: View {
-    @Environment(\.scenePhase) private var scenePhase
-    @State private var pendingReport: FinishedCycleReportRequest?
-
     var body: some View {
         ZStack(alignment: .bottom) {
             MainTabView()
-                #if DEBUG
-                    .environment(\.triggerCycleReport, refreshFinishedCycleReportIfNeeded)
-                #endif
-                .fullScreenCover(item: $pendingReport) { request in
-                    FinishedCycleReportSheet(request: request)
-                }
-                .task {
-                    // For initialisation.
-                    refreshFinishedCycleReportIfNeeded()
-                }
-                .onChange(of: scenePhase) { _, newPhase in
-                    if newPhase == .active {
-                        refreshFinishedCycleReportIfNeeded()
-                    }
-                }
+                .modifier(FinishedCycleReportModifier())
 
             CheckInUndoBannerOverlay()
-        }
-    }
-
-    private func refreshFinishedCycleReportIfNeeded() {
-        // Only set/replace the sheet when there's an actual report to show.
-        // If the user is currently looking at the sheet, we don't want to
-        // automatically dismiss it due to a refresh tick.
-        if let request = FinishedCycleReportBuilder.consumePendingReport() {
-            pendingReport = request
         }
     }
 }

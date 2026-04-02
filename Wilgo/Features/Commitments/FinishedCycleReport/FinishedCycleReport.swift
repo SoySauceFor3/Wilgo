@@ -192,19 +192,15 @@ enum FinishedCycleReportBuilder {
         return max(0, value)
     }
 
-    /// Full entry-point for UI callers.
-    /// Reads persisted watermark, advances it to now, and returns a
-    /// `FinishedCycleReportRequest` for the sheet to present (if any).
+    /// Calculate the date range for the report (i.e. last report date - now)
     ///
-    /// The sheet derives the full report live from its own `@Query` sources,
-    /// so this only needs to decide whether the time window is valid.
+    /// Side effect:
+    /// reads persisted watermark, and advances it to now.
     ///
     /// Notes:
     /// - If persisted watermark is `0`, this is first app run: establish baseline
     ///   at current psych-day and do not show historical cycles.
-    /// - Same-day ticks (startPsychDay == endPsychDay) still advance the watermark,
-    ///   but return `nil` since no cycle could have completed.
-    static func consumePendingReport() -> FinishedCycleReportRequest? {
+    static func reportRange() -> FinishedCycleReportRequest? {
         let previousRef = UserDefaults.standard.double(
             forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
         )

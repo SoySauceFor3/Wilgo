@@ -43,10 +43,43 @@ struct FinishedCycleReportSheet: View {
                 }
         }
         .task {
-            if preTokenReport.commitments.isEmpty { dismiss() }
+            if report.commitments.isEmpty { dismiss() }
         }
-        .onChange(of: preTokenReport.commitments.isEmpty) { _, isEmpty in
+        .onChange(of: report.commitments.isEmpty) { _, isEmpty in
             if isEmpty { dismiss() }
+        }
+    }
+}
+
+// MARK: - Presenter modifier
+
+/// Manages the "should the sheet appear?" decision.
+/// Owns the watermark check, the pending-report state, and the triggers
+/// (initial task + scene-phase activation), so call sites only need
+/// `.finishedCycleReport()`.
+struct FinishedCycleReportModifier: ViewModifier {
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var pendingReport: FinishedCycleReportRequest?
+
+    func body(content: Content) -> some View {
+        content
+            #if DEBUG
+                .environment(\.triggerCycleReport, checkAndShow)
+            #endif
+            .fullScreenCover(item: $pendingReport) { request in
+                FinishedCycleReportSheet(request: request)
+            }
+            .task(id: scenePhase) {  // the id parameter is a change detector + fires on app's first launch.
+                if scenePhase == .active { checkAndShow() }
+            }
+    }
+
+    private func checkAndShow() {
+        // Only set/replace the sheet when there's an actual report to show.
+        // If the user is currently looking at the sheet, we don't want to
+        // automatically dismiss it due to a refresh tick (by then request might be None).
+        if let request = FinishedCycleReportBuilder.reportRange() {
+            pendingReport = request
         }
     }
 }
