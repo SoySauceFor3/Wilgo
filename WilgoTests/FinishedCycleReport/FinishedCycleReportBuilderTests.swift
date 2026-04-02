@@ -34,7 +34,7 @@ private func makeContainer() throws -> ModelContainer {
 }
 
 @Suite("FinishedCycleReportBuilder", .serialized)
-struct FinishedCycleReportBuilderTests : ~Copyable {
+struct FinishedCycleReportBuilderTests: ~Copyable {
     private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
 
     init() {
@@ -62,7 +62,8 @@ struct FinishedCycleReportBuilderTests : ~Copyable {
         ctx.insert(commitment)
 
         for hour in [9, 10, 11] {
-            let checkIn = CheckIn(commitment: commitment, createdAt: date(year: 2026, month: 2, day: 1, hour: hour))
+            let checkIn = CheckIn(
+                commitment: commitment, createdAt: date(year: 2026, month: 2, day: 1, hour: hour))
             ctx.insert(checkIn)
             commitment.checkIns.append(checkIn)
         }
@@ -72,7 +73,7 @@ struct FinishedCycleReportBuilderTests : ~Copyable {
         ctx.insert(t1)
         ctx.insert(t2)
 
-        let report = FinishedCycleReportBuilder.build(
+        let report = PreTokenReportBuilder.build(
             commitments: [commitment],
             startPsychDay: date(year: 2026, month: 2, day: 1),
             endPsychDay: date(year: 2026, month: 2, day: 2),

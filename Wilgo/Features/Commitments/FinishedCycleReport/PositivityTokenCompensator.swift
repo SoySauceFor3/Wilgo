@@ -8,7 +8,7 @@ struct PositivityCycleNeed {
     let missingCheckIns: Int
 }
 
-enum PositivityTokenCompensator {
+private enum PositivityTokenCompensator {
     static func apply(
         cycleNeeds: [PositivityCycleNeed],
         tokens: [PositivityToken],
@@ -89,5 +89,64 @@ enum PositivityTokenCompensator {
     private static func psychMonthKey(of psychDay: Date, calendar: Calendar) -> String {
         let components = calendar.dateComponents([.year, .month], from: psychDay)
         return "\(components.year ?? 0)-\(components.month ?? 0)"
+    }
+}
+
+enum AfterPositivityTokenReportBuilder {
+    private static let monthlyCapDefault = 5
+
+    private static func positivityTokenMonthlyCap() -> Int {
+        let value: Int
+        if UserDefaults.standard.object(forKey: AppSettings.positivityTokenMonthlyCapKey) == nil {
+            value = monthlyCapDefault
+        } else {
+            value = UserDefaults.standard.integer(forKey: AppSettings.positivityTokenMonthlyCapKey)
+        }
+        return max(0, value)
+    }
+
+    /// Phase 2: takes a pre-token report and returns a new report with positivity
+    /// token compensation applied to each cycle's `aidedByPositivityTokenCount`.
+    static func apply(
+        to report: [CommitmentReport],
+        allTokens: [PositivityToken],
+        monthlyCap: Int? = nil
+    ) -> [CommitmentReport] {
+        guard !report.isEmpty else { return report }
+        let cap = monthlyCap ?? positivityTokenMonthlyCap()
+        let cycleNeeds = report.flatMap { commitmentReport in
+            commitmentReport.cycles.map { cycle in
+                PositivityCycleNeed(
+                    cycleID: cycle.id,
+                    commitmentID: commitmentReport.commitment.persistentModelID,
+                    cycleEndPsychDay: cycle.cycleEndPsychDay,
+                    missingCheckIns: max(0, cycle.targetCheckIns - cycle.actualCheckIns)
+                )
+            }
+        }
+        let aidedTokenCountByCycleID = PositivityTokenCompensator.apply(
+            cycleNeeds: cycleNeeds,
+            tokens: allTokens,
+            monthlyCap: cap,
+        )
+        let updatedCommitments = report.map { commitmentReport in
+            CommitmentReport(
+                id: commitmentReport.id,
+                commitment: commitmentReport.commitment,
+                cycles: commitmentReport.cycles.map { cycle in
+                    CycleReport(
+                        id: cycle.id,
+                        actualCheckIns: cycle.actualCheckIns,
+                        targetCheckIns: cycle.targetCheckIns,
+                        cycleLabel: cycle.cycleLabel,
+                        cycleStartPsychDay: cycle.cycleStartPsychDay,
+                        cycleEndPsychDay: cycle.cycleEndPsychDay,
+                        aidedByPositivityTokenCount: aidedTokenCountByCycleID[cycle.id, default: 0],
+                        checkIns: cycle.checkIns
+                    )
+                }
+            )
+        }
+        return updatedCommitments
     }
 }

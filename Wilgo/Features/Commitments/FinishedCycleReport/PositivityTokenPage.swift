@@ -5,13 +5,13 @@ import SwiftUI
 /// identical layout to the original single-page report but without the
 /// check-in history expand control.
 ///
-/// Accepts `report` by value: re-renders automatically whenever the parent
+/// Accepts `commitments` by value: re-renders automatically whenever the parent
 /// passes a freshly-built report.
 struct PositivityTokenPage: View {
-    let report: FinishedCycleReport
+    let commitmentReports: [CommitmentReport]
 
     private var totalTokensUsed: Int {
-        report.commitments
+        commitmentReports
             .flatMap(\.cycles)
             .reduce(0) { $0 + $1.aidedByPositivityTokenCount }
     }
@@ -27,9 +27,9 @@ struct PositivityTokenPage: View {
                 .font(.subheadline)
                 .padding(.vertical, 2)
             }
-            ForEach(report.commitments) { commitment in
-                Section(commitment.commitmentTitle) {
-                    ForEach(commitment.cycles) { cycle in
+            ForEach(commitmentReports) { report in
+                Section(report.commitment.title) {
+                    ForEach(report.cycles) { cycle in
                         CycleResultRow(cycle: cycle)
                     }
                 }
@@ -41,7 +41,7 @@ struct PositivityTokenPage: View {
 // MARK: - CycleResultRow
 
 private struct CycleResultRow: View {
-    let cycle: FinishedCycleReport.CycleReport
+    let cycle: CycleReport
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {

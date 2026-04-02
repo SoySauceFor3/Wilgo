@@ -5,16 +5,16 @@ import SwiftUI
 /// Intentionally ignores positivity token compensation so the user sees
 /// exactly what was recorded — token effects live on Page 2.
 ///
-/// Accepts `report` by value: any parent that re-derives the report from a
+/// Accepts `commitments` by value: any parent that re-derives the report from a
 /// `@Query` source (e.g. after a check-in backfill) will cause SwiftUI to
 /// re-render this page automatically.
 struct CheckInSummaryPage: View {
-    let report: FinishedCycleReport
+    let commitmentReports: [CommitmentReport]
 
     var body: some View {
         List {
-            ForEach(report.commitments) { commitmentReport in
-                Section(commitmentReport.commitmentTitle) {
+            ForEach(commitmentReports) { commitmentReport in
+                Section(commitmentReport.commitment.title) {
                     ForEach(commitmentReport.cycles) { cycle in
                         CheckInCycleRow(
                             cycle: cycle,
@@ -30,7 +30,7 @@ struct CheckInSummaryPage: View {
 // MARK: - CheckInCycleRow
 
 private struct CheckInCycleRow: View {
-    let cycle: FinishedCycleReport.CycleReport
+    let cycle: CycleReport
     let commitment: Commitment
 
     @State private var isExpanded = false
