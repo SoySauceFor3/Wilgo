@@ -13,6 +13,8 @@ struct FinishedCycleReport: Identifiable {
         let actualCheckIns: Int
         let targetCheckIns: Int
         let cycleLabel: String
+        let cycleStartPsychDay: Date  // inclusive
+        let cycleEndPsychDay: Date    // exclusive
         let aidedByPositivityTokenCount: Int
 
         var compensatedCheckIns: Int { actualCheckIns + aidedByPositivityTokenCount }
@@ -33,6 +35,7 @@ enum FinishedCycleReportBuilder {
         let commitmentTitle: String
         let cycleID: String
         let cycleLabel: String
+        let cycleStartPsychDay: Date
         let cycleEndPsychDay: Date
         let actualCheckIns: Int
         let targetCheckIns: Int
@@ -87,6 +90,8 @@ enum FinishedCycleReportBuilder {
                         actualCheckIns: draft.actualCheckIns,
                         targetCheckIns: draft.targetCheckIns,
                         cycleLabel: draft.cycleLabel,
+                        cycleStartPsychDay: draft.cycleStartPsychDay,
+                        cycleEndPsychDay: draft.cycleEndPsychDay,
                         aidedByPositivityTokenCount: aidedTokenCountByCycleID[
                             draft.cycleID, default: 0]
                     )
@@ -126,6 +131,7 @@ enum FinishedCycleReportBuilder {
                     commitmentTitle: commitment.title,
                     cycleID: cycleID,
                     cycleLabel: cycle.label(of: cycleLabelDay),
+                    cycleStartPsychDay: cycleStart,
                     cycleEndPsychDay: cycleEnd,
                     actualCheckIns: actualCheckIns,
                     targetCheckIns: commitment.target.count,

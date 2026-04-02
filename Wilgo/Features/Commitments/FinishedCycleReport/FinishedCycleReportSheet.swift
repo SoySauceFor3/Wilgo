@@ -58,6 +58,10 @@ struct FinishedCycleReportSheet: View {
 }
 
 #Preview {
+    let week1Start = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 10))!
+    let week1End = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 17))!
+    let week2Start = week1End
+    let week2End = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 24))!
     FinishedCycleReportSheet(
         report: FinishedCycleReport(
             commitments: [
@@ -70,6 +74,8 @@ struct FinishedCycleReportSheet: View {
                             actualCheckIns: 12,
                             targetCheckIns: 10,
                             cycleLabel: "Mar 10 - Mar 16",
+                            cycleStartPsychDay: week1Start,
+                            cycleEndPsychDay: week1End,
                             aidedByPositivityTokenCount: 0
                         ),
                         .init(
@@ -77,6 +83,8 @@ struct FinishedCycleReportSheet: View {
                             actualCheckIns: 10,
                             targetCheckIns: 10,
                             cycleLabel: "Mar 17 - Mar 23",
+                            cycleStartPsychDay: week2Start,
+                            cycleEndPsychDay: week2End,
                             aidedByPositivityTokenCount: 0
                         ),
                     ]
@@ -90,6 +98,8 @@ struct FinishedCycleReportSheet: View {
                             actualCheckIns: 4,
                             targetCheckIns: 7,
                             cycleLabel: "Mar 10 - Mar 16",
+                            cycleStartPsychDay: week1Start,
+                            cycleEndPsychDay: week1End,
                             aidedByPositivityTokenCount: 1
                         )
                     ]
