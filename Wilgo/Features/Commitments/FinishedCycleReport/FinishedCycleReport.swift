@@ -14,7 +14,7 @@ struct FinishedCycleReport: Identifiable {
         let targetCheckIns: Int
         let cycleLabel: String
         let cycleStartPsychDay: Date  // inclusive
-        let cycleEndPsychDay: Date    // exclusive
+        let cycleEndPsychDay: Date  // exclusive
         let aidedByPositivityTokenCount: Int
 
         var compensatedCheckIns: Int { actualCheckIns + aidedByPositivityTokenCount }
@@ -31,7 +31,7 @@ enum FinishedCycleReportBuilder {
     private static let monthlyCapDefault = 5
 
     private struct CycleDraft {
-        let commitmentID: String
+        let commitmentID: PersistentIdentifier
         let commitmentTitle: String
         let cycleID: String
         let cycleLabel: String
@@ -58,7 +58,6 @@ enum FinishedCycleReportBuilder {
         guard !cycleDrafts.isEmpty else {
             return FinishedCycleReport(commitments: [])
         }
-
         let cap = monthlyCap ?? positivityTokenMonthlyCap()
         let cycleNeeds = cycleDrafts.map { draft in
             PositivityCycleNeed(
@@ -82,7 +81,7 @@ enum FinishedCycleReportBuilder {
             guard let first = drafts.first else { return nil }
             let sortedDrafts = drafts.sorted { $0.cycleEndPsychDay < $1.cycleEndPsychDay }
             return FinishedCycleReport.CommitmentReport(
-                id: commitmentID,
+                id: commitmentID.encoded(),
                 commitmentTitle: first.commitmentTitle,
                 cycles: sortedDrafts.map { draft in
                     FinishedCycleReport.CycleReport(
@@ -109,6 +108,7 @@ enum FinishedCycleReportBuilder {
         to endPsychDay: Date  // exclusive
     ) -> [CycleDraft] {
         let cycle = commitment.target.cycle
+        let commitmentID = commitment.persistentModelID
         var cycleCursorDay = startPsychDay
         var cycles: [CycleDraft] = []
 
@@ -124,10 +124,10 @@ enum FinishedCycleReportBuilder {
                 endPsychDay: cycleEnd
             ).count
 
-            let cycleID = reportItemID(for: commitment, cycleEndPsychDay: cycleEnd)
+            let cycleID = "\(commitmentID)::\(cycleEnd.timeIntervalSinceReferenceDate)"
             cycles.append(
                 CycleDraft(
-                    commitmentID: commitment.persistentModelID.encoded(),
+                    commitmentID: commitmentID,
                     commitmentTitle: commitment.title,
                     cycleID: cycleID,
                     cycleLabel: cycle.label(of: cycleLabelDay),
@@ -153,10 +153,6 @@ enum FinishedCycleReportBuilder {
 
     private static func previousPsychDay(_ date: Date) -> Date {
         calendar.date(byAdding: .day, value: -1, to: date) ?? date
-    }
-
-    private static func reportItemID(for commitment: Commitment, cycleEndPsychDay: Date) -> String {
-        "\(commitment.persistentModelID.encoded())::\(cycleEndPsychDay.timeIntervalSinceReferenceDate)"
     }
 
     private static func toPsychDayRef(_ date: Date) -> Double {

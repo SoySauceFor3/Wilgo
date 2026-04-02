@@ -1,8 +1,9 @@
 import Foundation
+import SwiftData
 
 struct PositivityCycleNeed {
     let cycleID: String
-    let commitmentID: String
+    let commitmentID: PersistentIdentifier
     let cycleEndPsychDay: Date
     let missingCheckIns: Int
 }
@@ -26,7 +27,8 @@ enum PositivityTokenCompensator {
         var usageCountByMonth = usedCountByMonth(from: tokens, calendar: calendar)
         var aidedByCycleID: [String: Int] = [:]
 
-        let sortedNeeds = cycleNeeds
+        let sortedNeeds =
+            cycleNeeds
             .filter { $0.missingCheckIns > 0 }
             .sorted {
                 if $0.cycleEndPsychDay != $1.cycleEndPsychDay {
