@@ -134,16 +134,16 @@ private struct AppRootView: View {
     @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
     @Query(sort: \PositivityToken.createdAt, order: .forward) private var positivityTokens:
         [PositivityToken]
-    @State private var finishedCycleReport: FinishedCycleReport?
+    @State private var pendingReport: FinishedCycleReportRequest?
 
     var body: some View {
         ZStack(alignment: .bottom) {
             MainTabView()
                 #if DEBUG
-                .environment(\.triggerCycleReport, refreshFinishedCycleReportIfNeeded)
+                    .environment(\.triggerCycleReport, refreshFinishedCycleReportIfNeeded)
                 #endif
-                .fullScreenCover(item: $finishedCycleReport) { report in
-                    FinishedCycleReportSheet(report: report)
+                .fullScreenCover(item: $pendingReport) { request in
+                    FinishedCycleReportSheet(request: request)
                 }
                 .task {
                     // For initialisation.
@@ -160,7 +160,7 @@ private struct AppRootView: View {
     }
 
     private func refreshFinishedCycleReportIfNeeded() {
-        let report = FinishedCycleReportBuilder.consumePendingReport(
+        let request = FinishedCycleReportBuilder.consumePendingReport(
             commitments: commitments,
             allTokens: positivityTokens
         )
@@ -168,8 +168,8 @@ private struct AppRootView: View {
         // Only set/replace the sheet when there's an actual report to show.
         // If the user is currently looking at the sheet, we don't want to
         // automatically dismiss it due to a refresh tick.
-        if let report {
-            finishedCycleReport = report
+        if let request {
+            pendingReport = request
         }
     }
 }

@@ -4,8 +4,10 @@ import SwiftData
 struct FinishedCycleReport: Identifiable {
     struct CommitmentReport: Identifiable {
         let id: String
-        let commitmentTitle: String
+        let commitment: Commitment
         let cycles: [CycleReport]
+
+        var commitmentTitle: String { commitment.title }
     }
 
     struct CycleReport: Identifiable {
@@ -25,6 +27,16 @@ struct FinishedCycleReport: Identifiable {
 
     let id = UUID()
     let commitments: [CommitmentReport]
+}
+
+/// A lightweight token passed to `FinishedCycleReportSheet` that captures the
+/// date window for the report.  The sheet re-derives the full report live from
+/// `@Query` sources, so backfills and other data changes are reflected
+/// automatically without any parent involvement.
+struct FinishedCycleReportRequest: Identifiable {
+    let id = UUID()
+    let startPsychDay: Date  // inclusive
+    let endPsychDay: Date    // exclusive
 }
 
 enum FinishedCycleReportBuilder {
@@ -77,15 +89,18 @@ enum FinishedCycleReportBuilder {
             calendar: calendar
         )
 
+        let commitmentByID = Dictionary(
+            uniqueKeysWithValues: commitments.map { ($0.persistentModelID, $0) }
+        )
         let commitmentReports: [FinishedCycleReport.CommitmentReport] = Dictionary(
             grouping: cycleDrafts, by: \.commitmentID
         )
         .compactMap { commitmentID, drafts -> FinishedCycleReport.CommitmentReport? in
-            guard let first = drafts.first else { return nil }
+            guard let commitment = commitmentByID[commitmentID] else { return nil }
             let sortedDrafts = drafts.sorted { $0.cycleEndPsychDay < $1.cycleEndPsychDay }
             return FinishedCycleReport.CommitmentReport(
                 id: commitmentID.encoded(),
-                commitmentTitle: first.commitmentTitle,
+                commitment: commitment,
                 cycles: sortedDrafts.map { draft in
                     FinishedCycleReport.CycleReport(
                         id: draft.cycleID,
@@ -178,17 +193,21 @@ enum FinishedCycleReportBuilder {
     }
 
     /// Full entry-point for UI callers.
-    /// Reads persisted watermark, computes report decision, persists updated
-    /// watermark, and returns the report to present (if any).
+    /// Reads persisted watermark, advances it to now, and returns a
+    /// `FinishedCycleReportRequest` for the sheet to present (if any).
+    ///
+    /// The caller supplies commitments and tokens solely for the initial
+    /// emptiness guard — the sheet derives the live report from its own
+    /// `@Query` sources, so it stays reactive to backfills and other changes.
     ///
     /// Notes:
     /// - If persisted watermark is `0`, this is first app run: establish baseline
     ///   at current psych-day and do not show historical cycles.
-    /// - Empty reports still advance watermark, but return `nil`.
+    /// - Empty date windows still advance the watermark, but return `nil`.
     static func consumePendingReport(
         commitments: [Commitment],
         allTokens: [PositivityToken]
-    ) -> FinishedCycleReport? {
+    ) -> FinishedCycleReportRequest? {
         let previousRef = UserDefaults.standard.double(
             forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
         )
@@ -204,13 +223,19 @@ enum FinishedCycleReportBuilder {
             return nil
         }
 
-        let report = build(
+        let startPsychDay = fromPsychDayRef(previousRef)
+        // Use a one-off build just for the emptiness guard.
+        let probe = build(
             commitments: commitments,
-            startPsychDay: fromPsychDayRef(previousRef),
+            startPsychDay: startPsychDay,
             endPsychDay: nowPsychDay,
             allTokens: allTokens
         )
+        guard !probe.commitments.isEmpty else { return nil }
 
-        return report.commitments.isEmpty ? nil : report
+        return FinishedCycleReportRequest(
+            startPsychDay: startPsychDay,
+            endPsychDay: nowPsychDay
+        )
     }
 }

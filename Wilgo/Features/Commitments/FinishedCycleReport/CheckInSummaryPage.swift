@@ -13,10 +13,13 @@ struct CheckInSummaryPage: View {
 
     var body: some View {
         List {
-            ForEach(report.commitments) { commitment in
-                Section(commitment.commitmentTitle) {
-                    ForEach(commitment.cycles) { cycle in
-                        CheckInCycleRow(cycle: cycle)
+            ForEach(report.commitments) { commitmentReport in
+                Section(commitmentReport.commitmentTitle) {
+                    ForEach(commitmentReport.cycles) { cycle in
+                        CheckInCycleRow(
+                            cycle: cycle,
+                            commitment: commitmentReport.commitment
+                        )
                     }
                 }
             }
@@ -28,10 +31,16 @@ struct CheckInSummaryPage: View {
 
 private struct CheckInCycleRow: View {
     let cycle: FinishedCycleReport.CycleReport
+    let commitment: Commitment
 
     @State private var isExpanded = false
+    @State private var showingBackfill = false
 
     private var rawMetTarget: Bool { cycle.actualCheckIns >= cycle.targetCheckIns }
+
+    private var cycleRange: ClosedRange<Date> {
+        cycle.cycleStartPsychDay...cycle.cycleEndPsychDay.addingTimeInterval(-1)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -57,6 +66,15 @@ private struct CheckInCycleRow: View {
                 Spacer()
 
                 Button {
+                    showingBackfill = true
+                } label: {
+                    Image(systemName: "plus.circle")
+                        .foregroundStyle(.secondary)
+                        .font(.body)
+                }
+                .buttonStyle(.plain)
+
+                Button {
                     withAnimation(.easeInOut(duration: 0.2)) {
                         isExpanded.toggle()
                     }
@@ -74,6 +92,10 @@ private struct CheckInCycleRow: View {
                     .padding(.top, 8)
                     .transition(.opacity.combined(with: .move(edge: .top)))
             }
+        }
+        .sheet(isPresented: $showingBackfill) {
+            BackfillSheet(commitment: commitment, dateRange: cycleRange)
+                .presentationDetents([.medium])
         }
     }
 

@@ -1,8 +1,23 @@
+import SwiftData
 import SwiftUI
 
 struct FinishedCycleReportSheet: View {
-    let report: FinishedCycleReport
+    let request: FinishedCycleReportRequest
     @Environment(\.dismiss) private var dismiss
+
+    @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
+    @Query(sort: \PositivityToken.createdAt, order: .forward) private var tokens: [PositivityToken]
+
+    /// Recomputed whenever SwiftData notifies a change to commitments or tokens
+    /// (e.g. after a backfill), keeping both pages in sync automatically.
+    private var report: FinishedCycleReport {
+        FinishedCycleReportBuilder.build(
+            commitments: commitments,
+            startPsychDay: request.startPsychDay,
+            endPsychDay: request.endPsychDay,
+            allTokens: tokens
+        )
+    }
 
     @State private var showTokenStep = false
 
@@ -30,57 +45,24 @@ struct FinishedCycleReportSheet: View {
     }
 }
 
-#Preview {
-    let week1Start = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 10))!
-    let week1End = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 17))!
-    let week2Start = week1End
-    let week2End = Calendar.current.date(from: DateComponents(year: 2026, month: 3, day: 24))!
-    FinishedCycleReportSheet(
-        report: FinishedCycleReport(
-            commitments: [
-                .init(
-                    id: "morning-run",
-                    commitmentTitle: "Morning Run",
-                    cycles: [
-                        .init(
-                            id: "morning-run-2026-03-10",
-                            actualCheckIns: 12,
-                            targetCheckIns: 10,
-                            cycleLabel: "Mar 10 - Mar 16",
-                            cycleStartPsychDay: week1Start,
-                            cycleEndPsychDay: week1End,
-                            aidedByPositivityTokenCount: 0,
-                            checkIns: []
-                        ),
-                        .init(
-                            id: "morning-run-2026-03-17",
-                            actualCheckIns: 10,
-                            targetCheckIns: 10,
-                            cycleLabel: "Mar 17 - Mar 23",
-                            cycleStartPsychDay: week2Start,
-                            cycleEndPsychDay: week2End,
-                            aidedByPositivityTokenCount: 0,
-                            checkIns: []
-                        ),
-                    ]
-                ),
-                .init(
-                    id: "read-30-min",
-                    commitmentTitle: "Read 30 Minutes",
-                    cycles: [
-                        .init(
-                            id: "read-2026-03",
-                            actualCheckIns: 4,
-                            targetCheckIns: 7,
-                            cycleLabel: "Mar 10 - Mar 16",
-                            cycleStartPsychDay: week1Start,
-                            cycleEndPsychDay: week1End,
-                            aidedByPositivityTokenCount: 1,
-                            checkIns: []
-                        )
-                    ]
-                ),
-            ]
+// MARK: - Preview helpers
+
+struct FinishedCycleReportSheetPreview: View {
+    var body: some View {
+        let endPsychDay = Calendar.current.startOfDay(for: Date())
+        let startPsychDay =
+            Calendar.current.date(byAdding: .day, value: -21, to: endPsychDay) ?? endPsychDay
+        let request = FinishedCycleReportRequest(
+            startPsychDay: startPsychDay,
+            endPsychDay: endPsychDay
         )
-    )
+        FinishedCycleReportSheet(request: request)
+    }
+}
+
+#Preview {
+    let container = HeatmapPreviewFactory.richHistoryContainer()
+    FinishedCycleReportSheetPreview()
+        .modelContainer(container)
+        .environmentObject(CheckInUndoManager())
 }
