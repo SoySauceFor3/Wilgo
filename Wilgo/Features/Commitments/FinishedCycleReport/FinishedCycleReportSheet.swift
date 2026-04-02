@@ -42,6 +42,12 @@ struct FinishedCycleReportSheet: View {
                         }
                 }
         }
+        .task {
+            if preTokenReport.commitments.isEmpty { dismiss() }
+        }
+        .onChange(of: preTokenReport.commitments.isEmpty) { _, isEmpty in
+            if isEmpty { dismiss() }
+        }
     }
 }
 

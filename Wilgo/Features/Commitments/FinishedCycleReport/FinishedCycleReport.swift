@@ -196,42 +196,30 @@ enum FinishedCycleReportBuilder {
     /// Reads persisted watermark, advances it to now, and returns a
     /// `FinishedCycleReportRequest` for the sheet to present (if any).
     ///
-    /// The caller supplies commitments and tokens solely for the initial
-    /// emptiness guard — the sheet derives the live report from its own
-    /// `@Query` sources, so it stays reactive to backfills and other changes.
+    /// The sheet derives the full report live from its own `@Query` sources,
+    /// so this only needs to decide whether the time window is valid.
     ///
     /// Notes:
     /// - If persisted watermark is `0`, this is first app run: establish baseline
     ///   at current psych-day and do not show historical cycles.
-    /// - Empty date windows still advance the watermark, but return `nil`.
-    static func consumePendingReport(
-        commitments: [Commitment],
-        allTokens: [PositivityToken]
-    ) -> FinishedCycleReportRequest? {
+    /// - Same-day ticks (startPsychDay == endPsychDay) still advance the watermark,
+    ///   but return `nil` since no cycle could have completed.
+    static func consumePendingReport() -> FinishedCycleReportRequest? {
         let previousRef = UserDefaults.standard.double(
             forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
         )
         let nowPsychDay = Time.psychDay(for: Time.now())
-        let nowPsychDayRef = toPsychDayRef(nowPsychDay)
         // Persist watermark updates regardless of whether we show anything.
         UserDefaults.standard.set(
-            nowPsychDayRef,
+            toPsychDayRef(nowPsychDay),
             forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
         )
         // First bootstrap: establish baseline and do not show historical cycles.
-        guard previousRef != 0 else {
-            return nil
-        }
+        guard previousRef != 0 else { return nil }
 
         let startPsychDay = fromPsychDayRef(previousRef)
-        // Use a one-off build just for the emptiness guard.
-        let probe = build(
-            commitments: commitments,
-            startPsychDay: startPsychDay,
-            endPsychDay: nowPsychDay,
-            allTokens: allTokens
-        )
-        guard !probe.commitments.isEmpty else { return nil }
+        // No completed cycle is possible if the window has zero width.
+        guard startPsychDay < nowPsychDay else { return nil }
 
         return FinishedCycleReportRequest(
             startPsychDay: startPsychDay,
