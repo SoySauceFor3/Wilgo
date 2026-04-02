@@ -139,6 +139,9 @@ private struct AppRootView: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             MainTabView()
+                #if DEBUG
+                .environment(\.triggerCycleReport, refreshFinishedCycleReportIfNeeded)
+                #endif
                 .sheet(item: $finishedCycleReport) { report in
                     FinishedCycleReportSheet(report: report)
                 }

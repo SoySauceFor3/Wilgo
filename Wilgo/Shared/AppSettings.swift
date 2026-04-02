@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import SwiftUI
 
 enum AppSettings {
     /// Hour (0–12) when the "commitment day" begins. Default: 0 (midnight).
@@ -18,3 +19,18 @@ enum AppSettings {
     /// Last psych-day up to which the finished-cycle popup has been shown.
     static let finishedCycleReportLastShownPsychDayKey = "finishedCycleReportLastShownPsychDay"
 }
+
+#if DEBUG
+// MARK: - Debug environment
+
+struct TriggerCycleReportKey: EnvironmentKey {
+    static let defaultValue: () -> Void = {}
+}
+
+extension EnvironmentValues {
+    var triggerCycleReport: () -> Void {
+        get { self[TriggerCycleReportKey.self] }
+        set { self[TriggerCycleReportKey.self] = newValue }
+    }
+}
+#endif
