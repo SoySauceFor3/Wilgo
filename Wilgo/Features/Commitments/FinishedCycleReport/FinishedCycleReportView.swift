@@ -1,7 +1,7 @@
 import SwiftData
 import SwiftUI
 
-struct FinishedCycleReportSheet: View {
+struct FinishedCycleReportView: View {
     let request: FinishedCycleReportRequest
     @Environment(\.dismiss) private var dismiss
 
@@ -61,7 +61,7 @@ struct FinishedCycleReportSheet: View {
 
 // MARK: - Preview helpers
 
-struct FinishedCycleReportSheetPreview: View {
+struct FinishedCycleReportViewPreview: View {
     var body: some View {
         let endPsychDay = Calendar.current.startOfDay(for: Date())
         let startPsychDay =
@@ -70,13 +70,13 @@ struct FinishedCycleReportSheetPreview: View {
             startPsychDay: startPsychDay,
             endPsychDay: endPsychDay
         )
-        FinishedCycleReportSheet(request: request)
+        FinishedCycleReportView(request: request)
     }
 }
 
 #Preview {
     let container = HeatmapPreviewFactory.richHistoryContainer()
-    FinishedCycleReportSheetPreview()
+    FinishedCycleReportViewPreview()
         .modelContainer(container)
         .environmentObject(CheckInUndoManager())
 }

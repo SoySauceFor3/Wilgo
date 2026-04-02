@@ -21,7 +21,7 @@ struct CycleReport: Identifiable {
     var isAidedByPositivityToken: Bool { aidedByPositivityTokenCount > 0 }
 }
 
-/// A lightweight token passed to `FinishedCycleReportSheet` that captures the
+/// A lightweight token passed to `FinishedCycleReportView` that captures the
 /// date window for the report.  The sheet re-derives the full report live from
 /// `@Query` sources, so backfills and other data changes are reflected
 /// automatically without any parent involvement.

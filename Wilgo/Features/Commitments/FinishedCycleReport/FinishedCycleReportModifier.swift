@@ -15,7 +15,7 @@ struct FinishedCycleReportModifier: ViewModifier {
                 .environment(\.triggerCycleReport, checkAndShow)
             #endif
             .fullScreenCover(item: $pendingReport) { request in
-                FinishedCycleReportSheet(request: request)
+                FinishedCycleReportView(request: request)
             }
             .task(id: scenePhase) {  // the id parameter is a change detector + fires on app's first launch.
                 if scenePhase == .active { checkAndShow() }
