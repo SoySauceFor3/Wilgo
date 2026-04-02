@@ -16,6 +16,7 @@ struct FinishedCycleReport: Identifiable {
         let cycleStartPsychDay: Date  // inclusive
         let cycleEndPsychDay: Date  // exclusive
         let aidedByPositivityTokenCount: Int
+        let checkIns: [CheckIn]
 
         var compensatedCheckIns: Int { actualCheckIns + aidedByPositivityTokenCount }
         var metTarget: Bool { compensatedCheckIns >= targetCheckIns }
@@ -37,8 +38,10 @@ enum FinishedCycleReportBuilder {
         let cycleLabel: String
         let cycleStartPsychDay: Date
         let cycleEndPsychDay: Date
-        let actualCheckIns: Int
+        let checkIns: [CheckIn]
         let targetCheckIns: Int
+
+        var actualCheckIns: Int { checkIns.count }
     }
 
     static func build(
@@ -92,7 +95,8 @@ enum FinishedCycleReportBuilder {
                         cycleStartPsychDay: draft.cycleStartPsychDay,
                         cycleEndPsychDay: draft.cycleEndPsychDay,
                         aidedByPositivityTokenCount: aidedTokenCountByCycleID[
-                            draft.cycleID, default: 0]
+                            draft.cycleID, default: 0],
+                        checkIns: draft.checkIns
                     )
                 }
             )
@@ -119,10 +123,10 @@ enum FinishedCycleReportBuilder {
         ) {
             let cycleLabelDay = previousPsychDay(cycleEnd)
             let cycleStart = cycle.startDayOfCycle(including: cycleLabelDay)
-            let actualCheckIns = commitment.checkInsInRange(
+            let cycleCheckIns = commitment.checkInsInRange(
                 startPsychDay: cycleStart,
                 endPsychDay: cycleEnd
-            ).count
+            )
 
             let cycleID = "\(commitmentID)::\(cycleEnd.timeIntervalSinceReferenceDate)"
             cycles.append(
@@ -133,7 +137,7 @@ enum FinishedCycleReportBuilder {
                     cycleLabel: cycle.label(of: cycleLabelDay),
                     cycleStartPsychDay: cycleStart,
                     cycleEndPsychDay: cycleEnd,
-                    actualCheckIns: actualCheckIns,
+                    checkIns: cycleCheckIns,
                     targetCheckIns: commitment.target.count,
                 )
             )
