@@ -8,13 +8,21 @@ struct FinishedCycleReportSheet: View {
     @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
     @Query(sort: \PositivityToken.createdAt, order: .forward) private var tokens: [PositivityToken]
 
-    /// Recomputed whenever SwiftData notifies a change to commitments or tokens
-    /// (e.g. after a backfill), keeping both pages in sync automatically.
-    private var report: FinishedCycleReport {
-        FinishedCycleReportBuilder.build(
+    /// Phase 1: raw check-in data only, no PT compensation.
+    /// Recomputed on any SwiftData change to commitments (e.g. after a backfill).
+    private var preTokenReport: FinishedCycleReport {
+        FinishedCycleReportBuilder.buildPreToken(
             commitments: commitments,
             startPsychDay: request.startPsychDay,
-            endPsychDay: request.endPsychDay,
+            endPsychDay: request.endPsychDay
+        )
+    }
+
+    /// Phase 2: PT compensation applied on top of `preTokenReport`.
+    /// Recomputed whenever either commitments or tokens change.
+    private var finalReport: FinishedCycleReport {
+        FinishedCycleReportBuilder.applyPositivityTokens(
+            to: preTokenReport,
             allTokens: tokens
         )
     }
@@ -23,7 +31,7 @@ struct FinishedCycleReportSheet: View {
 
     var body: some View {
         NavigationStack {
-            CheckInSummaryPage(report: report)
+            CheckInSummaryPage(report: preTokenReport)
                 .navigationTitle("Check-In Summary")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
@@ -32,7 +40,7 @@ struct FinishedCycleReportSheet: View {
                     }
                 }
                 .navigationDestination(isPresented: $showTokenStep) {
-                    PositivityTokenPage(report: report)
+                    PositivityTokenPage(report: finalReport)
                         .navigationTitle("Positivity Tokens")
                         .navigationBarTitleDisplayMode(.inline)
                         .toolbar {
@@ -43,9 +51,9 @@ struct FinishedCycleReportSheet: View {
                 }
         }
         .task {
-            if report.commitments.isEmpty { dismiss() }
+            if preTokenReport.commitments.isEmpty { dismiss() }
         }
-        .onChange(of: report.commitments.isEmpty) { _, isEmpty in
+        .onChange(of: preTokenReport.commitments.isEmpty) { _, isEmpty in
             if isEmpty { dismiss() }
         }
     }
