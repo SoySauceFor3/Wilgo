@@ -66,7 +66,7 @@ struct CommitmentDetailView: View {
                 }
             }
             .sheet(isPresented: $isPresentingBackfill) {
-                BackfillSheet(commitment: commitment, isPresented: $isPresentingBackfill)
+                BackfillSheet(commitment: commitment)
                     .presentationDetents([.medium])
                     .presentationDragIndicator(.visible)
             }

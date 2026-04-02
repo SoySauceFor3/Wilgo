@@ -3,8 +3,8 @@ import SwiftUI
 
 struct BackfillSheet: View {
     let commitment: Commitment
-    @Binding var isPresented: Bool
 
+    @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var checkInUndoManager: CheckInUndoManager
 
@@ -27,7 +27,7 @@ struct BackfillSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") { isPresented = false }
+                    Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Add") {
@@ -52,7 +52,7 @@ struct BackfillSheet: View {
             modelContext.delete(checkIn)
         }
 
-        isPresented = false
+        dismiss()
     }
 
     private func formattedDate(_ date: Date) -> String {
@@ -70,7 +70,7 @@ struct BackfillSheet: View {
     PreviewWithFirstCommitment(container: container) { commitment in
         Color.clear
             .sheet(isPresented: .constant(true)) {
-                BackfillSheet(commitment: commitment, isPresented: .constant(true))
+                BackfillSheet(commitment: commitment)
                     .presentationDetents([.medium])
             }
     }
