@@ -3,12 +3,23 @@ import SwiftUI
 
 struct BackfillSheet: View {
     let commitment: Commitment
+    /// When provided, clamps the date picker to the cycle's date range so the
+    /// user doesn't accidentally backfill into the wrong cycle.
+    var dateRange: ClosedRange<Date>? = nil
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @EnvironmentObject private var checkInUndoManager: CheckInUndoManager
 
-    @State private var selectedDate: Date = .now
+    @State private var selectedDate: Date
+
+    init(commitment: Commitment, dateRange: ClosedRange<Date>? = nil) {
+        self.commitment = commitment
+        self.dateRange = dateRange
+        // Pre-select the start of the cycle (most recent missed check-in is likely near there),
+        // or now when there is no range constraint.
+        _selectedDate = State(initialValue: dateRange?.lowerBound ?? .now)
+    }
 
     var body: some View {
         NavigationStack {
@@ -17,6 +28,7 @@ struct BackfillSheet: View {
                     DatePicker(
                         "Date & Time",
                         selection: $selectedDate,
+                        in: dateRange ?? Date.distantPast...Date.distantFuture,
                         displayedComponents: [.date, .hourAndMinute]
                     )
                 } footer: {
