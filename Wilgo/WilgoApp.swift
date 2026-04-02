@@ -142,7 +142,7 @@ private struct AppRootView: View {
                 #if DEBUG
                 .environment(\.triggerCycleReport, refreshFinishedCycleReportIfNeeded)
                 #endif
-                .sheet(item: $finishedCycleReport) { report in
+                .fullScreenCover(item: $finishedCycleReport) { report in
                     FinishedCycleReportSheet(report: report)
                 }
                 .task {
