@@ -118,7 +118,6 @@ enum CommitmentAndSlot {
                 TimeInterval(Time.dayStartHourOffset * 3_600))
             if nextPsychDayStart > now { candidates.append(nextPsychDayStart) }
         }
-
         return candidates.min()
     }
 }

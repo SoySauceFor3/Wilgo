@@ -7,7 +7,6 @@ import SwiftUI
 
 struct StageView: View {
     @Environment(\.scenePhase) private var scenePhase
-    @Environment(LiveActivityManager.self) private var liveActivityManager
     @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
     /// Observed only to force a refresh when check-ins are inserted/deleted,
     /// since @Query for Commitment does not re-fire on child relationship changes.
@@ -70,7 +69,9 @@ struct StageView: View {
                         }
                     }
 
-                    if viewModel.current.isEmpty && viewModel.upcoming.isEmpty && viewModel.catchUp.isEmpty {
+                    if viewModel.current.isEmpty && viewModel.upcoming.isEmpty
+                        && viewModel.catchUp.isEmpty
+                    {
                         EmptyStageCard()
                     }
                 }
@@ -91,13 +92,6 @@ struct StageView: View {
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { viewModel.refresh(commitments: commitments) }
-            }
-            .onChange(
-                of: liveActivityManager.makeFirstLiveActivityContentState(
-                    from: viewModel.current
-                )
-            ) { _, _ in
-                liveActivityManager.sync()
             }
         }
     }

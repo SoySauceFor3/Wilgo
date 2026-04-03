@@ -1,93 +1,37 @@
 import ActivityKit
+import BackgroundTasks
 import Foundation
 import SwiftData
 
-/// Minimal state needed by LiveActivityManager — avoids computing upcoming/missed rows.
-struct LiveActivityUpdate {
-    let contentState: NowAttributes.ContentState?
-    let staleDate: Date?
-    let nextTransitionDate: Date
+// MARK: - Model access
+
+/// Reads use `mainContext` so schedule / Live Activity logic sees the same object graph as `@Query`
+/// and `EditCommitmentView`. A fresh `ModelContext(container)` can observe stale store state until
+/// merge/save completes.
+extension ModelContext {
+    fileprivate static var wilgoMain: ModelContext {
+        WilgoApp.sharedModelContainer.mainContext
+    }
 }
 
 /// Owns all Live Activity lifecycle operations (start / update / end).
-///
-/// ## How it stays in sync
-///
-/// Two complementary mechanisms keep the live activity correct whenever the app
-/// process is running — regardless of which tab is visible:
-///
-/// 1. **Monitoring loop** (`startMonitoring`): wakes at each slot boundary
-///    (window open / window close) and syncs automatically. Runs for the full
-///    lifetime of this object, which is the full lifetime of the app.
-///
-/// 2. **Explicit `sync()` calls**: for changes that don't involve a time
-///    boundary — a user completing a commitment, etc. — callers
-///    invoke `sync()` directly so the activity updates immediately without
-///    waiting for the next boundary wake-up.
-///
-/// When the app is terminated, neither mechanism runs. That case requires push
-/// notifications (ActivityKit push type). The `staleDate` passed to every
-/// `ActivityContent` provides graceful degradation: iOS marks the activity
-/// stale when the slot window closes.
-@MainActor
-@Observable
-final class LiveActivityManager {
-    private let modelContext: ModelContext
-    @ObservationIgnored
-    nonisolated(unsafe) private var monitoringTask: Task<Void, Never>?
+/// 3. **BGAppRefreshTask** (`registerBackgroundTask` / `scheduleBackgroundTask`):
+///    wakes the app at each slot boundary even when suspended or killed.
+///    Scheduled on every scene-phase change and self-sustaining after each fire.
+enum LiveActivityManager {
+    @MainActor
+    private static func apply() async {
+        let context = ModelContext.wilgoMain
+        let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
+        let now = Time.now()
+        let current = CommitmentAndSlot.currentWithBehind(
+            commitments: commitments,
+            now: now,
+        )
 
-    init(modelContext: ModelContext) {
-        self.modelContext = modelContext
-        startMonitoring()
-    }
+        let contentState = LiveActivityManager.makeLiveActivityContentState(from: current)
+        let staleDate = current.first.map { $0.1[0].endToday }
 
-    deinit {
-        monitoringTask?.cancel()
-    }
-
-    // MARK: - Public
-
-    /// Immediately syncs the live activity to the current state.
-    ///
-    /// Call this whenever commitment data changes while the app is on screen.
-    /// (Calling it on `scenePhase == .active` is not necessary because the monitoring loop already runs in the background, but just a cheap safety net.)
-    func sync() {
-        let update = currentLiveActivityUpdate()
-        Task {  // The reason it wraps apply in a Task {} is that apply is async (it calls into ActivityKit, which is asynchronous), but sync() itself is not async
-            await apply(
-                contentState: update.contentState,
-                staleDate: update.staleDate)
-        }
-    }
-
-    // MARK: - Monitoring loop
-
-    /// Starts (or restarts) the internal loop that wakes at each slot boundary
-    /// and syncs the live activity without any view needing to be on screen.
-    private func startMonitoring() {
-        monitoringTask?.cancel()
-        monitoringTask = Task {
-            while !Task.isCancelled {
-                let update = self.currentLiveActivityUpdate()
-                await self.apply(
-                    contentState: update.contentState,
-                    staleDate: update.staleDate)
-
-                let delay = max(update.nextTransitionDate.timeIntervalSince(Date()), 1)  // ensures we never sleep for 0 or negative seconds
-                try? await Task.sleep(for: .seconds(delay))
-            }
-        }
-    }
-
-    // MARK: - Helpers
-
-    private func currentLiveActivityUpdate() -> LiveActivityUpdate {
-        let commitments = (try? modelContext.fetch(FetchDescriptor<Commitment>())) ?? []
-        return makeLiveActivityUpdate(commitments: commitments, now: Date())
-    }
-
-    // takes the computed state and tells iOS what to actually show (or not show) on the Lock Screen.
-    private func apply(contentState: NowAttributes.ContentState?, staleDate: Date?) async {
         if let state = contentState, state.hasCurrentCommitment {
             let content = ActivityContent(state: state, staleDate: staleDate)
             if let activity = Activity<NowAttributes>.activities.first {
@@ -106,24 +50,7 @@ final class LiveActivityManager {
         }
     }
 
-    private func makeLiveActivityUpdate(
-        commitments: [Commitment],
-        now: Date
-    ) -> LiveActivityUpdate {
-        let current = CommitmentAndSlot.currentWithBehind(
-            commitments: commitments,
-            now: now,
-        )
-        return LiveActivityUpdate(
-            contentState: makeFirstLiveActivityContentState(from: current),
-            staleDate: current.first.map { $0.1[0].endToday },
-            nextTransitionDate: CommitmentAndSlot.nextTransitionDate(
-                commitments: commitments, now: now)
-                ?? now.addingTimeInterval(60)
-        )
-    }
-
-    func makeFirstLiveActivityContentState(
+    private static func makeLiveActivityContentState(
         from currentSlots: [CommitmentAndSlot.WithBehind]
     ) -> NowAttributes.ContentState? {
         guard let (commitment, slots, _) = currentSlots.first else { return nil }
@@ -137,5 +64,50 @@ final class LiveActivityManager {
             slotId: slotId,
             secondaryTitles: secondaryTitles
         )
+    }
+
+    private static let backgroundTaskIdentifier = "wilgo.live-activity-sync"
+
+    /// Register the BGAppRefreshTask handler. Must be called before any `submit()` — i.e., before
+    /// `scheduleBackgroundTask()`.
+    static func registerBackgroundTask() {
+        BGTaskScheduler.shared.register(
+            forTaskWithIdentifier: backgroundTaskIdentifier,
+            using: nil
+        ) { task in
+            guard let refreshTask = task as? BGAppRefreshTask else {
+                task.setTaskCompleted(success: false)
+                return
+            }
+            Task { @MainActor in
+                workAndScheduleNextBGTask()
+                refreshTask.setTaskCompleted(success: true)
+            }
+        }
+    }
+
+    @MainActor
+    static func workAndScheduleNextBGTask() {
+        // Re-schedule for the next slot boundary before doing the work so that even
+        // if the process is killed mid-flight the next wakeup is already queued.
+        LiveActivityManager.scheduleBackgroundTask()
+        Task {
+            await apply()
+        }
+    }
+
+    /// Submit (or replace) a BGAppRefreshTask that wakes the app at the next slot transition.
+    /// Safe to call repeatedly — BGTaskScheduler replaces any existing request with the same identifier.
+    @MainActor
+    private static func scheduleBackgroundTask() {
+        let now = Time.now()
+        let context = ModelContext.wilgoMain
+        let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
+        let nextDate =
+            CommitmentAndSlot.nextTransitionDate(commitments: commitments, now: now)
+            ?? now.addingTimeInterval(60 * 60)  // 1-hour fallback when there are no commitments
+        let request = BGAppRefreshTaskRequest(identifier: backgroundTaskIdentifier)
+        request.earliestBeginDate = nextDate
+        try? BGTaskScheduler.shared.submit(request)
     }
 }

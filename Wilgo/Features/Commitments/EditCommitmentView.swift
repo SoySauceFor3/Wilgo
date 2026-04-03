@@ -109,7 +109,7 @@ struct EditCommitmentView: View {
             }
             commitment.slots = newSlots.sorted()
         }
-
+        try? modelContext.save()  //TODO: try? means that if errors, we ignore it. Better to use a do/catch statement to properly handle it.
         dismiss()
     }
 }

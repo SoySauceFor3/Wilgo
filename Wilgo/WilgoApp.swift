@@ -37,7 +37,6 @@ struct WilgoApp: App {
         }
     }()
 
-    let liveActivityManager: LiveActivityManager
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var checkInUndoManager = CheckInUndoManager()
 
@@ -56,14 +55,13 @@ struct WilgoApp: App {
         CatchUpReminder.registerBackgroundTask()
         CatchUpReminder.startHourlyRunWhileActive()
 
-        liveActivityManager = LiveActivityManager(
-            modelContext: Self.sharedModelContainer.mainContext)
+        // Register the Live Activity background sync task. Must come before any submit() call.
+        LiveActivityManager.registerBackgroundTask()
     }
 
     var body: some Scene {
         WindowGroup {
             AppRootView()
-                .environment(liveActivityManager)
                 .environmentObject(checkInUndoManager)
                 .onOpenURL { url in
                     handleDeepLink(url)
@@ -72,12 +70,15 @@ struct WilgoApp: App {
         .modelContainer(Self.sharedModelContainer)
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
-                liveActivityManager.sync()
                 // Watchdog: re-queue in case iOS skipped a BGTask fire.
                 DayStartReport.scheduleBackgroundTask()
+                LiveActivityManager.workAndScheduleNextBGTask()  // Not really necessary because LiveActivity is only needed when scene != .active, just a safe net.
             } else {
                 // the app is not active (inactive, or background), use this "last chance" to update and schedule the catch-up reminders.
                 CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()
+                // Sync the Live Activity immediately so it's accurate the moment it becomes visible,
+                // then queue a BGAppRefreshTask to keep it updated while the app stays inactive.
+                LiveActivityManager.workAndScheduleNextBGTask()
             }
         }
     }
@@ -120,7 +121,6 @@ struct WilgoApp: App {
                     context.delete(checkIn)
                 }
             }
-            liveActivityManager.sync()
 
         default:
             break
