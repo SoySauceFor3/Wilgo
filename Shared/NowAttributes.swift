@@ -9,7 +9,7 @@ import ActivityKit
 
 struct NowAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
-        /// First current commitment's title (empty when no commitment in window).
+        /// Primary (first) current commitment's title (empty when no commitment in window).
         var commitmentTitle: String
         /// Current slot time range, e.g. "9:00 AM – 11:00 AM".
         var slotTimeText: String
@@ -20,7 +20,11 @@ struct NowAttributes: ActivityAttributes {
         /// Base64-encoded JSON of the slot's `PersistentIdentifier`.
         var slotId: String
 
-        /// Only start or update the Live Activity when this is true (commitment + slot set).
+        /// Non-primary current commitments. Empty when there is at most one commitment in the
+        /// current window. Does not affect ``hasCurrentCommitment``.
+        var secondaryTitles: [String]
+
+        /// Only start or update the Live Activity when this is true (primary commitment + slot set).
         public var hasCurrentCommitment: Bool {
             !commitmentTitle.isEmpty && !slotTimeText.isEmpty
         }

@@ -113,7 +113,8 @@ extension NowAttributes.ContentState {
             commitmentTitle: "Morning reading",
             slotTimeText: "9:00 AM – 11:00 AM",
             commitmentId: "",
-            slotId: ""
+            slotId: "",
+            secondaryTitles: ["Walk dog", "Email inbox"]
         )
     }
 }

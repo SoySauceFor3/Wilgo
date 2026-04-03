@@ -133,7 +133,8 @@ final class LiveActivityManager {
             commitmentTitle: commitment.title,
             slotTimeText: slots[0].timeOfDayText,
             commitmentId: commitmentId,
-            slotId: slotId
+            slotId: slotId,
+            secondaryTitles: ["Walk dog", "Email inbox"]
         )
     }
 }
