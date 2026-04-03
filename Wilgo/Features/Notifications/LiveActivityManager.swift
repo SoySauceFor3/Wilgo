@@ -129,12 +129,13 @@ final class LiveActivityManager {
         guard let (commitment, slots, _) = currentSlots.first else { return nil }
         let commitmentId = commitment.persistentModelID.encoded()
         let slotId = slots[0].persistentModelID.encoded()
+        let secondaryTitles = currentSlots.dropFirst().map(\.commitment.title)
         return NowAttributes.ContentState(
             commitmentTitle: commitment.title,
             slotTimeText: slots[0].timeOfDayText,
             commitmentId: commitmentId,
             slotId: slotId,
-            secondaryTitles: ["Walk dog", "Email inbox"]
+            secondaryTitles: secondaryTitles
         )
     }
 }
