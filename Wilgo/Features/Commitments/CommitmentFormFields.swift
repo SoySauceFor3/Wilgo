@@ -65,12 +65,13 @@ struct CommitmentFormFields: View {
     // MARK: - Helpers
 
     /// Maps the cycle binding to/from a CycleKind for the Picker.
-    /// When the kind changes, a new Cycle is constructed anchored to today(PsychDay).
+    /// When the kind changes, a new Cycle is constructed anchored to the canonical start day
+    /// (Monday for weekly, 1st for monthly, today for daily).
     private var targetCycleKindBinding: Binding<CycleKind> {
         Binding(
             get: { target.cycle.kind },
             set: { newKind in
-                target.cycle = Cycle.anchored(newKind, at: .now)
+                target.cycle = Cycle.makeDefault(newKind)
             }
         )
     }
