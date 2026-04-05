@@ -22,6 +22,10 @@ struct WilgoApp: App {
 
     /// Static container so the BGTask handler closure can reach it without a global.
     /// Swift's lazy static initialiser is thread-safe; it's fine to access from the handler.
+    // Schema version history:
+    // v1 (initial):      Commitment, Slot, CheckIn, PositivityToken
+    // v2 (gracePeriods): Added Commitment.gracePeriods: [GracePeriod] — lightweight migration,
+    //                    default []. No SchemaMigrationPlan needed (additive Codable property).
     static let sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Commitment.self,
