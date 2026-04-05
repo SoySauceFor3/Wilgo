@@ -115,8 +115,10 @@ enum AfterPositivityTokenReportBuilder {
         guard !report.isEmpty else { return report }
         let cap = monthlyCap ?? positivityTokenMonthlyCap()
         let cycleNeeds = report.flatMap { commitmentReport in
-            commitmentReport.cycles.map { cycle in
-                PositivityCycleNeed(
+            commitmentReport.cycles.compactMap { cycle -> PositivityCycleNeed? in
+                // Grace cycles are exempt: no PT consumed, monthly cap unaffected.
+                guard !cycle.isGrace else { return nil }
+                return PositivityCycleNeed(
                     cycleID: cycle.id,
                     commitmentID: commitmentReport.commitment.persistentModelID,
                     cycleEndPsychDay: cycle.cycleEndPsychDay,
