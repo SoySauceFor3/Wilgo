@@ -60,7 +60,7 @@ struct WilgoApp: App {
         CatchUpReminder.startHourlyRunWhileActive()
 
         // Register the Live Activity background sync task. Must come before any submit() call.
-        LiveActivityManager.registerBackgroundTask()
+        NowLiveActivityManager.registerBackgroundTask()
     }
 
     var body: some Scene {
@@ -76,13 +76,13 @@ struct WilgoApp: App {
             if newPhase == .active {
                 // Watchdog: re-queue in case iOS skipped a BGTask fire.
                 DayStartReport.scheduleBackgroundTask()
-                LiveActivityManager.workAndScheduleNextBGTask()  // Not really necessary because LiveActivity is only needed when scene != .active, just a safe net.
+                NowLiveActivityManager.workAndScheduleNextBGTask()  // Not really necessary because LiveActivity is only needed when scene != .active, just a safe net.
             } else {
                 // the app is not active (inactive, or background), use this "last chance" to update and schedule the catch-up reminders.
                 CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()
                 // Sync the Live Activity immediately so it's accurate the moment it becomes visible,
                 // then queue a BGAppRefreshTask to keep it updated while the app stays inactive.
-                LiveActivityManager.workAndScheduleNextBGTask()
+                NowLiveActivityManager.workAndScheduleNextBGTask()
             }
         }
     }

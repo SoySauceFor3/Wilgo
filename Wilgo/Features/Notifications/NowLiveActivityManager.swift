@@ -18,7 +18,7 @@ extension ModelContext {
 /// 3. **BGAppRefreshTask** (`registerBackgroundTask` / `scheduleBackgroundTask`):
 ///    wakes the app at each slot boundary even when suspended or killed.
 ///    Scheduled on every scene-phase change and self-sustaining after each fire.
-enum LiveActivityManager {
+enum NowLiveActivityManager {
     @MainActor
     private static func apply() async {
         print("LiveActivityManager.apply()")
@@ -30,7 +30,7 @@ enum LiveActivityManager {
             now: now,
         )
 
-        let contentState = LiveActivityManager.makeLiveActivityContentState(from: current)
+        let contentState = NowLiveActivityManager.makeLiveActivityContentState(from: current)
         let staleDate = current.first.map { $0.1[0].endToday }
 
         if let state = contentState, state.hasCurrentCommitment {
@@ -98,7 +98,7 @@ enum LiveActivityManager {
     static func workAndScheduleNextBGTask() {
         // Re-schedule for the next slot boundary before doing the work so that even
         // if the process is killed mid-flight the next wakeup is already queued.
-        LiveActivityManager.scheduleBackgroundTask()
+        NowLiveActivityManager.scheduleBackgroundTask()
         Task {
             await apply()
         }
