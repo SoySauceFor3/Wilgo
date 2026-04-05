@@ -217,9 +217,9 @@ No modal when `!anyRuleChanged` — direct save as before.
 
 **Files:** `FinishedCycleReport/Models.swift`, `FinishedCycleReport/PreTokenReportBuilder.swift`
 
-`**Models.swift`: add `let isGrace: Bool` to `CycleReport` (default `false` at all existing init sites).
+`Models.swift`: add `let isGrace: Bool` to `CycleReport` (default `false` at all existing init sites).
 
-`**PreTokenReportBuilder.swift` — in `cyclesForCommitment`, after computing `cycleStart`/`cycleEnd`:
+`PreTokenReportBuilder.swift` — in `cyclesForCommitment`, after computing `cycleStart`/`cycleEnd`:
 
 ```swift
 let isGrace = commitment.gracePeriods.contains {

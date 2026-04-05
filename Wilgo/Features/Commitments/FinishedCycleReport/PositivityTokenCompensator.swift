@@ -142,7 +142,8 @@ enum AfterPositivityTokenReportBuilder {
                         cycleStartPsychDay: cycle.cycleStartPsychDay,
                         cycleEndPsychDay: cycle.cycleEndPsychDay,
                         aidedByPositivityTokenCount: aidedTokenCountByCycleID[cycle.id, default: 0],
-                        checkIns: cycle.checkIns
+                        checkIns: cycle.checkIns,
+                        isGrace: cycle.isGrace
                     )
                 }
             )

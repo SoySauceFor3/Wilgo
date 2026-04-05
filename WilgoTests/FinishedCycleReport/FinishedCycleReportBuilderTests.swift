@@ -131,6 +131,76 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         #expect(cycle.metTarget == false)
     }
 
+    @Test("grace cycle: isGrace is true when cycle overlaps a GracePeriod")
+    @MainActor
+    func graceCycleIsMarkedGrace() throws {
+        let container = try makeContainer()
+        let ctx = container.mainContext
+
+        let anchor = date(year: 2026, month: 3, day: 30)  // Monday
+        let targetCycle = Cycle(kind: .weekly, referencePsychDay: anchor)
+        let commitment = Commitment(
+            title: "Run",
+            slots: [],
+            target: QuantifiedCycle(cycle: targetCycle, count: 3),
+            skipBudget: QuantifiedCycle(cycle: targetCycle, count: 0)
+        )
+        // Grace covers the week Mar 30 – Apr 6
+        commitment.gracePeriods = [
+            GracePeriod(
+                startPsychDay: date(year: 2026, month: 3, day: 30),
+                endPsychDay: date(year: 2026, month: 4, day: 6),
+                reason: .creation
+            )
+        ]
+        ctx.insert(commitment)
+
+        let preReport = PreTokenReportBuilder.build(
+            commitments: [commitment],
+            startPsychDay: date(year: 2026, month: 3, day: 30),
+            endPsychDay: date(year: 2026, month: 4, day: 6)
+        )
+
+        #expect(preReport.count == 1)
+        let cycle = try #require(preReport.first?.cycles.first)
+        #expect(cycle.isGrace == true)
+    }
+
+    @Test("non-grace cycle: isGrace is false when no GracePeriod overlaps")
+    @MainActor
+    func nonGraceCycleIsNotMarkedGrace() throws {
+        let container = try makeContainer()
+        let ctx = container.mainContext
+
+        let anchor = date(year: 2026, month: 3, day: 30)
+        let targetCycle = Cycle(kind: .weekly, referencePsychDay: anchor)
+        let commitment = Commitment(
+            title: "Run",
+            slots: [],
+            target: QuantifiedCycle(cycle: targetCycle, count: 3),
+            skipBudget: QuantifiedCycle(cycle: targetCycle, count: 0)
+        )
+        // Grace only covers the prior week — no overlap with the report window
+        commitment.gracePeriods = [
+            GracePeriod(
+                startPsychDay: date(year: 2026, month: 3, day: 23),
+                endPsychDay: date(year: 2026, month: 3, day: 30),
+                reason: .creation
+            )
+        ]
+        ctx.insert(commitment)
+
+        let preReport = PreTokenReportBuilder.build(
+            commitments: [commitment],
+            startPsychDay: date(year: 2026, month: 3, day: 30),
+            endPsychDay: date(year: 2026, month: 4, day: 6)
+        )
+
+        #expect(preReport.count == 1)
+        let cycle = try #require(preReport.first?.cycles.first)
+        #expect(cycle.isGrace == false)
+    }
+
     @Test("start >= end returns empty report")
     @MainActor
     func invalidDateRangeReturnsEmpty() throws {
