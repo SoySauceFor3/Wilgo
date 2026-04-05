@@ -1,13 +1,8 @@
-//
-//  NowBundle.swift
-//  Now
-//
-
 import SwiftUI
 import WidgetKit
 
 @main
-struct NowBundle: WidgetBundle {
+struct WidgetExtensionBundle: WidgetBundle {
     var body: some Widget {
         NowLiveActivity()
     }
