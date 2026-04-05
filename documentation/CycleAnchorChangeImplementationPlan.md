@@ -68,13 +68,16 @@ let isGrace: Bool   // true → no penalty, no PT tokens applied
 
 ### A. GracePeriod storage
 
+
 | Option                                                | Pros                                                                                     | Cons                                                                      |
 | ----------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
 | `[GracePeriod]` array on Commitment **(chosen)**      | Supports multiple grace periods; vacation use case fits naturally via date-range overlap | Slightly more complex than a single date                                  |
 | Single `scheduledEffectiveDate: Date?`                | Simpler, matches PRD's original field name                                               | Only one grace window; doesn't support vacation without redesign          |
 | Separate `@Model class GracePeriod` with relationship | Full SwiftData querying capability                                                       | Overkill for simple date ranges; adds join overhead; complicates deletion |
 
+
 ### B. Cycle anchor interceptor pattern
+
 
 | Option                                                 | Pros                                                                                                   | Cons                                                                           |
 | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------ |
@@ -82,16 +85,20 @@ let isGrace: Bool   // true → no penalty, no PT tokens applied
 | Modify `Cycle.anchored()`                              | One change affects all callers                                                                         | Breaks backward compatibility; existing previews and tests would need updating |
 | New `CycleFactory.swift` file                          | Cleaner separation                                                                                     | Extra indirection for a simple helper                                          |
 
+
 ### C. SwiftData migration approach
+
 
 | Option                                         | Pros                                                                                    | Cons                                                        |
 | ---------------------------------------------- | --------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
 | Lightweight migration (automatic) **(chosen)** | No boilerplate; SwiftData handles adding Codable properties with defaults automatically | Less explicit; no migration test without extra setup        |
 | Versioned `SchemaMigrationPlan`                | Explicit; testable; auditable                                                           | Required only when removing/renaming fields — overkill here |
 
+
 SwiftData stores `[GracePeriod]` (a `Codable` struct array, not a `@Model`) as a serialized attribute column. Adding it with `= []` default is a lightweight-compatible change. We verify correctness with a migration test in Commit 2.
 
 ### D. Grace modal UI pattern
+
 
 | Option                                     | Pros                                                                                | Cons                                                         |
 | ------------------------------------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------ |
@@ -99,12 +106,15 @@ SwiftData stores `[GracePeriod]` (a `Codable` struct array, not a `@Model`) as a
 | Custom `.sheet`                            | Full layout control                                                                 | Heavier, more code for a two-choice question                 |
 | `.alert`                                   | Simplest                                                                            | Top-of-screen, doesn't match iOS sleep schedule UX reference |
 
+
 ### E. Grace detection in report
+
 
 | Option                                                    | Pros                                                                  | Cons                                                                        |
 | --------------------------------------------------------- | --------------------------------------------------------------------- | --------------------------------------------------------------------------- |
 | `gracePeriods.contains { $0.overlaps(...) }` **(chosen)** | General; works for all GraceReason variants including future vacation | Iterates array per cycle (negligible for small arrays)                      |
 | Store grace cycle start dates as `Set<Date>`              | O(1) lookup                                                           | Only works for exact cycle boundaries; breaks for vacation ranges mid-cycle |
+
 
 ---
 
@@ -133,7 +143,7 @@ SwiftData stores `[GracePeriod]` (a `Codable` struct array, not a `@Model`) as a
   4. Verifies `gracePeriods` is `[]` on the loaded record
 - No behavior change — field is inert, defaulting to `[]`
 
-_Why a separate commit from Commit 1:_ the schema change and its verification are a distinct, reviewable step from the type definition.
+*Why a separate commit from Commit 1:* the schema change and its verification are a distinct, reviewable step from the type definition.
 
 ---
 
@@ -189,9 +199,9 @@ target.cycle = Cycle.makeDefault(newKind)
 
 1. Remove `rulesChangedNote` from `CommitmentFormFields` call (replaced by the modal)
 2. In `saveChanges()`: when `anyRuleChanged`, trigger `.confirmationDialog` instead of saving directly:
-   > "Your goal changes to [X per cycle] now. Should this [week/month/today] count toward penalties?"  
-   > **[Yes — I'm committed now]** → `saveChanges(grace: false)`
-   > **[No — grace period]** → `saveChanges(grace: true)`
+  > "Your goal changes to [X per cycle] now. Should this [week/month/today] count toward penalties?"  
+  > **[Yes — I'm committed now]** → `saveChanges(grace: false)`
+  > **[No — grace period]** → `saveChanges(grace: true)`
 3. In `saveChanges(grace:)`:
 
 - Use `Cycle.makeDefault(target.cycle.kind)` instead of `Cycle.anchored(target.cycle.kind, at: Time.now())`
@@ -233,7 +243,19 @@ Grace cycles still appear in the report — no changes to `nextCompletedCycleEnd
 
 ---
 
-### Commit 8 — Tests
+### (not a Commit) — One time data migration
+
+1. make existing local data (on test iphone) to use whole week/month target cycles if applicable.
+
+---
+
+### Commit 9 — Clean up
+
+1. remove the usage of anchor in code.
+
+---
+
+## Tests
 
 **Files:** `WilgoTests/`
 
@@ -245,6 +267,7 @@ Grace cycles still appear in the report — no changes to `nextCompletedCycleEnd
 
 ## Files Changed Per Commit
 
+
 | Commit | Files                                                                                                  |
 | ------ | ------------------------------------------------------------------------------------------------------ |
 | 1      | `Shared/Models/GracePeriod.swift` (new)                                                                |
@@ -255,6 +278,7 @@ Grace cycles still appear in the report — no changes to `nextCompletedCycleEnd
 | 6      | `FinishedCycleReport/Models.swift`, `FinishedCycleReport/PreTokenReportBuilder.swift`                  |
 | 7      | `FinishedCycleReport/PositivityTokenCompensator.swift`, `FinishedCycleReport/CheckInSummaryPage.swift` |
 | 8      | `WilgoTests/` (new + existing test files)                                                              |
+
 
 ---
 
@@ -273,6 +297,7 @@ Grace cycles still appear in the report — no changes to `nextCompletedCycleEnd
 2. [ ] New monthly commitment on 15th → cycle is 1st–31st; grace offered at creation
 3. [ ] Edit count, "committed now" → new count everywhere, current cycle penalized
 4. [ ] Edit count, "grace period" → new count everywhere, current cycle shows "no penalty · grace period"
-5. [x] Edit weekly→monthly, grace → Stage shows monthly goal immediately; transition cycle is grace
+5. [ ] Edit weekly→monthly, grace → Stage shows monthly goal immediately; transition cycle is grace
 6. [ ] Edit with no rule change → no modal, direct save
 7. [ ] Existing commitment → unchanged boundaries, `gracePeriods` empty, no effect
+
