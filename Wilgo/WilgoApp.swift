@@ -45,16 +45,6 @@ struct WilgoApp: App {
     @StateObject private var checkInUndoManager = CheckInUndoManager()
 
     init() {
-        // BGTask handler registration MUST come first — before any submit() call and
-        // before any other code that could race with a pending task being dispatched.
-        // BGTaskScheduler crashes if an identifier listed in BGTaskSchedulerPermittedIdentifiers
-        // has no registered handler at the moment the system tries to dispatch it.
-        DayStartReport.registerBackgroundTask()
-
-        // Bootstrap: queue the day-start report wakeup at the user's preferred day-start hour.
-        // After it fires once, handleBackgroundTask re-schedules it each day automatically.
-        DayStartReport.scheduleBackgroundTask()
-
         // Set up CatchUpReminderService.
         CatchUpReminder.registerBackgroundTask()
         CatchUpReminder.startHourlyRunWhileActive()
@@ -75,7 +65,6 @@ struct WilgoApp: App {
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
                 // Watchdog: re-queue in case iOS skipped a BGTask fire.
-                DayStartReport.scheduleBackgroundTask()
                 NowLiveActivityManager.workAndScheduleNextBGTask()  // Not really necessary because LiveActivity is only needed when scene != .active, just a safe net.
             } else {
                 // the app is not active (inactive, or background), use this "last chance" to update and schedule the catch-up reminders.

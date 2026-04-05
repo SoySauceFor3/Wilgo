@@ -186,12 +186,10 @@ Extract a single `extension PersistentIdentifier` with `encoded() -> String` and
 
 ## 🔲 9 — Remove dead code (LOW)
 
-| Item                                                                                                            | Location                                                 |
-| --------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `DayStartReport.swift` — marked for deletion at top of file                                                     | `Features/Notifications/DayStartReport.swift`            |
-| `CommitmentFormFields.allowedSkipBudgetCycleKinds` — defined but never referenced                               | `Features/Commitments/CommitmentFormFields.swift` ~78–91 |
-| `MiniCommitmentHeatmapRow.completionsByDay` — declared but never used                                           | `Heatmap/View.swift` ~643–668                            |
-| `DayStartReport.summaryNotificationContent` urgency sort — comparator always returns `0`/`0`, sort does nothing | `DayStartReport.swift` ~99–107                           |
+| Item                                                                              | Location                                                 |
+| --------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `CommitmentFormFields.allowedSkipBudgetCycleKinds` — defined but never referenced | `Features/Commitments/CommitmentFormFields.swift` ~78–91 |
+| `MiniCommitmentHeatmapRow.completionsByDay` — declared but never used             | `Heatmap/View.swift` ~643–668                            |
 
 ---
 
