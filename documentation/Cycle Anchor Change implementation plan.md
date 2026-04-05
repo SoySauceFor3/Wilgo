@@ -169,7 +169,7 @@ SwiftData stores `[GracePeriod]` (a `Codable` struct array, not a `@Model`) as a
 
 **Files:** `Features/Commitments/AddCommitView.swift`, `Features/Commitments/CommitmentFormFields.swift`
 
-`**CommitmentFormFields.swift`** — `targetCycleKindBinding.set`:
+`**CommitmentFormFields.swift` — `targetCycleKindBinding.set`:
 
 ```swift
 // Before:
@@ -182,22 +182,12 @@ target.cycle = Cycle.makeDefault(newKind)
 
 ### Commit 4 - Creation modal
 
-`**AddCommitView.swift`:**
+**Files:** `AddCommitView.swift`:
 
 1. Initial default: `Cycle.makeDefault(.daily)` instead of `Cycle.anchored(.daily, at: .now)`
-2. `saveCommitment()` checks for mid-cycle creation before saving:
+2. `saveCommitment()` trigger `.confirmationDialog`:
 
-```swift
-var isMidCycle: Bool {
-    guard target.cycle.kind != .daily else { return false }
-    let cycleStart = target.cycle.startDayOfCycle(including: Time.now())
-    return cycleStart < Time.psychDay(for: Time.now())
-}
-```
-
-If `isMidCycle`: trigger `.confirmationDialog`:
-
-> "This [week/month] has already started ([cycleLabel]). Should it count toward penalties?"
+> "[This week/month]/[Today] has already started (if week/month show start date of week/month). Should it count toward penalties?"  
 > **[Yes — I'm committed]** → save, no grace period
 > **[No — grace period]** → save, then append `GracePeriod(start: cycleStart, end: cycleEnd, reason: .creation)` to the new commitment
 
@@ -209,14 +199,15 @@ If `isMidCycle`: trigger `.confirmationDialog`:
 
 1. Remove `rulesChangedNote` from `CommitmentFormFields` call (replaced by the modal)
 2. In `saveChanges()`: when `anyRuleChanged`, trigger `.confirmationDialog` instead of saving directly:
-  > "Your goal changes to [X per cycle] now. Should this [week/month] count toward penalties?"
+  > "Your goal changes to [X per cycle] now. Should this [week/month/today] count toward penalties?"  
   > **[Yes — I'm committed now]** → `saveChanges(grace: false)`
   > **[No — grace period]** → `saveChanges(grace: true)`
 3. In `saveChanges(grace:)`:
-  - Use `Cycle.makeDefault(target.cycle.kind)` instead of `Cycle.anchored(target.cycle.kind, at: Time.now())`
-  - If `grace == true`: append `GracePeriod(start: cycleStart, end: cycleEnd, reason: .ruleChange)` to `commitment.gracePeriods`
-  - Same-kind edits: boundaries unchanged (re-anchor is no-op for same kind with canonical anchor)
-  - CycleKind change: new canonical anchor applies; grace (if chosen) covers the transition cycle
+
+- Use `Cycle.makeDefault(target.cycle.kind)` instead of `Cycle.anchored(target.cycle.kind, at: Time.now())`
+- If `grace == true`: append `GracePeriod(start: cycleStart, end: cycleEnd, reason: .ruleChange)` to `commitment.gracePeriods`
+- Same-kind edits: boundaries unchanged (re-anchor is no-op for same kind with canonical anchor)
+- CycleKind change: new canonical anchor applies; grace (if chosen) covers the transition cycle
 
 No modal when `!anyRuleChanged` — direct save as before.
 
@@ -226,9 +217,9 @@ No modal when `!anyRuleChanged` — direct save as before.
 
 **Files:** `FinishedCycleReport/Models.swift`, `FinishedCycleReport/PreTokenReportBuilder.swift`
 
-`**Models.swift`:** add `let isGrace: Bool` to `CycleReport` (default `false` at all existing init sites).
+`**Models.swift`: add `let isGrace: Bool` to `CycleReport` (default `false` at all existing init sites).
 
-`**PreTokenReportBuilder.swift`** — in `cyclesForCommitment`, after computing `cycleStart`/`cycleEnd`:
+`**PreTokenReportBuilder.swift` — in `cyclesForCommitment`, after computing `cycleStart`/`cycleEnd`:
 
 ```swift
 let isGrace = commitment.gracePeriods.contains {
@@ -246,9 +237,9 @@ Grace cycles still appear in the report — no changes to `nextCompletedCycleEnd
 
 **Files:** `FinishedCycleReport/PositivityTokenCompensator.swift`, `FinishedCycleReport/CheckInSummaryPage.swift`
 
-`**PositivityTokenCompensator.swift`:** skip any cycle where `isGrace == true` — no PT consumed, monthly cap unaffected.
+`**PositivityTokenCompensator.swift`: skip any cycle where `isGrace == true` — no PT consumed, monthly cap unaffected.
 
-`**CheckInSummaryPage.swift`:** for grace cycles, show "no penalty · grace period" instead of the normal `metTarget` verdict. Visual style: neutral/secondary (not a failure indicator).
+`**CheckInSummaryPage.swift`: for grace cycles, show "no penalty · grace period" instead of the normal `metTarget` verdict. Visual style: neutral/secondary (not a failure indicator).
 
 ---
 
