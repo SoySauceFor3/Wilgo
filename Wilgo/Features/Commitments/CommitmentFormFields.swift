@@ -7,19 +7,7 @@ struct CommitmentFormFields: View {
     @Binding var proofOfWorkType: ProofOfWorkType
     @Binding var punishment: String
 
-    /// When non-nil, a neutral info note is shown at the top of the form.
-    /// Used by EditCommitmentView to indicate that rule changes start a fresh period.
-    var rulesChangedNote: String?
-
     var body: some View {
-        if let note = rulesChangedNote {
-            Section {
-                Label(note, systemImage: "info.circle")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
-
         Section("Basics") {
             TextField("Title", text: $title)
         }
@@ -65,12 +53,13 @@ struct CommitmentFormFields: View {
     // MARK: - Helpers
 
     /// Maps the cycle binding to/from a CycleKind for the Picker.
-    /// When the kind changes, a new Cycle is constructed anchored to today(PsychDay).
+    /// When the kind changes, a new Cycle is constructed anchored to the canonical start day
+    /// (Monday for weekly, 1st for monthly, today for daily).
     private var targetCycleKindBinding: Binding<CycleKind> {
         Binding(
             get: { target.cycle.kind },
             set: { newKind in
-                target.cycle = Cycle.anchored(newKind, at: .now)
+                target.cycle = Cycle.makeDefault(newKind)
             }
         )
     }

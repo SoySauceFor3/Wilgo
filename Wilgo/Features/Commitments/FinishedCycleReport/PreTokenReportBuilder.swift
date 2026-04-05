@@ -11,6 +11,7 @@ enum PreTokenReportBuilder {
         let cycleEndPsychDay: Date
         let checkIns: [CheckIn]
         let targetCheckIns: Int
+        let isGrace: Bool
 
         var actualCheckIns: Int { checkIns.count }
     }
@@ -53,7 +54,8 @@ enum PreTokenReportBuilder {
                         cycleStartPsychDay: draft.cycleStartPsychDay,
                         cycleEndPsychDay: draft.cycleEndPsychDay,
                         aidedByPositivityTokenCount: 0,
-                        checkIns: draft.checkIns
+                        checkIns: draft.checkIns,
+                        isGrace: draft.isGrace
                     )
                 }
             )
@@ -84,6 +86,9 @@ enum PreTokenReportBuilder {
                 endPsychDay: cycleEnd
             )
 
+            let isGrace = commitment.gracePeriods.contains {
+                $0.overlaps(cycleStart: cycleStart, cycleEnd: cycleEnd)
+            }
             let cycleID = "\(commitmentID)::\(cycleEnd.timeIntervalSinceReferenceDate)"
             cycles.append(
                 CycleDraft(
@@ -95,6 +100,7 @@ enum PreTokenReportBuilder {
                     cycleEndPsychDay: cycleEnd,
                     checkIns: cycleCheckIns,
                     targetCheckIns: commitment.target.count,
+                    isGrace: isGrace
                 )
             )
             cycleCursorDay = cycleEnd

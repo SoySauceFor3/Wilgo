@@ -45,21 +45,34 @@ private struct CheckInCycleRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 12) {
-                Image(
-                    systemName: rawMetTarget
-                        ? "checkmark.circle.fill" : "xmark.circle.fill"
-                )
-                .foregroundStyle(rawMetTarget ? .green : .red)
-                .font(.title3)
-                .frame(width: 24)
+                if cycle.isGrace {
+                    Image(systemName: "shield.lefthalf.filled")
+                        .foregroundStyle(.secondary)
+                        .font(.title3)
+                        .frame(width: 24)
+                } else {
+                    Image(
+                        systemName: rawMetTarget
+                            ? "checkmark.circle.fill" : "xmark.circle.fill"
+                    )
+                    .foregroundStyle(rawMetTarget ? .green : .red)
+                    .font(.title3)
+                    .frame(width: 24)
+                }
 
                 VStack(alignment: .leading, spacing: 4) {
                     Text(cycle.cycleLabel)
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                    Text("\(cycle.actualCheckIns)/\(cycle.targetCheckIns) check-ins")
-                        .font(.body)
+                    if cycle.isGrace {
+                        Text("no penalty · grace period")
+                            .font(.body)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        Text("\(cycle.actualCheckIns)/\(cycle.targetCheckIns) check-ins")
+                            .font(.body)
+                    }
 
                 }
 

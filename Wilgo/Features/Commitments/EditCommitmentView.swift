@@ -16,6 +16,11 @@ struct EditCommitmentView: View {
     /// Snapshot of rule values at open time, used to detect if any rule changed.
     private let originalTarget: Target
 
+    @State private var showingGraceDialog = false
+    /// Cached cycle boundaries used when the grace dialog is presented.
+    @State private var pendingCycleStart: Date = .now
+    @State private var pendingCycleEnd: Date = .now
+
     init(commitment: Commitment) {
         self.commitment = commitment
 
@@ -40,9 +45,7 @@ struct EditCommitmentView: View {
                     slotWindows: $slotWindows,
                     target: $target,
                     proofOfWorkType: $proofOfWorkType,
-                    punishment: $punishment,
-                    rulesChangedNote: anyRuleChanged
-                        ? "Changing rules starts a fresh cycle from today." : nil
+                    punishment: $punishment
                 )
             }
             .navigationTitle("Edit Commitment")
@@ -52,9 +55,20 @@ struct EditCommitmentView: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { saveChanges() }
+                    Button("Save") { handleSaveTap() }
                         .disabled(!canSave)
                 }
+            }
+            .confirmationDialog(
+                graceDialogTitle, isPresented: $showingGraceDialog, titleVisibility: .visible
+            ) {
+                Button("Yes — I'm committed now") { saveChanges(grace: false) }
+                Button("No — grace period") { saveChanges(grace: true) }
+                Button("Cancel", role: .cancel) {}
+            } message: {
+                Text(
+                    "The goal changes take effect immediately. This only decides whether the current period counts toward penalties."
+                )
             }
         }
     }
@@ -74,20 +88,46 @@ struct EditCommitmentView: View {
 
     // MARK: - Save
 
-    private func saveChanges() {
+    /// If rules changed, shows the grace dialog; otherwise saves directly.
+    private func handleSaveTap() {
+        guard anyRuleChanged else {
+            saveChanges(grace: false)
+            return
+        }
+        let newCycle = Cycle.makeDefault(target.cycle.kind)
+        let today = Time.psychDay(for: Time.now())
+        pendingCycleStart = newCycle.startDayOfCycle(including: today)
+        pendingCycleEnd = newCycle.endDayOfCycle(including: today)
+        showingGraceDialog = true
+    }
+
+    /// Human-readable title for the grace confirmation dialog.
+    private var graceDialogTitle: String {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "MM/dd"
+        return
+            "Your goal changes to \(target.count) per \(target.cycle.kind.nounSingle.lowercased()) now. Should \(target.cycle.kind.thisNoun) count toward penalties?"
+    }
+
+    private func saveChanges(grace: Bool) {
         // Apply scalar field changes.
         commitment.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        commitment.target = target
         commitment.proofOfWorkType = proofOfWorkType
         let trimmed = punishment.trimmingCharacters(in: .whitespacesAndNewlines)
         commitment.punishment = trimmed.isEmpty ? nil : trimmed
 
-        // Any change to a rule field signals a new commitment — re-anchor the cycle
-        // to today so the new rules apply from a clean slate.
-        // See documentation/Edit Commitment Feature.md for rationale.
+        // Rule change: re-anchor to canonical start day via makeDefault.
         if anyRuleChanged {
-            // Reanchor the target cycle to today as the reference day.
-            target.cycle = Cycle.anchored(target.cycle.kind, at: Time.now())
+            target.cycle = Cycle.makeDefault(target.cycle.kind)
+            if grace {
+                commitment.gracePeriods.append(
+                    GracePeriod(
+                        startPsychDay: pendingCycleStart,
+                        endPsychDay: pendingCycleEnd,
+                        reason: .ruleChange
+                    )
+                )
+            }
         }
         commitment.target = target
 

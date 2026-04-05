@@ -14,6 +14,16 @@ struct StageView: View {
 
     @State private var viewModel = StageViewModel()
 
+    private var todayTitle: String {
+        let today = Time.psychDay(for: Time.now())
+        let date = today.formatted(
+            date: .abbreviated, time: .omitted)
+
+        // Get the weekday as a string, e.g., "Monday"
+        let weekday = today.formatted(.dateTime.weekday())
+        return "\(date) (\(weekday))"
+    }
+
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -79,8 +89,7 @@ struct StageView: View {
             }
             .background(Color(.systemGroupedBackground))
             .navigationTitle(
-                Time.psychDay(for: Time.now()).formatted(
-                    date: .abbreviated, time: .omitted)
+                todayTitle
             )
             // Fire immediately on first appearance and on every commitment change.
             .onChange(of: commitments, initial: true) {

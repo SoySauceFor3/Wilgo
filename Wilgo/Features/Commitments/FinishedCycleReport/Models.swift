@@ -15,6 +15,8 @@ struct CycleReport: Identifiable {
     let cycleEndPsychDay: Date  // exclusive
     let aidedByPositivityTokenCount: Int
     let checkIns: [CheckIn]
+    /// True when this cycle is covered by a grace period — no penalty and no PT tokens applied.
+    let isGrace: Bool
 
     var compensatedCheckIns: Int { actualCheckIns + aidedByPositivityTokenCount }
     var metTarget: Bool { compensatedCheckIns >= targetCheckIns }
