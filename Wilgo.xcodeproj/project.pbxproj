@@ -71,7 +71,7 @@
 			);
 			target = 701EBD942F4CDF320060F5B6 /* Wilgo */;
 		};
-		701EBE8D2F5348DC0060F5B6 /* Exceptions for "Now" folder in "WidgetExtension" target */ = {
+		701EBE8D2F5348DC0060F5B6 /* Exceptions for "WidgetExtension" folder in "WidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
@@ -99,12 +99,12 @@
 			path = WilgoUITests;
 			sourceTree = "<group>";
 		};
-		701EBE7D2F5348DA0060F5B6 /* Now */ = {
+		701EBE7D2F5348DA0060F5B6 /* WidgetExtension */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				701EBE8D2F5348DC0060F5B6 /* Exceptions for "Now" folder in "WidgetExtension" target */,
+				701EBE8D2F5348DC0060F5B6 /* Exceptions for "WidgetExtension" folder in "WidgetExtension" target */,
 			);
-			path = Now;
+			path = WidgetExtension;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -151,7 +151,7 @@
 				701EBD972F4CDF320060F5B6 /* Wilgo */,
 				701EBDA92F4CDF360060F5B6 /* WilgoTests */,
 				701EBDB32F4CDF360060F5B6 /* WilgoUITests */,
-				701EBE7D2F5348DA0060F5B6 /* Now */,
+				701EBE7D2F5348DA0060F5B6 /* WidgetExtension */,
 				701EBE782F5348DA0060F5B6 /* Frameworks */,
 				701EBD962F4CDF320060F5B6 /* Products */,
 			);
@@ -272,7 +272,7 @@
 			dependencies = (
 			);
 			fileSystemSynchronizedGroups = (
-				701EBE7D2F5348DA0060F5B6 /* Now */,
+				701EBE7D2F5348DA0060F5B6 /* WidgetExtension */,
 			);
 			name = WidgetExtension;
 			packageProductDependencies = (
@@ -739,7 +739,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Now/Info.plist;
+				INFOPLIST_FILE = WidgetExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = WidgetExtension;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
@@ -774,7 +774,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_FILE = Now/Info.plist;
+				INFOPLIST_FILE = WidgetExtension/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = WidgetExtension;
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
 				IPHONEOS_DEPLOYMENT_TARGET = 26.2;
