@@ -127,8 +127,7 @@ struct EditCommitmentView: View {
     let commitment = Commitment(
         title: "Morning reading",
         slots: [slot],
-        target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
-        skipBudget: SkipBudget(cycle: Cycle.anchored(.weekly, at: .now), count: 3)
+        target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1)
     )
     container.mainContext.insert(commitment)
     return EditCommitmentView(commitment: commitment)

@@ -71,7 +71,6 @@ struct CurrentCommitmentRow: View {
         title: "Morning reading",
         slots: [slot],
         target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
-        skipBudget: SkipBudget(cycle: Cycle.anchored(.weekly, at: .now), count: 3),
     )
 
     CurrentCommitmentRow(commitment: commitment, slots: [slot], behindCount: 0)

@@ -84,7 +84,6 @@ struct AddPositivityTokenView: View {
         title: "Preview",
         slots: [slot],
         target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
-        skipBudget: SkipBudget(cycle: Cycle.anchored(.weekly, at: .now), count: 3),
     )
     let checkIn = CheckIn(commitment: commitment)
 

@@ -13,7 +13,6 @@ struct QuantifiedCycle: Codable, Hashable {
 }
 
 typealias Target = QuantifiedCycle
-typealias SkipBudget = QuantifiedCycle
 
 // MARK: - Commitment
 
@@ -43,7 +42,6 @@ final class Commitment {
         createdAt: Date = .now,
         slots: [Slot],
         target: Target,
-        skipBudget: SkipBudget,
         proofOfWorkType: ProofOfWorkType = .manual,
         punishment: String? = nil,
     ) {

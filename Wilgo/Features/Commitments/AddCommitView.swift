@@ -9,17 +9,12 @@ struct AddCommitmentView: View {
     @State private var target: Target = Target(
         cycle: Cycle.anchored(.daily, at: .now), count: 1)
     @State private var slotWindows: [SlotWindow]
-    @State private var skipBudget: SkipBudget
     @State private var proofOfWorkType: ProofOfWorkType = .manual
     @State private var punishment: String = ""
 
     init() {
         let (start, end) = ReminderWindowsSection.defaultFirstWindow()
         _slotWindows = State(initialValue: [SlotWindow(start: start, end: end)])
-        _skipBudget = State(
-            initialValue: SkipBudget(
-                cycle: Cycle.anchored(.weekly, at: .now), count: 0)
-        )
     }
 
     var body: some View {
@@ -64,7 +59,6 @@ struct AddCommitmentView: View {
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             slots: sortedSlots,
             target: target,
-            skipBudget: skipBudget,
             proofOfWorkType: proofOfWorkType,
             punishment: trimmedPunishment.isEmpty ? nil : trimmedPunishment,
         )

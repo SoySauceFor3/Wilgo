@@ -708,7 +708,6 @@ enum HeatmapPreviewFactory {
             createdAt: createdAt,
             slots: [],
             target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 2),
-            skipBudget: SkipBudget(cycle: Cycle.anchored(.daily, at: .now), count: 2)
         )
         ctx.insert(commitment)
 
@@ -758,7 +757,6 @@ enum HeatmapPreviewFactory {
             title: "Meditate",
             slots: [],
             target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 2),
-            skipBudget: SkipBudget(cycle: Cycle.anchored(.daily, at: .now), count: 1),
         )
         container.mainContext.insert(commitment)
         return container
