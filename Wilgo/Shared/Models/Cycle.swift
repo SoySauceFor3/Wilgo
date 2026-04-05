@@ -97,6 +97,30 @@ extension Cycle {
         return Cycle(kind: kind, referencePsychDay: psychDay, multiplier: multiplier)
     }
 
+    /// Creates a `Cycle` anchored to the canonical start day for the given kind:
+    /// - `.daily`   → today's psych-day (same as `anchored`)
+    /// - `.weekly`  → most recent Monday on or before `date`
+    /// - `.monthly` → 1st of the month containing `date`
+    ///
+    /// Use this as the intercepting factory for new commitments and rule edits
+    /// so that weekly cycles always start on Monday and monthly cycles on the 1st.
+    /// Existing `Cycle` instances and `anchored(_:at:)` are unaffected.
+    static func makeDefault(_ kind: CycleKind, on date: Date = Time.now()) -> Cycle {
+        let psychDay = Time.psychDay(for: date)
+        let anchor: Date
+        switch kind {
+        case .daily:
+            anchor = psychDay
+        case .weekly:
+            // weeklyPeriodStart(matches: 2, ...) → most recent Monday (1=Sun, 2=Mon …)
+            anchor = weeklyPeriodStart(matches: 2, of: psychDay)
+        case .monthly:
+            // monthlyPeriodStart(matches: 1, ...) → 1st of the containing month
+            anchor = monthlyPeriodStart(matches: 1, of: psychDay)
+        }
+        return Cycle(kind: kind, referencePsychDay: anchor)
+    }
+
     /// Start of the (multiplier × base-kind) period that contains `date`.
     func startDayOfCycle(including psychDay: Date = Time.now()) -> Date {
         let cal = Time.calendar
