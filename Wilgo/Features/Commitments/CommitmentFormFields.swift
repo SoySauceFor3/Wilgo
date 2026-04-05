@@ -7,19 +7,7 @@ struct CommitmentFormFields: View {
     @Binding var proofOfWorkType: ProofOfWorkType
     @Binding var punishment: String
 
-    /// When non-nil, a neutral info note is shown at the top of the form.
-    /// Used by EditCommitmentView to indicate that rule changes start a fresh period.
-    var rulesChangedNote: String?
-
     var body: some View {
-        if let note = rulesChangedNote {
-            Section {
-                Label(note, systemImage: "info.circle")
-                    .font(.footnote)
-                    .foregroundStyle(.secondary)
-            }
-        }
-
         Section("Basics") {
             TextField("Title", text: $title)
         }
