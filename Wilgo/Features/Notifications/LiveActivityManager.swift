@@ -21,6 +21,7 @@ extension ModelContext {
 enum LiveActivityManager {
     @MainActor
     private static func apply() async {
+        print("LiveActivityManager.apply()")
         let context = ModelContext.wilgoMain
         let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
         let now = Time.now()
@@ -37,11 +38,18 @@ enum LiveActivityManager {
             if let activity = Activity<NowAttributes>.activities.first {
                 await activity.update(content)
             } else {
-                _ = try? Activity.request(
-                    attributes: NowAttributes(),
-                    content: content,
-                    pushType: nil
-                )
+                do {
+                    _ = try Activity.request(
+                        attributes: NowAttributes(),
+                        content: content,
+                        pushType: nil
+                    )
+                } catch {
+                    print(
+                        "LiveActivityManager.apply() - Activity.request failed with error: \(error)"
+                    )
+                }
+
             }
         } else {
             for activity in Activity<NowAttributes>.activities {
