@@ -15,28 +15,13 @@ struct SettingsView: View {
     private var positivityTokenMonthlyCap: Int = 0
 
     #if DEBUG
-    @Environment(\.triggerCycleReport) private var triggerCycleReport
-    @State private var debugWatermarkDate: Date = Date()
+        @Environment(\.triggerCycleReport) private var triggerCycleReport
+        @State private var debugWatermarkDate: Date = Date()
     #endif
 
     var body: some View {
         NavigationStack {
             Form {
-                Section {
-                    Picker("Day starts at", selection: $dayStartHour) {
-                        ForEach(0..<24) { hour in
-                            Text(hourLabel(hour)).tag(hour)
-                        }
-                    }
-                    .pickerStyle(.navigationLink)
-                } header: {
-                    Text("Schedule")
-                } footer: {
-                    Text(
-                        "Commitments are tracked from this hour until the same time the next day. The morning report notification also fires at this hour. Changes apply going forward — past check-ins are not affected."
-                    )
-                }
-
                 // NEW: Section for Positivity Token Monthly Cap
                 Section {
                     Picker(
@@ -66,44 +51,44 @@ struct SettingsView: View {
                 }
 
                 #if DEBUG
-                Section {
-                    DatePicker(
-                        "Watermark date",
-                        selection: $debugWatermarkDate,
-                        displayedComponents: [.date]
-                    )
-                    Button("Set watermark & trigger report") {
-                        UserDefaults.standard.set(
-                            debugWatermarkDate.timeIntervalSinceReferenceDate,
-                            forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
+                    Section {
+                        DatePicker(
+                            "Watermark date",
+                            selection: $debugWatermarkDate,
+                            displayedComponents: [.date]
                         )
-                        triggerCycleReport()
-                    }
-                    Button("Reset watermark (first-launch state)") {
-                        UserDefaults.standard.set(
-                            0,
-                            forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
+                        Button("Set watermark & trigger report") {
+                            UserDefaults.standard.set(
+                                debugWatermarkDate.timeIntervalSinceReferenceDate,
+                                forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
+                            )
+                            triggerCycleReport()
+                        }
+                        Button("Reset watermark (first-launch state)") {
+                            UserDefaults.standard.set(
+                                0,
+                                forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
+                            )
+                        }
+                    } header: {
+                        Text("Debug — Cycle Report")
+                    } footer: {
+                        Text(
+                            "Pick a past date and tap \"Set & trigger\" to simulate the report appearing as if you last saw it on that date. Only visible in debug builds."
                         )
                     }
-                } header: {
-                    Text("Debug — Cycle Report")
-                } footer: {
-                    Text(
-                        "Pick a past date and tap \"Set & trigger\" to simulate the report appearing as if you last saw it on that date. Only visible in debug builds."
-                    )
-                }
                 #endif
             }
             .navigationTitle("Settings")
             #if DEBUG
-            .onAppear {
-                let stored = UserDefaults.standard.double(
-                    forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
-                )
-                if stored != 0 {
-                    debugWatermarkDate = Date(timeIntervalSinceReferenceDate: stored)
+                .onAppear {
+                    let stored = UserDefaults.standard.double(
+                        forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
+                    )
+                    if stored != 0 {
+                        debugWatermarkDate = Date(timeIntervalSinceReferenceDate: stored)
+                    }
                 }
-            }
             #endif
         }
     }
