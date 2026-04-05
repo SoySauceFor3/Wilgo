@@ -73,19 +73,85 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         ctx.insert(t1)
         ctx.insert(t2)
 
-        let report = PreTokenReportBuilder.build(
+        let preReport = PreTokenReportBuilder.build(
             commitments: [commitment],
             startPsychDay: date(year: 2026, month: 2, day: 1),
-            endPsychDay: date(year: 2026, month: 2, day: 2),
+            endPsychDay: date(year: 2026, month: 2, day: 2)
+        )
+        let report = AfterPositivityTokenReportBuilder.apply(
+            to: preReport,
             allTokens: [t1, t2],
             monthlyCap: 10
         )
 
-        #expect(report.commitments.count == 1)
-        let cycle = try #require(report.commitments.first?.cycles.first)
+        #expect(report.count == 1)
+        let cycle = try #require(report.first?.cycles.first)
         #expect(cycle.actualCheckIns == 3)
         #expect(cycle.aidedByPositivityTokenCount == 2)
         #expect(cycle.compensatedCheckIns == 5)
         #expect(cycle.metTarget)
+    }
+
+    @Test("no tokens → no compensation")
+    @MainActor
+    func noTokensNoCompensation() throws {
+        let container = try makeContainer()
+        let ctx = container.mainContext
+
+        let anchor = date(year: 2026, month: 2, day: 1)
+        let targetCycle = Cycle(kind: .daily, referencePsychDay: anchor)
+        let commitment = Commitment(
+            title: "Run",
+            slots: [],
+            target: QuantifiedCycle(cycle: targetCycle, count: 3),
+            skipBudget: QuantifiedCycle(cycle: targetCycle, count: 0)
+        )
+        ctx.insert(commitment)
+
+        let checkIn = CheckIn(
+            commitment: commitment, createdAt: date(year: 2026, month: 2, day: 1, hour: 9))
+        ctx.insert(checkIn)
+        commitment.checkIns.append(checkIn)
+
+        let preReport = PreTokenReportBuilder.build(
+            commitments: [commitment],
+            startPsychDay: date(year: 2026, month: 2, day: 1),
+            endPsychDay: date(year: 2026, month: 2, day: 2)
+        )
+        let report = AfterPositivityTokenReportBuilder.apply(
+            to: preReport,
+            allTokens: [],
+            monthlyCap: 10
+        )
+
+        #expect(report.count == 1)
+        let cycle = try #require(report.first?.cycles.first)
+        #expect(cycle.actualCheckIns == 1)
+        #expect(cycle.aidedByPositivityTokenCount == 0)
+        #expect(cycle.metTarget == false)
+    }
+
+    @Test("start >= end returns empty report")
+    @MainActor
+    func invalidDateRangeReturnsEmpty() throws {
+        let container = try makeContainer()
+        let ctx = container.mainContext
+
+        let anchor = date(year: 2026, month: 2, day: 1)
+        let targetCycle = Cycle(kind: .daily, referencePsychDay: anchor)
+        let commitment = Commitment(
+            title: "Read",
+            slots: [],
+            target: QuantifiedCycle(cycle: targetCycle, count: 1),
+            skipBudget: QuantifiedCycle(cycle: targetCycle, count: 0)
+        )
+        ctx.insert(commitment)
+
+        let report = PreTokenReportBuilder.build(
+            commitments: [commitment],
+            startPsychDay: date(year: 2026, month: 2, day: 2),
+            endPsychDay: date(year: 2026, month: 2, day: 1)
+        )
+        #expect(report.isEmpty)
     }
 }

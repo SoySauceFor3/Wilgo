@@ -8,7 +8,7 @@ struct PositivityCycleNeed {
     let missingCheckIns: Int
 }
 
-private enum PositivityTokenCompensator {
+enum PositivityTokenCompensator {
     static func apply(
         cycleNeeds: [PositivityCycleNeed],
         tokens: [PositivityToken],
