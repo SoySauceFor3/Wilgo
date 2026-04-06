@@ -21,16 +21,16 @@ enum AppSettings {
 }
 
 #if DEBUG
-// MARK: - Debug environment
+    // MARK: - Debug environment
 
-struct TriggerCycleReportKey: EnvironmentKey {
-    static let defaultValue: () -> Void = {}
-}
-
-extension EnvironmentValues {
-    var triggerCycleReport: () -> Void {
-        get { self[TriggerCycleReportKey.self] }
-        set { self[TriggerCycleReportKey.self] = newValue }
+    struct TriggerCycleReportKey: EnvironmentKey {
+        static let defaultValue: () -> Void = {}
     }
-}
+
+    extension EnvironmentValues {
+        var triggerCycleReport: () -> Void {
+            get { self[TriggerCycleReportKey.self] }
+            set { self[TriggerCycleReportKey.self] = newValue }
+        }
+    }
 #endif
