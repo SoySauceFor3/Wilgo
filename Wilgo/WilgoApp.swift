@@ -38,6 +38,7 @@ struct WilgoApp: App {
 
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var checkInUndoManager = CheckInUndoManager()
+    @State private var deepLinkedCommitment: Commitment?
 
     init() {
         // Set up CatchUpReminderService.
@@ -54,6 +55,9 @@ struct WilgoApp: App {
                 .environmentObject(checkInUndoManager)
                 .onOpenURL { url in
                     handleDeepLink(url)
+                }
+                .fullScreenCover(item: $deepLinkedCommitment) { commitment in
+                    DeepLinkedDetailView(commitment: commitment)
                 }
         }
         .modelContainer(Self.sharedModelContainer)
@@ -85,6 +89,15 @@ struct WilgoApp: App {
         }
 
         switch url.host {
+        case "commitment":
+            guard
+                let idStr = queryValue("id"),
+                let commitmentUUID = UUID(uuidString: idStr)
+            else { return }
+            let descriptor = FetchDescriptor<Commitment>(
+                predicate: #Predicate { $0.id == commitmentUUID })
+            deepLinkedCommitment = (try? context.fetch(descriptor))?.first
+
         case "done":
             guard
                 let commitmentIdStr = queryValue("commitmentId"),
@@ -109,6 +122,21 @@ struct WilgoApp: App {
 
         default:
             break
+        }
+    }
+}
+
+/// Wraps `CommitmentDetailView` inside a `fullScreenCover` with a working Edit sheet.
+private struct DeepLinkedDetailView: View {
+    let commitment: Commitment
+    @State private var isPresentingEdit = false
+
+    var body: some View {
+        NavigationStack {
+            CommitmentDetailView(commitment: commitment, onEdit: { isPresentingEdit = true })
+        }
+        .sheet(isPresented: $isPresentingEdit) {
+            EditCommitmentView(commitment: commitment)
         }
     }
 }
