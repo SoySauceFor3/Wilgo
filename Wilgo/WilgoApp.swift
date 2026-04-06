@@ -33,7 +33,20 @@ struct WilgoApp: App {
             CheckIn.self,
             PositivityToken.self,
         ])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+
+        // Shared store URL inside the App Group container so the WidgetExtension
+        // can read/write the same database.
+        guard
+            let groupContainer = FileManager.default
+                .containerURL(forSecurityApplicationGroupIdentifier: WilgoConstants.appGroupID)
+        else {
+            fatalError("App Group container not found — check entitlements")
+        }
+        let storeURL = groupContainer
+            .appendingPathComponent("Library/Application Support", isDirectory: true)
+            .appendingPathComponent("default.store")
+
+        let config = ModelConfiguration(schema: schema, url: storeURL)
         do {
             return try ModelContainer(for: schema, configurations: [config])
         } catch {
