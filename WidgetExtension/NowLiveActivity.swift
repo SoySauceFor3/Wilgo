@@ -21,7 +21,8 @@ func formatSecondaryTitlesLine(
     titles: [String],
     maxLength: Int = SecondaryTitlesLineBudget.defaultMaxLength
 ) -> String {
-    let parts = titles
+    let parts =
+        titles
         .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
         .filter { !$0.isEmpty }
     guard !parts.isEmpty, maxLength > 0 else { return "" }
@@ -148,7 +149,8 @@ struct NowLiveActivity: Widget {
                                 .foregroundStyle(.secondary)
                         }
                         Spacer(minLength: 8)
-                        DoneCapsuleLink(destination: doneURL(commitmentId: context.state.commitmentId))
+                        DoneCapsuleLink(
+                            destination: doneURL(commitmentId: context.state.commitmentId))
                     }
                     if !secondaryLine.isEmpty {
                         SecondaryCommitmentsLine(text: secondaryLine)
@@ -213,11 +215,11 @@ struct NowLiveActivity: Widget {
 
     // MARK: - URL helpers
 
-    private func doneURL(commitmentId: UUID?) -> URL {
+    private func doneURL(commitmentId: UUID) -> URL {
         var components = URLComponents()
         components.scheme = "wilgo"
         components.host = "done"
-        components.queryItems = [URLQueryItem(name: "commitmentId", value: commitmentId?.uuidString)]
+        components.queryItems = [URLQueryItem(name: "commitmentId", value: commitmentId.uuidString)]
         return components.url ?? URL(string: "wilgo://done")!
     }
 
@@ -228,8 +230,8 @@ extension NowAttributes.ContentState {
         NowAttributes.ContentState(
             commitmentTitle: "Morning reading",
             slotTimeText: "9:00 AM – 11:00 AM",
-            commitmentId: nil,
-            slotId: nil,
+            commitmentId: UUID(),
+            slotId: UUID(),
             secondaryTitles: ["Walk dog", "Email inbox"]
         )
     }

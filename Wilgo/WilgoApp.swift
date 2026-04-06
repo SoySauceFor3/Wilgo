@@ -40,47 +40,12 @@ struct WilgoApp: App {
     @StateObject private var checkInUndoManager = CheckInUndoManager()
 
     init() {
-        // Backfill UUID ids on any records that pre-date the id fields (v3 schema).
-        Self.backfillIDs()
-
         // Set up CatchUpReminderService.
         CatchUpReminder.registerBackgroundTask()
         CatchUpReminder.startHourlyRunWhileActive()
 
         // Register the Live Activity background sync task. Must come before any submit() call.
         NowLiveActivityManager.registerBackgroundTask()
-    }
-
-    private static func backfillIDs() {
-        let context = sharedModelContainer.mainContext
-        var needsSave = false
-
-        if let commitments = try? context.fetch(FetchDescriptor<Commitment>()) {
-            for item in commitments where item.id == UUID(uuid: (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)) {
-                item.id = UUID()
-                needsSave = true
-            }
-        }
-        if let slots = try? context.fetch(FetchDescriptor<Slot>()) {
-            for item in slots where item.id == nil {
-                item.id = UUID()
-                needsSave = true
-            }
-        }
-        if let checkIns = try? context.fetch(FetchDescriptor<CheckIn>()) {
-            for item in checkIns where item.id == nil {
-                item.id = UUID()
-                needsSave = true
-            }
-        }
-        if let tokens = try? context.fetch(FetchDescriptor<PositivityToken>()) {
-            for item in tokens where item.id == nil {
-                item.id = UUID()
-                needsSave = true
-            }
-        }
-
-        if needsSave { try? context.save() }
     }
 
     var body: some Scene {
@@ -125,7 +90,8 @@ struct WilgoApp: App {
                 let commitmentIdStr = queryValue("commitmentId"),
                 let commitmentUUID = UUID(uuidString: commitmentIdStr)
             else { return }
-            let descriptor = FetchDescriptor<Commitment>(predicate: #Predicate { $0.id == commitmentUUID })
+            let descriptor = FetchDescriptor<Commitment>(
+                predicate: #Predicate { $0.id == commitmentUUID })
             guard let commitment = (try? context.fetch(descriptor))?.first else { return }
             let checkIn = CheckIn(commitment: commitment)
             context.insert(checkIn)

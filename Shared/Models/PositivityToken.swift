@@ -3,7 +3,8 @@ import SwiftData
 
 @Model
 final class PositivityToken {
-    var id: UUID?
+    @Attribute(.unique)
+    var id: UUID
     var reason: String
     var createdAt: Date
 

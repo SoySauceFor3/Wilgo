@@ -43,7 +43,8 @@ enum SlotRecurrence: Codable, Hashable {
 
 @Model
 final class Slot {
-    var id: UUID?
+    @Attribute(.unique)
+    var id: UUID
     /// Start of this slot's ideal window (time-of-day only, arbitrary reference day).
     var start: Date
     /// End of this slot's ideal window (time-of-day only).

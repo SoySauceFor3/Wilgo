@@ -62,8 +62,8 @@ enum NowLiveActivityManager {
         from currentSlots: [CommitmentAndSlot.WithBehind]
     ) -> NowAttributes.ContentState? {
         guard let (commitment, slots, _) = currentSlots.first else { return nil }
-        let commitmentId: UUID? = commitment.id
-        let slotId: UUID? = slots[0].id
+        let commitmentId = commitment.id
+        let slotId = slots[0].id
         let secondaryTitles = currentSlots.dropFirst().map(\.commitment.title)
         return NowAttributes.ContentState(
             commitmentTitle: commitment.title,

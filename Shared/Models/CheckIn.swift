@@ -7,7 +7,9 @@ enum CheckInStatus: String, Codable {
 
 @Model
 final class CheckIn {
-    var id: UUID?
+    @Attribute(.unique)
+    var id: UUID
+
     @Relationship var commitment: Commitment?
 
     var positivityToken: PositivityToken?

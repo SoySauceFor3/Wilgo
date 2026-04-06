@@ -16,9 +16,9 @@ struct NowAttributes: ActivityAttributes {
         var slotTimeText: String
 
         /// UUID of the commitment — used by Live Activity buttons to deep-link back into the app.
-        var commitmentId: UUID?
+        var commitmentId: UUID
         /// UUID of the slot.
-        var slotId: UUID?
+        var slotId: UUID
 
         /// Non-primary current commitments. Empty when there is at most one commitment in the
         /// current window. Does not affect ``hasCurrentCommitment``.
