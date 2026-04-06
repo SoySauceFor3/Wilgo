@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import WidgetKit
 
 struct EditCommitmentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -150,6 +151,7 @@ struct EditCommitmentView: View {
             commitment.slots = newSlots.sorted()
         }
         try? modelContext.save()  //TODO: try? means that if errors, we ignore it. Better to use a do/catch statement to properly handle it.
+        WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
         dismiss()
     }
 }

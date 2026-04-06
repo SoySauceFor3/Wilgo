@@ -64,10 +64,7 @@ struct CurrentCommitmentProvider: TimelineProvider {
 
         func cycleLabel(for commitment: Commitment) -> String {
             let cycle = commitment.target.cycle
-            if cycle.multiplier == 1 {
-                return cycle.kind.thisNoun
-            }
-            return cycle.label(of: psychDay)
+            return "\(cycle.multiplier == 1 ? "" : "\(cycle.multiplier)") \(cycle.kind.abbr)"
         }
 
         func makeSnapshot(
@@ -152,6 +149,7 @@ struct CurrentCommitmentProvider: TimelineProvider {
         in context: Context,
         completion: @escaping (Timeline<CurrentCommitmentEntry>) -> Void
     ) {
+        print("CurrentCommitmentWidget getTimeline")
         let now = Date.now
         let entry = buildEntry(at: now)
         let allCommitments: [Commitment]
@@ -161,9 +159,15 @@ struct CurrentCommitmentProvider: TimelineProvider {
         } else {
             allCommitments = []
         }
-        let policy: TimelineReloadPolicy =
-            CommitmentAndSlot.nextTransitionDate(commitments: allCommitments, now: now)
-            .map { .after($0) } ?? .after(now.addingTimeInterval(3_600))
+        let policy: TimelineReloadPolicy
+        if let nextDate = CommitmentAndSlot.nextTransitionDate(
+            commitments: allCommitments, now: now)
+        {
+            print("Next date: \(nextDate), now: \(now)")
+            policy = .after(nextDate)
+        } else {
+            policy = .after(now.addingTimeInterval(3_600))
+        }
         completion(Timeline(entries: [entry], policy: policy))
     }
 }

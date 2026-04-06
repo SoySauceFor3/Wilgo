@@ -429,10 +429,8 @@ Add `case "commitment":` to `handleDeepLink(_:)`. Decode the commitment ID, fetc
 
 **Commit 5 — Reload widget timeline after app-side mutations**
 
-Files: all app-side check-in creation call sites (at minimum `WilgoApp.handleDeepLink` `"done"` case; search for other `CheckIn(commitment:)` initialisations).
+CheckIns: Call `WidgetCenter.shared.reloadTimelines(ofKind: "CurrentCommitment")` in `enqueue()` (creation) and the undo closure (deletion) in `Wilgo/Features/Commitments/CheckInUndo/CheckInUndoManager.swift` — single hook covering all app-side check-in mutations. Will decide which way to go later.
 
-Add `WidgetCenter.shared.reloadTimelines(ofKind: "CurrentCommitment")` after each check-in save so the widget updates immediately.
+Edit: When onSave for EditCommitmentView.
 
-(Alternatively maybe Call `WidgetCenter.shared.reloadTimelines(ofKind: "CurrentCommitment")` in `enqueue()` (creation) and the undo closure (deletion) in `Wilgo/Features/Commitments/CheckInUndo/CheckInUndoManager.swift` — single hook covering all app-side check-in mutations. Will decide which way to go later.
-
-> Depends on Commit 4 (the kind string must be defined). Can be done alongside Commit 5.
+> Depends on Commit 3a (the kind string must be defined). Can be done alongside Commit 3b.

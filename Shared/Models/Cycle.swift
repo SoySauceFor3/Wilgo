@@ -9,6 +9,14 @@ enum CycleKind: String, CaseIterable, Codable {
     case weekly = "Weekly"
     case monthly = "Monthly"
 
+    var abbr: String {
+        switch self {
+        case .daily: return "D"
+        case .weekly: return "W"
+        case .monthly: return "M"
+        }
+    }
+
     var nounSingle: String {
         switch self {
         case .daily: return "Day"

@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import SwiftData
+import WidgetKit
 
 extension Notification.Name {
     /// Posted when a check-in is undone/revoked.
@@ -73,6 +74,7 @@ final class CheckInUndoManager: ObservableObject {
         // Ensure idempotency: prevent double-undo if the user taps quickly.
         removeNotice(noticeID: notice.id)
         undoClosure()
+        WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
         postCheckInRevoked(checkInID: notice.id)
     }
 
@@ -131,6 +133,8 @@ final class CheckInUndoManager: ObservableObject {
             kind: kind
         )
         notices.append(notice)
+        print("Enqueued notice: \(notice.title)")
+        WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
         let duration = autoDismissDuration
         let task = Task { [weak self] in  // runs immediately
             try? await Task.sleep(
