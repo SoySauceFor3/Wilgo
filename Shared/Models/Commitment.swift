@@ -18,6 +18,8 @@ typealias Target = QuantifiedCycle
 
 @Model
 final class Commitment {
+    @Attribute(.unique)
+    var id: UUID
     var title: String
     var createdAt: Date
 
@@ -50,6 +52,7 @@ final class Commitment {
         proofOfWorkType: ProofOfWorkType = .manual,
         punishment: String? = nil,
     ) {
+        self.id = UUID()
         self.title = title
         self.createdAt = createdAt
         self.slots = slots

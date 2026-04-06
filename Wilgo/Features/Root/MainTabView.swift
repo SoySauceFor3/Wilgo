@@ -20,7 +20,7 @@ struct MainTabView: View {
     /// Stable signature so SwiftUI can observe query content changes and refresh immediately.
     private var sponsorableCheckInsQuerySignature: [String] {
         sponsorableCheckIns.map {
-            "\($0.persistentModelID)|\($0.createdAt.timeIntervalSince1970)"
+            "\($0.id?.uuidString ?? "")|\($0.createdAt.timeIntervalSince1970)"
         }
     }
 

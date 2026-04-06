@@ -2,30 +2,11 @@ import BackgroundTasks
 import SwiftData
 import SwiftUI
 
-// MARK: - PersistentIdentifier coding helpers
-
-extension PersistentIdentifier {
-    /// Encodes the identifier to a base64 JSON string suitable for URL query parameters.
-    func encoded() -> String {
-        (try? JSONEncoder().encode(self)).map { $0.base64EncodedString() } ?? ""
-    }
-
-    /// Decodes a base64 JSON string previously produced by `encoded()`.
-    static func decode(from base64: String) -> PersistentIdentifier? {
-        guard let data = Data(base64Encoded: base64) else { return nil }
-        return try? JSONDecoder().decode(PersistentIdentifier.self, from: data)
-    }
-}
-
 @main
 struct WilgoApp: App {
 
     /// Static container so the BGTask handler closure can reach it without a global.
     /// Swift's lazy static initialiser is thread-safe; it's fine to access from the handler.
-    // Schema version history:
-    // v1 (initial):      Commitment, Slot, CheckIn, PositivityToken
-    // v2 (gracePeriods): Added Commitment.gracePeriods: [GracePeriod] — lightweight migration,
-    //                    default []. No SchemaMigrationPlan needed (additive Codable property).
     static let sharedModelContainer: ModelContainer = {
         let schema = Schema([
             Commitment.self,
@@ -42,7 +23,8 @@ struct WilgoApp: App {
         else {
             fatalError("App Group container not found — check entitlements")
         }
-        let storeURL = groupContainer
+        let storeURL =
+            groupContainer
             .appendingPathComponent("Library/Application Support", isDirectory: true)
             .appendingPathComponent("default.store")
 
@@ -58,12 +40,47 @@ struct WilgoApp: App {
     @StateObject private var checkInUndoManager = CheckInUndoManager()
 
     init() {
+        // Backfill UUID ids on any records that pre-date the id fields (v3 schema).
+        Self.backfillIDs()
+
         // Set up CatchUpReminderService.
         CatchUpReminder.registerBackgroundTask()
         CatchUpReminder.startHourlyRunWhileActive()
 
         // Register the Live Activity background sync task. Must come before any submit() call.
         NowLiveActivityManager.registerBackgroundTask()
+    }
+
+    private static func backfillIDs() {
+        let context = sharedModelContainer.mainContext
+        var needsSave = false
+
+        if let commitments = try? context.fetch(FetchDescriptor<Commitment>()) {
+            for item in commitments where item.id == UUID(uuid: (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0)) {
+                item.id = UUID()
+                needsSave = true
+            }
+        }
+        if let slots = try? context.fetch(FetchDescriptor<Slot>()) {
+            for item in slots where item.id == nil {
+                item.id = UUID()
+                needsSave = true
+            }
+        }
+        if let checkIns = try? context.fetch(FetchDescriptor<CheckIn>()) {
+            for item in checkIns where item.id == nil {
+                item.id = UUID()
+                needsSave = true
+            }
+        }
+        if let tokens = try? context.fetch(FetchDescriptor<PositivityToken>()) {
+            for item in tokens where item.id == nil {
+                item.id = UUID()
+                needsSave = true
+            }
+        }
+
+        if needsSave { try? context.save() }
     }
 
     var body: some Scene {
@@ -106,14 +123,10 @@ struct WilgoApp: App {
         case "done":
             guard
                 let commitmentIdStr = queryValue("commitmentId"),
-                let commitmentId = PersistentIdentifier.decode(from: commitmentIdStr)
+                let commitmentUUID = UUID(uuidString: commitmentIdStr)
             else { return }
-            let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
-            guard
-                let commitment = commitments.first(where: { $0.persistentModelID == commitmentId })
-            else {
-                return
-            }
+            let descriptor = FetchDescriptor<Commitment>(predicate: #Predicate { $0.id == commitmentUUID })
+            guard let commitment = (try? context.fetch(descriptor))?.first else { return }
             let checkIn = CheckIn(commitment: commitment)
             context.insert(checkIn)
             commitment.checkIns.append(checkIn)  // keep inverse in sync immediately, as inverse relationship propogation takes time.

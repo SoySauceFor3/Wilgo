@@ -68,16 +68,11 @@ enum CatchUpReminder {
     ) {
         // 1. Get the currently stored catch-up commitments from UserDefaults.
         let defaults = UserDefaults.standard
-        let currentIDs = Set(catchUp.map { $0.0.persistentModelID })
+        let currentIDs = Set(catchUp.map { $0.0.id })
 
-        let prevIDs: Set<PersistentIdentifier>
-        if let prevData = defaults.data(forKey: lastCatchUpCommitmentsKey),
-            let prevRawIDs = try? JSONDecoder().decode([String].self, from: prevData)
-        {
-            prevIDs = Set(prevRawIDs.compactMap { PersistentIdentifier.decode(from: $0) })
-        } else {
-            prevIDs = []
-        }
+        let prevIDs: Set<UUID>
+        let prevRawIDs = defaults.stringArray(forKey: lastCatchUpCommitmentsKey) ?? []
+        prevIDs = Set(prevRawIDs.compactMap { UUID(uuidString: $0) })
 
         // 2. Compute new catch-up commitments not previously present.
         let newIDs = currentIDs.subtracting(prevIDs)
@@ -88,10 +83,7 @@ enum CatchUpReminder {
         }
 
         // 4. Update the stored catch-up commitments.
-        let idStrings = currentIDs.map { $0.encoded() }
-        if let encoded = try? JSONEncoder().encode(Array(idStrings)) {
-            defaults.set(encoded, forKey: lastCatchUpCommitmentsKey)
-        }
+        defaults.set(currentIDs.map { $0.uuidString }, forKey: lastCatchUpCommitmentsKey)
 
     }
 

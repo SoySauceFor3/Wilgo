@@ -3,6 +3,7 @@ import SwiftData
 
 @Model
 final class PositivityToken {
+    var id: UUID?
     var reason: String
     var createdAt: Date
 
@@ -21,6 +22,7 @@ final class PositivityToken {
     }
 
     init(reason: String, createdAt: Date = .now, checkIn: CheckIn? = nil) {
+        self.id = UUID()
         self.reason = reason
         self.createdAt = createdAt
         self.status = .active

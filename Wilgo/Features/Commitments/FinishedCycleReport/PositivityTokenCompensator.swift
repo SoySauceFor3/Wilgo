@@ -3,7 +3,7 @@ import SwiftData
 
 struct PositivityCycleNeed {
     let cycleID: String
-    let commitmentID: PersistentIdentifier
+    let commitmentID: UUID
     let cycleEndPsychDay: Date
     let missingCheckIns: Int
 }
@@ -120,7 +120,7 @@ enum AfterPositivityTokenReportBuilder {
                 guard !cycle.isGrace else { return nil }
                 return PositivityCycleNeed(
                     cycleID: cycle.id,
-                    commitmentID: commitmentReport.commitment.persistentModelID,
+                    commitmentID: commitmentReport.commitment.id,
                     cycleEndPsychDay: cycle.cycleEndPsychDay,
                     missingCheckIns: max(0, cycle.targetCheckIns - cycle.actualCheckIns)
                 )

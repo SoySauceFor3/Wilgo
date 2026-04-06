@@ -1,7 +1,7 @@
 import Foundation
 
 struct CommitmentReport: Identifiable {
-    let id: String
+    let id: UUID
     let commitment: Commitment
     let cycles: [CycleReport]
 }

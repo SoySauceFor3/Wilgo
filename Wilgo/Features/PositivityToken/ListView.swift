@@ -59,15 +59,15 @@ struct ListPositivityTokenView: View {
                 .onReceive(NotificationCenter.default.publisher(for: .CheckInRevoked)) {
                     notification in
                     guard
-                        let pidEncoded = notification.userInfo?[CheckInRevokedUserInfoKeys
-                            .persistentModelID] as? String
+                        let revokedID = notification.userInfo?[CheckInRevokedUserInfoKeys
+                            .checkInID] as? UUID
                     else {
                         return
                     }
 
                     guard
                         let presenting = sponsoringCheckIn,
-                        presenting.persistentModelID.encoded() == pidEncoded
+                        presenting.id == revokedID
                     else {
                         return
                     }

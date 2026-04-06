@@ -6,6 +6,7 @@
 //
 
 import ActivityKit
+import Foundation
 
 struct NowAttributes: ActivityAttributes {
     public struct ContentState: Codable, Hashable {
@@ -14,11 +15,10 @@ struct NowAttributes: ActivityAttributes {
         /// Current slot time range, e.g. "9:00 AM – 11:00 AM".
         var slotTimeText: String
 
-        /// Base64-encoded JSON of the commitment's `PersistentIdentifier` — used by
-        /// Live Activity buttons to deep-link back into the app.
-        var commitmentId: String
-        /// Base64-encoded JSON of the slot's `PersistentIdentifier`.
-        var slotId: String
+        /// UUID of the commitment — used by Live Activity buttons to deep-link back into the app.
+        var commitmentId: UUID?
+        /// UUID of the slot.
+        var slotId: UUID?
 
         /// Non-primary current commitments. Empty when there is at most one commitment in the
         /// current window. Does not affect ``hasCurrentCommitment``.

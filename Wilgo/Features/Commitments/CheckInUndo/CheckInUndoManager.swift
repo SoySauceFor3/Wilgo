@@ -8,14 +8,14 @@ extension Notification.Name {
 }
 
 enum CheckInRevokedUserInfoKeys {
-    /// Value is a base64-encoded JSON string for `PersistentIdentifier`.
-    static let persistentModelID = "persistentModelID"
+    /// Value is the `UUID` of the revoked `CheckIn`.
+    static let checkInID = "checkInID"
 }
 
 /// Manages bottom undo notices for newly created `CheckIn`s.
 ///
 /// Call sites should enqueue after inserting the `CheckIn` into a SwiftData `ModelContext`,
-/// so that `checkIn.persistentModelID` is valid/stable.
+/// so that `checkIn.id` is valid.
 @MainActor
 final class CheckInUndoManager: ObservableObject {
     enum NoticeKind {
@@ -24,8 +24,7 @@ final class CheckInUndoManager: ObservableObject {
     }
 
     struct Notice: Identifiable {
-        let id: String
-        let persistentModelID: PersistentIdentifier
+        let id: UUID
         let createdAt: Date
         let title: String
         let kind: NoticeKind
@@ -38,7 +37,7 @@ final class CheckInUndoManager: ObservableObject {
         let autoDismissTask: Task<Void, Never>
     }
 
-    private var stateByNoticeID: [String: NoticeState] = [:]
+    private var stateByNoticeID: [UUID: NoticeState] = [:]
 
     private let autoDismissDuration: TimeInterval = 5
 
@@ -74,16 +73,15 @@ final class CheckInUndoManager: ObservableObject {
         // Ensure idempotency: prevent double-undo if the user taps quickly.
         removeNotice(noticeID: notice.id)
         undoClosure()
-        postCheckInRevoked(persistentModelID: notice.persistentModelID)
+        postCheckInRevoked(checkInID: notice.id)
     }
 
-    private func postCheckInRevoked(persistentModelID: PersistentIdentifier) {
-        let pidEncoded = encodePersistentModelID(persistentModelID)
+    private func postCheckInRevoked(checkInID: UUID) {
         NotificationCenter.default.post(  //UIs can listen for it without the manager needing direct references to those views.
             name: .CheckInRevoked,
             object: nil,
             userInfo: [
-                CheckInRevokedUserInfoKeys.persistentModelID: pidEncoded
+                CheckInRevokedUserInfoKeys.checkInID: checkInID
             ]
         )
     }
@@ -96,25 +94,18 @@ final class CheckInUndoManager: ObservableObject {
     }
 
     // Removes the notice and its undo closure, and cancels the auto-dismiss task.
-    private func autoDismiss(noticeID: String) {
-        // If the notice already got removed (e.g. user tapped Undo), do nothing.
+    private func autoDismiss(noticeID: UUID) {
         guard stateByNoticeID[noticeID] != nil else { return }
         stateByNoticeID[noticeID] = nil
         notices.removeAll(where: { $0.id == noticeID })
     }
 
-    private func removeNotice(noticeID: String) {
+    private func removeNotice(noticeID: UUID) {
         if let task = stateByNoticeID[noticeID]?.autoDismissTask {
             task.cancel()
         }
         stateByNoticeID[noticeID] = nil
         notices.removeAll(where: { $0.id == noticeID })
-    }
-
-    /// Encodes a `PersistentIdentifier` to a base64 JSON string.
-    /// Returns `""` if encoding fails (call sites should treat `enqueue()` as best-effort).
-    private func encodePersistentModelID(_ pid: PersistentIdentifier) -> String {
-        (try? JSONEncoder().encode(pid)).map { $0.base64EncodedString() } ?? ""
     }
 
     // MARK: Internals
@@ -125,8 +116,7 @@ final class CheckInUndoManager: ObservableObject {
         kind: NoticeKind,
         undoClosure: (() -> Void)?
     ) {
-        let pid = checkIn.persistentModelID
-        let noticeID = encodePersistentModelID(pid)
+        let noticeID = checkIn.id ?? UUID()  //TODO: Later remove the optional check
 
         // Replace any in-flight notice with the same identifier; avoids duplicate entries
         // if a call site accidentally enqueues twice for the same check-in.
@@ -136,7 +126,6 @@ final class CheckInUndoManager: ObservableObject {
 
         let notice = Notice(
             id: noticeID,
-            persistentModelID: pid,
             createdAt: Date(),
             title: title,
             kind: kind

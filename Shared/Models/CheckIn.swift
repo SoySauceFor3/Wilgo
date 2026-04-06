@@ -7,6 +7,7 @@ enum CheckInStatus: String, Codable {
 
 @Model
 final class CheckIn {
+    var id: UUID?
     @Relationship var commitment: Commitment?
 
     var positivityToken: PositivityToken?
@@ -28,6 +29,7 @@ final class CheckIn {
         commitment: Commitment,
         createdAt: Date = .now
     ) {
+        self.id = UUID()
         self.commitment = commitment
         self.createdAt = createdAt
 

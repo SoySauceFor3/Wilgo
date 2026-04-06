@@ -48,14 +48,14 @@ struct AddPositivityTokenView: View {
                 guard !didHandleRevocation else { return }
 
                 guard
-                    let pidEncoded = notification.userInfo?[
+                    let revokedID = notification.userInfo?[
                         CheckInRevokedUserInfoKeys
-                            .persistentModelID] as? String
+                            .checkInID] as? UUID
                 else {
                     return
                 }
 
-                guard sponsoringCheckIn.persistentModelID.encoded() == pidEncoded else { return }
+                guard sponsoringCheckIn.id == revokedID else { return }
 
                 didHandleRevocation = true
                 dismiss()

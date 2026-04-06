@@ -43,6 +43,7 @@ enum SlotRecurrence: Codable, Hashable {
 
 @Model
 final class Slot {
+    var id: UUID?
     /// Start of this slot's ideal window (time-of-day only, arbitrary reference day).
     var start: Date
     /// End of this slot's ideal window (time-of-day only).
@@ -68,6 +69,7 @@ final class Slot {
         end: Date,
         recurrence: SlotRecurrence = .everyDay
     ) {
+        self.id = UUID()
         self.start = start
         self.end = end
         self.recurrence = recurrence

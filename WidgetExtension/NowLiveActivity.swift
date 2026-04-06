@@ -213,11 +213,11 @@ struct NowLiveActivity: Widget {
 
     // MARK: - URL helpers
 
-    private func doneURL(commitmentId: String) -> URL {
+    private func doneURL(commitmentId: UUID?) -> URL {
         var components = URLComponents()
         components.scheme = "wilgo"
         components.host = "done"
-        components.queryItems = [URLQueryItem(name: "commitmentId", value: commitmentId)]
+        components.queryItems = [URLQueryItem(name: "commitmentId", value: commitmentId?.uuidString)]
         return components.url ?? URL(string: "wilgo://done")!
     }
 
@@ -228,8 +228,8 @@ extension NowAttributes.ContentState {
         NowAttributes.ContentState(
             commitmentTitle: "Morning reading",
             slotTimeText: "9:00 AM – 11:00 AM",
-            commitmentId: "",
-            slotId: "",
+            commitmentId: nil,
+            slotId: nil,
             secondaryTitles: ["Walk dog", "Email inbox"]
         )
     }

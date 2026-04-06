@@ -3,7 +3,7 @@ import SwiftData
 
 enum PreTokenReportBuilder {
     private struct CycleDraft {
-        let commitmentID: PersistentIdentifier
+        let commitmentID: UUID
         let commitmentTitle: String
         let cycleID: String
         let cycleLabel: String
@@ -34,7 +34,7 @@ enum PreTokenReportBuilder {
             return []
         }
         let commitmentByID = Dictionary(
-            uniqueKeysWithValues: commitments.map { ($0.persistentModelID, $0) }
+            uniqueKeysWithValues: commitments.map { ($0.id, $0) }
         )
         let commitmentReports: [CommitmentReport] = Dictionary(
             grouping: cycleDrafts, by: \.commitmentID
@@ -43,7 +43,7 @@ enum PreTokenReportBuilder {
             guard let commitment = commitmentByID[commitmentID] else { return nil }
             let sortedDrafts = drafts.sorted { $0.cycleEndPsychDay < $1.cycleEndPsychDay }
             return CommitmentReport(
-                id: commitmentID.encoded(),
+                id: commitmentID,
                 commitment: commitment,
                 cycles: sortedDrafts.map { draft in
                     CycleReport(
@@ -70,7 +70,7 @@ enum PreTokenReportBuilder {
         to endPsychDay: Date  // exclusive
     ) -> [CycleDraft] {
         let cycle = commitment.target.cycle
-        let commitmentID = commitment.persistentModelID
+        let commitmentID = commitment.id
         var cycleCursorDay = startPsychDay
         var cycles: [CycleDraft] = []
 
