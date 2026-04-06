@@ -36,7 +36,7 @@ Using `AppIntent` means that we have to put target `Wilgo` and target `WidgetExt
 ## Manual Set Up To Configure App Group
 
 1. **[x] Apple Developer Portal** ([developer.apple.com](http://developer.apple.com) → Certificates, Identifiers & Profiles → Identifiers → App Groups → "+"): Create App Group `group.xyz.soysaucefor3.wilgo`. Enable it on both App IDs: `xyz.soysaucefor3.Wilgo` (main app) and `xyz.soysaucefor3.Wilgo.WidgetExtension` (widget).
-  **NOTE**: not creating the group beforehand on web is fine. The step below allows group creation directly from XCode.
+   **NOTE**: not creating the group beforehand on web is fine. The step below allows group creation directly from XCode.
 2. **[x] Xcode — main app target**: Signing & Capabilities → "+" → App Groups → add `group.xyz.soysaucefor3.wilgo`
 3. **[x] Xcode — WidgetExtension target**: same as above
 4. **[ ] Xcode — target membership**: After creating the two new `Shared/` files, set Target Membership to both `Wilgo` and `WidgetExtension` in the File Inspector (same pattern as `Shared/NowAttributes.swift`)
@@ -112,13 +112,11 @@ So even without `reloadTimelines()`, the widget will eventually self-refresh. Bu
 
 Let's compare all options:
 
-
 | Approach                                                       | `getSnapshot`        | `getTimeline` | `CheckInIntent` write                   | Complexity                                    |
 | -------------------------------------------------------------- | -------------------- | ------------- | --------------------------------------- | --------------------------------------------- |
 | **A: Shared SwiftData (direct query)**                         | Query store          | Query store   | Write to store                          | Medium — one shared store, no cache layer     |
 | **B: Shared UserDefaults cache + shared SwiftData for writes** | Read cache (instant) | Read cache    | Write to store + invalidate cache       | Higher — two sources of truth to keep in sync |
-| **C: UserDefaults cache only, no SwiftData in widget**         | Read cache           | Read cache    | AppIntent can't write (no store access) | ❌ Incompatible with AppIntent                 |
-
+| **C: UserDefaults cache only, no SwiftData in widget**         | Read cache           | Read cache    | AppIntent can't write (no store access) | ❌ Incompatible with AppIntent                |
 
 **Option A is better.** Here's why Option B's cache is not worth it:
 
@@ -181,7 +179,7 @@ No AppIntent is needed for navigation. WidgetKit has a built-in mechanism:
 - Slot window opening or closing
 - Psychological day boundary (cycle reset)
 
-`**reloadTimelines()` called explicitly** (app must be alive, but user-driven events require the app anyway):
+`**reloadTimelines()` called explicitly\*\* (app must be alive, but user-driven events require the app anyway):
 
 - Check-in created or undone
 - Commitment added, edited, or deleted
@@ -210,7 +208,6 @@ Widget "+" tapped              → CheckInIntent.perform() calls reloadTimelines
 
 # 5. Files to Create / Modify
 
-
 | **Action** | **Path**                                                                                                     | **Notes**                                                                                                                                                                                |
 | ---------- | ------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Modify     | `Wilgo/WilgoApp.swift`                                                                                       | Move SwiftData store URL to App Group container; add `wilgo://commitment` deep-link case presenting `CommitmentDetailView`                                                               |
@@ -219,7 +216,6 @@ Widget "+" tapped              → CheckInIntent.perform() calls reloadTimelines
 | Modify     | `WidgetExtension/WidgetBundle.swift`                                                                         | Add `CurrentCommitmentWidget()` alongside `NowLiveActivity()`                                                                                                                            |
 | Modify     | `Wilgo/Features/Commitments/CheckInUndo/CheckInUndoManager.swift`                                            | Call `WidgetCenter.shared.reloadTimelines(ofKind: "CurrentCommitment")` in `enqueue()` (creation) and the undo closure (deletion) — single hook covering all app-side check-in mutations |
 | Modify     | `Wilgo/Features/Commitments/EditCommitmentView.swift`, `Wilgo/Features/Commitments/ListCommitmentView.swift` | Call `reloadTimelines()` after commitment add/delete so the widget reflects structural changes                                                                                           |
-
 
 **No new Shared/ files needed** — the widget queries SwiftData directly from the shared store. No snapshot struct, no UserDefaults cache.
 
@@ -232,7 +228,6 @@ Widget "+" tapped              → CheckInIntent.perform() calls reloadTimelines
 
 # 6. Key Existing Code to Reuse
 
-
 | **Symbol**                                               | **File**                                          | **Purpose in widget**                                            |
 | -------------------------------------------------------- | ------------------------------------------------- | ---------------------------------------------------------------- |
 | `CommitmentAndSlot.currentWithBehind(commitments:now:)`  | `Wilgo/Shared/Scheduling/CommitmentAndSlot.swift` | Get ordered list of currently active commitments                 |
@@ -242,7 +237,6 @@ Widget "+" tapped              → CheckInIntent.perform() calls reloadTimelines
 | `slot.timeOfDayText`                                     | `Wilgo/Shared/Models/Slot.swift`                  | `"3:00 PM – 5:00 PM"` string for the card secondary line         |
 | `PersistentIdentifier.encoded()` / `.decode(from:)`      | `Wilgo/WilgoApp.swift`                            | Encode commitment ID into `wilgo://commitment?id=` URL           |
 | `Time.psychDay(for:)`                                    | `Wilgo/Shared/Scheduling/Time.swift`              | Current psychological day for cycle queries                      |
-
 
 # 7. Major Type Definitions
 
@@ -393,15 +387,7 @@ Change `ModelConfiguration` to use the App Group container URL. If the store exi
 
 ---
 
-**Commit 2 — Add `wilgo://commitment` deep-link to open `CommitmentDetailView`**
-
-File: `Wilgo/WilgoApp.swift`
-
-Add `case "commitment":` to `handleDeepLink(_:)`. Decode the commitment ID, fetch the matching `Commitment`, present `CommitmentDetailView` as a sheet.
-
----
-
-**Commit 3 — `CheckInIntent`: AppIntent for widget check-in**
+**Commit 2 — `CheckInIntent`: AppIntent for widget check-in**
 
 File: `WidgetExtension/CheckInIntent.swift` (new)
 
@@ -411,27 +397,37 @@ Define `CheckInIntent: AppIntent`. Opens a `ModelContainer` at the shared App Gr
 
 ---
 
-**Commit 4 — `CurrentCommitmentWidget`: full widget implementation**
+**Commit 3a — `CurrentCommitmentWidget`: data layer**
 
 File: `WidgetExtension/CurrentCommitmentWidget.swift` (new)
 
-Define `CommitmentSnapshot`, `CurrentCommitmentEntry`, `CurrentCommitmentProvider` (`getSnapshot` + `getTimeline` — both query shared SwiftData store), small/medium/large/empty views, `CurrentCommitmentWidget` struct with `kind = "CurrentCommitment"`, and `#Preview` macros for each size + empty state.
+Define `CommitmentSnapshot` (plain-value snapshot, no SwiftData objects cross the timeline boundary), `CurrentCommitmentEntry: TimelineEntry`, and `CurrentCommitmentProvider: TimelineProvider` (`getSnapshot` + `getTimeline` — both query the shared SwiftData store directly). Timeline policy uses `CommitmentAndSlot.nextTransitionDate()` for self-perpetuating refresh; falls back to `.after(+1h)` when no slots are configured.
 
-> Depends on Commits 1 and 3.
+The `Link` destination URL (`wilgo://commitment?id=<uuid>`) is a stub — the app-side handler is wired in Commit 2.
 
----
-
-**Commit 5 — Register widget in `WidgetBundle`**
-
-File: `WidgetExtension/WidgetBundle.swift`
-
-Add `CurrentCommitmentWidget()` alongside `NowLiveActivity()`.
-
-> Depends on Commit 4.
+> Depends on Commits 1 and 2.
 
 ---
 
-**Commit 6 — Reload widget timeline after app-side mutations**
+**Commit 3b — `CurrentCommitmentWidget`: UI layer + register in bundle**
+
+Files: `WidgetExtension/CurrentCommitmentWidget.swift` (continued), `WidgetExtension/WidgetBundle.swift`
+
+Add `EmptyCommitmentView`, `CommitmentCardView` (horizontal card with progress-fill background, title/count/cycle/slot on left, `Button(intent: CheckInIntent(...))` on right), `CurrentCommitmentWidgetEntryView` (dispatches by `widgetFamily`), `CurrentCommitmentWidget` struct with `kind = WilgoConstants.currentCommitmentWidgetKind`, and `#Preview` macros for small/medium/empty. Register `CurrentCommitmentWidget()` in `WidgetBundle`.
+
+> Depends on Commit 3a.
+
+---
+
+**Commit 4 — Add `wilgo://commitment` deep-link to open `CommitmentDetailView`**
+
+File: `Wilgo/WilgoApp.swift`
+
+Add `case "commitment":` to `handleDeepLink(_:)`. Decode the commitment ID, fetch the matching `Commitment`, present `CommitmentDetailView` as a sheet.
+
+---
+
+**Commit 5 — Reload widget timeline after app-side mutations**
 
 Files: all app-side check-in creation call sites (at minimum `WilgoApp.handleDeepLink` `"done"` case; search for other `CheckIn(commitment:)` initialisations).
 
@@ -440,4 +436,3 @@ Add `WidgetCenter.shared.reloadTimelines(ofKind: "CurrentCommitment")` after eac
 (Alternatively maybe Call `WidgetCenter.shared.reloadTimelines(ofKind: "CurrentCommitment")` in `enqueue()` (creation) and the undo closure (deletion) in `Wilgo/Features/Commitments/CheckInUndo/CheckInUndoManager.swift` — single hook covering all app-side check-in mutations. Will decide which way to go later.
 
 > Depends on Commit 4 (the kind string must be defined). Can be done alongside Commit 5.
-

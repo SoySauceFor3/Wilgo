@@ -5,5 +5,6 @@ import WidgetKit
 struct WidgetExtensionBundle: WidgetBundle {
     var body: some Widget {
         NowLiveActivity()
+        CurrentCommitmentWidget()
     }
 }
