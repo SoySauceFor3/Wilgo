@@ -35,14 +35,4 @@ final class CheckIn {
         self.timeZoneIdentifier = tzId
         self.psychDay = Time.psychDay(for: createdAt, timeZoneIdentifier: tzId)
     }
-
-    /// True when this check-in can sponsor a new positivity token at `now`.
-    func isSponsorableForPositivityToken(
-        now: Date = .now,
-        windowAfterCheckIn: TimeInterval = PositivityTokenMinting.windowAfterCheckIn
-    ) -> Bool {
-        guard positivityToken == nil else { return false }
-        let elapsed = now.timeIntervalSince(createdAt)
-        return elapsed >= 0 && elapsed <= windowAfterCheckIn
-    }
 }
