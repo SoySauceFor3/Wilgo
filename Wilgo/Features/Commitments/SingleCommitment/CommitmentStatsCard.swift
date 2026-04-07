@@ -26,9 +26,8 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
         commitment.target.cycle.label(of: psychToday)
     }
 
-    private var randomEncouragement: String? {
-        commitment.encouragements.isEmpty ? nil : commitment.encouragements.randomElement()
-    }
+    /// Stable random pick — re-sampled only when the commitment identity changes.
+    @State private var cachedEncouragement: String? = nil
 
     // MARK: - Tile helper
 
@@ -77,11 +76,12 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
                             Text(commitment.title)
                                 .font(.headline)
                                 .foregroundStyle(.primary)
-                            if let encouragement = randomEncouragement {
+                            if let encouragement = cachedEncouragement {
                                 Text(encouragement)
                                     .font(.caption)
                                     .foregroundStyle(.yellow)
                                     .italic()
+                                    .lineLimit(1)
                             }
                         }
                     }
@@ -185,6 +185,12 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(.systemBackground))
         )
+        .onAppear {
+            cachedEncouragement = commitment.encouragements.randomElement()
+        }
+        .onChange(of: commitment.id) {
+            cachedEncouragement = commitment.encouragements.randomElement()
+        }
     }
 }
 
