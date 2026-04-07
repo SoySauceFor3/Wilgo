@@ -131,6 +131,7 @@ struct AddCommitmentView: View {
         commitment.encouragements = encouragements.map {
             $0.trimmingCharacters(in: .whitespacesAndNewlines)
         }.filter { !$0.isEmpty }
+        try? modelContext.save()
         dismiss()
     }
 }
