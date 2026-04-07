@@ -186,6 +186,13 @@ struct NowLiveActivity: Widget {
                         Text(context.state.slotTimeText)
                             .font(.caption2.weight(.medium))
                             .foregroundStyle(.secondary)
+                        if let encouragement = context.state.encouragementText {
+                            Text(encouragement)
+                                .font(.caption2)
+                                .foregroundStyle(.yellow)
+                                .italic()
+                                .lineLimit(1)
+                        }
                         if !secondaryLine.isEmpty {
                             SecondaryCommitmentsLine(text: secondaryLine)
                         }
