@@ -65,12 +65,14 @@ enum NowLiveActivityManager {
         let commitmentId = commitment.id
         let slotId = slots[0].id
         let secondaryTitles = currentSlots.dropFirst().map(\.commitment.title)
+        let encouragementText = commitment.encouragements.randomElement()
         return NowAttributes.ContentState(
             commitmentTitle: commitment.title,
             slotTimeText: slots[0].timeOfDayText,
             commitmentId: commitmentId,
             slotId: slotId,
-            secondaryTitles: secondaryTitles
+            secondaryTitles: secondaryTitles,
+            encouragementText: encouragementText
         )
     }
 
