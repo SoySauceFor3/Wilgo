@@ -45,3 +45,6 @@ buildServer.json
 
 # Claude
 .superpowers/*
+
+# Git worktrees
+.worktrees/
