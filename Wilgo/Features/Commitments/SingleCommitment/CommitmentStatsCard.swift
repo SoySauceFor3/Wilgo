@@ -38,9 +38,11 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(title)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
+            if !title.isEmpty {
+                Text(title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
 
             content()
                 .frame(maxWidth: .infinity, alignment: .leading)
