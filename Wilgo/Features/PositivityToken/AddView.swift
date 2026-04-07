@@ -1,16 +1,12 @@
-import Combine
 import SwiftData
 import SwiftUI
 
+// TODO: Commit 5 — rewrite with capacity-based UI (guard canMint, remove sponsoringCheckIn)
 struct AddPositivityTokenView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @EnvironmentObject private var checkInUndoManager: CheckInUndoManager
-
-    let sponsoringCheckIn: CheckIn
 
     @State private var reason: String = ""
-    @State private var didHandleRevocation: Bool = false
 
     var body: some View {
         NavigationStack {
@@ -41,25 +37,6 @@ struct AddPositivityTokenView: View {
                     .disabled(trimmedReason.isEmpty)
                 }
             }
-            .onAppear {
-                checkInUndoManager.dismissAll()
-            }
-            .onReceive(NotificationCenter.default.publisher(for: .CheckInRevoked)) { notification in
-                guard !didHandleRevocation else { return }
-
-                guard
-                    let revokedID = notification.userInfo?[
-                        CheckInRevokedUserInfoKeys
-                            .checkInID] as? UUID
-                else {
-                    return
-                }
-
-                guard sponsoringCheckIn.id == revokedID else { return }
-
-                didHandleRevocation = true
-                dismiss()
-            }
         }
     }
 
@@ -75,25 +52,11 @@ struct AddPositivityTokenView: View {
 }
 
 #Preview {
-    let calendar = Calendar.current
-    let today = Date()
-    let start = calendar.date(bySettingHour: 0, minute: 0, second: 0, of: today) ?? today
-    let end = calendar.date(bySettingHour: 23, minute: 59, second: 59, of: today) ?? today
-    let slot = Slot(start: start, end: end)
-    let commitment = Commitment(
-        title: "Preview",
-        slots: [slot],
-        target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
-    )
-    let checkIn = CheckIn(commitment: commitment)
-
     let container = try! ModelContainer(
         for: Commitment.self, Slot.self, CheckIn.self, PositivityToken.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
-    container.mainContext.insert(commitment)
-    container.mainContext.insert(checkIn)
 
-    return AddPositivityTokenView(sponsoringCheckIn: checkIn)
+    return AddPositivityTokenView()
         .modelContainer(container)
 }

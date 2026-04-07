@@ -5,38 +5,14 @@
 //  Top-level tab navigation: Stage (dynamic dashboard) and Commitments (list).
 //
 
-import Combine
 import SwiftData
 import SwiftUI
 
 struct MainTabView: View {
-    /// Only check-ins at/after app launch’s rolling lower bound (2× mint window); SwiftData updates when a `CheckIn` is inserted/updated.
-    @Query private var sponsorableCheckIns: [CheckIn]
-
     @State private var selectedTab: Int = 0
-    /// Drives periodic re-evaluation so the badge clears when the mint window expires (no model change).
-    @State private var mintBadgeClock = Date()
 
-    /// Stable signature so SwiftUI can observe query content changes and refresh immediately.
-    private var sponsorableCheckInsQuerySignature: [String] {
-        sponsorableCheckIns.map {
-            "\($0.id.uuidString)|\($0.createdAt.timeIntervalSince1970)"
-        }
-    }
-
-    init() {
-        let lowerBound = PositivityTokenMinting.recentCheckInsLowerBound()
-
-        // NOTE: positivityToken relationship removed in Commit 1; Commit 6 will replace this
-        // query with capacity-based logic (allTokens / allCheckIns counts).
-        _sponsorableCheckIns = Query(
-            filter: #Predicate<CheckIn> { checkIn in
-                checkIn.createdAt >= lowerBound
-            },
-            sort: \CheckIn.createdAt,
-            order: .forward
-        )
-    }
+    // TODO: Commit 6 — rewrite with capacity-based query
+    init() {}
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -53,7 +29,7 @@ struct MainTabView: View {
                 .tag(1)
 
             ListPositivityTokenView()
-                .badge(sponsorableCheckIns.count)
+                .badge(0)
                 .tabItem {
                     Label("Positivity Tokens", systemImage: "sun.max")
                 }
@@ -64,9 +40,6 @@ struct MainTabView: View {
                     Label("Settings", systemImage: "gearshape")
                 }
                 .tag(3)
-        }
-        .onChange(of: sponsorableCheckInsQuerySignature) { _, _ in
-            mintBadgeClock = .now
         }
     }
 }
