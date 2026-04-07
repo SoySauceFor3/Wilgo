@@ -6,8 +6,8 @@
 4. Try to do as much testing coverage as possible so I can verify your code.
 5. Reflect on the rules you think should be put into this file (./CLAUDE.md), and put into them while keeping this file organized. You should note the date and the author of each rules you added.
 6. When you are in plan mode:
-   1. First focus on planing the feature's expected behavor, UI/UX, PRD like elements. Light considerations about implementations like feasibility are OK, but the focus should NOT be implementation. I need to review and say yes to this document before moving on to...
-   2. Second, you plan on implementation in a seperate file. Always
+   1. PRD: First focus on planing the feature's expected behavor, UI/UX, PRD like elements. Light considerations about implementations like feasibility are OK, but the focus should NOT be implementation. I need to review and say yes to this document before moving on to implementation design. Most of the time I will write PRD in Notion.
+   2. Second, you plan on implementation in a seperate file (most of time in `./documentation/`). Always
       1. summarize the overall solution/architecture,
       2. record major model changes
       3. document major alternatives, their pros and cons and why choose the direction we choose
