@@ -4,13 +4,14 @@ import SwiftUI
 struct ListPositivityTokenView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \PositivityToken.createdAt, order: .reverse) private var tokens: [PositivityToken]
+    @Query private var allCheckIns: [CheckIn]
     @State private var isPresentingAddToken: Bool = false
-
-    // TODO: Commit 5 — rewrite with capacity-based UI
 
     var body: some View {
         NavigationStack {
             List {
+                summarySection
+                capacityRow
                 ForEach(tokens) { token in
                     TokenRowView(token: token)
                 }
@@ -18,6 +19,7 @@ struct ListPositivityTokenView: View {
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Positivity Tokens")
+            // TODO: Commit 8 — clear unseenCapacity flag on appear
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -25,6 +27,7 @@ struct ListPositivityTokenView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+                    .disabled(capacity == 0)
                 }
             }
             .sheet(isPresented: $isPresentingAddToken) {
@@ -33,11 +36,76 @@ struct ListPositivityTokenView: View {
         }
     }
 
+    // MARK: - Computed
+
+    private var capacity: Int {
+        PositivityTokenMinting.mintCapacity(tokenCount: tokens.count, checkInCount: allCheckIns.count)
+    }
+
+    // MARK: - Sections
+
+    @ViewBuilder
+    private var summarySection: some View {
+        Section("Summary") {
+            SummaryRow(label: "Created", value: tokens.count)
+            SummaryRow(label: "Used", value: tokens.filter { $0.status == .used }.count)
+            SummaryRow(label: "Active", value: tokens.filter { $0.status == .active }.count)
+            SummaryRow(label: "Monthly budget remaining", value: monthlyBudgetRemaining())
+        }
+    }
+
+    @ViewBuilder
+    private var capacityRow: some View {
+        Section {
+            if capacity > 0 {
+                HStack {
+                    Text("\(capacity) mint\(capacity == 1 ? "" : "s") available")
+                        .font(.subheadline)
+                    Spacer()
+                    Button("Mint") { isPresentingAddToken = true }
+                        .buttonStyle(.borderedProminent)
+                        .controlSize(.small)
+                }
+            } else {
+                Text("Create more check-ins to mint more PTs.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    // MARK: - Helpers
+
+    private func monthlyBudgetRemaining() -> Int {
+        let cap = AfterPositivityTokenReportBuilder.positivityTokenMonthlyCap()
+        let usedThisMonth = tokens.filter { token in
+            token.status == .used &&
+            Calendar.current.isDate(token.dayOfStatus ?? .distantPast, equalTo: .now, toGranularity: .month)
+        }.count
+        return max(0, cap - usedThisMonth)
+    }
+
     private func deleteTokens(offsets: IndexSet) {
         withAnimation {
             for index in offsets {
                 modelContext.delete(tokens[index])
             }
+        }
+    }
+}
+
+// MARK: - Supporting Views
+
+private struct SummaryRow: View {
+    let label: String
+    let value: Int
+
+    var body: some View {
+        HStack {
+            Text(label)
+            Spacer()
+            Text("\(value)")
+                .foregroundStyle(.secondary)
         }
     }
 }
@@ -110,6 +178,8 @@ private struct StatusBadge: View {
     }
 }
 
+// MARK: - Preview
+
 private func makePreviewContainer() throws -> ModelContainer {
     let container = try ModelContainer(
         for: Commitment.self, Slot.self, CheckIn.self, PositivityToken.self,
@@ -147,6 +217,5 @@ struct ListPositivityTokenView_Previews: PreviewProvider {
     static var previews: some View {
         ListPositivityTokenView()
             .modelContainer(try! makePreviewContainer())
-
     }
 }
