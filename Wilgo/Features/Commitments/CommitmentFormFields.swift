@@ -94,29 +94,44 @@ struct CommitmentFormFields: View {
 
 // MARK: - Encouragement section (used by commitment form)
 
+private struct TaggedEncouragement: Identifiable {
+    let id: UUID
+    var text: String
+
+    init(id: UUID = UUID(), text: String) {
+        self.id = id
+        self.text = text
+    }
+}
+
 struct EncouragementSection: View {
     @Binding var encouragements: [String]
-    @FocusState private var focusedIndex: Int?
+    @State private var tagged: [TaggedEncouragement] = []
+    @FocusState private var focusedID: UUID?
 
     var body: some View {
         Section {
-            ForEach(encouragements.indices, id: \.self) { index in
+            ForEach($tagged) { $item in
                 HStack {
-                    TextField("e.g. Just do a little bit", text: $encouragements[index])
-                        .focused($focusedIndex, equals: index)
+                    TextField("e.g. Just do a little bit", text: $item.text)
+                        .focused($focusedID, equals: item.id)
                     Spacer()
                     Button(role: .destructive) {
-                        encouragements.remove(at: index)
+                        tagged.removeAll { $0.id == item.id }
+                        flush()
                     } label: {
                         Image(systemName: "trash")
                     }
                     .buttonStyle(.borderless)
                 }
+                .onChange(of: item.text) { flush() }
             }
 
             Button {
-                encouragements.append("")
-                focusedIndex = encouragements.count - 1
+                let newItem = TaggedEncouragement(text: "")
+                tagged.append(newItem)
+                focusedID = newItem.id
+                flush()
             } label: {
                 Label("Add encouragement", systemImage: "plus")
             }
@@ -125,5 +140,12 @@ struct EncouragementSection: View {
         } footer: {
             Text("Shown randomly while you work.")
         }
+        .onAppear {
+            tagged = encouragements.map { TaggedEncouragement(text: $0) }
+        }
+    }
+
+    private func flush() {
+        encouragements = tagged.map(\.text)
     }
 }
