@@ -5,12 +5,20 @@ struct ListPositivityTokenView: View {
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \PositivityToken.createdAt, order: .reverse) private var tokens: [PositivityToken]
     @Query private var allCheckIns: [CheckIn]
+    @Environment(PTBadgeState.self) private var badgeState
     @State private var isPresentingAddToken: Bool = false
 
     var body: some View {
         NavigationStack {
             List {
                 summarySection
+                if capacity > 0 {
+                    Section {
+                        Text("You have \(capacity) check-in\(capacity == 1 ? "" : "s") worth of positivity to capture. What's been going well?")
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                    }
+                }
                 capacityRow
                 ForEach(tokens) { token in
                     TokenRowView(token: token)
@@ -19,7 +27,8 @@ struct ListPositivityTokenView: View {
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Positivity Tokens")
-            // TODO: Commit 8 — clear unseenCapacity flag on appear
+            .onAppear { badgeState.markAsSeen() }
+            .onChange(of: capacity) { badgeState.markAsSeen() }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
@@ -216,6 +225,7 @@ private func makePreviewContainer() throws -> ModelContainer {
 struct ListPositivityTokenView_Previews: PreviewProvider {
     static var previews: some View {
         ListPositivityTokenView()
+            .environment(PTBadgeState())
             .modelContainer(try! makePreviewContainer())
     }
 }

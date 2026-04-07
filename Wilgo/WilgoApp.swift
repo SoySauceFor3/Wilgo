@@ -39,6 +39,7 @@ struct WilgoApp: App {
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var checkInUndoManager = CheckInUndoManager()
     @State private var deepLinkedCommitment: Commitment?
+    @State private var ptBadgeState = PTBadgeState()
 
     init() {
         // Set up CatchUpReminderService.
@@ -52,6 +53,7 @@ struct WilgoApp: App {
     var body: some Scene {
         WindowGroup {
             AppRootView()
+                .environment(ptBadgeState)
                 .environmentObject(checkInUndoManager)
                 .onOpenURL { url in
                     handleDeepLink(url)

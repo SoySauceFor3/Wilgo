@@ -9,12 +9,12 @@ import SwiftData
 import SwiftUI
 
 struct MainTabView: View {
+    @Environment(PTBadgeState.self) private var badgeState
     @State private var selectedTab: Int = 0
 
-    // TODO: Commit 6 — rewrite with capacity-based query
-    init() {}
-
     var body: some View {
+        PTBadgeObserver()
+
         TabView(selection: $selectedTab) {
             StageView()
                 .tabItem {
@@ -29,7 +29,7 @@ struct MainTabView: View {
                 .tag(1)
 
             ListPositivityTokenView()
-                .badge(0)
+                .badge(badgeState.hasNewCapacity ? Text("") : nil)
                 .tabItem {
                     Label("Positivity Tokens", systemImage: "sun.max")
                 }
@@ -46,6 +46,7 @@ struct MainTabView: View {
 
 #Preview {
     MainTabView()
+        .environment(PTBadgeState())
         .modelContainer(
             try! ModelContainer(
                 for: Commitment.self, Slot.self, CheckIn.self, PositivityToken.self,
