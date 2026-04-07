@@ -147,6 +147,13 @@ struct NowLiveActivity: Widget {
                             Text(context.state.slotTimeText)
                                 .font(.caption.weight(.medium))
                                 .foregroundStyle(.secondary)
+                            if let encouragement = context.state.encouragementText {
+                                Text(encouragement)
+                                    .font(.caption)
+                                    .foregroundStyle(.yellow)
+                                    .italic()
+                                    .lineLimit(1)
+                            }
                         }
                         Spacer(minLength: 8)
                         DoneCapsuleLink(
@@ -232,7 +239,8 @@ extension NowAttributes.ContentState {
             slotTimeText: "9:00 AM – 11:00 AM",
             commitmentId: UUID(),
             slotId: UUID(),
-            secondaryTitles: ["Walk dog", "Email inbox"]
+            secondaryTitles: ["Walk dog", "Email inbox"],
+            encouragementText: "Just do a little bit"
         )
     }
 }
