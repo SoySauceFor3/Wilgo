@@ -11,6 +11,7 @@ struct AddCommitmentView: View {
     @State private var slotWindows: [SlotWindow]
     @State private var proofOfWorkType: ProofOfWorkType = .manual
     @State private var punishment: String = ""
+    @State private var encouragements: [String] = []
 
     @State private var showingGraceDialog = false
     /// Cached cycle boundaries used when the grace dialog is presented.
@@ -30,7 +31,8 @@ struct AddCommitmentView: View {
                     slotWindows: $slotWindows,
                     target: $target,
                     proofOfWorkType: $proofOfWorkType,
-                    punishment: $punishment
+                    punishment: $punishment,
+                    encouragements: $encouragements
                 )
             }
             .navigationTitle("New Commitment")
@@ -126,6 +128,9 @@ struct AddCommitmentView: View {
             )
         }
         modelContext.insert(commitment)
+        commitment.encouragements = encouragements.map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+        }.filter { !$0.isEmpty }
         dismiss()
     }
 }
