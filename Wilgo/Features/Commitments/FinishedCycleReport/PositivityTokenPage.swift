@@ -62,17 +62,19 @@ private struct CycleResultRow: View {
                     .font(.body)
 
                 if cycle.isAidedByPositivityToken {
-                    Label(
-                        "Aided by \(cycle.aidedByPositivityTokenCount) positivity token\(cycle.aidedByPositivityTokenCount == 1 ? "" : "s")",
-                        systemImage: "sparkles"
-                    )
-                    .font(.caption)
-                    .foregroundStyle(.blue)
+                    Text(reasonsCopy(for: cycle.consumedPTReasons))
+                        .font(.caption)
+                        .foregroundStyle(.blue)
                 }
             }
 
             Spacer()
         }
         .padding(.vertical, 2)
+    }
+
+    private func reasonsCopy(for reasons: [String]) -> String {
+        let joined = reasons.joined(separator: ", ")
+        return "Missing this commitment is compensated by your Positivity Tokens: \(joined)"
     }
 }

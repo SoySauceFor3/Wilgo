@@ -14,7 +14,7 @@ enum PositivityTokenCompensator {
         tokens: [PositivityToken],
         monthlyCap: Int,
         calendar: Calendar = Time.calendar
-    ) -> [String: Int] {
+    ) -> [String: [String]] {
         guard monthlyCap > 0 else { return [:] }
 
         var activeTokens = tokens.filter { token in
@@ -25,7 +25,7 @@ enum PositivityTokenCompensator {
         guard !activeTokens.isEmpty else { return [:] }
 
         var usageCountByMonth = usedCountByMonth(from: tokens, calendar: calendar)
-        var aidedByCycleID: [String: Int] = [:]
+        var consumedReasonsByCycleID: [String: [String]] = [:]
 
         let sortedNeeds =
             cycleNeeds
@@ -56,16 +56,13 @@ enum PositivityTokenCompensator {
                 let token = activeTokens.removeFirst()
                 token.status = .used
                 token.dayOfStatus = usagePsychDay
+                consumedReasonsByCycleID[need.cycleID, default: []].append(token.reason)
                 compensated += 1
                 usageCountByMonth[monthKey, default: 0] += 1
             }
-
-            if compensated > 0 {
-                aidedByCycleID[need.cycleID, default: 0] += compensated
-            }
         }
 
-        return aidedByCycleID
+        return consumedReasonsByCycleID
     }
 
     private static func usedCountByMonth(
@@ -95,7 +92,7 @@ enum PositivityTokenCompensator {
 enum AfterPositivityTokenReportBuilder {
     private static let monthlyCapDefault = 5
 
-    private static func positivityTokenMonthlyCap() -> Int {
+    static func positivityTokenMonthlyCap() -> Int {
         let value: Int
         if UserDefaults.standard.object(forKey: AppSettings.positivityTokenMonthlyCapKey) == nil {
             value = monthlyCapDefault
@@ -106,7 +103,7 @@ enum AfterPositivityTokenReportBuilder {
     }
 
     /// Phase 2: takes a pre-token report and returns a new report with positivity
-    /// token compensation applied to each cycle's `aidedByPositivityTokenCount`.
+    /// token compensation applied — populating each cycle's `consumedPTReasons`.
     static func apply(
         to report: [CommitmentReport],
         allTokens: [PositivityToken],
@@ -126,7 +123,7 @@ enum AfterPositivityTokenReportBuilder {
                 )
             }
         }
-        let aidedTokenCountByCycleID = PositivityTokenCompensator.apply(
+        let reasonsByCycleID = PositivityTokenCompensator.apply(
             cycleNeeds: cycleNeeds,
             tokens: allTokens,
             monthlyCap: cap,
@@ -143,7 +140,7 @@ enum AfterPositivityTokenReportBuilder {
                         cycleLabel: cycle.cycleLabel,
                         cycleStartPsychDay: cycle.cycleStartPsychDay,
                         cycleEndPsychDay: cycle.cycleEndPsychDay,
-                        aidedByPositivityTokenCount: aidedTokenCountByCycleID[cycle.id, default: 0],
+                        consumedPTReasons: reasonsByCycleID[cycle.id, default: []],
                         checkIns: cycle.checkIns,
                         isGrace: cycle.isGrace
                     )
