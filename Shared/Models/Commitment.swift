@@ -44,6 +44,8 @@ final class Commitment {
     /// (user chooses a grace period for the current cycle). See `GracePeriod`.
     var gracePeriods: [GracePeriod] = []
 
+    var encouragements: [String] = []
+
     init(
         title: String,
         createdAt: Date = .now,
