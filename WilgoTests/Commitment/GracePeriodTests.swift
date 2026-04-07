@@ -33,7 +33,6 @@ private func makeCommitment() -> Commitment {
         title: "Test",
         slots: [],
         target: QuantifiedCycle(cycle: cycle, count: 1),
-        skipBudget: QuantifiedCycle(cycle: cycle, count: 0)
     )
 }
 

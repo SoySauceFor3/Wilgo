@@ -36,7 +36,6 @@ struct PositivityTokenUndoTests {
             title: "Test",
             slots: [],
             target: QuantifiedCycle(cycle: cycle, count: 1),
-            skipBudget: QuantifiedCycle(cycle: cycle, count: 0)
         )
         ctx.insert(commitment)
 
@@ -77,7 +76,6 @@ struct PositivityTokenUndoTests {
             title: "Test",
             slots: [],
             target: QuantifiedCycle(cycle: cycle, count: 1),
-            skipBudget: QuantifiedCycle(cycle: cycle, count: 0)
         )
         ctx.insert(commitment)
 
@@ -112,7 +110,6 @@ struct PositivityTokenUndoTests {
             title: "Test",
             slots: [],
             target: QuantifiedCycle(cycle: cycle, count: 1),
-            skipBudget: QuantifiedCycle(cycle: cycle, count: 0)
         )
         ctx.insert(commitment)
         let checkIn = CheckIn(commitment: commitment)

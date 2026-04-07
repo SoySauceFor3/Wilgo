@@ -57,7 +57,6 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Read",
             slots: [],
             target: QuantifiedCycle(cycle: targetCycle, count: 5),
-            skipBudget: QuantifiedCycle(cycle: targetCycle, count: 0)
         )
         ctx.insert(commitment)
 
@@ -104,7 +103,6 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Run",
             slots: [],
             target: QuantifiedCycle(cycle: targetCycle, count: 3),
-            skipBudget: QuantifiedCycle(cycle: targetCycle, count: 0)
         )
         ctx.insert(commitment)
 
@@ -143,7 +141,6 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Run",
             slots: [],
             target: QuantifiedCycle(cycle: targetCycle, count: 3),
-            skipBudget: QuantifiedCycle(cycle: targetCycle, count: 0)
         )
         // Grace covers the week Mar 30 – Apr 6
         commitment.gracePeriods = [
@@ -178,7 +175,6 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Run",
             slots: [],
             target: QuantifiedCycle(cycle: targetCycle, count: 3),
-            skipBudget: QuantifiedCycle(cycle: targetCycle, count: 0)
         )
         // Grace only covers the prior week — no overlap with the report window
         commitment.gracePeriods = [
@@ -213,7 +209,6 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Run",
             slots: [],
             target: QuantifiedCycle(cycle: targetCycle, count: 3),
-            skipBudget: QuantifiedCycle(cycle: targetCycle, count: 0)
         )
         // 0 check-ins, grace covers the full week — should see no PT applied
         commitment.gracePeriods = [
@@ -264,7 +259,6 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Read",
             slots: [],
             target: QuantifiedCycle(cycle: targetCycle, count: 1),
-            skipBudget: QuantifiedCycle(cycle: targetCycle, count: 0)
         )
         ctx.insert(commitment)
 

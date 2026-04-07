@@ -56,7 +56,6 @@ private func makeCommitment(
         title: title,
         slots: slots,
         target: QuantifiedCycle(cycle: dailyCycle, count: goalCountPerDay),
-        skipBudget: QuantifiedCycle(cycle: dailyCycle, count: 0)
     )
     ctx.insert(commitment)
     for slot in slots { ctx.insert(slot) }
