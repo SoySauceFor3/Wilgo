@@ -1,7 +1,6 @@
 import SwiftData
 import SwiftUI
 
-// TODO: Commit 5 — rewrite with capacity-based UI (guard canMint, remove sponsoringCheckIn)
 struct AddPositivityTokenView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -56,7 +55,6 @@ struct AddPositivityTokenView: View {
         for: Commitment.self, Slot.self, CheckIn.self, PositivityToken.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
-
     return AddPositivityTokenView()
         .modelContainer(container)
 }
