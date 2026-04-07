@@ -100,7 +100,7 @@ struct EncouragementSection: View {
 
     var body: some View {
         Section {
-            ForEach(Array(encouragements.enumerated()), id: \.offset) { index, _ in
+            ForEach(encouragements.indices, id: \.self) { index in
                 HStack {
                     TextField("e.g. Just do a little bit", text: $encouragements[index])
                         .focused($focusedIndex, equals: index)
