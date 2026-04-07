@@ -26,6 +26,10 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
         commitment.target.cycle.label(of: psychToday)
     }
 
+    private var randomEncouragement: String? {
+        commitment.encouragements.isEmpty ? nil : commitment.encouragements.randomElement()
+    }
+
     // MARK: - Tile helper
 
     private func statTile<Content: View>(
@@ -65,13 +69,21 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
             Grid(horizontalSpacing: gap, verticalSpacing: gap) {
                 GridRow {
                     statTile(
-                        title: "Commitment",
+                        title: "",
                         background: tileBackground,
                         cornerRadius: cornerRadius
                     ) {
-                        Text(commitment.title)
-                            .font(.headline)
-                            .foregroundStyle(.primary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(commitment.title)
+                                .font(.headline)
+                                .foregroundStyle(.primary)
+                            if let encouragement = randomEncouragement {
+                                Text(encouragement)
+                                    .font(.caption)
+                                    .foregroundStyle(.yellow)
+                                    .italic()
+                            }
+                        }
                     }
                     .frame(height: cellWidth)
                     .gridCellColumns(3)
