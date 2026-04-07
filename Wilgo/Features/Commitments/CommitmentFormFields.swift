@@ -6,12 +6,14 @@ struct CommitmentFormFields: View {
     @Binding var target: Target
     @Binding var proofOfWorkType: ProofOfWorkType
     @Binding var punishment: String
+    @Binding var encouragements: [String]
 
     var body: some View {
         Section("Basics") {
             TextField("Title", text: $title)
         }
         ReminderWindowsSection(slotWindows: $slotWindows)
+        EncouragementSection(encouragements: $encouragements)
 
         Section("Target") {
             HStack(spacing: 4) {
@@ -87,5 +89,41 @@ struct CommitmentFormFields: View {
                 target.count = newValue
             }
         )
+    }
+}
+
+// MARK: - Encouragement section (used by commitment form)
+
+struct EncouragementSection: View {
+    @Binding var encouragements: [String]
+    @FocusState private var focusedIndex: Int?
+
+    var body: some View {
+        Section {
+            ForEach(Array(encouragements.enumerated()), id: \.offset) { index, _ in
+                HStack {
+                    TextField("e.g. Just do a little bit", text: $encouragements[index])
+                        .focused($focusedIndex, equals: index)
+                    Spacer()
+                    Button(role: .destructive) {
+                        encouragements.remove(at: index)
+                    } label: {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                }
+            }
+
+            Button {
+                encouragements.append("")
+                focusedIndex = encouragements.count - 1
+            } label: {
+                Label("Add encouragement", systemImage: "plus")
+            }
+        } header: {
+            Text("Encouragement")
+        } footer: {
+            Text("Shown randomly while you work.")
+        }
     }
 }
