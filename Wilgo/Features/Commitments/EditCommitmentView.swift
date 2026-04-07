@@ -13,6 +13,7 @@ struct EditCommitmentView: View {
     @State private var target: Target
     @State private var proofOfWorkType: ProofOfWorkType
     @State private var punishment: String
+    @State private var encouragements: [String]
 
     /// Snapshot of rule values at open time, used to detect if any rule changed.
     private let originalTarget: Target
@@ -34,6 +35,7 @@ struct EditCommitmentView: View {
         _target = State(initialValue: commitment.target)
         _proofOfWorkType = State(initialValue: commitment.proofOfWorkType)
         _punishment = State(initialValue: commitment.punishment ?? "")
+        _encouragements = State(initialValue: commitment.encouragements)
 
         originalTarget = commitment.target
     }
@@ -46,7 +48,8 @@ struct EditCommitmentView: View {
                     slotWindows: $slotWindows,
                     target: $target,
                     proofOfWorkType: $proofOfWorkType,
-                    punishment: $punishment
+                    punishment: $punishment,
+                    encouragements: $encouragements
                 )
             }
             .navigationTitle("Edit Commitment")
@@ -116,6 +119,9 @@ struct EditCommitmentView: View {
         commitment.proofOfWorkType = proofOfWorkType
         let trimmed = punishment.trimmingCharacters(in: .whitespacesAndNewlines)
         commitment.punishment = trimmed.isEmpty ? nil : trimmed
+        commitment.encouragements = encouragements.map {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines)
+        }.filter { !$0.isEmpty }
 
         // Rule change: re-anchor to canonical start day via makeDefault.
         if anyRuleChanged {
