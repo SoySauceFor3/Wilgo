@@ -113,9 +113,6 @@ struct WilgoApp: App {
                 checkIn: checkIn, title: "A check-in made for \(commitment.title)"
             ) {
                 withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                    if let token = checkIn.positivityToken {
-                        context.delete(token)
-                    }
                     context.delete(checkIn)
                 }
             }

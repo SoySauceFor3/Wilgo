@@ -12,8 +12,6 @@ final class CheckIn {
 
     @Relationship var commitment: Commitment?
 
-    var positivityToken: PositivityToken?
-
     /// NOTE: Currently not in use.
     var status: CheckInStatus = CheckInStatus.completed
 

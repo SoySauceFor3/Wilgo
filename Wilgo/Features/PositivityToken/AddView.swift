@@ -68,7 +68,7 @@ struct AddPositivityTokenView: View {
     }
 
     private func saveToken() {
-        let token = PositivityToken(reason: trimmedReason, checkIn: sponsoringCheckIn)
+        let token = PositivityToken(reason: trimmedReason)
         modelContext.insert(token)
         dismiss()
     }

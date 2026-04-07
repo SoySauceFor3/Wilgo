@@ -159,11 +159,6 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
                             checkIn: checkIn, title: "A check-in made for \(commitment.title)"
                         ) {
                             withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                                // Undo deletes the check-in and any linked token (including a token
-                                // that might have been minted after the toast appeared).
-                                if let token = checkIn.positivityToken {
-                                    modelContext.delete(token)
-                                }
                                 modelContext.delete(checkIn)
                             }
                         }

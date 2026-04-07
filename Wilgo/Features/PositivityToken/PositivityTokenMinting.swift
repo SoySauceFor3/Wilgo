@@ -6,23 +6,22 @@ enum PositivityTokenMinting {
     private static let windowAfterCheckIn: TimeInterval = 60 * 60
 
     /// True when this check-in can sponsor a new positivity token at `now`.
+    /// NOTE: The positivity-token ↔ check-in relationship has been removed (Commit 1).
+    /// This function will be replaced with capacity-based logic in Commit 2.
     static func isCheckInSponsorable(checkIn: CheckIn, now: Date = Time.now()) -> Bool {
-        guard checkIn.positivityToken == nil else { return false }
         let elapsed = now.timeIntervalSince(checkIn.createdAt)
         return elapsed >= 0 && elapsed <= windowAfterCheckIn
     }
 
     /// Oldest check-in that still has no linked token and is inside the mint window (FIFO).
-    /// “No token” is `checkIn.positivityToken == nil` on the relationship inverse.
+    /// NOTE: Will be replaced with capacity-based logic in Commit 2.
     static func eligibleCheckIn(
         checkIns: [CheckIn],
         now: Date = Time.now()
     ) -> CheckIn? {
-        for checkIn in checkIns.sorted(by: { $0.createdAt < $1.createdAt }) {
-            guard isCheckInSponsorable(checkIn: checkIn, now: now) else { continue }
-            return checkIn
+        checkIns.sorted(by: { $0.createdAt < $1.createdAt }).first {
+            isCheckInSponsorable(checkIn: $0, now: now)
         }
-        return nil
     }
 
     /// Seconds remaining in the mint window after `checkIn`, or `nil` if the window has closed.

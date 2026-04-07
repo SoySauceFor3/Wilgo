@@ -58,9 +58,6 @@ struct BackfillSheet: View {
 
         let bannerTitle = "Backfill of \(commitment.title) saved for \(formattedDate(selectedDate))"
         checkInUndoManager.enqueue(checkIn: checkIn, title: bannerTitle) {
-            if let token = checkIn.positivityToken {
-                modelContext.delete(token)
-            }
             modelContext.delete(checkIn)
         }
 

@@ -27,10 +27,11 @@ struct MainTabView: View {
     init() {
         let lowerBound = PositivityTokenMinting.recentCheckInsLowerBound()
 
+        // NOTE: positivityToken relationship removed in Commit 1; Commit 6 will replace this
+        // query with capacity-based logic (allTokens / allCheckIns counts).
         _sponsorableCheckIns = Query(
             filter: #Predicate<CheckIn> { checkIn in
-                // the logic is the same as isSponsorableForPositivityToken
-                checkIn.createdAt >= lowerBound && checkIn.positivityToken == nil
+                checkIn.createdAt >= lowerBound
             },
             sort: \CheckIn.createdAt,
             order: .forward
