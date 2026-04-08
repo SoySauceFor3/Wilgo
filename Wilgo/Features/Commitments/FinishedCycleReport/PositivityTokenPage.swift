@@ -74,7 +74,7 @@ private struct CycleResultRow: View {
     }
 
     private func reasonsCopy(for reasons: [String]) -> String {
-        let joined = reasons.joined(separator: ", ")
-        return "Missing this commitment is compensated by your Positivity Tokens: \(joined)"
+        let lines = reasons.map { "• \($0)" }.joined(separator: "\n")
+        return "Missing this commitment is compensated by your Positivity Tokens:\n\(lines)"
     }
 }

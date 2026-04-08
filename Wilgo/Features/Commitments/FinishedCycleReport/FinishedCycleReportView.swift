@@ -18,15 +18,11 @@ struct FinishedCycleReportView: View {
         )
     }
 
-    /// Phase 2: PT compensation applied on top of `preTokenReport`.
-    /// Recomputed whenever either commitments or tokens change.
-    private var finalReport: [CommitmentReport] {
-        AfterPositivityTokenReportBuilder.apply(
-            to: preTokenReport,
-            allTokens: tokens
-        )
-    }
-
+    /// Phase 2: PT compensation applied once and frozen in @State.
+    /// Must NOT be a computed property — PositivityTokenCompensator mutates token.status
+    /// to .used, so recomputing after that mutation would see zero active tokens and
+    /// return an empty result (showing "0 PT used").
+    @State private var finalReport: [CommitmentReport] = []
     @State private var showTokenStep = false
 
     var body: some View {
@@ -51,7 +47,19 @@ struct FinishedCycleReportView: View {
                 }
         }
         .task {
-            if preTokenReport.isEmpty { dismiss() }
+            let report = PreTokenReportBuilder.build(
+                commitments: commitments,
+                startPsychDay: request.startPsychDay,
+                endPsychDay: request.endPsychDay
+            )
+            if report.isEmpty {
+                dismiss()
+                return
+            }
+            finalReport = AfterPositivityTokenReportBuilder.apply(
+                to: report,
+                allTokens: tokens
+            )
         }
         .onChange(of: preTokenReport.isEmpty) { _, isEmpty in
             if isEmpty { dismiss() }
