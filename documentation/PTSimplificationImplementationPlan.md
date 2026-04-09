@@ -22,16 +22,20 @@ Replace the "1-hour window after check-in" minting model with a **capacity-based
 
 ### `PositivityToken` (`Shared/Models/PositivityToken.swift`)
 
+
 | Change                              | Detail                                                                         |
 | ----------------------------------- | ------------------------------------------------------------------------------ |
 | Remove `@Relationship` to `CheckIn` | Delete the `var checkIn: CheckIn?` property and its `@Relationship` decorator. |
 | Remove `checkIn` from `init`        | New signature: `init(reason: String, createdAt: Date = .now)`                  |
 
+
 ### `CheckIn` (`Shared/Models/CheckIn.swift`)
+
 
 | Change                                         | Detail                                                 |
 | ---------------------------------------------- | ------------------------------------------------------ |
 | Remove `var positivityToken: PositivityToken?` | Inverse of the removed relationship — delete entirely. |
+
 
 ### SwiftData migration
 
@@ -90,7 +94,7 @@ Remove: `windowAfterCheckIn`, `isCheckInSponsorable`, `eligibleCheckIn`, `second
 
 - **Mint capacity row** below the summary:
   - When `capacity > 0`: show capacity number (e.g. "2 mints available").
-  - When `capacity == 0`: show disabled state copy: _"Create more check-ins to mint more PTs."_
+  - When `capacity == 0`: show disabled state copy: *"Create more check-ins to mint more PTs."*
 - Toolbar `+` button: enabled when `capacity > 0`, disabled otherwise.
 - Sheet: present `AddPositivityTokenView()` (no sponsoring check-in arg).
 
@@ -123,11 +127,13 @@ private func monthlyBudgetRemaining(tokens: [PositivityToken], cap: Int) -> Int 
 
 Three call sites enqueue check-in undo closures that also delete the linked PT. Remove only the `if let token = checkIn.positivityToken { context.delete(token) }` branches (keep `context.delete(checkIn)`):
 
+
 | File                        | Location                                             |
 | --------------------------- | ---------------------------------------------------- |
 | `WilgoApp.swift`            | `handleDeepLink` → `"done"` case                     |
 | `BackfillSheet.swift`       | undo closure inside `commitBackfill()` or equivalent |
 | `CommitmentStatsCard.swift` | undo closure inside the Done button action           |
+
 
 ### Widget Extension schema
 
@@ -137,7 +143,7 @@ No change required — `PositivityToken.self` stays in the schema list. The widg
 
 ## FinishedCycleReport — "Exact reasons" copy
 
-PRD asks for: _"Missing this commitment is compensated by your Positivity Tokens: {reason1}, {reason2}…"_
+PRD asks for: *"Missing this commitment is compensated by your Positivity Tokens: {reason1}, {reason2}…"*
 
 ### Current state
 
@@ -148,7 +154,7 @@ PRD asks for: _"Missing this commitment is compensated by your Positivity Tokens
 **Option 1 — Return consumed tokens alongside the count map**
 Change `PositivityTokenCompensator.apply` to also return `[String: [PositivityToken]]` (cycleID → ordered consumed tokens). Caller extracts `.reason` from each.
 
-\*Option 2 — Add a `consumedReasons: [String]` field to `CycleReport`\*\*
+Option 2 — Add a `consumedReasons: [String]` field to `CycleReport`
 Thread the reasons directly through the report model. `AfterPositivityTokenReportBuilder`builds`CycleReport`with a populated`consumedReasons` list.
 
 **Decision: Option 2.** Keeps the report model self-contained; callers never need raw token objects in the UI layer. The reasons are already strings; no extra model dependency leaks into `PositivityTokenPage`.
@@ -185,11 +191,11 @@ CycleReport(
 
 In `CycleResultRow`, when `cycle.isAidedByPositivityToken`, replace:
 
-> _"Aided by N positivity token(s)"_
+> *"Aided by N positivity token(s)"*
 
 with PRD copy:
 
-> _"Missing this commitment is compensated by your Positivity Tokens: {reason1}, {reason2}…"_
+> *"Missing this commitment is compensated by your Positivity Tokens: {reason1}, {reason2}…"*
 
 Render as a `Text` view, always expanded (no collapse/expand — no PRD spec for it).
 
@@ -206,7 +212,7 @@ Per PRD "Reminders" section. Items 1–3 are in scope here; items 4–5 are expl
 
 ### PRD items in scope
 
-1. Push notification when capacity increases above 0 — _"Check-in on [commitment] unlocks a Positivity Token slot, come mint one."_ Deep-links to PT page.
+1. Push notification when capacity increases above 0 — *"Check-in on [commitment] unlocks a Positivity Token slot, come mint one."* Deep-links to PT page.
 2. Encouragement copy in PT list when capacity > 0.
 3. Red dot on Main Tab PT icon between capacity increase and first PT page open.
 
@@ -214,7 +220,7 @@ Per PRD "Reminders" section. Items 1–3 are in scope here; items 4–5 are expl
 
 #### Notification delivery — follow `CatchUpReminder` pattern
 
-Add a `**PositivityTokenReminder`\* enum (same shape as `CatchUpReminder`) with:
+Add a `**PositivityTokenReminder` enum (same shape as `CatchUpReminder`) with:
 
 - Its own BGTask identifier: `"wilgo.pt-capacity-reminder"`.
 - An `InAppScheduler` for hourly in-app polling.
@@ -222,11 +228,13 @@ Add a `**PositivityTokenReminder`\* enum (same shape as `CatchUpReminder`) with:
 
 #### Capacity-change detection via UserDefaults watermark
 
+
 | Key                                     | Value                                            |
 | --------------------------------------- | ------------------------------------------------ |
 | `"PTReminder.lastKnownCheckInCount"`    | `Int` — total check-ins last evaluated           |
 | `"PTReminder.capacityBecamePositiveAt"` | `Date?` — when capacity first crossed 0 → >0     |
 | `"PTReminder.notificationSentAt"`       | `Date?` — prevents re-firing for the same window |
+
 
 **Evaluation logic (runs ~hourly):**
 
@@ -263,7 +271,7 @@ Badge logic becomes:
 
 In `ListPositivityTokenView`, when `capacity > 0`, show a section below the summary:
 
-> _"You have [N] check-in[s] worth of positivity to capture. What's been going well?"_
+> *"You have [N] check-in[s] worth of positivity to capture. What's been going well?"*
 
 Pure UI change in `ListView.swift` — no new infrastructure needed.
 
@@ -315,7 +323,7 @@ Tests ship in the **same commit** as the source change they cover.
 
 ---
 
-### Commit 1.5 — Migration hardening _(conditional — only if Commit 1 breaks an existing store)_
+### Commit 1.5 — Migration hardening *(conditional — only if Commit 1 breaks an existing store)*
 
 **Requires:** 1 | **Blocks:** 2, 3  
 **Files:** new `WilgoSchemaV1.swift`, `WilgoSchemaV2.swift`, `WilgoMigrationPlan.swift`; update `WilgoApp.swift`
@@ -355,7 +363,7 @@ Tests ship in the **same commit** as the source change they cover.
 - Remove `sponsoringCheckIn: CheckIn` parameter and all code referencing it.
 - Remove `onReceive(.CheckInRevoked)` handler and `checkInUndoManager.dismissAll()` call.
 - `saveToken()` → `PositivityToken(reason: trimmedReason)` (no check-in arg).
-- _(No new unit tests — view behavior is covered by the minting tests in Commit 2 and manual checklist.)_
+- *(No new unit tests — view behavior is covered by the minting tests in Commit 2 and manual checklist.)*
 
 ---
 
@@ -366,9 +374,9 @@ Tests ship in the **same commit** as the source change they cover.
 
 - Remove `MintWindowBanner`, `TimelineView` wrapper, polling tasks, `sponsoringCheckIn` state, `CheckInRevoked` handler.
 - Add summary section (Created / Used / Active / Monthly budget remaining).
-- Add capacity row: "N mints available" or _"Create more check-ins to mint more PTs."_
+- Add capacity row: "N mints available" or *"Create more check-ins to mint more PTs."*
 - Gate `+` toolbar button and sheet on capacity.
-- _(Seen-flag `.onAppear` wired in Commit 8 — leave a `TODO` comment here.)_
+- *(Seen-flag `.onAppear` wired in Commit 8 — leave a `TODO` comment here.)*
 
 ---
 
@@ -379,7 +387,7 @@ Tests ship in the **same commit** as the source change they cover.
 
 - Replace `sponsorableCheckIns` query + `mintBadgeClock` + `onChange` with `@Query var allTokens` + `@Query var allCheckIns`.
 - Badge: `.badge(mintCapacity > 0 ? 1 : 0)`.
-- _(Seen-flag refinement comes in Commit 8.)_
+- *(Seen-flag refinement comes in Commit 8.)*
 
 ---
 
@@ -416,27 +424,25 @@ Tests ship in the **same commit** as the source change they cover.
 
 **Core (Commits 1–6):**
 
-[x] Mint when `capacity > 0`; cannot mint when `capacity == 0`;
-[x] Undo check-in: check-in removed; PT rows and count unchanged.
-[x] Backfill undo path: same as above.
-[ ] `FinishedCycleReport`: active PTs still compensate misses; monthly cap still respected.
-The correct amount of PT is indeed compensated, but the `FinishedCycleReport` UI does not show the right info: it shows that the 0 PT is used.
-[x] Summary header shows correct Created / Used / Active / Monthly remaining counts.
-[ ] Tab badge shows red dot when capacity > 0 and capacity just increased and before user clicks the PT tab.
-WRONG - It seems that the condition of "capacity just increased" is not handled.
+[x] Mint when `capacity > 0`; cannot mint when `capacity == 0`;  
+[x] Undo check-in: check-in removed; PT rows and count unchanged.  
+[x] Backfill undo path: same as above.  
+[x] `FinishedCycleReport`: active PTs still compensate misses; monthly cap still respected.  
+[x] Summary header shows correct Created / Used / Active / Monthly remaining counts.  
+[x] Tab badge shows red dot when capacity > 0 and capacity just increased and before user clicks the PT tab.  
 [x] `AddPositivityTokenView` no longer references any check-in.
 [x] **Upgrade path:** install old build → create check-ins + PTs → install new build → store opens, data intact.
 [x] Widget launches against shared store after upgrade (smoke).
 
 **Reasons copy (Commit 7):**
 
-[x] Aided cycle in `PositivityTokenPage` shows reason strings, not just count.
-[ ] Unaided and grace cycles show no reasons copy.
+[x] Aided cycle in `PositivityTokenPage` shows reason strings, not just count.  
+[ ] Unaided and grace cycles show no reasons copy. --- need future verification with newly created 
 
-**Notifications (Commit 8):**
-[ ] Push notification fires when new capacity is created.
-Not working reliablly, when the app just launch there is a push notification, but not when i check-in using Widget's AppIntent.
-[ ] Tapping notification navigates to PT list tab.
+**Notifications (Commit 8): ------- POSTPONED, AI did not accomplish this part correctly, so mark it for future. **  
+[ ] Push notification fires when new capacity is created.  
+Not working reliablly, when the app just launch there is a push notification, but not when i check-in using Widget's AppIntent.  
+[ ] Tapping notification navigates to PT list tab.  
 [ ] Notification not re-sent for the same capacity window.
 
 ---
@@ -446,3 +452,5 @@ Not working reliablly, when the app just launch there is a push notification, bu
 - In-app banner when check-in is done while app is open (PRD item 4, "later").
 - Weekly reminder if capacity > 0 and no mint for 7 days (PRD item 5, "maybe").
 - Wordcloud / danmu background in PT list.
+- Notifications for checking-in made not directly on App. 
+
