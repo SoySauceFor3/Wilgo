@@ -11,6 +11,8 @@ struct StageView: View {
     /// Observed only to force a refresh when check-ins are inserted/deleted,
     /// since @Query for Commitment does not re-fire on child relationship changes.
     @Query private var checkIns: [CheckIn]
+    /// Same reason — snoozing a slot must re-evaluate stage status.
+    @Query private var slotSnoozes: [SlotSnooze]
 
     @State private var viewModel = StageViewModel()
 
@@ -97,6 +99,10 @@ struct StageView: View {
             }
             // Check-ins don't surface through the commitments query; watch separately.
             .onChange(of: checkIns) {
+                viewModel.refresh(commitments: commitments)
+            }
+            // SlotSnoozes don't surface through the commitments query; watch separately.
+            .onChange(of: slotSnoozes) {
                 viewModel.refresh(commitments: commitments)
             }
             .onChange(of: scenePhase) { _, phase in

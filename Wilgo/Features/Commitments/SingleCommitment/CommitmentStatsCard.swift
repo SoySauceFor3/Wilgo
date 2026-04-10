@@ -8,6 +8,7 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
     @EnvironmentObject private var checkInUndoManager: CheckInUndoManager
     let slots: [Slot]
     let topRightTitle: String
+    var onSnooze: (() -> Void)? = nil
     @ViewBuilder var topRightContent: () -> TopRightContent
 
     // MARK: - Derived data
@@ -107,7 +108,7 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
             HStack(alignment: .top, spacing: gap) {
                 // Left: 2×4 stats area
                 Grid(horizontalSpacing: gap, verticalSpacing: gap) {
-                    // Row A: Completed (1×2) + Skip credits (1×2)
+                    // Row A: Completed (1×2) + Snooze (1×2, only when onSnooze provided)
                     GridRow {
                         statTile(
                             title:
@@ -130,6 +131,25 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
                         .frame(height: cellWidth)
                         .gridCellColumns(2)
 
+                        if let onSnooze {
+                            Button(action: onSnooze) {
+                                Label("Snooze", systemImage: "moon.zzz.fill")
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .foregroundStyle(.white)
+                            }
+                            .buttonStyle(.plain)
+                            .frame(height: cellWidth)
+                            .gridCellColumns(2)
+                            .background(
+                                RoundedRectangle(cornerRadius: cornerRadius)
+                                    .fill(Color.indigo)
+                            )
+                        } else {
+                            Color.clear
+                                .frame(height: cellWidth)
+                                .gridCellColumns(2)
+                        }
                     }
 
                     // Row B: Last 14 days spanning 4 columns

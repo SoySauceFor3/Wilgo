@@ -6,6 +6,7 @@ struct CurrentCommitmentRow: View {
     let slots: [Slot]
     /// Pre-computed by `StageViewModel`; avoids re-running `stageStatus` per row.
     let behindCount: Int
+    @Environment(\.modelContext) private var modelContext
     @State private var isPresentingDetail = false
     @State private var isPresentingEdit = false
 
@@ -13,7 +14,8 @@ struct CurrentCommitmentRow: View {
         CommitmentStatsCard(
             commitment: commitment,
             slots: slots,
-            topRightTitle: "Current Slot"
+            topRightTitle: "Current Slot",
+            onSnooze: snoozeCurrentSlot
         ) {
             VStack(alignment: .leading, spacing: 2) {
                 Text(slots.first?.timeOfDayText ?? "No slot")
@@ -57,6 +59,18 @@ struct CurrentCommitmentRow: View {
                 EditCommitmentView(commitment: commitment)
             }
         }
+    }
+
+    private func snoozeCurrentSlot() {
+        // slots[0] is the original Slot model object from stageStatus.nextUpSlots.
+        // However, stageStatus returns resolved Slot copies (concrete datetimes) not the
+        // original SwiftData objects. We match back by looking for the original slot whose
+        // time-of-day window contains now.
+        let now = Time.now()
+        guard let originalSlot = commitment.slots.first(where: { $0.isActive(on: now) }) else {
+            return
+        }
+        SlotSnooze.create(slot: originalSlot, at: now, in: modelContext)
     }
 }
 
