@@ -244,6 +244,25 @@ extension Slot {
     }
 }
 
+extension Slot {
+    /// Returns true if this slot's occurrence on the psychDay of `time` has been snoozed.
+    /// Returns false if `time` is outside this slot's active window (no active occurrence → not snoozed).
+    func isSnoozed(at time: Date, calendar: Calendar = Time.calendar) -> Bool {
+        guard self.isActive(on: time, calendar: calendar) else {
+            return false
+        }
+
+        guard let psychDay = try? SlotSnooze.slotPsychDay(slot: self, at: time, calendar: calendar)
+        else {
+            return false
+        }
+
+        return snoozes.contains { snooze in
+            calendar.isDate(snooze.psychDay, inSameDayAs: psychDay)
+        }
+    }
+}
+
 extension Slot: Comparable {
     static func < (lhs: Slot, rhs: Slot) -> Bool {
         if lhs.start == rhs.start {
