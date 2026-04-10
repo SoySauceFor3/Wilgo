@@ -192,28 +192,36 @@ extension Commitment {
         }
 
         // Get all slot occurrences in the target cycle (with concrete datetimes), then sort.
-        var resolvedOccurrences: [Slot] = []
+        // Each entry pairs the resolved occurrence with the original Slot model (for snooze checks).
+        var resolvedPairs: [(occurrence: Slot, original: Slot)] = []
         var dayCursor = startDay
         while dayCursor < endDay {
             for slot in slots {
                 if let occurrence = resolveSlotOccurrence(slot: slot, psychDay: dayCursor) {
-                    resolvedOccurrences.append(occurrence)
+                    resolvedPairs.append((occurrence: occurrence, original: slot))
                 }
             }
             dayCursor = cal.date(byAdding: .day, value: 1, to: dayCursor) ?? endDay
         }
 
-        resolvedOccurrences.sort {
-            if $0.start == $1.start { return $0.end < $1.end } else { return $0.start < $1.start }
+        resolvedPairs.sort {
+            let l = $0.occurrence
+            let r = $1.occurrence
+            if l.start == r.start { return l.end < r.end } else { return l.start < r.start }
         }
 
         // Remaining slot occurrences in the cycle that have not yet ended.
-        let remainingInCycle: [Slot]
-        if let firstNotEndedIndex = resolvedOccurrences.firstIndex(where: { $0.end >= now }) {
-            remainingInCycle = Array(resolvedOccurrences[firstNotEndedIndex...])
+        // Also filter out occurrences that are currently active but snoozed.
+        // Only active occurrences (start <= now) can be snoozed — future ones are always kept.
+        var remainingPairs: [(occurrence: Slot, original: Slot)]
+        if let firstNotEndedIndex = resolvedPairs.firstIndex(where: { $0.occurrence.end >= now }) {
+            remainingPairs = resolvedPairs[firstNotEndedIndex...].filter { pair in
+                !pair.original.isSnoozed(at: now)
+            }
         } else {
-            remainingInCycle = []
+            remainingPairs = []
         }
+        let remainingInCycle = remainingPairs.map(\.occurrence)
 
         let remainingSlotsCount = remainingInCycle.count
         let behindCount = max(0, leftToDo - remainingSlotsCount)
