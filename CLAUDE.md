@@ -29,11 +29,13 @@ When you are in plan mode:
 1. Use `superpowers:subagent-driven-development` skill.
 2. If needed, create worktree branches on `./.worktrees`
 
+# Simulator
 
+1. (Author: Claude, 2026-04-10) Always run iOS Simulator tests and builds on **iPhone 17 (iOS 26.2)**, UDID `4D4E7E2F-1CE5-4697-A734-85AB68DC55D4`. Do not use other devices unless explicitly asked. 
 
 # Repo specific rules
 
 1. When you create/update SwiftData Model definitions:
-  1. When dealing with relationships: prefer direct reference to the other types, instead of using UUID, and remember to include good deletion rule. 
+  1. When dealing with relationships: prefer direct reference to the other types, instead of using UUID, and remember to include good deletion rule.
 2. (Author: Cursor) SwiftData tests: keep a strong reference to `ModelContainer` for the whole test (e.g. `let container = try makeContainer(); let ctx = container.mainContext`). Do not use `makeContainer().mainContext` alone — the context only weakly references the container, and insert/save will crash after the container is released.
 
