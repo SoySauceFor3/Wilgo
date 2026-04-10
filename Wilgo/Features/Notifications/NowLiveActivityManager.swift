@@ -21,7 +21,6 @@ extension ModelContext {
 enum NowLiveActivityManager {
     @MainActor
     private static func apply() async {
-        print("LiveActivityManager.apply()")
         let context = ModelContext.wilgoMain
         let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
         let now = Time.now()
