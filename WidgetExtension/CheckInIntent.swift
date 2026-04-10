@@ -30,7 +30,7 @@ struct CheckInIntent: AppIntent {
             .appendingPathComponent("Library/Application Support", isDirectory: true)
             .appendingPathComponent("default.store")
 
-        let schema = Schema([Commitment.self, Slot.self, CheckIn.self, PositivityToken.self])
+        let schema = Schema([Commitment.self, Slot.self, CheckIn.self, PositivityToken.self, SlotSnooze.self])
         let config = ModelConfiguration(schema: schema, url: storeURL)
         let container = try ModelContainer(for: schema, configurations: [config])
         let context = ModelContext(container)

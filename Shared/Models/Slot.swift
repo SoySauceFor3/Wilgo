@@ -65,6 +65,10 @@ final class Slot {
 
     @Relationship var commitment: Commitment?
 
+    /// Snoozes applied to this slot. Cascade: deleting this slot deletes its snoozes.
+    @Relationship(deleteRule: .cascade, inverse: \SlotSnooze.slot)
+    var snoozes: [SlotSnooze] = []
+
     init(
         start: Date,
         end: Date,
