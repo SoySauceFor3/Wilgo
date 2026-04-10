@@ -101,6 +101,16 @@ struct WilgoApp: App {
                 predicate: #Predicate { $0.id == commitmentUUID })
             deepLinkedCommitment = (try? context.fetch(descriptor))?.first
 
+        case "snooze":
+            guard
+                let slotIdStr = queryValue("slotId"),
+                let slotUUID = UUID(uuidString: slotIdStr)
+            else { return }
+            let slotDescriptor = FetchDescriptor<Slot>(
+                predicate: #Predicate { $0.id == slotUUID })
+            guard let slot = (try? context.fetch(slotDescriptor))?.first else { return }
+            SlotSnooze.create(slot: slot, at: Time.now(), in: context)
+
         case "done":
             guard
                 let commitmentIdStr = queryValue("commitmentId"),
