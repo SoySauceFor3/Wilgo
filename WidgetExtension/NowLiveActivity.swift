@@ -87,6 +87,24 @@ private struct DoneCapsuleLink: View {
     }
 }
 
+private struct SnoozeCapsuleLink: View {
+    let destination: URL
+    var compact: Bool = false
+
+    var body: some View {
+        Link(destination: destination) {
+            Label("Snooze", systemImage: "moon.zzz.fill")
+                .labelStyle(.titleAndIcon)
+                .font(compact ? .caption.weight(.semibold) : .subheadline.weight(.semibold))
+                .padding(.horizontal, compact ? 10 : 14)
+                .padding(.vertical, compact ? 6 : 8)
+                .background(Capsule(style: .continuous).fill(Color.indigo.opacity(0.22)))
+                .foregroundStyle(.indigo)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 private struct SecondaryCommitmentsLine: View {
     let text: String
 
@@ -156,8 +174,12 @@ struct NowLiveActivity: Widget {
                             }
                         }
                         Spacer(minLength: 8)
-                        DoneCapsuleLink(
-                            destination: doneURL(commitmentId: context.state.commitmentId))
+                        HStack(spacing: 6) {
+                            SnoozeCapsuleLink(
+                                destination: snoozeURL(slotId: context.state.slotId))
+                            DoneCapsuleLink(
+                                destination: doneURL(commitmentId: context.state.commitmentId))
+                        }
                     }
                     if !secondaryLine.isEmpty {
                         SecondaryCommitmentsLine(text: secondaryLine)
@@ -202,6 +224,10 @@ struct NowLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
                         Spacer(minLength: 0)
+                        SnoozeCapsuleLink(
+                            destination: snoozeURL(slotId: context.state.slotId),
+                            compact: true
+                        )
                         DoneCapsuleLink(
                             destination: doneURL(commitmentId: context.state.commitmentId),
                             compact: true
@@ -235,6 +261,14 @@ struct NowLiveActivity: Widget {
         components.host = "done"
         components.queryItems = [URLQueryItem(name: "commitmentId", value: commitmentId.uuidString)]
         return components.url ?? URL(string: "wilgo://done")!
+    }
+
+    private func snoozeURL(slotId: UUID) -> URL {
+        var components = URLComponents()
+        components.scheme = "wilgo"
+        components.host = "snooze"
+        components.queryItems = [URLQueryItem(name: "slotId", value: slotId.uuidString)]
+        return components.url ?? URL(string: "wilgo://snooze")!
     }
 
 }
