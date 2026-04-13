@@ -188,7 +188,11 @@ extension Commitment {
             guard slot.isActive(on: start, calendar: cal) else { return nil }
 
             // IMPORTANT: This Slot carries concrete datetimes in start/end.
-            return Slot(start: start, end: end)
+            // Preserve the original slot's id so callers (e.g. SnoozeIntent) can
+            // look up the persisted Slot in the SwiftData store.
+            let resolved = Slot(start: start, end: end)
+            resolved.id = slot.id
+            return resolved
         }
 
         // Get all slot occurrences in the target cycle (with concrete datetimes), then sort.
