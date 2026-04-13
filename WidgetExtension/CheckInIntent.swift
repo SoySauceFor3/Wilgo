@@ -1,4 +1,5 @@
 import AppIntents
+import Foundation
 import SwiftData
 import WidgetKit
 
@@ -46,6 +47,11 @@ struct CheckInIntent: AppIntent {
         commitment.checkIns.append(checkIn)
         try context.save()
 
+        CFNotificationCenterPostNotification(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            CFNotificationName(WilgoConstants.liveActivitySyncNotification as CFString),
+            nil, nil, true
+        )
         WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
 
         return .result()

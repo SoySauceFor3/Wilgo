@@ -75,6 +75,24 @@ enum NowLiveActivityManager {
         )
     }
 
+    /// Registers a Darwin notification observer so that when a widget extension intent
+    /// (CheckInIntent, SnoozeIntent) fires, the Live Activity is refreshed immediately.
+    /// Must be called once at app startup, before any intents can fire.
+    static func startObservingIntentNotifications() {
+        CFNotificationCenterAddObserver(
+            CFNotificationCenterGetDarwinNotifyCenter(),
+            nil,
+            { _, _, _, _, _ in
+                Task { @MainActor in
+                    NowLiveActivityManager.workAndScheduleNextBGTask()
+                }
+            },
+            WilgoConstants.liveActivitySyncNotification as CFString,
+            nil,
+            .deliverImmediately
+        )
+    }
+
     private static let backgroundTaskIdentifier = "wilgo.live-activity-sync"
 
     /// Register the BGAppRefreshTask handler. Must be called before any `submit()` — i.e., before

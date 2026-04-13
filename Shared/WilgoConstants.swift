@@ -7,4 +7,8 @@ enum WilgoConstants {
 
     /// WidgetKit kind string for the Current Commitment widget.
     static let currentCommitmentWidgetKind = "CurrentCommitment"
+
+    /// Darwin notification name posted by widget extension intents (CheckInIntent, SnoozeIntent)
+    /// to signal the main app to refresh the Live Activity state immediately.
+    static let liveActivitySyncNotification = "xyz.soysaucefor3.wilgo.liveActivitySync"
 }
