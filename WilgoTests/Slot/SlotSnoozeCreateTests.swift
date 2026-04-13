@@ -77,7 +77,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
         #expect(snooze != nil)
         #expect(slot.snoozes.count == 1)
 
-        let expectedPsychDay = Time.psychDay(for: time)
+        let expectedPsychDay = Time.startOfDay(for: time)
         #expect(Calendar.current.isDate(snooze!.psychDay, inSameDayAs: expectedPsychDay))
     }
 

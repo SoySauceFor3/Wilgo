@@ -68,7 +68,7 @@ struct AddCommitmentView: View {
     /// Checks if creation is mid-cycle. If so, shows the grace dialog; otherwise saves directly.
     private func handleSaveTap() {
         let cycle = target.cycle
-        let today = Time.psychDay(for: Time.now())
+        let today = Time.startOfDay(for: Time.now())
         let cycleStart = cycle.startDayOfCycle(including: today)
         let cycleEnd = cycle.endDayOfCycle(including: today)
 
@@ -81,7 +81,7 @@ struct AddCommitmentView: View {
     /// Human-readable title for the grace confirmation dialog.
     private var graceDialogTitle: String {
         let cal = Time.calendar
-        let today = Time.psychDay(for: Time.now())
+        let today = Time.startOfDay(for: Time.now())
         var addOn = ""
         switch target.cycle.kind {
         case .weekly:

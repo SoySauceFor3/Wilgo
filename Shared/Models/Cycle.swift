@@ -101,7 +101,7 @@ extension Cycle {
     // TODO: remove this function.
     /// Returns a cycle who start on `time`'s psych-day.
     static func anchored(_ kind: CycleKind, at time: Date, multiplier: Int = 1) -> Cycle {
-        let psychDay = Time.psychDay(for: time)
+        let psychDay = Time.startOfDay(for: time)
         return Cycle(kind: kind, referencePsychDay: psychDay, multiplier: multiplier)
     }
 
@@ -114,7 +114,7 @@ extension Cycle {
     /// so that weekly cycles always start on Monday and monthly cycles on the 1st.
     /// Existing `Cycle` instances and `anchored(_:at:)` are unaffected.
     static func makeDefault(_ kind: CycleKind, on date: Date = Time.now()) -> Cycle {
-        let psychDay = Time.psychDay(for: date)
+        let psychDay = Time.startOfDay(for: date)
         let anchor: Date
         switch kind {
         case .daily:

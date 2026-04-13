@@ -54,12 +54,12 @@ extension Heatmap {
         let isBeforeCreation: Bool
 
         var isCurrent: Bool {
-            let today = Time.psychDay(for: Time.now())
+            let today = Time.startOfDay(for: Time.now())
             return periodStartPsychDay <= today && today < periodEndPsychDay
         }
 
         var isFuture: Bool {
-            let today = Time.psychDay(for: Time.now())
+            let today = Time.startOfDay(for: Time.now())
             return periodStartPsychDay > today
         }
     }
@@ -70,8 +70,8 @@ extension Heatmap {
     struct Context {
         let commitment: Commitment
 
-        var today: Date { Time.psychDay(for: Time.now()) }
-        var createdPsychDay: Date { Time.psychDay(for: commitment.createdAt) }
+        var today: Date { Time.startOfDay(for: Time.now()) }
+        var createdPsychDay: Date { Time.startOfDay(for: commitment.createdAt) }
         var target: Cycle { commitment.target.cycle }
         var cal: Calendar { Time.calendar }
 

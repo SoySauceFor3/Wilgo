@@ -18,11 +18,7 @@ final class CheckIn {
     /// Absolute creation time (treated as UTC ground truth).
     var createdAt: Date
 
-    /// Time zone identifier at creation time (e.g. "America/Los_Angeles").
-    var timeZoneIdentifier: String = TimeZone.current.identifier
-
-    /// Logical "psychological day" for this check-in, based on time zone and day-start rule.
-    /// This is the local calendar day the user psychologically considers this check-in to belong to.
+    /// Calendar day this check-in belongs to (midnight of the local day at creation time).
     var psychDay: Date = Date()
 
     init(
@@ -33,8 +29,6 @@ final class CheckIn {
         self.commitment = commitment
         self.createdAt = createdAt
 
-        let tzId = TimeZone.current.identifier
-        self.timeZoneIdentifier = tzId
-        self.psychDay = Time.psychDay(for: createdAt, timeZoneIdentifier: tzId)
+        self.psychDay = Time.startOfDay(for: createdAt)
     }
 }

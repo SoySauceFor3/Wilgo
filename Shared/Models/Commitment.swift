@@ -94,13 +94,13 @@ extension Commitment {
         return slots.sorted().first(where: {
             time
                 <= Time.resolve(
-                    timeOfDay: $0.start, on: Time.psychDay(for: time))
+                    timeOfDay: $0.start, on: time)
         })
     }
 
     func checkInsInCycle(
         cycle: Cycle,
-        until psychDay: Date = Time.psychDay(for: Time.now()),
+        until psychDay: Date = Time.startOfDay(for: Time.now()),
         inclusive: Bool = true
     ) -> [CheckIn] {
         let start = cycle.startDayOfCycle(including: psychDay)
@@ -144,7 +144,7 @@ extension Commitment {
         now: Date = Time.now()
     ) -> StageStatus {
         let target = self.target
-        let nowPsychDay = Time.psychDay(for: now)
+        let nowPsychDay = Time.startOfDay(for: now)
         let startDay = target.cycle.startDayOfCycle(including: nowPsychDay)
         let endDay = target.cycle.endDayOfCycle(including: nowPsychDay)
         let checkInsInCycle = checkInsInRange(startPsychDay: startDay, endPsychDay: endDay)

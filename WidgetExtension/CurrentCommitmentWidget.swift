@@ -56,7 +56,7 @@ struct CurrentCommitmentProvider: TimelineProvider {
     }
 
     private func buildSnapshots(commitments: [Commitment], now: Date) -> [CommitmentSnapshot] {
-        let psychDay = Time.psychDay(for: now)
+        let psychDay = Time.startOfDay(for: now)
         let shortTime = DateFormatter()
         shortTime.dateFormat = "h:mm a"
         shortTime.amSymbol = "AM"

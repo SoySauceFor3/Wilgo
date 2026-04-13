@@ -44,7 +44,7 @@ private func reportRange() -> FinishedCycleReportRequest? {
     let previousRef = UserDefaults.standard.double(
         forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
     )
-    let nowPsychDay = Time.psychDay(for: Time.now())
+    let nowPsychDay = Time.startOfDay(for: Time.now())
     // Persist watermark updates regardless of whether we show anything.
     UserDefaults.standard.set(
         toPsychDayRef(nowPsychDay),

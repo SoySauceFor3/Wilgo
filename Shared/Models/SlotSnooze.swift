@@ -18,7 +18,7 @@ final class SlotSnooze {
     @Attribute(.unique)
     var id: UUID = UUID()
 
-    /// Logical day this snooze applies to, derived from `Time.psychDay(for: slot.start)`.
+    /// Logical day this snooze applies to, derived from `Time.startOfDay(for: slot.start)`.
     /// Always the psychDay of the **slot's start time**, not the moment snooze was tapped.
     /// For cross-midnight slots (e.g. 11pm–1am), a snooze tapped at 12am Jan 1 records
     /// psychDay = Dec 31 (the psychDay of 11pm).
@@ -92,10 +92,10 @@ extension SlotSnooze {
 
     /// Returns the psychDay of the slot's current occurrence at `time`.
     ///
-    /// For normal slots (start < end), this is `Time.psychDay(for: time)`.
+    /// For normal slots (start < end), this is `Time.startOfDay(for: time)`.
     /// For cross-midnight slots (start > end), if `time` is in the post-midnight portion
     /// (i.e. before the end time), the occurrence started the previous calendar day,
-    /// so we return `Time.psychDay(for: yesterday)`.
+    /// so we return `Time.startOfDay(for: yesterday)`.
     ///
     /// - Throws: `SlotPsychDayError.slotNotActive` if `time` is outside the slot's active window.
     static func slotPsychDay(slot: Slot, at time: Date, calendar: Calendar) throws -> Date {
@@ -110,7 +110,7 @@ extension SlotSnooze {
 
         guard startMinutes >= endMinutes else {
             // Normal (non-cross-midnight) slot: psychDay is derived from time.
-            return Time.psychDay(for: time)
+            return Time.startOfDay(for: time)
         }
 
         // Cross-midnight slot: check if time is in the post-midnight tail (before endMinutes).
@@ -121,10 +121,10 @@ extension SlotSnooze {
         if targetMinutes < startMinutes {
             // Post-midnight portion: this occurrence started yesterday.
             let yesterday = calendar.date(byAdding: .day, value: -1, to: time) ?? time
-            return Time.psychDay(for: yesterday)
+            return Time.startOfDay(for: yesterday)
         } else {
             // Pre-midnight portion: occurrence starts today.
-            return Time.psychDay(for: time)
+            return Time.startOfDay(for: time)
         }
     }
 

@@ -16,7 +16,7 @@ struct CommitmentDetailView: View {
     // MARK: - Derived data
 
     private var psychToday: Date {
-        Time.psychDay(for: Time.now())
+        Time.startOfDay(for: Time.now())
     }
 
     private var checkInsInCurrentTargetCycle: [CheckIn] {

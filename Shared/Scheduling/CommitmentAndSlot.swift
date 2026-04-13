@@ -110,7 +110,7 @@ enum CommitmentAndSlot {
         }
         // Wake up exactly at the next psychDay boundary so the Stage resets on time
         // even when no slot transitions remain in the current day.
-        let currentPsychDayBase = Time.psychDay(for: now)
+        let currentPsychDayBase = Time.startOfDay(for: now)
         if let nextPsychDayBase = Time.calendar.date(
             byAdding: .day, value: 1, to: currentPsychDayBase)
         {

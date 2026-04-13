@@ -99,7 +99,7 @@ struct EditCommitmentView: View {
             return
         }
         let newCycle = Cycle.makeDefault(target.cycle.kind)
-        let today = Time.psychDay(for: Time.now())
+        let today = Time.startOfDay(for: Time.now())
         pendingCycleStart = newCycle.startDayOfCycle(including: today)
         pendingCycleEnd = newCycle.endDayOfCycle(including: today)
         showingGraceDialog = true

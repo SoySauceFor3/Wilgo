@@ -633,11 +633,11 @@ struct MiniCommitmentHeatmapRow: View {
     let daysToShow: Int
 
     private var psychToday: Date {
-        Time.psychDay(for: Time.now())
+        Time.startOfDay(for: Time.now())
     }
 
     private var createdPsychDay: Date {
-        Time.psychDay(for: commitment.createdAt)
+        Time.startOfDay(for: commitment.createdAt)
     }
 
     private var completionsByDay: [Date: Int] {

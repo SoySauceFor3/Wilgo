@@ -30,22 +30,9 @@ enum Time {
         ) ?? base
     }
 
-    /// Logical "psychological day" for a given moment, using the specified time zone and day-start offset.
-    /// The result is a Date pinned to the start of that psychological day.
-    static func psychDay(
-        for utcTime: Date,
-        timeZoneIdentifier: String = TimeZone.current.identifier
-    ) -> Date {
-        var cal = calendar
-        cal.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? calendar.timeZone
-
-        // Shift back by the day-start offset before taking the calendar day.
-        let shifted = utcTime
-        let comps = cal.dateComponents([.year, .month, .day], from: shifted)
-        guard let result = cal.date(from: comps) else {
-            fatalError("Time.psychDay: Failed to create date from components: \(comps)")
-        }
-        return result
+    /// Returns midnight of the calendar day containing `date`.
+    static func startOfDay(for time: Date) -> Date {
+        calendar.startOfDay(for: time)
     }
 }
 

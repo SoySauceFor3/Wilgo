@@ -17,7 +17,7 @@ struct StageView: View {
     @State private var viewModel = StageViewModel()
 
     private var todayTitle: String {
-        let today = Time.psychDay(for: Time.now())
+        let today = Time.startOfDay(for: Time.now())
         let date = today.formatted(
             date: .abbreviated, time: .omitted)
 
