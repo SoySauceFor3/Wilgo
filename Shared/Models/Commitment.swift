@@ -94,7 +94,7 @@ extension Commitment {
         return slots.sorted().first(where: {
             time
                 <= Time.resolve(
-                    timeOfDay: $0.start, psychDay: Time.psychDay(for: time))
+                    timeOfDay: $0.start, on: Time.psychDay(for: time))
         })
     }
 
@@ -157,8 +157,8 @@ extension Commitment {
         let cal = Time.calendar
 
         func resolveSlotOccurrence(slot: Slot, psychDay: Date) -> Slot? {
-            let start = Time.resolve(timeOfDay: slot.start, psychDay: psychDay)
-            var end = Time.resolve(timeOfDay: slot.end, psychDay: psychDay)
+            let start = Time.resolve(timeOfDay: slot.start, on: psychDay)
+            var end = Time.resolve(timeOfDay: slot.end, on: psychDay)
             if end <= start {
                 end = cal.date(byAdding: .day, value: 1, to: end) ?? end
             }

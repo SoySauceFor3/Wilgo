@@ -11,32 +11,23 @@ enum Time {
     /// Production code must never call `Date()` directly — use `Time.now()` instead.
     static var now: () -> Date = { Date() }
 
-    /// Resolves a time-of-day `Date` to its concrete `Date` within the
-    /// current psychDay, accounting for `dayStartHourOffset`.
-    ///
-    /// Example: `dayStartHourOffset` = 14 (2 pm).
-    /// Passing a 2 am time-of-day on Jan 1 psychological day returns Jan 2 02:00,
-    /// because 2 am sits in the overnight tail of that same psych day.
-    ///
-    /// With the default offset of 0 this behaves identically to stamping the time on psychDay.
+    /// Stamps the hour and minute from `timeOfDay` onto the calendar day of `day`.
+    /// Precondition:
+    /// timeOfDay: Only take hour and minute from this
+    /// day:  does not have to be the start of the day
     static func resolve(
         timeOfDay: Date,  // Only take hour and minute from this
-        psychDay: Date = now()
+        on day: Date = now()  // Does not have to be the start of the day
     ) -> Date {
-        // Just to make sure psychDay is cleaned up.
-        let psychDay = calendar.startOfDay(for: psychDay)
-        // Times >= offset fall on the psych-day-start calendar date.
-        // Times < offset are in the overnight tail and fall on the following calendar date.
+        let base = calendar.startOfDay(for: day)
         let timeHour = calendar.component(.hour, from: timeOfDay)
         let timeMinute = calendar.component(.minute, from: timeOfDay)
-        let baseDate = psychDay
-
         return calendar.date(
             bySettingHour: timeHour,
             minute: timeMinute,
             second: 0,
-            of: baseDate
-        ) ?? baseDate
+            of: base
+        ) ?? base
     }
 
     /// Logical "psychological day" for a given moment, using the specified time zone and day-start offset.
