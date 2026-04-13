@@ -80,7 +80,7 @@ struct WilgoApp: App {
 
     // MARK: - Deep link handling
 
-    /// Handles `wilgo://done?commitmentId=...` deep links produced by the Live Activity's Done button.
+    /// Handles deep links for opening commitments and other deeplink actions.
     @MainActor
     private func handleDeepLink(_ url: URL) {
         guard url.scheme == "wilgo" else { return }
@@ -100,35 +100,6 @@ struct WilgoApp: App {
             let descriptor = FetchDescriptor<Commitment>(
                 predicate: #Predicate { $0.id == commitmentUUID })
             deepLinkedCommitment = (try? context.fetch(descriptor))?.first
-
-        case "snooze":
-            guard
-                let slotIdStr = queryValue("slotId"),
-                let slotUUID = UUID(uuidString: slotIdStr)
-            else { return }
-            let slotDescriptor = FetchDescriptor<Slot>(
-                predicate: #Predicate { $0.id == slotUUID })
-            guard let slot = (try? context.fetch(slotDescriptor))?.first else { return }
-            SlotSnooze.create(slot: slot, at: Time.now(), in: context)
-
-        case "done":
-            guard
-                let commitmentIdStr = queryValue("commitmentId"),
-                let commitmentUUID = UUID(uuidString: commitmentIdStr)
-            else { return }
-            let descriptor = FetchDescriptor<Commitment>(
-                predicate: #Predicate { $0.id == commitmentUUID })
-            guard let commitment = (try? context.fetch(descriptor))?.first else { return }
-            let checkIn = CheckIn(commitment: commitment)
-            context.insert(checkIn)
-            commitment.checkIns.append(checkIn)  // keep inverse in sync immediately, as inverse relationship propogation takes time.
-            checkInUndoManager.enqueue(
-                checkIn: checkIn, title: "A check-in made for \(commitment.title)"
-            ) {
-                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                    context.delete(checkIn)
-                }
-            }
 
         default:
             break
