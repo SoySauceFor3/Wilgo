@@ -75,16 +75,6 @@ final class Commitment {
 // MARK: - Slot queries
 
 extension Commitment {
-    /// Number of check-ins on the given psychological day.
-    func completedCount(for psychDay: Date) -> Int {
-        return checkIns.filter({ $0.psychDay == psychDay }).count
-    }
-
-    /// Slots not yet completed on the given psychological day, in order.
-    func unfinishedSlots(for psychDay: Date) -> [Slot] {
-        return Array(slots.sorted().dropFirst(completedCount(for: psychDay)))
-    }
-
     /// The first slot whose window overlaps with `now`, skipping excluded ones.
     func firstCurrentSlot(
         now: Date = Time.now(),
@@ -106,11 +96,6 @@ extension Commitment {
                 <= Time.resolve(
                     timeOfDay: $0.start, psychDay: Time.psychDay(for: time))
         })
-    }
-
-    func hasMetDailyGoal(for psychDay: Date) -> Bool {
-        // TODO: THIS NEED TO CHANGED!!!!!!!!!!!!!!!!
-        return completedCount(for: psychDay) >= target.count
     }
 
     func checkInsInCycle(
