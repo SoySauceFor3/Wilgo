@@ -4,6 +4,7 @@
 //
 
 import ActivityKit
+import AppIntents
 import SwiftUI
 import WidgetKit
 
@@ -70,11 +71,11 @@ private struct LiveActivitySparkleIcon: View {
 }
 
 private struct DoneCapsuleLink: View {
-    let destination: URL
+    let commitmentId: UUID
     var compact: Bool = false
 
     var body: some View {
-        Link(destination: destination) {
+        Button(intent: CheckInIntent(commitmentId: commitmentId)) {
             Label("Done", systemImage: "checkmark.circle.fill")
                 .labelStyle(.titleAndIcon)
                 .font(compact ? .caption.weight(.semibold) : .subheadline.weight(.semibold))
@@ -88,11 +89,11 @@ private struct DoneCapsuleLink: View {
 }
 
 private struct SnoozeCapsuleLink: View {
-    let destination: URL
+    let slotId: UUID
     var compact: Bool = false
 
     var body: some View {
-        Link(destination: destination) {
+        Button(intent: SnoozeIntent(slotId: slotId)) {
             Label("Snooze", systemImage: "moon.zzz.fill")
                 .labelStyle(.titleAndIcon)
                 .font(compact ? .caption.weight(.semibold) : .subheadline.weight(.semibold))
@@ -153,7 +154,7 @@ struct NowLiveActivity: Widget {
             )
             let secondaryLine = formatSecondaryTitlesLine(titles: context.state.secondaryTitles)
 
-            return HStack(alignment: .top, spacing: 12) {
+            HStack(alignment: .top, spacing: 12) {
                 LiveActivitySparkleIcon(diameter: 40)
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .top, spacing: 10) {
@@ -175,10 +176,8 @@ struct NowLiveActivity: Widget {
                         }
                         Spacer(minLength: 8)
                         HStack(spacing: 6) {
-                            SnoozeCapsuleLink(
-                                destination: snoozeURL(slotId: context.state.slotId))
-                            DoneCapsuleLink(
-                                destination: doneURL(commitmentId: context.state.commitmentId))
+                            SnoozeCapsuleLink(slotId: context.state.slotId)
+                            DoneCapsuleLink(commitmentId: context.state.commitmentId)
                         }
                     }
                     if !secondaryLine.isEmpty {
@@ -224,14 +223,8 @@ struct NowLiveActivity: Widget {
                 DynamicIslandExpandedRegion(.bottom) {
                     HStack {
                         Spacer(minLength: 0)
-                        SnoozeCapsuleLink(
-                            destination: snoozeURL(slotId: context.state.slotId),
-                            compact: true
-                        )
-                        DoneCapsuleLink(
-                            destination: doneURL(commitmentId: context.state.commitmentId),
-                            compact: true
-                        )
+                        SnoozeCapsuleLink(slotId: context.state.slotId, compact: true)
+                        DoneCapsuleLink(commitmentId: context.state.commitmentId, compact: true)
                         Spacer(minLength: 0)
                     }
                 }
@@ -251,24 +244,6 @@ struct NowLiveActivity: Widget {
             }
             .keylineTint(Color.accentColor)
         }
-    }
-
-    // MARK: - URL helpers
-
-    private func doneURL(commitmentId: UUID) -> URL {
-        var components = URLComponents()
-        components.scheme = "wilgo"
-        components.host = "done"
-        components.queryItems = [URLQueryItem(name: "commitmentId", value: commitmentId.uuidString)]
-        return components.url ?? URL(string: "wilgo://done")!
-    }
-
-    private func snoozeURL(slotId: UUID) -> URL {
-        var components = URLComponents()
-        components.scheme = "wilgo"
-        components.host = "snooze"
-        components.queryItems = [URLQueryItem(name: "slotId", value: slotId.uuidString)]
-        return components.url ?? URL(string: "wilgo://snooze")!
     }
 
 }
