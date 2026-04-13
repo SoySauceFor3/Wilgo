@@ -8,9 +8,6 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @AppStorage(AppSettings.dayStartHourKey)
-    private var dayStartHour: Int = 0
-
     @AppStorage(AppSettings.positivityTokenMonthlyCapKey)
     private var positivityTokenMonthlyCap: Int = 0
 

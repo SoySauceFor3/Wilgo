@@ -10,9 +10,6 @@ import Foundation
 import SwiftUI
 
 enum AppSettings {
-    /// Hour (0–12) when the "commitment day" begins. Default: 0 (midnight).
-    static let dayStartHourKey = "dayStartHour"
-
     /// Monthly cap for positivity token usage (instead of creation). Default: 5.
     static let positivityTokenMonthlyCapKey = "positivityTokenMonthlyCap"
 

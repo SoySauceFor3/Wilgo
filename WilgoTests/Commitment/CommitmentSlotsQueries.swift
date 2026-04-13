@@ -62,20 +62,7 @@ private func makeCommitment(
     return commitment
 }
 
-// MARK: - UserDefaults isolation
-//
-// Time.dayStartHourOffset reads UserDefaults.standard live. In a
-// unit-test host the standard suite IS the real app's suite (shared with device
-// data), so we must save and restore the value around every test.
-//
-// Using class-based suites gives us `deinit` which Swift Testing calls after
-// each individual test, making it the right teardown hook.
-
 // MARK: - completedCount
-//
-// Counts check-ins whose psychDay matches psychDay(for: now).
-// Tests pin dayStartHourOffset = 0 (midnight day-start) so psychDay is simply
-// midnight of the local calendar day, regardless of the device's Settings value.
 
 @Suite("Commitment slots queries", .serialized)
 struct SlotsQueriesTests {
@@ -87,17 +74,13 @@ struct SlotsQueriesTests {
         private static let fakeNow = date(year: 2000, month: 1, day: 1, hour: 12)
 
         private let savedNow = Time.now
-        private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
 
         init() {
-            UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey)
             Time.now = { return CommitmentFirstCurrentSlotTests.fakeNow }
         }
 
         deinit {
             let savedNow = savedNow
-            let savedOffset = savedOffset
-            UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey)
             Time.now = savedNow
         }
 
@@ -191,17 +174,6 @@ struct SlotsQueriesTests {
 
     @Suite("Commitment — firstSlotAfter")
     final class CommitmentFirstSlotAfterTests {
-        private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
-
-        init() {
-            UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey)
-        }
-
-        deinit {
-            let savedOffset = savedOffset
-            UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey)
-        }
-
         @Test("slot in the future → returned")
         @MainActor func futureSlotReturned() throws {
             let container = try makeContainer()

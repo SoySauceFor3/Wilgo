@@ -35,16 +35,6 @@ private func makeContainer() throws -> ModelContainer {
 
 @Suite("FinishedCycleReportBuilder", .serialized)
 struct FinishedCycleReportBuilderTests: ~Copyable {
-    private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
-
-    init() {
-        UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey)
-    }
-
-    deinit {
-        UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey)
-    }
-
     @Test("build uses multiple tokens to compensate one cycle")
     @MainActor
     func buildCompensatesWithMultipleTokens() throws {

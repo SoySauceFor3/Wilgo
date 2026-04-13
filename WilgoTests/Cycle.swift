@@ -98,10 +98,6 @@ struct CyclePeriodMathTests {
     @Suite("Cycle — weekly startDayOfCycle")
     final class WeeklyPeriodStartTests {
 
-        private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
-        init() { UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey) }
-        deinit { UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey) }
-
         @Test("date is the anchor weekday → period starts today")
         func anchorWeekdayIsToday() {
             // anchor = Thu Mar 5, date = Thu Mar 5 → period starts Mar 5
@@ -154,10 +150,6 @@ struct CyclePeriodMathTests {
 
     @Suite("Cycle — monthly startDayOfCycle")
     final class MonthlyPeriodStartTests {
-
-        private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
-        init() { UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey) }
-        deinit { UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey) }
 
         @Test("today matches the anchor day → period starts today")
         func anchorDayIsToday() {
@@ -213,10 +205,6 @@ struct CyclePeriodMathTests {
 
     @Suite("Cycle — monthly endDayOfCycle")
     final class MonthlyEndDayTests {
-
-        private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
-        init() { UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey) }
-        deinit { UserDefaults.standard.set(savedOffset, forKey: AppSettings.dayStartHourKey) }
 
         @Test("normal month: next period starts on same day-of-month one month later")
         func normalMonthAdvancesOneMonth() {

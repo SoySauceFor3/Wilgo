@@ -63,13 +63,6 @@ private func makeSlotAndInsert(
 @Suite("SlotSnooze.create", .serialized)
 struct SlotSnoozeCreateTests: ~Copyable {
 
-    private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
-    init() { UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey) }
-    deinit {
-        let saved = savedOffset
-        UserDefaults.standard.set(saved, forKey: AppSettings.dayStartHourKey)
-    }
-
     // MARK: Happy path
 
     @Test("create for an active slot → returns a SlotSnooze with correct psychDay")

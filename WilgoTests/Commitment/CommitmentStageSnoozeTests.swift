@@ -8,13 +8,6 @@ import Testing
 @Suite("Commitment.stageStatus — snooze filtering", .serialized)
 final class CommitmentStageSnoozeTests {
 
-    private let savedOffset = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
-    init() { UserDefaults.standard.set(0, forKey: AppSettings.dayStartHourKey) }
-    deinit {
-        let saved = savedOffset
-        UserDefaults.standard.set(saved, forKey: AppSettings.dayStartHourKey)
-    }
-
     // MARK: - Helpers
 
     @MainActor
