@@ -114,8 +114,7 @@ enum CommitmentAndSlot {
         if let nextPsychDayBase = Time.calendar.date(
             byAdding: .day, value: 1, to: currentPsychDayBase)
         {
-            let nextPsychDayStart = nextPsychDayBase.addingTimeInterval(
-                TimeInterval(Time.dayStartHourOffset * 3_600))
+            let nextPsychDayStart = nextPsychDayBase
             if nextPsychDayStart > now { candidates.append(nextPsychDayStart) }
         }
         return candidates.min()

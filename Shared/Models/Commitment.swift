@@ -156,12 +156,6 @@ extension Commitment {
 
         let cal = Time.calendar
 
-        func psychDayStartTime(_ psychDay: Date) -> Date {
-            // psychDay is pinned to midnight; real day start is midnight + offset.
-            psychDay.addingTimeInterval(
-                TimeInterval(Time.dayStartHourOffset * 3_600))
-        }
-
         func resolveSlotOccurrence(slot: Slot, psychDay: Date) -> Slot? {
             let start = Time.resolve(timeOfDay: slot.start, psychDay: psychDay)
             var end = Time.resolve(timeOfDay: slot.end, psychDay: psychDay)
@@ -225,7 +219,7 @@ extension Commitment {
         }
 
         // Else if there is slot in the rest of the psych-day, it's future.
-        let todayStart = psychDayStartTime(nowPsychDay)
+        let todayStart = nowPsychDay
         let todayEnd = todayStart.addingTimeInterval(24 * 60 * 60)
         let hasSlotInRestOfPsychDay = remainingInCycle.contains { $0.start < todayEnd }
         if hasSlotInRestOfPsychDay {

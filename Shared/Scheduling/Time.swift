@@ -11,14 +11,6 @@ enum Time {
     /// Production code must never call `Date()` directly — use `Time.now()` instead.
     static var now: () -> Date = { Date() }
 
-    /// Hour of day when a "psych day" starts. Reads live from UserDefaults so it
-    /// always reflects the value the user last set in Settings without a restart.
-    static var dayStartHourOffset: Int {
-        let stored = UserDefaults.standard.integer(forKey: AppSettings.dayStartHourKey)
-        // integer(forKey:) returns 0 when the key is absent, which is our desired default.
-        return stored
-    }
-
     /// Resolves a time-of-day `Date` to its concrete `Date` within the
     /// current psychDay, accounting for `dayStartHourOffset`.
     ///
@@ -29,8 +21,7 @@ enum Time {
     /// With the default offset of 0 this behaves identically to stamping the time on psychDay.
     static func resolve(
         timeOfDay: Date,  // Only take hour and minute from this
-        psychDay: Date = psychDay(for: now()),
-        dayStartHourOffset: Int = dayStartHourOffset
+        psychDay: Date = now()
     ) -> Date {
         // Just to make sure psychDay is cleaned up.
         let psychDay = calendar.startOfDay(for: psychDay)
@@ -38,12 +29,7 @@ enum Time {
         // Times < offset are in the overnight tail and fall on the following calendar date.
         let timeHour = calendar.component(.hour, from: timeOfDay)
         let timeMinute = calendar.component(.minute, from: timeOfDay)
-        let baseDate: Date
-        if timeHour >= dayStartHourOffset {
-            baseDate = psychDay
-        } else {
-            baseDate = calendar.date(byAdding: .day, value: 1, to: psychDay)!
-        }
+        let baseDate = psychDay
 
         return calendar.date(
             bySettingHour: timeHour,
@@ -57,14 +43,13 @@ enum Time {
     /// The result is a Date pinned to the start of that psychological day.
     static func psychDay(
         for utcTime: Date,
-        timeZoneIdentifier: String = TimeZone.current.identifier,
-        dayStartHourOffset: Int = dayStartHourOffset
+        timeZoneIdentifier: String = TimeZone.current.identifier
     ) -> Date {
         var cal = calendar
         cal.timeZone = TimeZone(identifier: timeZoneIdentifier) ?? calendar.timeZone
 
         // Shift back by the day-start offset before taking the calendar day.
-        let shifted = utcTime.addingTimeInterval(TimeInterval(-dayStartHourOffset * 60 * 60))
+        let shifted = utcTime
         let comps = cal.dateComponents([.year, .month, .day], from: shifted)
         guard let result = cal.date(from: comps) else {
             fatalError("Time.psychDay: Failed to create date from components: \(comps)")
