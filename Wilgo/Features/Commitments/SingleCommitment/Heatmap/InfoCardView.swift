@@ -85,7 +85,7 @@ struct CommitmentHeatmapInfoCard: View {
     private func checkInRow(_ checkIn: CheckIn) -> some View {
         let isPending = pendingDeleteID == checkIn.id
         HStack(spacing: 6) {
-            Text(checkIn.createdAt.formatted(date: .omitted, time: .shortened))
+            Text(checkInTimestamp(checkIn.createdAt))
                 .font(.system(size: 11))
                 .foregroundStyle(.secondary)
 
@@ -157,6 +157,23 @@ struct CommitmentHeatmapInfoCard: View {
         if count < goal { return "Partial" }
         if count == goal { return "Goal met ✓" }
         return "+\(count - goal) over goal"
+    }
+
+    private func checkInTimestamp(_ date: Date) -> String {
+        switch heatmapKind {
+        case .daily:
+            return date.formatted(date: .omitted, time: .shortened)
+        case .weekly:
+            // "Mon, Apr 7, 9:03 AM"
+            let fmt = DateFormatter()
+            fmt.dateFormat = "EEE, MMM d, h:mm a"
+            return fmt.string(from: date)
+        case .monthly:
+            // "Apr 7, 9:03 AM"
+            let fmt = DateFormatter()
+            fmt.dateFormat = "MMM d, h:mm a"
+            return fmt.string(from: date)
+        }
     }
 
     private func sourceLabel(for source: CheckInSource) -> String? {
