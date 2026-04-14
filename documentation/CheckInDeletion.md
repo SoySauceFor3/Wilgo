@@ -25,7 +25,7 @@ Allow users to delete any check-in at any time, surfaced naturally within the ex
 - Source label (if applicable): **"widget"**, **"lock screen"**, or **"backfilled"**. Normal in-app check-ins show no label.
 - A **−** (minus) button on the right.
 
-1. **Mis-tap protection:** tapping − puts the row into a pending-delete state (row highlights red, button label changes to "Confirm") for **1 second**. A second tap within that window confirms deletion. If no second tap, the row resets to normal.
+1. **Mis-tap protection:** tapping − puts the row into a pending-delete state (row highlights red, button label changes to "Confirm"). A second tap confirms deletion. The pending state persists until confirmed or the card is dismissed.
 2. An **"Add check-in"** button at the bottom of the info card opens `BackfillSheet` pre-constrained to the selected tile's date range.
 3. Deleting a check-in immediately updates the heatmap cell color and stats (SwiftData change propagation).
 
