@@ -7,11 +7,22 @@ struct ListCommitmentView: View {
     @State private var isPresentingAddCommitment: Bool = false
     @State private var commitmentForDetail: Commitment?
     @State private var commitmentForEdit: Commitment?
+    @State private var selectedFilterTagIDs: Set<UUID> = []
+
+    private var filteredCommitments: [Commitment] {
+        if selectedFilterTagIDs.isEmpty {
+            return commitments
+        }
+        return commitments.filter { c in
+            c.tags.contains { selectedFilterTagIDs.contains($0.id) }
+        }
+    }
 
     var body: some View {
         NavigationStack {
+            TagFilterChipsView(selectedTagIDs: $selectedFilterTagIDs)
             List {
-                ForEach(commitments) { commitment in
+                ForEach(filteredCommitments) { commitment in
                     CommitmentRowView(commitment: commitment)
                         .contentShape(Rectangle())
                         .onTapGesture { commitmentForDetail = commitment }
@@ -56,7 +67,7 @@ struct ListCommitmentView: View {
     private func deleteCommitments(offsets: IndexSet) {
         withAnimation {
             for index in offsets {
-                modelContext.delete(commitments[index])
+                modelContext.delete(filteredCommitments[index])
             }
         }
     }
