@@ -37,6 +37,17 @@ When you are in plan mode:
 
 1. (Author: Claude, 2026-04-10) Always run iOS Simulator tests and builds on **iPhone 17 (iOS 26.2)**, UDID `4D4E7E2F-1CE5-4697-A734-85AB68DC55D4`. Do not use other devices unless explicitly asked.
 
+# Build & Test
+
+1. (Author: Claude, 2026-04-14) **Stale SourceKit warnings are pre-existing and should be ignored.** After a build or test run, warnings with `vitality: stale` in `XcodeListNavigatorIssues` are leftover from a prior build and do NOT indicate regressions. Known pre-existing stale warnings:
+   - `CatchUpReminder.swift:15` — Swift 6 main-actor isolation warning
+   - SwiftData macro generated file — main-actor `Encodable` conformance warning
+   - `CheckInUndoManager.swift:121` — non-optional `??` warning
+   Only treat warnings/errors as actionable if they are **not** stale, or if the build itself fails.
+2. (Author: Claude, 2026-04-14) **Pre-existing failing test — do not count as a regression.** The following test was already failing before any new work:
+   - `CommitmentStageSnoozeTests/stageStatus_snoozeDoesNotAffectFutureOccurrence()` — failing as of 2026-04-14, cause unknown. Do not treat this as caused by your changes.
+3. (Author: Claude, 2026-04-14) **Run tests via `xcodebuild`, not the Xcode MCP `RunAllTests` tool.** The MCP tool runs against the physical device and reports all tests as "not run" when the device is unavailable. Always use: `xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo -destination 'platform=iOS Simulator,id=4D4E7E2F-1CE5-4697-A734-85AB68DC55D4'`
+
 # Repo specific rules
 
 1. When you create/update SwiftData Model definitions:
