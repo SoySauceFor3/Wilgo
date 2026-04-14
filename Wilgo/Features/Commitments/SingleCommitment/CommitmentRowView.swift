@@ -73,6 +73,13 @@ struct CommitmentRowView: View {
                     )
                     .foregroundStyle(.blue)
             }
+
+            if !commitment.tags.isEmpty {
+                Text(commitment.tags.sorted { $0.displayOrder < $1.displayOrder || ($0.displayOrder == $1.displayOrder && $0.createdAt < $1.createdAt) }
+                    .map(\.name).joined(separator: ", "))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         }
         .padding(.vertical, 4)
         .contentShape(Rectangle())
