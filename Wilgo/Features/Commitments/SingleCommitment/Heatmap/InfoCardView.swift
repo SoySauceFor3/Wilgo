@@ -124,22 +124,12 @@ struct CommitmentHeatmapInfoCard: View {
 
     private func handleDeleteTap(_ checkIn: CheckIn) {
         if pendingDeleteID == checkIn.id {
-            // Second tap within 1s — confirm delete
+            // Second tap — confirm delete
             onDelete(checkIn)
             pendingDeleteID = nil
         } else {
-            // First tap — arm pending state. Capture only the Sendable UUID,
-            // not the non-Sendable CheckIn model object, to satisfy Swift 6 concurrency.
-            let capturedID = checkIn.id
-            pendingDeleteID = capturedID
-            Task {
-                try? await Task.sleep(for: .seconds(1))
-                await MainActor.run {
-                    if pendingDeleteID == capturedID {
-                        pendingDeleteID = nil
-                    }
-                }
-            }
+            // First tap — arm pending state. No timeout; user must tap again to confirm or tap elsewhere to dismiss.
+            pendingDeleteID = checkIn.id
         }
     }
 

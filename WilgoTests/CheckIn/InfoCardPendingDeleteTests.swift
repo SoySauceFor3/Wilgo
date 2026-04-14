@@ -45,24 +45,14 @@ final class PendingDeleteStateMachine {
     private(set) var deletedCheckIn: CheckIn? = nil
 
     /// Simulates tapping the − button for a given check-in.
-    /// `autoResetDelay`: how many seconds before pending resets (mirrors the 1-second Task.sleep).
-    func handleDeleteTap(_ checkIn: CheckIn, autoResetDelay: Duration = .seconds(1)) {
+    func handleDeleteTap(_ checkIn: CheckIn) {
         if pendingDeleteID == checkIn.id {
             // Second tap — confirm delete
             deletedCheckIn = checkIn
             pendingDeleteID = nil
         } else {
-            // First tap — arm pending state
+            // First tap — arm pending state (no timeout)
             pendingDeleteID = checkIn.id
-            let capturedID = checkIn.id
-            Task {
-                try? await Task.sleep(for: autoResetDelay)
-                await MainActor.run {
-                    if self.pendingDeleteID == capturedID {
-                        self.pendingDeleteID = nil
-                    }
-                }
-            }
         }
     }
 }
@@ -82,50 +72,29 @@ struct InfoCardPendingDeleteTests {
         let machine = PendingDeleteStateMachine()
         #expect(machine.pendingDeleteID == nil)
 
-        machine.handleDeleteTap(checkIn, autoResetDelay: .seconds(60))  // long delay — won't fire
+        machine.handleDeleteTap(checkIn)
 
         #expect(machine.pendingDeleteID == checkIn.id)
         #expect(machine.deletedCheckIn == nil)
     }
 
-    /// Tapping minus twice in quick succession (second tap before auto-reset) confirms deletion.
-    @Test func secondTapWithinWindowConfirmsDelete() throws {
+    /// Tapping minus twice confirms deletion.
+    @Test func secondTapConfirmsDelete() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
         let checkIn = makeCheckIn(ctx: ctx)
 
         let machine = PendingDeleteStateMachine()
 
-        machine.handleDeleteTap(checkIn, autoResetDelay: .seconds(60))  // arm
+        machine.handleDeleteTap(checkIn)  // arm
         #expect(machine.pendingDeleteID == checkIn.id)
 
-        machine.handleDeleteTap(checkIn, autoResetDelay: .seconds(60))  // confirm
+        machine.handleDeleteTap(checkIn)  // confirm
         #expect(machine.deletedCheckIn == checkIn)
         #expect(machine.pendingDeleteID == nil)
     }
 
-    /// Tapping minus once, then waiting past the auto-reset window, resets pendingDeleteID
-    /// without calling onDelete.
-    @Test func pendingResetsAfterTimeout() async throws {
-        let container = try makeContainer()
-        let ctx = container.mainContext
-        let checkIn = makeCheckIn(ctx: ctx)
-
-        let machine = PendingDeleteStateMachine()
-
-        // Use a very short auto-reset delay for the test
-        machine.handleDeleteTap(checkIn, autoResetDelay: .milliseconds(50))
-        #expect(machine.pendingDeleteID == checkIn.id)
-
-        // Wait longer than the auto-reset delay
-        try await Task.sleep(for: .milliseconds(200))
-
-        #expect(machine.pendingDeleteID == nil)
-        #expect(machine.deletedCheckIn == nil)
-    }
-
-    /// Tapping minus for check-in A, then for check-in B (before A's timeout) switches
-    /// pendingDeleteID to B without deleting A.
+    /// Tapping minus for check-in A, then for check-in B, switches pendingDeleteID to B without deleting A.
     @Test func tappingDifferentCheckInSwitchesPending() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
@@ -134,16 +103,15 @@ struct InfoCardPendingDeleteTests {
 
         let machine = PendingDeleteStateMachine()
 
-        machine.handleDeleteTap(checkInA, autoResetDelay: .seconds(60))
+        machine.handleDeleteTap(checkInA)
         #expect(machine.pendingDeleteID == checkInA.id)
 
-        machine.handleDeleteTap(checkInB, autoResetDelay: .seconds(60))
+        machine.handleDeleteTap(checkInB)
         #expect(machine.pendingDeleteID == checkInB.id)
         #expect(machine.deletedCheckIn == nil)
     }
 
-    /// After a confirmed delete, tapping minus on the same check-in again starts a fresh
-    /// pending cycle (re-arms rather than immediately deleting again).
+    /// After a confirmed delete, tapping minus again re-arms rather than immediately deleting.
     @Test func afterDeleteFirstTapRearmsState() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
@@ -151,14 +119,12 @@ struct InfoCardPendingDeleteTests {
 
         let machine = PendingDeleteStateMachine()
 
-        // First delete cycle
-        machine.handleDeleteTap(checkIn, autoResetDelay: .seconds(60))
-        machine.handleDeleteTap(checkIn, autoResetDelay: .seconds(60))
+        machine.handleDeleteTap(checkIn)
+        machine.handleDeleteTap(checkIn)
         #expect(machine.deletedCheckIn == checkIn)
         #expect(machine.pendingDeleteID == nil)
 
-        // Second arm — pendingDeleteID should be set again, not immediately deleted
-        machine.handleDeleteTap(checkIn, autoResetDelay: .seconds(60))
+        machine.handleDeleteTap(checkIn)
         #expect(machine.pendingDeleteID == checkIn.id)
     }
 
