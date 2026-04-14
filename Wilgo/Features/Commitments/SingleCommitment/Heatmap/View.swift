@@ -1,5 +1,6 @@
 import SwiftData
 import SwiftUI
+import WidgetKit
 
 // Shared heatmap layout constants so smaller views (e.g. stage row) stay aligned.
 private let cellSize: CGFloat = 11
@@ -159,8 +160,11 @@ extension Heatmap {
 struct CommitmentHeatmapView: View {
     let commitment: Commitment
 
+    @Environment(\.modelContext) private var modelContext
+
     @State private var heatmapKind: CycleKind = .daily
     @State private var selectedPeriod: Heatmap.PeriodData? = nil
+    @State private var backfillPeriod: Heatmap.PeriodData? = nil
     private var context: Heatmap.Context { Heatmap.Context(commitment: commitment) }
 
     var body: some View {
@@ -177,12 +181,31 @@ struct CommitmentHeatmapView: View {
                     heatmapKind: heatmapKind,
                     targetKind: context.target.kind,
                     selectedPeriod: $selectedPeriod,
+                    onDelete: { checkIn in
+                        modelContext.delete(checkIn)
+                        // Dismiss the info card immediately — its PeriodData still holds
+                        // a reference to the now-deleted CheckIn, and accessing any property
+                        // on a SwiftData tombstone crashes.
+                        selectedPeriod = nil
+                        WidgetCenter.shared.reloadTimelines(
+                            ofKind: WilgoConstants.currentCommitmentWidgetKind)
+                    },
+                    onAddCheckIn: { backfillPeriod = selectedPeriod }
                 )
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .animation(.spring(duration: 0.22), value: selectedPeriod?.id)
         .animation(.spring(duration: 0.22), value: heatmapKind)
+        .sheet(item: $backfillPeriod) { period in
+            BackfillSheet(
+                commitment: commitment,
+                dateRange: period.periodStartPsychDay...period.periodEndPsychDay.addingTimeInterval(
+                    -1)
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     private var heatmapKindPicker: some View {

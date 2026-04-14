@@ -8,6 +8,7 @@ struct CommitmentHeatmapInfoCard: View {
     let targetKind: CycleKind
     @Binding var selectedPeriod: Heatmap.PeriodData?
     var onDelete: (CheckIn) -> Void = { _ in }
+    var onAddCheckIn: (() -> Void)? = nil
 
     @State private var pendingDeleteID: UUID? = nil
 
@@ -55,6 +56,18 @@ struct CommitmentHeatmapInfoCard: View {
                         ForEach(sorted, id: \.id) { checkIn in
                             checkInRow(checkIn)
                         }
+                    }
+
+                    if let onAddCheckIn {
+                        Button {
+                            onAddCheckIn()
+                        } label: {
+                            Label("Add check-in", systemImage: "plus.circle")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.top, 2)
                     }
                 }
             }
