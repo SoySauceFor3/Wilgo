@@ -52,7 +52,7 @@ struct BackfillSheet: View {
     }
 
     private func addBackfill() {
-        let checkIn = CheckIn(commitment: commitment, createdAt: selectedDate)
+        let checkIn = CheckIn(commitment: commitment, createdAt: selectedDate, source: .backfill)
         modelContext.insert(checkIn)
         commitment.checkIns.append(checkIn)
 

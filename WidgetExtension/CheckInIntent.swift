@@ -9,10 +9,17 @@ struct CheckInIntent: AppIntent {
     @Parameter(title: "Commitment ID")
     var commitmentId: String  // UUID isn't directly supported as an AppIntent parameter type.
 
-    init() { self.commitmentId = "" }
+    @Parameter(title: "Source")
+    var sourceRaw: String
 
-    init(commitmentId: UUID) {
+    init() {
+        self.commitmentId = ""
+        self.sourceRaw = CheckInSource.widget.rawValue
+    }
+
+    init(commitmentId: UUID, source: CheckInSource) {
         self.commitmentId = commitmentId.uuidString
+        self.sourceRaw = source.rawValue
     }
 
     func perform() async throws -> some IntentResult {
@@ -42,7 +49,8 @@ struct CheckInIntent: AppIntent {
             return .result()
         }
 
-        let checkIn = CheckIn(commitment: commitment)
+        let source = CheckInSource(rawValue: sourceRaw) ?? .widget
+        let checkIn = CheckIn(commitment: commitment, source: source)
         context.insert(checkIn)
         commitment.checkIns.append(checkIn)
         try context.save()

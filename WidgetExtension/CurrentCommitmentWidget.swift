@@ -273,7 +273,7 @@ private struct CommitmentCardView: View {
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
 
-                    Button(intent: CheckInIntent(commitmentId: snapshot.commitmentId)) {
+                    Button(intent: CheckInIntent(commitmentId: snapshot.commitmentId, source: .widget)) {
                         Image(
                             systemName: snapshot.isOverTarget ? "plus.circle" : "plus.circle.fill"
                         )

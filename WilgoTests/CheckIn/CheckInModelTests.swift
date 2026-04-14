@@ -109,3 +109,36 @@ struct CheckInModelTests {
         #expect(fetchedSources == Set(sources))
     }
 }
+
+// MARK: - CheckInIntent source decoding contract
+//
+// CheckInIntent (WidgetExtension target) is not importable from WilgoTests, so we verify
+// the source-decoding contract it relies on: `CheckInSource(rawValue: sourceRaw) ?? .widget`.
+
+@Suite("CheckInIntentSourceDecoding")
+struct CheckInIntentSourceDecodingTests {
+
+    /// sourceRaw "widget" decodes to .widget (normal widget button path).
+    @Test func widgetRawValueDecodesToWidget() {
+        let source = CheckInSource(rawValue: "widget") ?? .widget
+        #expect(source == .widget)
+    }
+
+    /// sourceRaw "liveActivity" decodes to .liveActivity (Live Activity button path).
+    @Test func liveActivityRawValueDecodesToLiveActivity() {
+        let source = CheckInSource(rawValue: "liveActivity") ?? .widget
+        #expect(source == .liveActivity)
+    }
+
+    /// An invalid sourceRaw falls back to .widget (defensive default in CheckInIntent.perform()).
+    @Test func invalidRawValueFallsBackToWidget() {
+        let source = CheckInSource(rawValue: "invalid_garbage") ?? .widget
+        #expect(source == .widget)
+    }
+
+    /// Empty sourceRaw also falls back to .widget.
+    @Test func emptyRawValueFallsBackToWidget() {
+        let source = CheckInSource(rawValue: "") ?? .widget
+        #expect(source == .widget)
+    }
+}

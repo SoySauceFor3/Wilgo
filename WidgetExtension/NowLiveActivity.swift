@@ -75,7 +75,7 @@ private struct DoneCapsuleLink: View {
     var compact: Bool = false
 
     var body: some View {
-        Button(intent: CheckInIntent(commitmentId: commitmentId)) {
+        Button(intent: CheckInIntent(commitmentId: commitmentId, source: .liveActivity)) {
             Label("Done", systemImage: "checkmark.circle.fill")
                 .labelStyle(.titleAndIcon)
                 .font(compact ? .caption.weight(.semibold) : .subheadline.weight(.semibold))
