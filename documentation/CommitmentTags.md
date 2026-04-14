@@ -14,7 +14,8 @@ Users with growing commitment lists need organization. This adds a lightweight *
 ## Architecture Summary
 
 - New `Tag` SwiftData `@Model` entity with a native many-to-many relationship to `Commitment` (direct object references, `deleteRule: .nullify` on both sides).
-- `Tag` is added to the main app `Schema` only — **not** to the Widget Extension (it reads commitments but doesn't need tags; SwiftData is forward-compatible).
+- `Tag` must be added to **both** the main app `Schema` and linked to the **Widget Extension** target. The Widget Extension doesn't query tags, but since `Commitment` now has a `tags: [Tag]` relationship, the extension must be able to see the `Tag` type to compile.
+- In test files, use `Wilgo.Tag` (not `Tag`) when calling `FetchDescriptor<>` or adding to `Schema([])` — Swift Testing framework has its own `Tag` type that causes ambiguity.
 - All existing test `makeContainer()` helpers need `Tag.self` added to their `Schema`.
 - No migration plan needed — adding a new entity with default `[]` relationship is a lightweight migration SwiftData handles automatically.
 
@@ -29,7 +30,7 @@ Users with growing commitment lists need organization. This adds a lightweight *
 **Why not a separate ordered list?** A central `TagOrder` model or a global ordered-ID array would add unnecessary complexity for a feature of this scale. `displayOrder: Int` is the standard SwiftData/CoreData pattern and works fine.
 
 **Risk: duplicate `displayOrder` values.** This can happen if there is a bug in the reorder logic. Mitigations:
-- Never assume uniqueness — always sort by `displayOrder` then break ties deterministically (e.g. by `id`).
+- Never assume uniqueness — always sort by `displayOrder` then break ties by `createdAt` (older tag first). `Tag` carries a `createdAt: Date` field exactly for this purpose.
 - When reordering, always renumber **all** tags sequentially (not just the moved one). This means any duplicates are self-healing after the next reorder.
 
 **Default value for new tags:** No static default — the correct value depends on existing data. New tags use `(allTags.map(\.displayOrder).max() ?? -1) + 1`, which appends to the end. First tag gets `0`.
@@ -56,7 +57,7 @@ SwiftData requires the delete rule to be declared on both sides of a relationshi
 
 | Entity                             | Change                                                                                                        |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------- |
-| **New:** `Shared/Models/Tag.swift` | `@Model` with `id: UUID`, `name: String`, `createdAt: Date`, `displayOrder: Int`, `commitments: [Commitment]` |
+| **New:** `Shared/Models/Tag.swift` | `@Model` with `id: UUID`, `name: String`, `displayOrder: Int`, `createdAt: Date`, `commitments: [Commitment]` — `createdAt` is used as tie-breaker when `displayOrder` values are equal |
 | `Shared/Models/Commitment.swift`   | Add `@Relationship(deleteRule: .nullify, inverse: \Tag.commitments) var tags: [Tag] = []`                     |
 | `Wilgo/WilgoApp.swift`             | Add `Tag.self` to `Schema([...])`                                                                             |
 | All test `makeContainer()` helpers | Add `Tag.self`                                                                                                |
