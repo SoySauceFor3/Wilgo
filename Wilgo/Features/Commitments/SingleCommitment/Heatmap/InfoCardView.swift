@@ -1,4 +1,5 @@
 import Foundation
+import SwiftData
 import SwiftUI
 
 struct CommitmentHeatmapInfoCard: View {
@@ -6,6 +7,9 @@ struct CommitmentHeatmapInfoCard: View {
     let heatmapKind: CycleKind
     let targetKind: CycleKind
     @Binding var selectedPeriod: Heatmap.PeriodData?
+    var onDelete: (CheckIn) -> Void = { _ in }
+
+    @State private var pendingDeleteID: UUID? = nil
 
     var body: some View {
         let color = Heatmap.cellColor(for: period)
@@ -47,12 +51,10 @@ struct CommitmentHeatmapInfoCard: View {
                     }
 
                     if !period.checkIns.isEmpty {
-                        Text(
-                            period.checkIns.map { $0.createdAt.formatted() }.joined(
-                                separator: "  ·  ")
-                        )
-                        .font(.system(size: 11))
-                        .foregroundStyle(.tertiary)
+                        let sorted = period.checkIns.sorted { $0.createdAt < $1.createdAt }
+                        ForEach(sorted, id: \.id) { checkIn in
+                            checkInRow(checkIn)
+                        }
                     }
                 }
             }
@@ -64,6 +66,68 @@ struct CommitmentHeatmapInfoCard: View {
         .background(Color(.tertiarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 9))
         .onTapGesture { selectedPeriod = nil }
+    }
+
+    @ViewBuilder
+    private func checkInRow(_ checkIn: CheckIn) -> some View {
+        let isPending = pendingDeleteID == checkIn.id
+        HStack(spacing: 6) {
+            Text(checkIn.createdAt.formatted(date: .omitted, time: .shortened))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+
+            if let label = sourceLabel(for: checkIn.source) {
+                Text(label)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.secondary)
+            }
+
+            Spacer()
+
+            Button {
+                handleDeleteTap(checkIn)
+            } label: {
+                if isPending {
+                    Text("Confirm")
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(.red)
+                } else {
+                    Text("−")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(
+            isPending
+                ? Color.red.opacity(0.15)
+                : Color.clear
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 5))
+    }
+
+    private func handleDeleteTap(_ checkIn: CheckIn) {
+        if pendingDeleteID == checkIn.id {
+            // Second tap within 1s — confirm delete
+            onDelete(checkIn)
+            pendingDeleteID = nil
+        } else {
+            // First tap — arm pending state. Capture only the Sendable UUID,
+            // not the non-Sendable CheckIn model object, to satisfy Swift 6 concurrency.
+            let capturedID = checkIn.id
+            pendingDeleteID = capturedID
+            Task {
+                try? await Task.sleep(for: .seconds(1))
+                await MainActor.run {
+                    if pendingDeleteID == capturedID {
+                        pendingDeleteID = nil
+                    }
+                }
+            }
+        }
     }
 
     private func periodLabel(_ period: Heatmap.PeriodData) -> String {
@@ -91,6 +155,15 @@ struct CommitmentHeatmapInfoCard: View {
         if count == goal { return "Goal met ✓" }
         return "+\(count - goal) over goal"
     }
+
+    private func sourceLabel(for source: CheckInSource) -> String? {
+        switch source {
+        case .app: return nil
+        case .widget: return "widget"
+        case .liveActivity: return "lock screen"
+        case .backfill: return "backfilled"
+        }
+    }
 }
 
 // MARK: - Previews
@@ -116,7 +189,8 @@ private struct CommitmentHeatmapInfoCardPreviewWrapper: View {
                 period: selected ?? period,
                 heatmapKind: heatmapKind,
                 targetKind: .daily,
-                selectedPeriod: $selected
+                selectedPeriod: $selected,
+                onDelete: { _ in }
             )
 
             Text("selectedPeriod: \(selected == nil ? "nil" : "set")")
@@ -176,6 +250,60 @@ private enum CommitmentHeatmapInfoCardPreviewData {
             isBeforeCreation: false
         )
     }
+
+    /// Container + period for previewing the per-row delete UI (check-ins with various sources).
+    static func dailyWithCheckInsContainer() -> (ModelContainer, Heatmap.PeriodData) {
+        let container = try! ModelContainer(
+            for: Commitment.self, Slot.self, CheckIn.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
+        )
+        let ctx = container.mainContext
+
+        let commitment = Commitment(
+            title: "Preview Commitment",
+            slots: [],
+            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 2)
+        )
+        ctx.insert(commitment)
+
+        let start = todayStart
+        let end = Time.calendar.date(byAdding: .day, value: 1, to: start) ?? start
+
+        let ci1 = CheckIn(
+            commitment: commitment,
+            createdAt: start.addingTimeInterval(9 * 3600 + 3 * 60),  // 9:03 AM
+            source: .app
+        )
+        ctx.insert(ci1)
+        commitment.checkIns.append(ci1)
+
+        let ci2 = CheckIn(
+            commitment: commitment,
+            createdAt: start.addingTimeInterval(11 * 3600 + 45 * 60),  // 11:45 AM
+            source: .widget
+        )
+        ctx.insert(ci2)
+        commitment.checkIns.append(ci2)
+
+        let ci3 = CheckIn(
+            commitment: commitment,
+            createdAt: start.addingTimeInterval(14 * 3600),  // 2:00 PM
+            source: .liveActivity
+        )
+        ctx.insert(ci3)
+        commitment.checkIns.append(ci3)
+
+        let period = Heatmap.PeriodData(
+            id: start,
+            periodStartPsychDay: start,
+            periodEndPsychDay: end,
+            goal: 2,
+            checkIns: [ci1, ci2, ci3],
+            isBeforeCreation: false
+        )
+
+        return (container, period)
+    }
 }
 
 #Preview("Info card — before tracking") {
@@ -197,4 +325,13 @@ private enum CommitmentHeatmapInfoCardPreviewData {
         heatmapKind: .weekly,
         period: CommitmentHeatmapInfoCardPreviewData.weeklyNoGoal
     )
+}
+
+#Preview("Info card — with check-ins (delete UI)") {
+    let (container, period) = CommitmentHeatmapInfoCardPreviewData.dailyWithCheckInsContainer()
+    CommitmentHeatmapInfoCardPreviewWrapper(
+        heatmapKind: .daily,
+        period: period
+    )
+    .modelContainer(container)
 }
