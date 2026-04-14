@@ -47,6 +47,10 @@ struct SettingsView: View {
                     )
                 }
 
+                Section("Tags") {
+                    NavigationLink("Tags", destination: TagsSettingsView())
+                }
+
                 #if DEBUG
                     Section {
                         DatePicker(
