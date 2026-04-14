@@ -11,7 +11,10 @@ When you are in plan mode:
 
 1. PRD: First focus on planing the feature's expected behavor, UI/UX, PRD like elements. Light considerations about implementations like feasibility are OK, but the focus should NOT be implementation. I need to review and say yes to this document before moving on to implementation design. Most of the time I will write PRD in Notion.
 2. Second, you plan on implementation in a seperate file (most of time in `./documentation/`). Always
-  1. Link to the PRD, bi-directional.
+  1. Have a "header" recording some metadata
+    1. Link to the PRD, bi-directional.
+    2. Tracking link: I will provide you. If not, ASK ME. 
+    3. The #tag to use for commit messages (see below): a concise name of the "thing" you are working on, e.g. `#PTSimplification` `#commitmentEncouragement`
   2. summarize the overall solution/architecture,
   3. record major model changes
   4. document major alternatives, their pros and cons and why choose the direction we choose
@@ -20,18 +23,18 @@ When you are in plan mode:
     2. declare the dependency between commits, so parallel sub-agent can work.
     3. For each commit, include Unit Test of the actual code change. Make sure testing coverage is as much as possible.
     4. Make it clear when you need manual verification/interception, e.g. if you need me to manually verify a migration works in testing iphone.
-    5. The commit message:
-      1. include a `#tag` of a concise name of the "thing" you are working on, e.g. `#PTSimplification` `#commitmentEncouragement`
-      2. Include the link to the tracking to-do in notion, I will provide this in the implementation markdown file. If NOT, ASK ME.
 
 ## When you execute
 
 1. Use `superpowers:subagent-driven-development` skill.
 2. If needed, create worktree branches on `./.worktrees`
+3. at the end of the commit message:
+  1. include the `#tag` provided in the implementation markdown file. If NOT, ASK ME. 
+  2. Include a separate line as `tracking: {trackingLink}`. TrackingLink is a link to the tracking to-do in notion, which is provided in the implementation markdown file. If NOT, ASK ME.
 
 # Simulator
 
-1. (Author: Claude, 2026-04-10) Always run iOS Simulator tests and builds on **iPhone 17 (iOS 26.2)**, UDID `4D4E7E2F-1CE5-4697-A734-85AB68DC55D4`. Do not use other devices unless explicitly asked. 
+1. (Author: Claude, 2026-04-10) Always run iOS Simulator tests and builds on **iPhone 17 (iOS 26.2)**, UDID `4D4E7E2F-1CE5-4697-A734-85AB68DC55D4`. Do not use other devices unless explicitly asked.
 
 # Repo specific rules
 
