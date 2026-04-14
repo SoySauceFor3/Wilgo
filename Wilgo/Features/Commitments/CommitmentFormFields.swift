@@ -1,3 +1,4 @@
+import SwiftData
 import SwiftUI
 
 struct CommitmentFormFields: View {
@@ -7,6 +8,7 @@ struct CommitmentFormFields: View {
     @Binding var proofOfWorkType: ProofOfWorkType
     @Binding var punishment: String
     @Binding var encouragements: [String]
+    @Binding var selectedTags: [Tag]
 
     var body: some View {
         Section("Basics") {
@@ -50,6 +52,8 @@ struct CommitmentFormFields: View {
             }
             .pickerStyle(.segmented)
         }
+
+        TagPickerSection(selectedTags: $selectedTags)
     }
 
     // MARK: - Helpers

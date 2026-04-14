@@ -14,6 +14,7 @@ struct EditCommitmentView: View {
     @State private var proofOfWorkType: ProofOfWorkType
     @State private var punishment: String
     @State private var encouragements: [String]
+    @State private var selectedTags: [Tag]
 
     /// Snapshot of rule values at open time, used to detect if any rule changed.
     private let originalTarget: Target
@@ -36,6 +37,7 @@ struct EditCommitmentView: View {
         _proofOfWorkType = State(initialValue: commitment.proofOfWorkType)
         _punishment = State(initialValue: commitment.punishment ?? "")
         _encouragements = State(initialValue: commitment.encouragements)
+        _selectedTags = State(initialValue: commitment.tags)
 
         originalTarget = commitment.target
     }
@@ -49,7 +51,8 @@ struct EditCommitmentView: View {
                     target: $target,
                     proofOfWorkType: $proofOfWorkType,
                     punishment: $punishment,
-                    encouragements: $encouragements
+                    encouragements: $encouragements,
+                    selectedTags: $selectedTags
                 )
             }
             .navigationTitle("Edit Commitment")
@@ -137,6 +140,7 @@ struct EditCommitmentView: View {
             }
         }
         commitment.target = target
+        commitment.tags = selectedTags
 
         // Replace slots only if the count or any window changed.
         let newWindows = slotWindows
