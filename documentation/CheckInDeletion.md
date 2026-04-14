@@ -1,6 +1,6 @@
 # Check-In Deletion
 
-**Notion:** https://www.notion.so/Allow-checkIn-deletion-not-just-during-undo-banner-33b4b58e32c380ed9564c29da5af2c79
+**Tracking:** [https://www.notion.so/Allow-checkIn-deletion-not-just-during-undo-banner-33b4b58e32c380ed9564c29da5af2c79](https://www.notion.so/Allow-checkIn-deletion-not-just-during-undo-banner-33b4b58e32c380ed9564c29da5af2c79)
 
 **Tag:** `#CheckInDeletion`
 
@@ -20,17 +20,18 @@ Allow users to delete any check-in at any time, surfaced naturally within the ex
 
 1. User taps a heatmap tile → info card appears (existing behavior).
 2. Info card now shows each check-in as its own row, with:
-   - Timestamp
-   - Source label (if applicable): **"widget"**, **"lock screen"**, or **"backfilled"**. Normal in-app check-ins show no label.
-   - A **−** (minus) button on the right.
-3. **Mis-tap protection:** tapping − puts the row into a pending-delete state (row highlights red, button label changes to "Confirm") for **1 second**. A second tap within that window confirms deletion. If no second tap, the row resets to normal.
-4. An **"Add check-in"** button at the bottom of the info card opens `BackfillSheet` pre-constrained to the selected tile's date range.
-5. Deleting a check-in immediately updates the heatmap cell color and stats (SwiftData change propagation).
+
+- Timestamp
+- Source label (if applicable): **"widget"**, **"lock screen"**, or **"backfilled"**. Normal in-app check-ins show no label.
+- A **−** (minus) button on the right.
+
+1. **Mis-tap protection:** tapping − puts the row into a pending-delete state (row highlights red, button label changes to "Confirm") for **1 second**. A second tap within that window confirms deletion. If no second tap, the row resets to normal.
+2. An **"Add check-in"** button at the bottom of the info card opens `BackfillSheet` pre-constrained to the selected tile's date range.
+3. Deleting a check-in immediately updates the heatmap cell color and stats (SwiftData change propagation).
 
 ### UI Mockup
 
-Mockup HTML saved at:
-`.superpowers/brainstorm/84369-1776149847/content/infocard-delete.html`
+Mockup HTML saved [here](.superpowers/brainstorm/84369-1776149847/content/infocard-delete.html)
 → Option **A** (inline delete rows) was selected.
 
 ### Out of Scope
@@ -49,7 +50,7 @@ Add a `source` field to `CheckIn` (SwiftData migration), thread the source throu
 
 ### Model Change
 
-**`CheckIn.swift`** — add `source: CheckInSource` with default `.app`.
+`**CheckIn.swift` — add `source: CheckInSource` with default `.app`.
 
 ```swift
 enum CheckInSource: String, Codable {
@@ -64,22 +65,22 @@ SwiftData will handle the migration automatically via the default value (`.app` 
 
 ### Major Alternatives Considered
 
-| Option | Decision |
-|---|---|
-| Source label only on widget/LA check-ins | ✅ Chosen — less noise |
-| Source label on all check-ins (including `.app`) | Rejected — redundant for the normal case |
-| Swipe-to-delete (Option B) | Rejected — gesture conflicts with horizontal heatmap scroll; less discoverable |
-| Separate "Check-in History" view | Rejected — heatmap tile tap already scopes to a period, no new nav needed |
+
+| Option                                           | Decision                                                                       |
+| ------------------------------------------------ | ------------------------------------------------------------------------------ |
+| Source label only on widget/LA check-ins         | ✅ Chosen — less noise                                                          |
+| Source label on all check-ins (including `.app`) | Rejected — redundant for the normal case                                       |
+| Swipe-to-delete (Option B)                       | Rejected — gesture conflicts with horizontal heatmap scroll; less discoverable |
+| Separate "Check-in History" view                 | Rejected — heatmap tile tap already scopes to a period, no new nav needed      |
+
 
 ---
 
 ## Commit Plan
 
-Dependencies: Commits 1–3 are independent of each other but all must land before Commit 4.
-
 ---
 
-### Commit 1 — `#CheckInDeletion` Add `CheckInSource` enum + `source` field to `CheckIn` model
+### Commit 1 — Add `CheckInSource` enum + `source` field to `CheckIn` model
 
 **Files:** `Shared/Models/CheckIn.swift`
 
@@ -93,11 +94,12 @@ Dependencies: Commits 1–3 are independent of each other but all must land befo
 
 ---
 
-### Commit 2 — `#CheckInDeletion` Thread `source` through all check-in creation call sites
+### Commit 2 — Thread `source` through all check-in creation call sites
 
 **Depends on:** Commit 1
 
 **Files:**
+
 - `WidgetExtension/CheckInIntent.swift` — add `source` parameter to `CheckInIntent`; add `var sourceRaw: String` parameter (`.widget`)
 - `WidgetExtension/NowLiveActivity.swift` — pass `source: .liveActivity` to `CheckInIntent`; widget button passes `source: .widget`
 - `Wilgo/Features/Commitments/Backfill/BackfillSheet.swift` — pass `source: .backfill` to `CheckIn` init
@@ -111,13 +113,14 @@ Dependencies: Commits 1–3 are independent of each other but all must land befo
 
 ---
 
-### Commit 3 — `#CheckInDeletion` Augment `CommitmentHeatmapInfoCard` with per-row delete UI + pending-delete state
+### Commit 3 — Augment `CommitmentHeatmapInfoCard` with per-row delete UI + pending-delete state
 
 **Depends on:** Commit 1
 
 **Files:** `Wilgo/Features/Commitments/SingleCommitment/Heatmap/InfoCardView.swift`
 
 Changes:
+
 - Replace the joined timestamp string with a `ForEach` over `period.checkIns`, each row showing:
   - Timestamp (`createdAt` formatted as time)
   - Source label (if not `.app`): "widget", "lock screen", "backfilled"
@@ -132,15 +135,17 @@ Changes:
 
 ---
 
-### Commit 4 — `#CheckInDeletion` Wire delete + backfill-from-tile into `CommitmentHeatmapView`
+### Commit 4 — Wire delete + backfill-from-tile into `CommitmentHeatmapView`
 
 **Depends on:** Commits 2 + 3
 
 **Files:**
+
 - `Wilgo/Features/Commitments/SingleCommitment/Heatmap/View.swift`
 - `Wilgo/Features/Commitments/SingleCommitment/CommitmentDetailView.swift`
 
 Changes in `CommitmentHeatmapView`:
+
 - Pass `onDelete` closure to `CommitmentHeatmapInfoCard`:
   ```swift
   modelContext.delete(checkIn)
@@ -152,6 +157,7 @@ Changes in `CommitmentHeatmapView`:
 - `.sheet(item: $backfillPeriod)` presents `BackfillSheet` with `dateRange` derived from the period's `periodStartPsychDay...periodEndPsychDay`
 
 **Tests:**
+
 - Integration test: insert a `CheckIn`, render `CommitmentHeatmapView`, trigger delete → verify `CheckIn` is removed from context.
 - Integration test: tap "Add check-in" on a daily tile → verify `BackfillSheet` opens with the correct date range.
 
