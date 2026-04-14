@@ -200,8 +200,8 @@ struct CommitmentHeatmapView: View {
         .sheet(item: $backfillPeriod) { period in
             BackfillSheet(
                 commitment: commitment,
-                dateRange: period.periodStartPsychDay...period.periodEndPsychDay.addingTimeInterval(
-                    -1)
+                dateRange: period.periodStartPsychDay...min(
+                    period.periodEndPsychDay.addingTimeInterval(-1), Date.now)
             )
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)

@@ -66,7 +66,7 @@ struct CommitmentDetailView: View {
                 }
             }
             .sheet(isPresented: $isPresentingBackfill) {
-                BackfillSheet(commitment: commitment)
+                BackfillSheet(commitment: commitment, dateRange: Date.distantPast...Date.now)
                     .presentationDetents([.medium])
                     .presentationDragIndicator(.visible)
             }
