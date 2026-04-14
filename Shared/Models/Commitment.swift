@@ -46,6 +46,9 @@ final class Commitment {
 
     var encouragements: [String] = []
 
+    @Relationship(deleteRule: .nullify, inverse: \Tag.commitments)
+    var tags: [Tag] = []  // nullify: deleting a Tag removes it from this array; Commitment survives
+
     init(
         title: String,
         createdAt: Date = .now,

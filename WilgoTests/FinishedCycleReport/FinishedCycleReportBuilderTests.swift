@@ -28,6 +28,7 @@ private func makeContainer() throws -> ModelContainer {
         Slot.self,
         CheckIn.self,
         PositivityToken.self,
+        Tag.self,
     ])
     let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
     return try ModelContainer(for: schema, configurations: [config])

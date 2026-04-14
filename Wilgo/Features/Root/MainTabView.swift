@@ -49,7 +49,7 @@ struct MainTabView: View {
         .environment(PTBadgeState())
         .modelContainer(
             try! ModelContainer(
-                for: Commitment.self, Slot.self, CheckIn.self, PositivityToken.self,
+                for: Commitment.self, Slot.self, CheckIn.self, PositivityToken.self, Tag.self,
                 configurations: ModelConfiguration(isStoredInMemoryOnly: true)
             )
         )

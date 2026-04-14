@@ -64,7 +64,7 @@ struct ListCommitmentView: View {
 
 private func makePreviewContainerWithSamples() throws -> ModelContainer {
     let container = try ModelContainer(
-        for: Commitment.self, Slot.self, CheckIn.self,
+        for: Commitment.self, Slot.self, CheckIn.self, Tag.self,
         configurations: ModelConfiguration(isStoredInMemoryOnly: true)
     )
     let ctx = container.mainContext

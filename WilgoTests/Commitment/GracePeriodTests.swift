@@ -21,7 +21,7 @@ private func date(year: Int, month: Int, day: Int) -> Date {
 /// weakly references its `ModelContainer`; releasing the container makes subsequent operations crash.
 @MainActor
 private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([Commitment.self, Slot.self, CheckIn.self, PositivityToken.self])
+    let schema = Schema([Commitment.self, Slot.self, CheckIn.self, PositivityToken.self, Tag.self])
     let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
     return try ModelContainer(for: schema, configurations: [config])
 }
