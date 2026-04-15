@@ -70,8 +70,9 @@ struct UpcomingCommitmentRow: View {
     let slot = Slot(start: start, end: end)
     let commitment = Commitment(
         title: "Morning reading",
+        cycle: Cycle.anchored(.daily, at: .now),
         slots: [slot],
-        target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
+        target: Target(count: 1),
     )
 
     return UpcomingCommitmentRow(commitment: commitment, slots: [slot], behindCount: 0)

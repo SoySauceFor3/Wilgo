@@ -91,32 +91,37 @@ private func makePreviewContainerWithSamples() throws -> ModelContainer {
     let samples: [Commitment] = [
         Commitment(
             title: "Workout",
+            cycle: Cycle.anchored(.daily, at: .now),
             slots: [slot(6, 0, 8, 0), slot(8, 0, 10, 0)],
-            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
+            target: Target(count: 1),
             proofOfWorkType: .manual,
         ),
         Commitment(
             title: "Read 30 mins 📚",
+            cycle: Cycle.anchored(.daily, at: .now),
             slots: [slot(9, 0, 11, 0)],
-            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
+            target: Target(count: 1),
             proofOfWorkType: .manual,
         ),
         Commitment(
             title: "Drink 2L Water 💧",
+            cycle: Cycle.anchored(.daily, at: .now),
             slots: [slot(12, 0, 14, 0)],
-            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
+            target: Target(count: 1),
             proofOfWorkType: .manual,
         ),
         Commitment(
             title: "Meditate 10 mins 🧘",
+            cycle: Cycle.anchored(.daily, at: .now),
             slots: [slot(15, 0, 17, 0)],
-            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
+            target: Target(count: 1),
             proofOfWorkType: .manual,
         ),
         Commitment(
             title: "No social media after 9 PM 📵",
+            cycle: Cycle.anchored(.daily, at: .now),
             slots: [slot(21, 0, 23, 0)],
-            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1),
+            target: Target(count: 1),
             proofOfWorkType: .manual,
         ),
     ]

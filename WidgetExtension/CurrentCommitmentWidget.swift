@@ -63,7 +63,7 @@ struct CurrentCommitmentProvider: TimelineProvider {
         shortTime.pmSymbol = "PM"
 
         func cycleLabel(for commitment: Commitment) -> String {
-            let cycle = commitment.target.cycle
+            let cycle = commitment.cycle
             return "\(cycle.multiplier == 1 ? "" : "\(cycle.multiplier)") \(cycle.kind.abbr)"
         }
 
@@ -73,7 +73,7 @@ struct CurrentCommitmentProvider: TimelineProvider {
         ) -> CommitmentSnapshot {
             let c = wb.commitment
             let count = c.checkInsInCycle(
-                cycle: c.target.cycle, until: psychDay, inclusive: true
+                cycle: c.cycle, until: psychDay, inclusive: true
             ).count
 
             let slotDetail: String?

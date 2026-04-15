@@ -92,8 +92,9 @@ struct PositivityTokenMintingTests {
 
         let commitment = Commitment(
             title: "Test Commitment",
+            cycle: Cycle.anchored(.daily, at: .now),
             slots: [],
-            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1)
+            target: Target(count: 1)
         )
         ctx.insert(commitment)
 
@@ -113,8 +114,9 @@ struct PositivityTokenMintingTests {
 
         let commitment = Commitment(
             title: "Integration Commitment",
+            cycle: Cycle.anchored(.daily, at: .now),
             slots: [],
-            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1)
+            target: Target(count: 1)
         )
         ctx.insert(commitment)
 

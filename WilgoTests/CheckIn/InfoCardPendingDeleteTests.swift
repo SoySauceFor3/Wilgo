@@ -24,8 +24,9 @@ private func makeCheckIn(ctx: ModelContext) -> CheckIn {
     let cycle = Cycle(kind: .daily, referencePsychDay: Date())
     let commitment = Commitment(
         title: "Test",
+        cycle: cycle,
         slots: [],
-        target: QuantifiedCycle(cycle: cycle, count: 1)
+        target: QuantifiedCycle(count: 1)
     )
     ctx.insert(commitment)
     let checkIn = CheckIn(commitment: commitment, source: .app)

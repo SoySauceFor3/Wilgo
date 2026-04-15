@@ -40,8 +40,9 @@ final class SlotPsychDayTests {
         let slot = Slot(start: tod(hour: startHour), end: tod(hour: endHour), recurrence: recurrence)
         let commitment = Commitment(
             title: "Test",
+            cycle: Cycle(kind: .daily, referencePsychDay: anchor),
             slots: [slot],
-            target: QuantifiedCycle(cycle: Cycle(kind: .daily, referencePsychDay: anchor), count: 1)
+            target: QuantifiedCycle(count: 1)
         )
         ctx.insert(commitment)
         ctx.insert(slot)

@@ -35,8 +35,9 @@ struct PositivityTokenUndoTests {
         let cycle = Cycle(kind: .daily, referencePsychDay: anchor)
         let commitment = Commitment(
             title: "Test",
+            cycle: cycle,
             slots: [],
-            target: QuantifiedCycle(cycle: cycle, count: 1),
+            target: QuantifiedCycle(count: 1),
         )
         ctx.insert(commitment)
 
@@ -75,8 +76,9 @@ struct PositivityTokenUndoTests {
         let cycle = Cycle(kind: .daily, referencePsychDay: anchor)
         let commitment = Commitment(
             title: "Test",
+            cycle: cycle,
             slots: [],
-            target: QuantifiedCycle(cycle: cycle, count: 1),
+            target: QuantifiedCycle(count: 1),
         )
         ctx.insert(commitment)
 
@@ -109,8 +111,9 @@ struct PositivityTokenUndoTests {
         let cycle = Cycle(kind: .daily, referencePsychDay: anchor)
         let commitment = Commitment(
             title: "Test",
+            cycle: cycle,
             slots: [],
-            target: QuantifiedCycle(cycle: cycle, count: 1),
+            target: QuantifiedCycle(count: 1),
         )
         ctx.insert(commitment)
         let checkIn = CheckIn(commitment: commitment)

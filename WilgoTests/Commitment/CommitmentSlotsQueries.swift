@@ -54,8 +54,9 @@ private func makeCommitment(
     let dailyCycle = Cycle(kind: .daily, referencePsychDay: anchor)
     let commitment = Commitment(
         title: title,
+        cycle: dailyCycle,
         slots: slots,
-        target: QuantifiedCycle(cycle: dailyCycle, count: goalCountPerDay),
+        target: QuantifiedCycle(count: goalCountPerDay),
     )
     ctx.insert(commitment)
     for slot in slots { ctx.insert(slot) }

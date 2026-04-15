@@ -7,11 +7,11 @@ extension Heatmap {
     // Derive an expected goal per heatmap period from the commitment's target cycle.
     // Fractions are always rounded up so very small expectations (e.g. 1/7 per day)
     // still show as at least 1.
-    static func expectedGoalPerPeriod(target: Target, periodKind: CycleKind) -> Int? {
+    static func expectedGoalPerPeriod(target: Target, cycleKind: CycleKind, periodKind: CycleKind) -> Int? {
         let baseCount = target.count
         if baseCount <= 0 { return nil }
 
-        let targetKind = target.cycle.kind
+        let targetKind = cycleKind
 
         func ceilDiv(_ numerator: Double, _ denominator: Double) -> Int {
             Int(ceil(numerator / denominator))
@@ -72,7 +72,7 @@ extension Heatmap {
 
         var today: Date { Time.startOfDay(for: Time.now()) }
         var createdPsychDay: Date { Time.startOfDay(for: commitment.createdAt) }
-        var target: Cycle { commitment.target.cycle }
+        var target: Cycle { commitment.cycle }
         var cal: Calendar { Time.calendar }
 
         var checkInTimesByDay: [Date: [Date]] {
@@ -100,7 +100,7 @@ extension Heatmap {
 
         /// Expected goal per day derived from the commitment's target cycle.
         private var goalForPeriod: Int? {
-            Heatmap.expectedGoalPerPeriod(target: context.commitment.target, periodKind: .daily)
+            Heatmap.expectedGoalPerPeriod(target: context.commitment.target, cycleKind: context.commitment.cycle.kind, periodKind: .daily)
         }
 
         /// Returns day-sized periods for the daily heatmap, ordered by today to oldest date. The UI is responsible for shaping these into a grid
@@ -148,7 +148,7 @@ extension Heatmap {
 
         /// Expected goal per week derived from the commitment's target cycle.
         private var goalForPeriod: Int? {
-            Heatmap.expectedGoalPerPeriod(target: context.commitment.target, periodKind: .weekly)
+            Heatmap.expectedGoalPerPeriod(target: context.commitment.target, cycleKind: context.commitment.cycle.kind, periodKind: .weekly)
         }
 
         func weeklyPeriods() -> [PeriodData] {
@@ -200,7 +200,7 @@ extension Heatmap {
 
         /// Expected goal per month derived from the commitment's target cycle.
         private var goalForPeriod: Int? {
-            Heatmap.expectedGoalPerPeriod(target: context.commitment.target, periodKind: .monthly)
+            Heatmap.expectedGoalPerPeriod(target: context.commitment.target, cycleKind: context.commitment.cycle.kind, periodKind: .monthly)
         }
 
         func monthlyPeriods() -> [PeriodData] {

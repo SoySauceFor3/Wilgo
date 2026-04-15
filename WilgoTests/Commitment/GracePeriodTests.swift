@@ -31,8 +31,9 @@ private func makeCommitment() -> Commitment {
     let cycle = Cycle(kind: .weekly, referencePsychDay: anchor)
     return Commitment(
         title: "Test",
+        cycle: cycle,
         slots: [],
-        target: QuantifiedCycle(cycle: cycle, count: 1),
+        target: QuantifiedCycle(count: 1),
     )
 }
 

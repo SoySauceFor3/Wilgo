@@ -3,6 +3,7 @@ import SwiftUI
 
 struct CommitmentFormFields: View {
     @Binding var title: String
+    @Binding var cycle: Cycle
     @Binding var slotWindows: [SlotWindow]
     @Binding var target: Target
     @Binding var proofOfWorkType: ProofOfWorkType
@@ -63,9 +64,9 @@ struct CommitmentFormFields: View {
     /// (Monday for weekly, 1st for monthly, today for daily).
     private var targetCycleKindBinding: Binding<CycleKind> {
         Binding(
-            get: { target.cycle.kind },
+            get: { cycle.kind },
             set: { newKind in
-                target.cycle = Cycle.makeDefault(newKind)
+                cycle = Cycle.makeDefault(newKind)
             }
         )
     }
@@ -75,7 +76,7 @@ struct CommitmentFormFields: View {
     /// - Weekly target: constrained to weekly budgets (multi-week in future via length multipliers).
     /// - Monthly target: constrained to monthly budgets (multi-month in future via length multipliers).
     private var allowedSkipBudgetCycleKinds: [CycleKind] {
-        switch target.cycle.kind {
+        switch cycle.kind {
         case .daily:
             return CycleKind.allCases
         case .weekly:

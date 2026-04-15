@@ -9,6 +9,7 @@ struct EditCommitmentView: View {
     @Bindable var commitment: Commitment
 
     @State private var title: String
+    @State private var cycle: Cycle
     @State private var slotWindows: [SlotWindow]
     @State private var target: Target
     @State private var proofOfWorkType: ProofOfWorkType
@@ -18,6 +19,7 @@ struct EditCommitmentView: View {
 
     /// Snapshot of rule values at open time, used to detect if any rule changed.
     private let originalTarget: Target
+    private let originalCycle: Cycle
 
     @State private var showingGraceDialog = false
     /// Cached cycle boundaries used when the grace dialog is presented.
@@ -28,6 +30,7 @@ struct EditCommitmentView: View {
         self.commitment = commitment
 
         _title = State(initialValue: commitment.title)
+        _cycle = State(initialValue: commitment.cycle)
         _slotWindows = State(
             initialValue: commitment.slots.sorted().map {
                 SlotWindow(start: $0.start, end: $0.end, recurrence: $0.recurrence)
@@ -40,6 +43,7 @@ struct EditCommitmentView: View {
         _selectedTags = State(initialValue: commitment.tags)
 
         originalTarget = commitment.target
+        originalCycle = commitment.cycle
     }
 
     var body: some View {
@@ -47,6 +51,7 @@ struct EditCommitmentView: View {
             Form {
                 CommitmentFormFields(
                     title: $title,
+                    cycle: $cycle,
                     slotWindows: $slotWindows,
                     target: $target,
                     proofOfWorkType: $proofOfWorkType,
@@ -90,7 +95,7 @@ struct EditCommitmentView: View {
     /// True when any rule field (timesPerDay, skipCreditCount, cycle) changed.
     /// Rule changes re-anchor the cycle to today so the new rules start from a clean slate.
     private var anyRuleChanged: Bool {
-        target != originalTarget  // || skipBudget != originalSkipBudget
+        target != originalTarget || cycle != originalCycle  // || skipBudget != originalSkipBudget
     }
 
     // MARK: - Save
@@ -101,7 +106,7 @@ struct EditCommitmentView: View {
             saveChanges(grace: false)
             return
         }
-        let newCycle = Cycle.makeDefault(target.cycle.kind)
+        let newCycle = Cycle.makeDefault(cycle.kind)
         let today = Time.startOfDay(for: Time.now())
         pendingCycleStart = newCycle.startDayOfCycle(including: today)
         pendingCycleEnd = newCycle.endDayOfCycle(including: today)
@@ -113,7 +118,7 @@ struct EditCommitmentView: View {
         let fmt = DateFormatter()
         fmt.dateFormat = "MM/dd"
         return
-            "Your goal changes to \(target.count) per \(target.cycle.kind.nounSingle.lowercased()) now. Should \(target.cycle.kind.thisNoun) count toward penalties?"
+            "Your goal changes to \(target.count) per \(cycle.kind.nounSingle.lowercased()) now. Should \(cycle.kind.thisNoun) count toward penalties?"
     }
 
     private func saveChanges(grace: Bool) {
@@ -128,7 +133,7 @@ struct EditCommitmentView: View {
 
         // Rule change: re-anchor to canonical start day via makeDefault.
         if anyRuleChanged {
-            target.cycle = Cycle.makeDefault(target.cycle.kind)
+            cycle = Cycle.makeDefault(cycle.kind)
             if grace {
                 commitment.gracePeriods.append(
                     GracePeriod(
@@ -139,6 +144,7 @@ struct EditCommitmentView: View {
                 )
             }
         }
+        commitment.cycle = cycle
         commitment.target = target
         commitment.tags = selectedTags
 
@@ -178,8 +184,9 @@ struct EditCommitmentView: View {
     )
     let commitment = Commitment(
         title: "Morning reading",
+        cycle: Cycle.anchored(.daily, at: .now),
         slots: [slot],
-        target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 1)
+        target: Target(count: 1)
     )
     container.mainContext.insert(commitment)
     return EditCommitmentView(commitment: commitment)

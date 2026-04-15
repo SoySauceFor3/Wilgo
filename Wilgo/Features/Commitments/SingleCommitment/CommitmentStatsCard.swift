@@ -19,12 +19,12 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
 
     private var checkInsInCurrentTargetCycle: [CheckIn] {
         commitment.checkInsInCycle(
-            cycle: commitment.target.cycle, until: psychToday, inclusive: true
+            cycle: commitment.cycle, until: psychToday, inclusive: true
         )
     }
 
     private var targetCycleLabel: String {
-        commitment.target.cycle.label(of: psychToday)
+        commitment.cycle.label(of: psychToday)
     }
 
     /// Stable random pick — re-sampled only when the commitment identity changes.
@@ -112,7 +112,7 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
                     GridRow {
                         statTile(
                             title:
-                                "\(commitment.target.cycle.kind.nounSingle) \(targetCycleLabel)",
+                                "\(commitment.cycle.kind.nounSingle) \(targetCycleLabel)",
                             background: tileBackground,
                             cornerRadius: cornerRadius
                         ) {

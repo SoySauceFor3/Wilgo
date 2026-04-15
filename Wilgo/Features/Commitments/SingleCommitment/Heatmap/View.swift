@@ -31,7 +31,7 @@ struct CommitmentHeatmapLegendView: View {
     }
 
     private var expectedGoal: Int? {
-        Heatmap.expectedGoalPerPeriod(target: commitment.target, periodKind: heatmapKind)
+        Heatmap.expectedGoalPerPeriod(target: commitment.target, cycleKind: commitment.cycle.kind, periodKind: heatmapKind)
     }
 
     private var samples: [LegendSample] {
@@ -74,7 +74,7 @@ struct CommitmentHeatmapLegendView: View {
             legendItem(Color(.systemGray3), "N/A")
             ForEach(samples) { sample in
                 let isTargetBucket =
-                    (commitment.target.cycle.kind == heatmapKind)
+                    (commitment.cycle.kind == heatmapKind)
                     && (expectedGoal != nil && sample.value == expectedGoal)
                 legendItem(
                     heatmapLegendColorSample(progress: sample.progress),
@@ -729,8 +729,9 @@ enum HeatmapPreviewFactory {
         let commitment = Commitment(
             title: "Morning Run",
             createdAt: createdAt,
+            cycle: Cycle.anchored(.daily, at: .now),
             slots: [],
-            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 2),
+            target: Target(count: 2),
         )
         ctx.insert(commitment)
 
@@ -778,8 +779,9 @@ enum HeatmapPreviewFactory {
         )
         let commitment = Commitment(
             title: "Meditate",
+            cycle: Cycle.anchored(.daily, at: .now),
             slots: [],
-            target: Target(cycle: Cycle.anchored(.daily, at: .now), count: 2),
+            target: Target(count: 2),
         )
         container.mainContext.insert(commitment)
         return container

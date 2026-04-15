@@ -23,8 +23,9 @@ private func createTestCommitment(ctx: ModelContext) -> Commitment {
     let cycle = Cycle(kind: .daily, referencePsychDay: anchor)
     let commitment = Commitment(
         title: "Test Commitment",
+        cycle: cycle,
         slots: [],
-        target: QuantifiedCycle(cycle: cycle, count: 1)
+        target: QuantifiedCycle(count: 1)
     )
     ctx.insert(commitment)
     return commitment

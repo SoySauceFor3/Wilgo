@@ -6,8 +6,8 @@ struct AddCommitmentView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var title: String = ""
-    @State private var target: Target = Target(
-        cycle: Cycle.makeDefault(.daily), count: 1)
+    @State private var cycle: Cycle = Cycle.makeDefault(.daily)
+    @State private var target: Target = Target(count: 1)
     @State private var slotWindows: [SlotWindow]
     @State private var proofOfWorkType: ProofOfWorkType = .manual
     @State private var punishment: String = ""
@@ -29,6 +29,7 @@ struct AddCommitmentView: View {
             Form {
                 CommitmentFormFields(
                     title: $title,
+                    cycle: $cycle,
                     slotWindows: $slotWindows,
                     target: $target,
                     proofOfWorkType: $proofOfWorkType,
@@ -69,7 +70,6 @@ struct AddCommitmentView: View {
 
     /// Checks if creation is mid-cycle. If so, shows the grace dialog; otherwise saves directly.
     private func handleSaveTap() {
-        let cycle = target.cycle
         let today = Time.startOfDay(for: Time.now())
         let cycleStart = cycle.startDayOfCycle(including: today)
         let cycleEnd = cycle.endDayOfCycle(including: today)
@@ -85,24 +85,24 @@ struct AddCommitmentView: View {
         let cal = Time.calendar
         let today = Time.startOfDay(for: Time.now())
         var addOn = ""
-        switch target.cycle.kind {
+        switch cycle.kind {
         case .weekly:
             let weekdayFmt = DateFormatter()
             weekdayFmt.dateFormat = "EEEE"
             weekdayFmt.calendar = cal
             let weekday = weekdayFmt.string(from: today)
-            addOn = "Today is \(weekday) of \(target.cycle.kind.thisNoun). "
+            addOn = "Today is \(weekday) of \(cycle.kind.thisNoun). "
         case .monthly:
             let day = cal.component(.day, from: today)
             let ordinalFmt = NumberFormatter()
             ordinalFmt.numberStyle = .ordinal
             let ordinal = ordinalFmt.string(from: NSNumber(value: day)) ?? "\(day)"
             addOn =
-                "Today is the \(ordinal) day of \(target.cycle.kind.thisNoun). "
+                "Today is the \(ordinal) day of \(cycle.kind.thisNoun). "
         case .daily:
             break
         }
-        return addOn + "Should \(target.cycle.kind.thisNoun) count toward penalties?"
+        return addOn + "Should \(cycle.kind.thisNoun) count toward penalties?"
     }
 
     private func persistCommitment(grace: Bool) {
@@ -115,6 +115,7 @@ struct AddCommitmentView: View {
         let trimmedPunishment = punishment.trimmingCharacters(in: .whitespacesAndNewlines)
         let commitment = Commitment(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
+            cycle: cycle,
             slots: sortedSlots,
             target: target,
             proofOfWorkType: proofOfWorkType,

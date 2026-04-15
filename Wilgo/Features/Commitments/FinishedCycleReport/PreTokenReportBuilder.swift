@@ -69,7 +69,7 @@ enum PreTokenReportBuilder {
         from startPsychDay: Date,  // inclusive
         to endPsychDay: Date  // exclusive
     ) -> [CycleDraft] {
-        let cycle = commitment.target.cycle
+        let cycle = commitment.cycle
         let commitmentID = commitment.id
         var cycleCursorDay = startPsychDay
         var cycles: [CycleDraft] = []

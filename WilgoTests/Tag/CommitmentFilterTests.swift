@@ -39,8 +39,9 @@ private func makeCommitment(title: String = "Test") -> Commitment {
     let cycle = Cycle(kind: .weekly, referencePsychDay: anchor)
     return Commitment(
         title: title,
+        cycle: cycle,
         slots: [],
-        target: QuantifiedCycle(cycle: cycle, count: 1)
+        target: Target(count: 1)
     )
 }
 
@@ -52,7 +53,8 @@ struct CommitmentFilterTests {
 
     // MARK: OR logic — single tag filter
 
-    @Test("OR logic: commitment with tag A shown when filter = {A}; commitment with tag B not shown")
+    @Test(
+        "OR logic: commitment with tag A shown when filter = {A}; commitment with tag B not shown")
     func orLogicSingleTag() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
@@ -62,8 +64,10 @@ struct CommitmentFilterTests {
         let tagA = Wilgo.Tag(name: "TagA", displayOrder: 0)
         let tagB = Wilgo.Tag(name: "TagB", displayOrder: 1)
 
-        ctx.insert(cA); ctx.insert(cB)
-        ctx.insert(tagA); ctx.insert(tagB)
+        ctx.insert(cA)
+        ctx.insert(cB)
+        ctx.insert(tagA)
+        ctx.insert(tagB)
         cA.tags.append(tagA)
         cB.tags.append(tagB)
         try ctx.save()
@@ -87,8 +91,10 @@ struct CommitmentFilterTests {
         let tagA = Wilgo.Tag(name: "TagA", displayOrder: 0)
         let tagB = Wilgo.Tag(name: "TagB", displayOrder: 1)
 
-        ctx.insert(cA); ctx.insert(cB)
-        ctx.insert(tagA); ctx.insert(tagB)
+        ctx.insert(cA)
+        ctx.insert(cB)
+        ctx.insert(tagA)
+        ctx.insert(tagB)
         cA.tags.append(tagA)
         cB.tags.append(tagB)
         try ctx.save()
@@ -110,7 +116,8 @@ struct CommitmentFilterTests {
         let cUntagged = makeCommitment(title: "Untagged")
         let tagA = Wilgo.Tag(name: "TagA", displayOrder: 0)
 
-        ctx.insert(cTagged); ctx.insert(cUntagged)
+        ctx.insert(cTagged)
+        ctx.insert(cUntagged)
         ctx.insert(tagA)
         cTagged.tags.append(tagA)
         try ctx.save()
@@ -132,7 +139,8 @@ struct CommitmentFilterTests {
         let cUntagged = makeCommitment(title: "Untagged")
         let tagA = Wilgo.Tag(name: "TagA", displayOrder: 0)
 
-        ctx.insert(cTagged); ctx.insert(cUntagged)
+        ctx.insert(cTagged)
+        ctx.insert(cUntagged)
         ctx.insert(tagA)
         cTagged.tags.append(tagA)
         try ctx.save()
@@ -157,8 +165,11 @@ struct CommitmentFilterTests {
         let tagX = Wilgo.Tag(name: "X", displayOrder: 0)
         let tagY = Wilgo.Tag(name: "Y", displayOrder: 1)
 
-        ctx.insert(c1); ctx.insert(c2); ctx.insert(c3)
-        ctx.insert(tagX); ctx.insert(tagY)
+        ctx.insert(c1)
+        ctx.insert(c2)
+        ctx.insert(c3)
+        ctx.insert(tagX)
+        ctx.insert(tagY)
         c1.tags.append(tagX)
         c2.tags.append(tagY)
         // c3 has no tags

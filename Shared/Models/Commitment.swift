@@ -8,7 +8,6 @@ enum ProofOfWorkType: String, Codable {
 }
 
 struct QuantifiedCycle: Codable, Hashable {
-    var cycle: Cycle  // daily / weekly / monthly with anchors
     var count: Int  // “how many per that cycle”
 }
 
@@ -31,6 +30,9 @@ final class Commitment {
     @Relationship(deleteRule: .cascade, inverse: \Slot.commitment)
     var slots: [Slot] = []
 
+    /// The time window used for grouping check-ins and triggering cycle reports.
+    /// Always present, independent of whether a goal is set.
+    var cycle: Cycle
     var target: Target
 
     /// How completion is verified.
@@ -52,6 +54,7 @@ final class Commitment {
     init(
         title: String,
         createdAt: Date = .now,
+        cycle: Cycle,
         slots: [Slot],
         target: Target,
         proofOfWorkType: ProofOfWorkType = .manual,
@@ -60,6 +63,7 @@ final class Commitment {
         self.id = UUID()
         self.title = title
         self.createdAt = createdAt
+        self.cycle = cycle
         self.slots = slots
         self.target = target
         self.proofOfWorkType = proofOfWorkType
@@ -148,8 +152,8 @@ extension Commitment {
     ) -> StageStatus {
         let target = self.target
         let nowPsychDay = Time.startOfDay(for: now)
-        let startDay = target.cycle.startDayOfCycle(including: nowPsychDay)
-        let endDay = target.cycle.endDayOfCycle(including: nowPsychDay)
+        let startDay = cycle.startDayOfCycle(including: nowPsychDay)
+        let endDay = cycle.endDayOfCycle(including: nowPsychDay)
         let checkInsInCycle = checkInsInRange(startPsychDay: startDay, endPsychDay: endDay)
         let leftToDo = max(0, target.count - checkInsInCycle.count)
 

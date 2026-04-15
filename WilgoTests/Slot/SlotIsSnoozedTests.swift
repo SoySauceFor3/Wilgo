@@ -36,8 +36,9 @@ final class SlotIsSnoozedTests {
         let slot = Slot(start: tod(hour: startHour), end: tod(hour: endHour))
         let commitment = Commitment(
             title: "Test",
+            cycle: Cycle(kind: .daily, referencePsychDay: anchor),
             slots: [slot],
-            target: QuantifiedCycle(cycle: Cycle(kind: .daily, referencePsychDay: anchor), count: 1)
+            target: QuantifiedCycle(count: 1)
         )
         ctx.insert(commitment)
         ctx.insert(slot)
@@ -165,8 +166,9 @@ final class SlotIsSnoozedTests {
         let slot = Slot(start: tod(hour: 9), end: tod(hour: 11), recurrence: .specificWeekdays([2]))
         let commitment = Commitment(
             title: "Test",
+            cycle: Cycle(kind: .daily, referencePsychDay: anchor),
             slots: [slot],
-            target: QuantifiedCycle(cycle: Cycle(kind: .daily, referencePsychDay: anchor), count: 1)
+            target: QuantifiedCycle(count: 1)
         )
         ctx.insert(commitment)
         ctx.insert(slot)

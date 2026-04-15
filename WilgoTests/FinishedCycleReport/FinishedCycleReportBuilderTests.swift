@@ -46,8 +46,9 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         let targetCycle = Cycle(kind: .daily, referencePsychDay: anchor)
         let commitment = Commitment(
             title: "Read",
+            cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(cycle: targetCycle, count: 5),
+            target: QuantifiedCycle(count: 5),
         )
         ctx.insert(commitment)
 
@@ -92,8 +93,9 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         let targetCycle = Cycle(kind: .daily, referencePsychDay: anchor)
         let commitment = Commitment(
             title: "Run",
+            cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(cycle: targetCycle, count: 3),
+            target: QuantifiedCycle(count: 3),
         )
         ctx.insert(commitment)
 
@@ -130,8 +132,9 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         let targetCycle = Cycle(kind: .weekly, referencePsychDay: anchor)
         let commitment = Commitment(
             title: "Run",
+            cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(cycle: targetCycle, count: 3),
+            target: QuantifiedCycle(count: 3),
         )
         // Grace covers the week Mar 30 – Apr 6
         commitment.gracePeriods = [
@@ -164,8 +167,9 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         let targetCycle = Cycle(kind: .weekly, referencePsychDay: anchor)
         let commitment = Commitment(
             title: "Run",
+            cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(cycle: targetCycle, count: 3),
+            target: QuantifiedCycle(count: 3),
         )
         // Grace only covers the prior week — no overlap with the report window
         commitment.gracePeriods = [
@@ -198,8 +202,9 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         let targetCycle = Cycle(kind: .weekly, referencePsychDay: anchor)
         let commitment = Commitment(
             title: "Run",
+            cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(cycle: targetCycle, count: 3),
+            target: QuantifiedCycle(count: 3),
         )
         // 0 check-ins, grace covers the full week — should see no PT applied
         commitment.gracePeriods = [
@@ -248,8 +253,9 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         let targetCycle = Cycle(kind: .daily, referencePsychDay: anchor)
         let commitment = Commitment(
             title: "Read",
+            cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(cycle: targetCycle, count: 1),
+            target: QuantifiedCycle(count: 1),
         )
         ctx.insert(commitment)
 

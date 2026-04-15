@@ -21,7 +21,7 @@ struct CommitmentDetailView: View {
 
     private var checkInsInCurrentTargetCycle: [CheckIn] {
         commitment.checkInsInCycle(
-            cycle: commitment.target.cycle, until: psychToday, inclusive: true
+            cycle: commitment.cycle, until: psychToday, inclusive: true
         )
     }
 
@@ -34,7 +34,7 @@ struct CommitmentDetailView: View {
     }
 
     private var targetCycleLabel: String {
-        commitment.target.cycle.label(of: psychToday)
+        commitment.cycle.label(of: psychToday)
     }
 
     private var hasPunishment: Bool {
@@ -104,7 +104,7 @@ struct CommitmentDetailView: View {
                     statTile(
                         value:
                             "\(checkInsInCurrentTargetCycle.count)/\(commitment.target.count)",
-                        label: "Completed \(commitment.target.cycle.kind.thisNoun)"
+                        label: "Completed \(commitment.cycle.kind.thisNoun)"
                     )
 
                 }
@@ -142,7 +142,7 @@ struct CommitmentDetailView: View {
             )
             statTile(
                 value: "\(commitment.target.count)×",
-                label: "\(commitment.target.cycle.kind.rawValue)\ngoal"
+                label: "\(commitment.cycle.kind.rawValue)\ngoal"
             )
             statTile(
                 value: daysTracked,
