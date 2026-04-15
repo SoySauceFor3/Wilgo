@@ -206,7 +206,7 @@ extension Commitment {
         var remainingPairs: [(occurrence: Slot, original: Slot)]
         if let firstNotEndedIndex = resolvedPairs.firstIndex(where: { $0.occurrence.end >= now }) {
             remainingPairs = resolvedPairs[firstNotEndedIndex...].filter { pair in
-                !pair.original.isSnoozed(at: now)
+                pair.occurrence.start > now || !pair.original.isSnoozed(at: now)
             }
         } else {
             remainingPairs = []

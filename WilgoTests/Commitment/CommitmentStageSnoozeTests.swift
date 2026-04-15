@@ -121,7 +121,7 @@ final class CommitmentStageSnoozeTests {
         let ctx = container.mainContext
         // weekly commitment with 2 targets per week
         let anchor = date(year: 2026, month: 3, day: 2)  // Monday
-        let slot = Slot(start: tod(hour: 9), end: tod(hour: 11))
+        let slot = Slot(start: tod(hour: 9), end: tod(hour: 11), recurrence: .everyDay)
         let commitment = Commitment(
             title: "Test",
             cycle: Cycle(kind: .weekly, referencePsychDay: anchor),
