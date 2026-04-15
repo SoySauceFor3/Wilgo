@@ -9,20 +9,32 @@
 
 When you are in plan mode:
 
-1. PRD: First focus on planing the feature's expected behavor, UI/UX, PRD like elements. Light considerations about implementations like feasibility are OK, but the focus should NOT be implementation. I need to review and say yes to this document before moving on to implementation design. Most of the time I will write PRD in Notion.
-2. Second, you plan on implementation in a seperate file (most of time in `./documentation/`). Always
-  1. Have a "header" recording some metadata
-    1. Link to the PRD, bi-directional.
-    2. Tracking link: I will provide you. If not, ASK ME.
-    3. The #tag to use for commit messages (see below): a concise name of the "thing" you are working on, e.g. `#PTSimplification` `#commitmentEncouragement`
-  2. summarize the overall solution/architecture,
-  3. record major model changes
-  4. document major alternatives, their pros and cons and why choose the direction we choose
-  5. commitment plan (i.e. step by step plan), note:
-    1. make each individual commit complete and self-contained. You can make branches and commitment chains as needed.
-    2. declare the dependency between commits, so parallel sub-agent can work.
-    3. For each commit, include Unit Test of the actual code change. Make sure testing coverage is as much as possible.
-    4. Make it clear when you need manual verification/interception, e.g. if you need me to manually verify a migration works in testing iphone.
+### 1. PRD
+
+First focus on planing the feature's expected behavor, UI/UX, PRD like elements. Light considerations about implementations like feasibility are OK, but the focus should NOT be implementation. I need to review and say yes to this document before moving on to implementation design. Most of the time I will write PRD in Notion.
+
+### 2. Implementation plan
+
+Second, you plan on implementation in a seperate file (most of time in `./documentation/`). 
+
+Always
+
+1. Have a "header" recording some metadata
+  1. Link to the PRD, bi-directional.
+  2. Tracking link: I will provide you. If not, ASK ME.
+  3. The #tag to use for commit messages (see below): a concise name of the "thing" you are working on, e.g. `#PTSimplification` `#commitmentEncouragement`
+2. summarize the overall solution/architecture,
+3. record major model changes
+4. document major alternatives, their pros and cons and why choose the direction we choose
+5. commitment plan (i.e. step by step plan), note:
+  1. declare the dependency between commits, so parallel sub-agent can work.
+  2. You can make branches and commitment chains as needed.
+  3. make each individual commit 
+    1. logically complete and self-contained. At least (unless huge exception), the app should still build and do not cause new failing tests. 
+    2. include Unit Test of the actual code change. Make sure testing coverage is as much as possible.
+    3. Make it clear when you need manual verification/interception, e.g. if you need me to manually verify a migration works in testing iphone.
+
+To help you better understand what i want, please refer to the template at ./documentation/TEMPLATE.md
 
 ## When you implement
 
@@ -40,12 +52,12 @@ When you are in plan mode:
 # Build & Test
 
 1. (Author: Claude, 2026-04-14) **Stale SourceKit warnings are pre-existing and should be ignored.** After a build or test run, warnings with `vitality: stale` in `XcodeListNavigatorIssues` are leftover from a prior build and do NOT indicate regressions. Known pre-existing stale warnings:
-   - `CatchUpReminder.swift:15` — Swift 6 main-actor isolation warning
-   - SwiftData macro generated file — main-actor `Encodable` conformance warning
-   - `CheckInUndoManager.swift:121` — non-optional `??` warning
+  - `CatchUpReminder.swift:15` — Swift 6 main-actor isolation warning
+  - SwiftData macro generated file — main-actor `Encodable` conformance warning
+  - `CheckInUndoManager.swift:121` — non-optional `??` warning
    Only treat warnings/errors as actionable if they are **not** stale, or if the build itself fails.
 2. (Author: Claude, 2026-04-14) **Pre-existing failing test — do not count as a regression.** The following test was already failing before any new work:
-   - `CommitmentStageSnoozeTests/stageStatus_snoozeDoesNotAffectFutureOccurrence()` — failing as of 2026-04-14, cause unknown. Do not treat this as caused by your changes.
+  - `CommitmentStageSnoozeTests/stageStatus_snoozeDoesNotAffectFutureOccurrence()` — failing as of 2026-04-14, cause unknown. Do not treat this as caused by your changes.
 3. (Author: Claude, 2026-04-14) **Run tests via `xcodebuild`, not the Xcode MCP `RunAllTests` tool.** The MCP tool runs against the physical device and reports all tests as "not run" when the device is unavailable. Always use: `xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo -destination 'platform=iOS Simulator,id=4D4E7E2F-1CE5-4697-A734-85AB68DC55D4'`
 
 # Repo specific rules
