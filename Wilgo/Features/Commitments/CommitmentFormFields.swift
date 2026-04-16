@@ -15,6 +15,28 @@ struct CommitmentFormFields: View {
         Section("Basics") {
             TextField("Title", text: $title)
         }
+
+        Section {
+            Picker("", selection: targetCycleKindBinding) {
+                ForEach(CycleKind.allCases, id: \.self) { kind in
+                    Text(kind.rawValue.lowercased()).tag(kind)
+                }
+            }
+            .labelsHidden()
+            .pickerStyle(.segmented)
+        } header: {
+            Text("Cycle")
+        } footer: {
+            switch cycle.kind {
+            case .weekly:
+                Text("Starts on Monday.")
+            case .monthly:
+                Text("Starts on the 1st of the month.")
+            case .daily:
+                EmptyView()
+            }
+        }
+
         ReminderWindowsSection(slotWindows: $slotWindows)
         EncouragementSection(encouragements: $encouragements)
 
@@ -27,14 +49,8 @@ struct CommitmentFormFields: View {
                 }
                 .labelsHidden()
 
-                Text("every")
-
-                Picker("", selection: targetCycleKindBinding) {
-                    ForEach(CycleKind.allCases, id: \.self) { kind in
-                        Text(kind.rawValue.lowercased()).tag(kind)
-                    }
-                }
-                .labelsHidden()
+                Text("times every \(cycle.kind.rawValue.lowercased())")
+                    .foregroundStyle(.secondary)
             }
         }
 
@@ -69,21 +85,6 @@ struct CommitmentFormFields: View {
                 cycle = Cycle.makeDefault(newKind)
             }
         )
-    }
-
-    /// Allowed skip-budget cycle kinds for the current target cycle (Option B-style).
-    /// - Daily target: may use daily / weekly / monthly budgets.
-    /// - Weekly target: constrained to weekly budgets (multi-week in future via length multipliers).
-    /// - Monthly target: constrained to monthly budgets (multi-month in future via length multipliers).
-    private var allowedSkipBudgetCycleKinds: [CycleKind] {
-        switch cycle.kind {
-        case .daily:
-            return CycleKind.allCases
-        case .weekly:
-            return [.weekly]
-        case .monthly:
-            return [.monthly]
-        }
     }
 
     /// Exposes the target's countPerCycle as a Binding<Int> for the Stepper.
