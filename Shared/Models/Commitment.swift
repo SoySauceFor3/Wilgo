@@ -51,6 +51,9 @@ final class Commitment {
     @Relationship(deleteRule: .nullify, inverse: \Tag.commitments)
     var tags: [Tag] = []  // nullify: deleting a Tag removes it from this array; Commitment survives
 
+    /// When false, this commitment is excluded from Stage reminders and CatchUpReminder notifications.
+    var isRemindersEnabled: Bool = true
+
     init(
         title: String,
         createdAt: Date = .now,
@@ -59,6 +62,7 @@ final class Commitment {
         target: Target,
         proofOfWorkType: ProofOfWorkType = .manual,
         punishment: String? = nil,
+        isRemindersEnabled: Bool = true,
     ) {
         self.id = UUID()
         self.title = title
@@ -68,6 +72,7 @@ final class Commitment {
         self.target = target
         self.proofOfWorkType = proofOfWorkType
         self.punishment = punishment
+        self.isRemindersEnabled = isRemindersEnabled
     }
 
     // checkins of a commitment in a given psych-day range [startPsychDay, endPsychDay)

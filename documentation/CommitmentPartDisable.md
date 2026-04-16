@@ -11,6 +11,7 @@
 Users want to track a commitment without the full pressure of goals, punishment, or notifications. For example: "I still want to draw on weekends but don't want a daily target or punishment right now."
 
 Three parts of a commitment can be independently disabled:
+
 - **Reminders** (`isRemindersEnabled`) — suppresses slot notifications, Live Activity, Stage/Focus view presence
 - **Punishment** (`isPunishmentEnabled`) — suppresses punishment enforcement; PT is still consumed on skips
 - **Target** (`Target.isEnabled`) — suppresses cycle goal, cycle end evaluation, and `.metGoal` logic; punishment section is hidden when target is off
@@ -45,11 +46,36 @@ When `Target.isEnabled` is false, `stageStatus` bypasses all goal math and retur
 
 **Why not group them?** The grouped struct approach adds indirection with no current benefit — there's no shared logic between the two flags. Can be refactored into a struct later if a third flag needs grouping.
 
+### `isRemindersEnabled` is a flat field, not grouped with `slots` into a struct
+
+**Decision:** `isRemindersEnabled` is a direct `@Attribute` field on `Commitment`, not wrapped in a struct alongside `slots`.
+
+**Why not group them?** `slots` is a SwiftData `@Relationship` and must live directly on the `@Model` class — SwiftData does not support `@Relationship` inside a plain `struct`. The struct would have to either become a nested `@Model` (overkill, adds a full persistence entity) or store slot UUIDs (which violates the repo rule of preferring direct references over UUIDs for relationships).
+
 ### `Target.isEnabled` lives inside `QuantifiedCycle`
 
 **Decision:** `QuantifiedCycle` gains `var isEnabled: Bool = true` so that `count` and `isEnabled` travel together.
 
 **Why not a flat field on `Commitment`?** The count value must survive toggling off and back on. Keeping it adjacent to count inside the same struct makes the preservation contract obvious.
+
+### `isRemindersEnabled` filter lives at the call site, not inside `CommitmentAndSlot` helpers
+
+**Decision:** `StageViewModel.recompute()` (and `CatchUpReminder`) filter commitments by `isRemindersEnabled` before passing the slice to `currentWithBehind`, `upcomingWithBehind`, and `catchUpWithBehind`. The helpers themselves are not modified.
+
+**Why not filter inside the helpers?**
+- The helpers' contract is "classify what you're given" — embedding a reminder-business-rule inside them violates single responsibility.
+- Filtering at the call site is explicit and auditable; filtering inside helpers risks silent double-filtering if other callers also pre-filter.
+- Keeping helpers pure makes them easier to test and reuse in non-Stage contexts (e.g. widgets, notifications) where the caller may legitimately want a different filter.
+
+**Concrete pattern (Commit 2):**
+```swift
+// StageViewModel.recompute()
+let remindersOn = lastCommitments.filter { $0.isRemindersEnabled }
+current  = CommitmentAndSlot.currentWithBehind(commitments: remindersOn, now: now)
+upcoming = CommitmentAndSlot.upcomingWithBehind(commitments: remindersOn, after: now)
+catchUp  = CommitmentAndSlot.catchUpWithBehind(commitments: remindersOn, now: now)
+```
+Same pattern in `CatchUpReminder` before its `catchUpWithBehind` call.
 
 ### Sequential phases, not parallel
 
@@ -61,15 +87,15 @@ When `Target.isEnabled` is false, `stageStatus` bypasses all goal math and retur
 
 ## Major Model Changes
 
-| Entity | Change |
-|--------|--------|
-| `Shared/Models/Commitment.swift` | `cycle: Cycle` added as top-level field; `isRemindersEnabled: Bool`, `isPunishmentEnabled: Bool` added |
-| `Shared/Models/Commitment.swift` — `QuantifiedCycle` | `cycle: Cycle` removed; `isEnabled: Bool = true` added |
-| `Shared/Models/Commitment.swift` — `StageCategory` | New case `.remindersOnly` |
-| `Shared/Scheduling/CommitmentAndSlot.swift` | All three helpers filter `isRemindersEnabled`; new `remindersOnlyWithSlots()` helper |
-| `Wilgo/Features/Stage/StageViewModel.swift` | New `remindersOnly: [WithBehind]` property |
-| `Wilgo/Features/Commitments/FinishedCycleReport/Models.swift` | `CycleReport` gains `isPunishmentEnabled: Bool` |
-| `Wilgo/Features/Commitments/FinishedCycleReport/PreTokenReportBuilder.swift` | Uses `commitment.cycle`; sets `targetCheckIns = 0` when target disabled |
+| Entity                                                                       | Change                                                                                                 |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `Shared/Models/Commitment.swift`                                             | `cycle: Cycle` added as top-level field; `isRemindersEnabled: Bool`, `isPunishmentEnabled: Bool` added |
+| `Shared/Models/Commitment.swift` — `QuantifiedCycle`                         | `cycle: Cycle` removed; `isEnabled: Bool = true` added                                                 |
+| `Shared/Models/Commitment.swift` — `StageCategory`                           | New case `.remindersOnly`                                                                              |
+| `Shared/Scheduling/CommitmentAndSlot.swift`                                  | All three helpers filter `isRemindersEnabled`; new `remindersOnlyWithSlots()` helper                   |
+| `Wilgo/Features/Stage/StageViewModel.swift`                                  | New `remindersOnly: [WithBehind]` property                                                             |
+| `Wilgo/Features/Commitments/FinishedCycleReport/Models.swift`                | `CycleReport` gains `isPunishmentEnabled: Bool`                                                        |
+| `Wilgo/Features/Commitments/FinishedCycleReport/PreTokenReportBuilder.swift` | Uses `commitment.cycle`; sets `targetCheckIns = 0` when target disabled                                |
 
 After restructure, the relevant shape of `Commitment` is:
 
@@ -95,103 +121,7 @@ No behavior change. `Cycle` moves from `QuantifiedCycle` to a top-level field on
 
 #### Commit 1 — refactor: move Cycle to top-level Commitment field
 
-**Modify:** `Shared/Models/Commitment.swift`
-
-Replace `QuantifiedCycle` and `Commitment` top section:
-
-```swift
-struct QuantifiedCycle: Codable, Hashable {
-    var count: Int
-    // cycle removed — now lives on Commitment directly
-}
-
-typealias Target = QuantifiedCycle
-
-@Model
-final class Commitment {
-    // ... existing fields up to slots ...
-    var cycle: Cycle        // NEW — was QuantifiedCycle.cycle
-    var target: Target      // now just { count }
-    // ... rest unchanged ...
-
-    init(
-        title: String,
-        createdAt: Date = .now,
-        cycle: Cycle,       // NEW parameter
-        slots: [Slot],
-        target: Target,
-        proofOfWorkType: ProofOfWorkType = .manual,
-        punishment: String? = nil
-    ) { ... }
-}
-```
-
-In `stageStatus(now:)`, replace `target.cycle.startDayOfCycle(...)` and `target.cycle.endDayOfCycle(...)` with `cycle.startDayOfCycle(...)` and `cycle.endDayOfCycle(...)`.
-
-**Modify:** `Wilgo/Features/Commitments/CommitmentFormFields.swift`
-
-Add `@Binding var cycle: Cycle` to the struct. Update `targetCycleKindBinding` to read/write `cycle.kind` instead of `target.cycle.kind`:
-
-```swift
-private var targetCycleKindBinding: Binding<CycleKind> {
-    Binding(
-        get: { cycle.kind },
-        set: { newKind in cycle = Cycle.makeDefault(newKind) }
-    )
-}
-```
-
-**Modify:** `Wilgo/Features/Commitments/AddCommitView.swift`
-
-Add `@State private var cycle: Cycle = Cycle.makeDefault(.daily)`. Pass `cycle: $cycle` to `CommitmentFormFields`. In `persistCommitment(grace:)`:
-
-```swift
-let commitment = Commitment(
-    title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-    cycle: cycle,
-    slots: sortedSlots,
-    target: target,
-    proofOfWorkType: proofOfWorkType,
-    punishment: trimmedPunishment.isEmpty ? nil : trimmedPunishment
-)
-```
-
-**Modify:** `Wilgo/Features/Commitments/EditCommitmentView.swift`
-
-Add `@State private var cycle: Cycle` and `private var originalCycle: Cycle`. In `init(commitment:)`: `_cycle = State(initialValue: commitment.cycle)` and `originalCycle = commitment.cycle`. Pass `cycle: $cycle` to `CommitmentFormFields`. In `saveChanges(grace:)`: `commitment.cycle = cycle`. Update `anyRuleChanged` to include `|| cycle != originalCycle`. When re-anchoring: `cycle = Cycle.makeDefault(cycle.kind)`.
-
-**Modify:** `Wilgo/Features/Commitments/SingleCommitment/CommitmentDetailView.swift`
-
-Replace `commitment.target.cycle` with `commitment.cycle` in `targetCycleLabel` and `checkInsInCurrentTargetCycle`. Replace `commitment.target.cycle.kind` with `commitment.cycle.kind` in `statsSection`.
-
-**Modify:** `Wilgo/Features/Commitments/FinishedCycleReport/PreTokenReportBuilder.swift`
-
-Replace all `commitment.target.cycle` with `commitment.cycle`.
-
-**Modify (test fixtures):** `WilgoTests/Commitment/CommitmentStageSnoozeTests.swift`, `WilgoTests/Commitment/GracePeriodTests.swift`, `WilgoTests/FinishedCycleReport/FinishedCycleReportBuilderTests.swift`
-
-Update all `Commitment(...)` init calls and `QuantifiedCycle(cycle:..., count:...)` to the new shape:
-
-```swift
-// Before:
-Commitment(title: "Test", slots: slots,
-    target: QuantifiedCycle(cycle: Cycle(kind: .daily, referencePsychDay: anchor), count: 1))
-
-// After:
-Commitment(title: "Test", cycle: Cycle(kind: .daily, referencePsychDay: anchor),
-    slots: slots, target: Target(count: 1))
-```
-
-**Run tests:**
-```bash
-xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo \
-  -destination 'platform=iOS Simulator,id=4D4E7E2F-1CE5-4697-A734-85AB68DC55D4' \
-  -only-testing WilgoTests/CommitmentStageSnoozeTests \
-  -only-testing WilgoTests/GracePeriodTests \
-  -only-testing WilgoTests/FinishedCycleReportBuilderTests 2>&1 | tail -30
-```
-
-Expected: all previously-passing tests pass. Pre-existing failure `stageStatus_snoozeDoesNotAffectFutureOccurrence` still allowed to fail.
+Done in commit a22baeb9 and 8ef2ffe919
 
 ---
 
@@ -216,34 +146,27 @@ init(..., isRemindersEnabled: Bool = true) {
 }
 ```
 
-**Modify:** `Shared/Scheduling/CommitmentAndSlot.swift`
-
-Add `.filter { $0.isRemindersEnabled }` at the start of `currentWithBehind`, `upcomingWithBehind`, and `catchUpWithBehind`. Example:
-
-```swift
-static func currentWithBehind(commitments: [Commitment], now: Date = Time.now()) -> [WithBehind] {
-    commitments
-        .filter { $0.isRemindersEnabled }  // skip reminders-disabled
-        .compactMap { ... existing body ... }
-}
-```
-
 **Modify:** `Wilgo/Features/Stage/StageViewModel.swift`
 
-If `recompute()` passes all commitments to `CommitmentAndSlot` helpers, the filter is already applied. If it queries `stageStatus` directly, add filter before passing:
+Filter before passing to helpers in `recompute()`:
 
 ```swift
-let remindersOn = commitments.filter { $0.isRemindersEnabled }
-current  = CommitmentAndSlot.currentWithBehind(commitments: remindersOn, now: now)
-upcoming = CommitmentAndSlot.upcomingWithBehind(commitments: remindersOn, after: now)
-catchUp  = CommitmentAndSlot.catchUpWithBehind(commitments: remindersOn, now: now)
+private func recompute() {
+    let now = Date()
+    let remindersOn = lastCommitments.filter { $0.isRemindersEnabled }
+    current  = CommitmentAndSlot.currentWithBehind(commitments: remindersOn, now: now)
+    upcoming = CommitmentAndSlot.upcomingWithBehind(commitments: remindersOn, after: now)
+    catchUp  = CommitmentAndSlot.catchUpWithBehind(commitments: remindersOn, now: now)
+}
 ```
 
 **Modify:** `Wilgo/Features/Notifications/CatchUpReminder.swift`
 
-Add comment near `catchUpWithBehind` call:
+Filter before the `catchUpWithBehind` call (same pattern — helpers stay pure):
+
 ```swift
-// Commitments with isRemindersEnabled == false are filtered inside catchUpWithBehind.
+let remindersOn = commitments.filter { $0.isRemindersEnabled }
+let catchUp = CommitmentAndSlot.catchUpWithBehind(commitments: remindersOn, now: now)
 ```
 
 **Create:** `WilgoTests/Commitment/CommitmentRemindersDisableTests.swift`
@@ -290,20 +213,32 @@ final class CommitmentRemindersDisableTests {
         return c
     }
 
-    @Test("reminders disabled → excluded from currentWithBehind")
-    @MainActor func remindersDisabled_notInCurrent() throws {
+    @Test("reminders disabled → helper still includes it (helpers are pure, no internal filter)")
+    @MainActor func remindersDisabled_helperStillIncludes() throws {
         let container = try makeContainer()
         let c = makeCommitment(remindersEnabled: false, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        #expect(CommitmentAndSlot.currentWithBehind(commitments: [c], now: now).isEmpty)
+        // The helper classifies by slot timing, not by isRemindersEnabled.
+        // Filtering is the caller's responsibility.
+        #expect(CommitmentAndSlot.currentWithBehind(commitments: [c], now: now).count == 1)
     }
 
-    @Test("reminders enabled → included in currentWithBehind")
-    @MainActor func remindersEnabled_inCurrent() throws {
+    @Test("reminders disabled → excluded after call-site filter (StageViewModel pattern)")
+    @MainActor func remindersDisabled_excludedAfterCallSiteFilter() throws {
+        let container = try makeContainer()
+        let c = makeCommitment(remindersEnabled: false, in: container.mainContext)
+        let now = date(year: 2026, month: 3, day: 5, hour: 10)
+        let remindersOn = [c].filter { $0.isRemindersEnabled }
+        #expect(CommitmentAndSlot.currentWithBehind(commitments: remindersOn, now: now).isEmpty)
+    }
+
+    @Test("reminders enabled → included after call-site filter")
+    @MainActor func remindersEnabled_includedAfterCallSiteFilter() throws {
         let container = try makeContainer()
         let c = makeCommitment(remindersEnabled: true, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        #expect(CommitmentAndSlot.currentWithBehind(commitments: [c], now: now).count == 1)
+        let remindersOn = [c].filter { $0.isRemindersEnabled }
+        #expect(CommitmentAndSlot.currentWithBehind(commitments: remindersOn, now: now).count == 1)
     }
 
     @Test("reminders disabled → stageStatus itself is unaffected (filtering is upstream)")
@@ -317,6 +252,7 @@ final class CommitmentRemindersDisableTests {
 ```
 
 **Run tests:**
+
 ```bash
 xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo \
   -destination 'platform=iOS Simulator,id=4D4E7E2F-1CE5-4697-A734-85AB68DC55D4' \
@@ -368,6 +304,7 @@ Add `@State private var isRemindersEnabled: Bool`. In `init`: `_isRemindersEnabl
 **Modify:** `Wilgo/Features/Commitments/SingleCommitment/CommitmentRowView.swift`
 
 Update reminder windows row:
+
 ```swift
 Text(commitment.isRemindersEnabled ? slotWindowsSummary(commitment) : "Disabled")
     .font(.caption)
@@ -406,6 +343,7 @@ Add `isPunishmentEnabled: Bool = true` to `CycleReport`.
 Pass `isPunishmentEnabled: commitment.isPunishmentEnabled` when constructing `CycleReport`.
 
 Find where the punishment page is conditionally shown in the report view (in `PositivityTokenPage.swift` or `CheckInSummaryPage.swift`) and gate it:
+
 ```swift
 if cycleReport.isPunishmentEnabled {
     // punishment page content
@@ -438,6 +376,7 @@ Section {
 **Modify:** `Wilgo/Features/Commitments/AddCommitView.swift`
 
 Add `@State private var isPunishmentEnabled: Bool = true`. Pass to `CommitmentFormFields`. In `persistCommitment`:
+
 ```swift
 punishment: (isPunishmentEnabled && !trimmedPunishment.isEmpty) ? trimmedPunishment : nil,
 isPunishmentEnabled: isPunishmentEnabled
@@ -450,6 +389,7 @@ Add `@State private var isPunishmentEnabled: Bool`. Load in `init`. Save in `sav
 **Modify:** `Wilgo/Features/Commitments/SingleCommitment/CommitmentRowView.swift`
 
 Update punishment row:
+
 ```swift
 let text: String = {
     if !commitment.isPunishmentEnabled { return "Disabled" }
@@ -464,6 +404,7 @@ Text(text)
 **Modify:** `Wilgo/Features/Commitments/SingleCommitment/CommitmentDetailView.swift`
 
 Update `hasPunishment`:
+
 ```swift
 private var hasPunishment: Bool {
     guard commitment.isPunishmentEnabled else { return false }
@@ -641,6 +582,7 @@ final class CommitmentTargetDisableTests {
 ```
 
 **Run tests:**
+
 ```bash
 xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo \
   -destination 'platform=iOS Simulator,id=4D4E7E2F-1CE5-4697-A734-85AB68DC55D4' \
@@ -677,6 +619,7 @@ static func remindersOnlyWithSlots(commitments: [Commitment], now: Date = Time.n
 **Modify:** `Wilgo/Features/Stage/StageViewModel.swift`
 
 Add `private(set) var remindersOnly: [CommitmentAndSlot.WithBehind] = []`. In `recompute()`:
+
 ```swift
 remindersOnly = CommitmentAndSlot.remindersOnlyWithSlots(commitments: commitments, now: now)
 ```
@@ -684,6 +627,7 @@ remindersOnly = CommitmentAndSlot.remindersOnlyWithSlots(commitments: commitment
 **Modify:** `Wilgo/Features/Stage/StageView.swift`
 
 Add a "Reminders" section after the current section:
+
 ```swift
 if !viewModel.remindersOnly.isEmpty {
     Section("Reminders") {
@@ -697,6 +641,7 @@ if !viewModel.remindersOnly.isEmpty {
 **Modify:** `Wilgo/Features/Commitments/FinishedCycleReport/PreTokenReportBuilder.swift`
 
 When building `CycleReport`, set `targetCheckIns` to 0 when target disabled:
+
 ```swift
 let targetCount = commitment.target.isEnabled ? commitment.target.count : 0
 // pass targetCount into CycleReport(targetCheckIns: targetCount, ...)
@@ -705,6 +650,7 @@ let targetCount = commitment.target.isEnabled ? commitment.target.count : 0
 **Modify:** `WilgoTests/FinishedCycleReport/FinishedCycleReportBuilderTests.swift`
 
 Add test:
+
 ```swift
 @Test("target disabled: report shows check-in stats, targetCheckIns is 0")
 @MainActor func targetDisabled_reportShowsStatsOnly() throws {
@@ -737,6 +683,7 @@ Add test:
 ```
 
 **Run tests:**
+
 ```bash
 xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo \
   -destination 'platform=iOS Simulator,id=4D4E7E2F-1CE5-4697-A734-85AB68DC55D4' \
@@ -782,6 +729,7 @@ private var targetEnabledBinding: Binding<Bool> {
 **Modify:** `Wilgo/Features/Commitments/AddCommitView.swift`
 
 Default target: `@State private var target: Target = Target(count: 5, isEnabled: true)`. In `persistCommitment`, punishment conditional also checks target enabled:
+
 ```swift
 punishment: (isPunishmentEnabled && target.isEnabled && !trimmedPunishment.isEmpty) ? trimmedPunishment : nil
 ```
@@ -793,6 +741,7 @@ punishment: (isPunishmentEnabled && target.isEnabled && !trimmedPunishment.isEmp
 **Modify:** `Wilgo/Features/Commitments/SingleCommitment/CommitmentRowView.swift`
 
 Update target row and punishment row:
+
 ```swift
 // Target row
 if commitment.target.isEnabled {
@@ -812,6 +761,7 @@ Text(showDisabled ? "Disabled" : (commitment.punishment ?? "None"))
 **Modify:** `Wilgo/Features/Commitments/SingleCommitment/CommitmentDetailView.swift`
 
 In `currentSection`, conditionally show denominator:
+
 ```swift
 statTile(
     value: commitment.target.isEnabled
@@ -824,6 +774,7 @@ statTile(
 ```
 
 In `statsSection`, goal tile:
+
 ```swift
 commitment.target.isEnabled
     ? statTile(value: "\(commitment.target.count)×", label: "\(commitment.cycle.kind.rawValue)\ngoal")
@@ -837,6 +788,7 @@ commitment.target.isEnabled
 #### Commit 9 — Full test suite
 
 **Run:**
+
 ```bash
 xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo \
   -destination 'platform=iOS Simulator,id=4D4E7E2F-1CE5-4697-A734-85AB68DC55D4' 2>&1 | tail -50
@@ -848,15 +800,15 @@ Expected: all tests pass except pre-existing failure `stageStatus_snoozeDoesNotA
 
 ## Critical Files
 
-| File | Role |
-|------|------|
-| `Shared/Models/Commitment.swift` | Model changes across all phases |
-| `Shared/Scheduling/CommitmentAndSlot.swift` | Reminder filter + remindersOnly helper |
-| `Wilgo/Features/Commitments/CommitmentFormFields.swift` | Toggle UI for all three parts |
-| `Wilgo/Features/Commitments/AddCommitView.swift` | Wires new state + passes to init |
-| `Wilgo/Features/Commitments/EditCommitmentView.swift` | Loads + saves new fields |
-| `Wilgo/Features/Stage/StageViewModel.swift` | remindersOnly list |
-| `Wilgo/Features/Commitments/FinishedCycleReport/PreTokenReportBuilder.swift` | Target-disabled report handling |
+| File                                                                         | Role                                   |
+| ---------------------------------------------------------------------------- | -------------------------------------- |
+| `Shared/Models/Commitment.swift`                                             | Model changes across all phases        |
+| `Shared/Scheduling/CommitmentAndSlot.swift`                                  | Reminder filter + remindersOnly helper |
+| `Wilgo/Features/Commitments/CommitmentFormFields.swift`                      | Toggle UI for all three parts          |
+| `Wilgo/Features/Commitments/AddCommitView.swift`                             | Wires new state + passes to init       |
+| `Wilgo/Features/Commitments/EditCommitmentView.swift`                        | Loads + saves new fields               |
+| `Wilgo/Features/Stage/StageViewModel.swift`                                  | remindersOnly list                     |
+| `Wilgo/Features/Commitments/FinishedCycleReport/PreTokenReportBuilder.swift` | Target-disabled report handling        |
 
 ### Dependency Graph
 
