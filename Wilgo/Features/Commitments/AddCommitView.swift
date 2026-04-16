@@ -13,6 +13,7 @@ struct AddCommitmentView: View {
     @State private var punishment: String = ""
     @State private var encouragements: [String] = []
     @State private var selectedTags: [Tag] = []
+    @State private var isRemindersEnabled: Bool = true
 
     @State private var showingGraceDialog = false
     /// Cached cycle boundaries used when the grace dialog is presented.
@@ -35,7 +36,8 @@ struct AddCommitmentView: View {
                     proofOfWorkType: $proofOfWorkType,
                     punishment: $punishment,
                     encouragements: $encouragements,
-                    selectedTags: $selectedTags
+                    selectedTags: $selectedTags,
+                    isRemindersEnabled: $isRemindersEnabled
                 )
             }
             .navigationTitle("New Commitment")
@@ -65,7 +67,7 @@ struct AddCommitmentView: View {
 
     private var canSave: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && slotWindows.allSatisfy { $0.recurrence.isValidSelection }
+            && (!isRemindersEnabled || slotWindows.allSatisfy { $0.recurrence.isValidSelection })
     }
 
     /// Checks if creation is mid-cycle. If so, shows the grace dialog; otherwise saves directly.
@@ -106,11 +108,11 @@ struct AddCommitmentView: View {
     }
 
     private func persistCommitment(grace: Bool) {
-        let slots: [Slot] = slotWindows.map { window in
+        let slots: [Slot] = isRemindersEnabled ? slotWindows.map { window in
             let slot = Slot(start: window.start, end: window.end, recurrence: window.recurrence)
             modelContext.insert(slot)
             return slot
-        }
+        } : []
         let sortedSlots = slots.sorted()
         let trimmedPunishment = punishment.trimmingCharacters(in: .whitespacesAndNewlines)
         let commitment = Commitment(
@@ -120,6 +122,7 @@ struct AddCommitmentView: View {
             target: target,
             proofOfWorkType: proofOfWorkType,
             punishment: trimmedPunishment.isEmpty ? nil : trimmedPunishment,
+            isRemindersEnabled: isRemindersEnabled
         )
         if grace {
             commitment.gracePeriods.append(

@@ -16,6 +16,7 @@ struct EditCommitmentView: View {
     @State private var punishment: String
     @State private var encouragements: [String]
     @State private var selectedTags: [Tag]
+    @State private var isRemindersEnabled: Bool
 
     /// Snapshot of rule values at open time, used to detect if any rule changed.
     private let originalTarget: Target
@@ -41,6 +42,7 @@ struct EditCommitmentView: View {
         _punishment = State(initialValue: commitment.punishment ?? "")
         _encouragements = State(initialValue: commitment.encouragements)
         _selectedTags = State(initialValue: commitment.tags)
+        _isRemindersEnabled = State(initialValue: commitment.isRemindersEnabled)
 
         originalTarget = commitment.target
         originalCycle = commitment.cycle
@@ -57,7 +59,8 @@ struct EditCommitmentView: View {
                     proofOfWorkType: $proofOfWorkType,
                     punishment: $punishment,
                     encouragements: $encouragements,
-                    selectedTags: $selectedTags
+                    selectedTags: $selectedTags,
+                    isRemindersEnabled: $isRemindersEnabled
                 )
             }
             .navigationTitle("Edit Commitment")
@@ -89,7 +92,7 @@ struct EditCommitmentView: View {
 
     private var canSave: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && slotWindows.allSatisfy { $0.recurrence.isValidSelection }
+            && (!isRemindersEnabled || slotWindows.allSatisfy { $0.recurrence.isValidSelection })
     }
 
     /// True when any rule field (timesPerDay, skipCreditCount, cycle) changed.
@@ -147,8 +150,9 @@ struct EditCommitmentView: View {
         commitment.cycle = cycle
         commitment.target = target
         commitment.tags = selectedTags
+        commitment.isRemindersEnabled = isRemindersEnabled
 
-        // Replace slots only if the count or any window changed.
+        // Replace slots only if the count or any window changed, or reminders toggled off.
         let newWindows = slotWindows
         let oldSlots = commitment.slots.sorted()
         let slotsChanged =
@@ -157,7 +161,10 @@ struct EditCommitmentView: View {
                 w.start != s.start || w.end != s.end || w.recurrence != s.recurrence
             }
 
-        if slotsChanged {
+        if !isRemindersEnabled {
+            for old in commitment.slots { modelContext.delete(old) }
+            commitment.slots = []
+        } else if slotsChanged {
             for old in commitment.slots { modelContext.delete(old) }
             let newSlots: [Slot] = newWindows.map { window in
                 let slot = Slot(start: window.start, end: window.end, recurrence: window.recurrence)

@@ -33,9 +33,9 @@ struct CommitmentRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text(slotWindowsSummary(commitment))
+                Text(commitment.isRemindersEnabled ? slotWindowsSummary(commitment) : "Disabled")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(commitment.isRemindersEnabled ? .secondary : .tertiary)
             }
 
             HStack(spacing: 4) {

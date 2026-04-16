@@ -10,6 +10,7 @@ struct CommitmentFormFields: View {
     @Binding var punishment: String
     @Binding var encouragements: [String]
     @Binding var selectedTags: [Tag]
+    @Binding var isRemindersEnabled: Bool
 
     var body: some View {
         Section("Basics") {
@@ -37,7 +38,16 @@ struct CommitmentFormFields: View {
             }
         }
 
-        ReminderWindowsSection(slotWindows: $slotWindows)
+        Section {
+            Toggle("Reminders", isOn: $isRemindersEnabled)
+        } footer: {
+            if !isRemindersEnabled {
+                Text("No reminders. Commitment won't appear in Stage view or send notifications.")
+            }
+        }
+        if isRemindersEnabled {
+            ReminderWindowsSection(slotWindows: $slotWindows)
+        }
         EncouragementSection(encouragements: $encouragements)
 
         Section("Target") {
