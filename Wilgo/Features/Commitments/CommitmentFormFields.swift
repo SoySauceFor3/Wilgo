@@ -40,13 +40,15 @@ struct CommitmentFormFields: View {
 
         Section {
             Toggle("Reminders", isOn: $isRemindersEnabled)
+            if isRemindersEnabled {
+                ReminderWindowsSection(slotWindows: $slotWindows)
+            }
+        } header: {
+            Text("Reminder Windows")
         } footer: {
             if !isRemindersEnabled {
                 Text("No reminders. Commitment won't appear in Stage view or send notifications.")
             }
-        }
-        if isRemindersEnabled {
-            ReminderWindowsSection(slotWindows: $slotWindows)
         }
         EncouragementSection(encouragements: $encouragements)
 

@@ -6,26 +6,20 @@ struct ReminderWindowsSection: View {
     @Binding var slotWindows: [SlotWindow]
 
     var body: some View {
-        Section("Reminder windows") {
-            Text("Optional. Leave empty to allow any time of the day.")
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-
-            ForEach(Array(slotWindows.enumerated()), id: \.element.id) { index, _ in
-                SlotWindowRow(
-                    index: index,
-                    window: $slotWindows[index]
-                ) {
-                    slotWindows.remove(at: index)
-                }
+        ForEach(Array(slotWindows.enumerated()), id: \.element.id) { index, _ in
+            SlotWindowRow(
+                index: index,
+                window: $slotWindows[index]
+            ) {
+                slotWindows.remove(at: index)
             }
+        }
 
-            Button {
-                let (defaultStart, defaultEnd) = defaultWindowForNewSlot()
-                slotWindows.append(SlotWindow(start: defaultStart, end: defaultEnd))
-            } label: {
-                Label("Add window", systemImage: "plus")
-            }
+        Button {
+            let (defaultStart, defaultEnd) = defaultWindowForNewSlot()
+            slotWindows.append(SlotWindow(start: defaultStart, end: defaultEnd))
+        } label: {
+            Label("Add window", systemImage: "plus")
         }
     }
 

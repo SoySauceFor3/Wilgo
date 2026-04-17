@@ -108,21 +108,21 @@ struct AddCommitmentView: View {
     }
 
     private func persistCommitment(grace: Bool) {
-        let slots: [Slot] = isRemindersEnabled ? slotWindows.map { window in
+        let effectiveRemindersEnabled = isRemindersEnabled && !slotWindows.isEmpty
+        let slots: [Slot] = effectiveRemindersEnabled ? slotWindows.map { window in
             let slot = Slot(start: window.start, end: window.end, recurrence: window.recurrence)
             modelContext.insert(slot)
             return slot
         } : []
-        let sortedSlots = slots.sorted()
         let trimmedPunishment = punishment.trimmingCharacters(in: .whitespacesAndNewlines)
         let commitment = Commitment(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
             cycle: cycle,
-            slots: sortedSlots,
+            slots: slots.sorted(),
             target: target,
             proofOfWorkType: proofOfWorkType,
             punishment: trimmedPunishment.isEmpty ? nil : trimmedPunishment,
-            isRemindersEnabled: isRemindersEnabled
+            isRemindersEnabled: effectiveRemindersEnabled
         )
         if grace {
             commitment.gracePeriods.append(

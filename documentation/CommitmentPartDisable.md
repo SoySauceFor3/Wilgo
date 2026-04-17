@@ -63,11 +63,13 @@ When `Target.isEnabled` is false, `stageStatus` bypasses all goal math and retur
 **Decision:** `StageViewModel.recompute()` (and `CatchUpReminder`) filter commitments by `isRemindersEnabled` before passing the slice to `currentWithBehind`, `upcomingWithBehind`, and `catchUpWithBehind`. The helpers themselves are not modified.
 
 **Why not filter inside the helpers?**
+
 - The helpers' contract is "classify what you're given" — embedding a reminder-business-rule inside them violates single responsibility.
 - Filtering at the call site is explicit and auditable; filtering inside helpers risks silent double-filtering if other callers also pre-filter.
 - Keeping helpers pure makes them easier to test and reuse in non-Stage contexts (e.g. widgets, notifications) where the caller may legitimately want a different filter.
 
 **Concrete pattern (Commit 2):**
+
 ```swift
 // StageViewModel.recompute()
 let remindersOn = lastCommitments.filter { $0.isRemindersEnabled }
@@ -75,7 +77,18 @@ current  = CommitmentAndSlot.currentWithBehind(commitments: remindersOn, now: no
 upcoming = CommitmentAndSlot.upcomingWithBehind(commitments: remindersOn, after: now)
 catchUp  = CommitmentAndSlot.catchUpWithBehind(commitments: remindersOn, now: now)
 ```
+
 Same pattern in `CatchUpReminder` before its `catchUpWithBehind` call.
+
+### Values are always preserved when a part is disabled
+
+**Decision:** Disabling a part never destroys the underlying data. Re-enabling restores it without re-entry.
+
+**How this applies to each part:**
+
+- `**isRemindersEnabled` (slots):** Slots are only written to DB when `effectiveRemindersEnabled = isRemindersEnabled && !slotWindows.isEmpty` is true. When disabled, existing DB slots are left untouched. In the edit form, `slotWindows` state is kept populated even when the toggle is off — the UI is hidden but the data is not cleared. Derived at save time, not from toggle alone, to handle the edge case where the user edits slots and then disables: in-progress edits are discarded, original DB slots are preserved.
+- `**isPunishmentEnabled` (punishment text):** The `punishment` string on `Commitment` is never cleared when `isPunishmentEnabled` is false. The UI hides the text field when disabled, but the value is preserved.
+- `**Target.isEnabled` (count):** `QuantifiedCycle` stores `count` and `isEnabled` together so the count survives toggling. The UI hides the count picker when disabled, but the value is preserved.
 
 ### Sequential phases, not parallel
 
@@ -87,6 +100,7 @@ Same pattern in `CatchUpReminder` before its `catchUpWithBehind` call.
 
 ## Major Model Changes
 
+
 | Entity                                                                       | Change                                                                                                 |
 | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `Shared/Models/Commitment.swift`                                             | `cycle: Cycle` added as top-level field; `isRemindersEnabled: Bool`, `isPunishmentEnabled: Bool` added |
@@ -96,6 +110,7 @@ Same pattern in `CatchUpReminder` before its `catchUpWithBehind` call.
 | `Wilgo/Features/Stage/StageViewModel.swift`                                  | New `remindersOnly: [WithBehind]` property                                                             |
 | `Wilgo/Features/Commitments/FinishedCycleReport/Models.swift`                | `CycleReport` gains `isPunishmentEnabled: Bool`                                                        |
 | `Wilgo/Features/Commitments/FinishedCycleReport/PreTokenReportBuilder.swift` | Uses `commitment.cycle`; sets `targetCheckIns = 0` when target disabled                                |
+
 
 After restructure, the relevant shape of `Commitment` is:
 
@@ -315,7 +330,11 @@ Text(commitment.isRemindersEnabled ? slotWindowsSummary(commitment) : "Disabled"
 
 ---
 
-### Phase 3 — `isPunishmentEnabled`
+### ~~Phase 3 — `isPunishmentEnabled`~~ — SKIPPED (2026-04-17)
+
+**Decision:** Phase 3 is dropped entirely. `isPunishmentEnabled` will not be implemented.
+
+**Why:** An empty `punishment` string is already semantically equivalent to "no punishment". A separate boolean toggle adds UI complexity and a new model field for no user-facing gain — the user can simply clear the punishment text to disable it. The preservation concern that motivated the flag (keeping the text alive while disabled) is not compelling enough to justify the extra surface.
 
 ---
 
@@ -800,6 +819,7 @@ Expected: all tests pass except pre-existing failure `stageStatus_snoozeDoesNotA
 
 ## Critical Files
 
+
 | File                                                                         | Role                                   |
 | ---------------------------------------------------------------------------- | -------------------------------------- |
 | `Shared/Models/Commitment.swift`                                             | Model changes across all phases        |
@@ -809,6 +829,7 @@ Expected: all tests pass except pre-existing failure `stageStatus_snoozeDoesNotA
 | `Wilgo/Features/Commitments/EditCommitmentView.swift`                        | Loads + saves new fields               |
 | `Wilgo/Features/Stage/StageViewModel.swift`                                  | remindersOnly list                     |
 | `Wilgo/Features/Commitments/FinishedCycleReport/PreTokenReportBuilder.swift` | Target-disabled report handling        |
+
 
 ### Dependency Graph
 

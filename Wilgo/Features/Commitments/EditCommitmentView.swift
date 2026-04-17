@@ -150,23 +150,14 @@ struct EditCommitmentView: View {
         commitment.cycle = cycle
         commitment.target = target
         commitment.tags = selectedTags
-        commitment.isRemindersEnabled = isRemindersEnabled
+        let effectiveRemindersEnabled = isRemindersEnabled && !slotWindows.isEmpty
+        commitment.isRemindersEnabled = effectiveRemindersEnabled
 
-        // Replace slots only if the count or any window changed, or reminders toggled off.
-        let newWindows = slotWindows
-        let oldSlots = commitment.slots.sorted()
-        let slotsChanged =
-            newWindows.count != oldSlots.count
-            || zip(newWindows, oldSlots).contains { w, s in
-                w.start != s.start || w.end != s.end || w.recurrence != s.recurrence
-            }
-
-        if !isRemindersEnabled {
+        // Only write slots to DB when reminders are being saved as enabled.
+        // When disabled, existing slots are preserved as-is for future re-enable.
+        if effectiveRemindersEnabled {
             for old in commitment.slots { modelContext.delete(old) }
-            commitment.slots = []
-        } else if slotsChanged {
-            for old in commitment.slots { modelContext.delete(old) }
-            let newSlots: [Slot] = newWindows.map { window in
+            let newSlots: [Slot] = slotWindows.map { window in
                 let slot = Slot(start: window.start, end: window.end, recurrence: window.recurrence)
                 modelContext.insert(slot)
                 return slot
