@@ -47,7 +47,7 @@ To help you better understand what i want, please refer to the template at ./doc
 
 # Simulator
 
-1. (Author: Claude, 2026-04-10) Always run iOS Simulator tests and builds on **iPhone 17 (iOS 26.2)**, UDID `4D4E7E2F-1CE5-4697-A734-85AB68DC55D4`. Do not use other devices unless explicitly asked.
+1. (Author: Claude, 2026-04-19) Always run iOS Simulator tests and builds on **iPhone 17 (iOS 26.4)**, UDID `4492FF84-2E83-4350-8008-B87DE7AE2588`. Do not use other devices unless explicitly asked.
 
 # Build & Test
 
@@ -58,7 +58,7 @@ To help you better understand what i want, please refer to the template at ./doc
    Only treat warnings/errors as actionable if they are **not** stale, or if the build itself fails.
 2. (Author: Claude, 2026-04-14) **Pre-existing failing test — do not count as a regression.** The following test was already failing before any new work:
   - `CommitmentStageSnoozeTests/stageStatus_snoozeDoesNotAffectFutureOccurrence()` — failing as of 2026-04-14, cause unknown. Do not treat this as caused by your changes.
-3. (Author: Claude, 2026-04-14) **Run tests via `xcodebuild`, not the Xcode MCP `RunAllTests` tool.** The MCP tool runs against the physical device and reports all tests as "not run" when the device is unavailable. Always use: `xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo -destination 'platform=iOS Simulator,id=4D4E7E2F-1CE5-4697-A734-85AB68DC55D4'`
+3. (Author: Claude, 2026-04-14) **Run tests via `xcodebuild`, not the Xcode MCP `RunAllTests` tool.** The MCP tool runs against the physical device and reports all tests as "not run" when the device is unavailable. Always use: `xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo -destination 'platform=iOS Simulator,id=4492FF84-2E83-4350-8008-B87DE7AE2588'`
 
 # Repo specific rules
 
