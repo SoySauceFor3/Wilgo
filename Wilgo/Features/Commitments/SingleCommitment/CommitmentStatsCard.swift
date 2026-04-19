@@ -116,16 +116,22 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
                             background: tileBackground,
                             cornerRadius: cornerRadius
                         ) {
-                            HStack(alignment: .bottom, spacing: 4) {
-                                Text(
-                                    "\(checkInsInCurrentTargetCycle.count)/\(commitment.target.count)"
-                                )
-                                .font(.title3.bold())
-                                .foregroundStyle(.primary)
-                                Text("check-ins")
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                                    .padding(.bottom, 2)
+                            if commitment.target.isEnabled {
+                                HStack(alignment: .bottom, spacing: 4) {
+                                    Text(
+                                        "\(checkInsInCurrentTargetCycle.count)/\(commitment.target.count)"
+                                    )
+                                    .font(.title3.bold())
+                                    .foregroundStyle(.primary)
+                                    Text("check-ins")
+                                        .font(.caption)
+                                        .foregroundStyle(.secondary)
+                                        .padding(.bottom, 2)
+                                }
+                            } else {
+                                Text("\(checkInsInCurrentTargetCycle.count)")
+                                    .font(.title3.bold())
+                                    .foregroundStyle(.primary)
                             }
                         }
                         .frame(height: cellWidth)

@@ -20,7 +20,7 @@ struct UpcomingCommitmentRow: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if behindCount > 0 {
+            if commitment.target.isEnabled && behindCount > 0 {
                 Text(
                     behindCount == 1
                         ? "Behind"
