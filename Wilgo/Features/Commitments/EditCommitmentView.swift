@@ -21,10 +21,7 @@ struct EditCommitmentView: View {
     private let originalTarget: Target
     private let originalCycle: Cycle
 
-    @State private var showingGraceDialog = false
-    /// Cached cycle boundaries used when the grace dialog is presented.
-    @State private var pendingCycleStart: Date = .now
-    @State private var pendingCycleEnd: Date = .now
+    @State private var graceDialog = GraceDialogState()
 
     init(commitment: Commitment) {
         self.commitment = commitment
@@ -71,16 +68,8 @@ struct EditCommitmentView: View {
                         .disabled(!canSave)
                 }
             }
-            .confirmationDialog(
-                graceDialogTitle, isPresented: $showingGraceDialog, titleVisibility: .visible
-            ) {
-                Button("Yes — I'm committed now") { saveChanges(grace: false) }
-                Button("No — grace period") { saveChanges(grace: true) }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text(
-                    "The goal changes take effect immediately. This only decides whether the current period counts toward penalties."
-                )
+            .graceDialog(state: graceDialog) { grace in
+                saveChanges(grace: grace)
             }
         }
     }
@@ -108,17 +97,12 @@ struct EditCommitmentView: View {
         }
         let newCycle = Cycle.makeDefault(cycle.kind)
         let today = Time.startOfDay(for: Time.now())
-        pendingCycleStart = newCycle.startDayOfCycle(including: today)
-        pendingCycleEnd = newCycle.endDayOfCycle(including: today)
-        showingGraceDialog = true
-    }
-
-    /// Human-readable title for the grace confirmation dialog.
-    private var graceDialogTitle: String {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "MM/dd"
-        return
-            "Your goal changes to \(target.count) per \(cycle.kind.nounSingle.lowercased()) now. Should \(cycle.kind.thisNoun) count toward penalties?"
+        graceDialog.trigger(
+            context: .ruleChange(targetCount: target.count),
+            cycle: newCycle,
+            cycleStart: newCycle.startDayOfCycle(including: today),
+            cycleEnd: newCycle.endDayOfCycle(including: today)
+        )
     }
 
     private func saveChanges(grace: Bool) {
@@ -137,8 +121,8 @@ struct EditCommitmentView: View {
             if grace {
                 commitment.gracePeriods.append(
                     GracePeriod(
-                        startPsychDay: pendingCycleStart,
-                        endPsychDay: pendingCycleEnd,
+                        startPsychDay: graceDialog.cycleStart,
+                        endPsychDay: graceDialog.cycleEnd,
                         reason: .ruleChange
                     )
                 )
