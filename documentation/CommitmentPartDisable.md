@@ -28,7 +28,7 @@ A temporary "pause with end date" feature was explored but deferred — the perm
 
 Three boolean fields are then added one at a time — each with full-stack coverage (model → business logic → UI) before moving to the next. `isRemindersEnabled` and `isPunishmentEnabled` are flat fields on `Commitment`. `Target.isEnabled` lives inside `QuantifiedCycle` so the count value is preserved alongside its enabled state.
 
-When `Target.isEnabled` is false, `stageStatus` bypasses all goal math and returns a new `.remindersOnly` category, which the Stage view renders without a goal counter or behind badge.
+When `Target.isEnabled` is false, `stageStatus` bypasses all goal math and delegates to a private `targetDisabledStatus` helper, which returns `.current`, `.future`, or `.others` (reusing existing categories) with `behindCount` always `0`. The Stage view checks `commitment.target.isEnabled` before rendering goal counters or behind badges.
 
 ---
 
@@ -105,9 +105,9 @@ Same pattern in `CatchUpReminder` before its `catchUpWithBehind` call.
 | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `Shared/Models/Commitment.swift`                                             | `cycle: Cycle` added as top-level field; `isRemindersEnabled: Bool`, `isPunishmentEnabled: Bool` added |
 | `Shared/Models/Commitment.swift` — `QuantifiedCycle`                         | `cycle: Cycle` removed; `isEnabled: Bool = true` added                                                 |
-| `Shared/Models/Commitment.swift` — `StageCategory`                           | New case `.remindersOnly`                                                                              |
-| `Shared/Scheduling/CommitmentAndSlot.swift`                                  | All three helpers filter `isRemindersEnabled`; new `remindersOnlyWithSlots()` helper                   |
-| `Wilgo/Features/Stage/StageViewModel.swift`                                  | New `remindersOnly: [WithBehind]` property                                                             |
+| `Shared/Models/Commitment.swift` — `StageCategory`                           | No new cases — `.current`, `.future`, `.others` reused for target-disabled path                        |
+| `Shared/Scheduling/CommitmentAndSlot.swift`                                  | All three helpers filter `isRemindersEnabled`; new `remindersOnlyWithSlots()` helper (Commit 7)        |
+| `Wilgo/Features/Stage/StageViewModel.swift`                                  | New `remindersOnly: [WithBehind]` property (Commit 7)                                                  |
 | `Wilgo/Features/Commitments/FinishedCycleReport/Models.swift`                | `CycleReport` gains `isPunishmentEnabled: Bool`                                                        |
 | `Wilgo/Features/Commitments/FinishedCycleReport/PreTokenReportBuilder.swift` | Uses `commitment.cycle`; sets `targetCheckIns = 0` when target disabled                                |
 
@@ -452,35 +452,23 @@ struct QuantifiedCycle: Codable, Hashable {
 }
 ```
 
-Add `.remindersOnly` to `StageCategory`:
-
-```swift
-enum StageCategory {
-    case metGoal
-    case current
-    case future
-    case catchUp
-    /// Target disabled but reminders on — slot-timing only, no goal math.
-    case remindersOnly
-    case others
-}
-```
+**No new `StageCategory` case.** `StageCategory` is unchanged — `.current`, `.future`, and `.others` are reused as-is. Target-disabled commitments produce the same categories as normal ones; the difference is that `behindCount` is always `0` and callers check `commitment.target.isEnabled` before rendering goal/behind UI.
 
 Insert early exit at top of `stageStatus(now:)`:
 
 ```swift
 func stageStatus(now: Date = Time.now()) -> StageStatus {
     if !target.isEnabled {
-        return remindersOnlyStatus(now: now)
+        return targetDisabledStatus(now: now)
     }
     // ... existing logic unchanged ...
 }
 ```
 
-Add private helper:
+Add private helper (today-only slot resolution, no goal math, `behindCount` always `0`):
 
 ```swift
-private func remindersOnlyStatus(now: Date) -> StageStatus {
+private func targetDisabledStatus(now: Date) -> StageStatus {
     let cal = Time.calendar
     let nowPsychDay = Time.startOfDay(for: now)
 
@@ -502,10 +490,14 @@ private func remindersOnlyStatus(now: Date) -> StageStatus {
         !(slots.first { $0.id == occ.id }?.isSnoozed(at: now) ?? false)
     }
 
-    guard !remaining.isEmpty else {
+    guard let first = remaining.first else {
         return StageStatus(category: .others, nextUpSlots: [], behindCount: 0)
     }
-    return StageStatus(category: .remindersOnly, nextUpSlots: remaining, behindCount: 0)
+
+    if first.start <= now {
+        return StageStatus(category: .current, nextUpSlots: remaining, behindCount: 0)
+    }
+    return StageStatus(category: .future, nextUpSlots: remaining, behindCount: 0)
 }
 ```
 
@@ -552,22 +544,25 @@ final class CommitmentTargetDisableTests {
         return c
     }
 
-    @Test("target disabled + slot active now → .remindersOnly")
-    @MainActor func targetDisabled_slotActive_isRemindersOnly() throws {
+    @Test("target disabled + slot active now → .current (no goal math)")
+    @MainActor func targetDisabled_slotActive_isCurrent() throws {
         let container = try makeContainer()
         let c = makeCommitment(targetEnabled: false, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        #expect(c.stageStatus(now: now).category == .remindersOnly)
+        let status = c.stageStatus(now: now)
+        #expect(status.category == .current)
+        #expect(status.behindCount == 0)
     }
 
-    @Test("target disabled + slot in future today → .remindersOnly with nextUpSlots")
-    @MainActor func targetDisabled_slotFuture_isRemindersOnly() throws {
+    @Test("target disabled + slot in future today → .future with nextUpSlots")
+    @MainActor func targetDisabled_slotFuture_isFuture() throws {
         let container = try makeContainer()
         let c = makeCommitment(targetEnabled: false, slotHour: 15, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
         let status = c.stageStatus(now: now)
-        #expect(status.category == .remindersOnly)
+        #expect(status.category == .future)
         #expect(!status.nextUpSlots.isEmpty)
+        #expect(status.behindCount == 0)
     }
 
     @Test("target disabled + no slots today → .others")
@@ -612,50 +607,35 @@ Expected: all 4 tests pass.
 
 ---
 
-#### Commit 7 — feat: Target.isEnabled — scheduling + Stage view + FinishedCycleReport
+#### Commit 7 — feat: Target.isEnabled — Stage view UI guard
 
-**Modify:** `Shared/Scheduling/CommitmentAndSlot.swift`
+No changes to `CommitmentAndSlot.swift` or `StageViewModel.swift`. After Commit 6, `stageStatus` on a target-disabled commitment already returns `.current`, `.future`, or `.others` — so the existing `currentWithBehind` / `upcomingWithBehind` / `catchUpWithBehind` functions pick them up naturally. `behindCount` is always `0` on that path.
 
-Add `remindersOnlyWithSlots` helper:
+The only change needed is to hide goal-related UI when the commitment has target disabled.
+
+**Modify:** `CurrentCommitmentRow` (and the upcoming row, wherever behind badge / goal counter is rendered)
+
+Gate goal-related UI on `commitment.target.isEnabled`:
 
 ```swift
-/// Commitments where target is disabled but reminders are on, with a slot active or upcoming today.
-static func remindersOnlyWithSlots(commitments: [Commitment], now: Date = Time.now()) -> [WithBehind] {
-    commitments
-        .filter { $0.isRemindersEnabled && !$0.target.isEnabled }
-        .compactMap { commitment -> WithBehind? in
-            let status = commitment.stageStatus(now: now)
-            guard status.category == .remindersOnly else { return nil }
-            return (commitment: commitment, slots: status.nextUpSlots, behindCount: 0)
-        }
-        .sorted { lhs, rhs in
-            guard let l = lhs.slots.first, let r = rhs.slots.first else { return false }
-            return l.start < r.start
-        }
+if commitment.target.isEnabled {
+    // behind badge, goal counter
 }
 ```
 
-**Modify:** `Wilgo/Features/Stage/StageViewModel.swift`
+**Run tests:**
 
-Add `private(set) var remindersOnly: [CommitmentAndSlot.WithBehind] = []`. In `recompute()`:
-
-```swift
-remindersOnly = CommitmentAndSlot.remindersOnlyWithSlots(commitments: commitments, now: now)
+```bash
+xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo \
+  -destination 'platform=iOS Simulator,id=4D4E7E2F-1CE5-4697-A734-85AB68DC55D4' \
+  -only-testing WilgoTests/CommitmentTargetDisableTests 2>&1 | tail -20
 ```
 
-**Modify:** `Wilgo/Features/Stage/StageView.swift`
+**Manual verification:** Create a commitment with target disabled and a slot for today. It should appear in the normal current/upcoming section in Stage with no goal counter or behind badge.
 
-Add a "Reminders" section after the current section:
+---
 
-```swift
-if !viewModel.remindersOnly.isEmpty {
-    Section("Reminders") {
-        ForEach(viewModel.remindersOnly, id: \.commitment.id) { item in
-            CurrentCommitmentRow(commitment: item.commitment, slots: item.slots, behindCount: 0)
-        }
-    }
-}
-```
+#### Commit 8 — feat: Target.isEnabled — FinishedCycleReport
 
 **Modify:** `Wilgo/Features/Commitments/FinishedCycleReport/PreTokenReportBuilder.swift`
 
@@ -706,13 +686,12 @@ Add test:
 ```bash
 xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo \
   -destination 'platform=iOS Simulator,id=4D4E7E2F-1CE5-4697-A734-85AB68DC55D4' \
-  -only-testing WilgoTests/FinishedCycleReportBuilderTests \
-  -only-testing WilgoTests/CommitmentTargetDisableTests 2>&1 | tail -20
+  -only-testing WilgoTests/FinishedCycleReportBuilderTests 2>&1 | tail -20
 ```
 
 ---
 
-#### Commit 8 — feat: Target.isEnabled — edit form + list/detail display
+#### Commit 9 — feat: Target.isEnabled — edit form + list/detail display
 
 **Modify:** `Wilgo/Features/Commitments/CommitmentFormFields.swift`
 
@@ -804,7 +783,7 @@ commitment.target.isEnabled
 
 ---
 
-#### Commit 9 — Full test suite
+#### Commit 10 — Full test suite
 
 **Run:**
 
@@ -840,17 +819,19 @@ Commit 1: refactor — move Cycle to top-level Commitment field
     |       |
     |       +-- Commit 3: feat — isRemindersEnabled UI
     |               |
-    |               +-- Commit 4: feat — isPunishmentEnabled model + report
+    |               +-- Commit 4: feat — isPunishmentEnabled model + report  [SKIPPED]
     |                       |
-    |                       +-- Commit 5: feat — isPunishmentEnabled UI
+    |                       +-- Commit 5: feat — isPunishmentEnabled UI  [SKIPPED]
     |                               |
     |                               +-- Commit 6: feat — Target.isEnabled model + stageStatus
     |                                       |
-    |                                       +-- Commit 7: feat — Target.isEnabled scheduling + Stage + report
+    |                                       +-- Commit 7: feat — Target.isEnabled scheduling + Stage view
     |                                               |
-    |                                               +-- Commit 8: feat — Target.isEnabled UI
+    |                                               +-- Commit 8: feat — Target.isEnabled FinishedCycleReport
     |                                                       |
-    |                                                       +-- Commit 9: full test suite
+    |                                                       +-- Commit 9: feat — Target.isEnabled edit form + list/detail display
+    |                                                               |
+    |                                                               +-- Commit 10: full test suite
 ```
 
 All commits are sequential. Each is independently buildable and testable.

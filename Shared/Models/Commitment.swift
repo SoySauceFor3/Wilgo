@@ -9,6 +9,7 @@ enum ProofOfWorkType: String, Codable {
 
 struct QuantifiedCycle: Codable, Hashable {
     var count: Int  // “how many per that cycle”
+    var isEnabled: Bool = true
 }
 
 typealias Target = QuantifiedCycle
@@ -155,6 +156,10 @@ extension Commitment {
     func stageStatus(
         now: Date = Time.now()
     ) -> StageStatus {
+        if !target.isEnabled {
+            return targetDisabledStatus(now: now)
+        }
+
         let target = self.target
         let nowPsychDay = Time.startOfDay(for: now)
         let startDay = cycle.startDayOfCycle(including: nowPsychDay)
@@ -256,5 +261,37 @@ extension Commitment {
             nextUpSlots: remainingInCycle,
             behindCount: behindCount
         )
+    }
+
+    private func targetDisabledStatus(now: Date) -> StageStatus {
+        let cal = Time.calendar
+        let nowPsychDay = Time.startOfDay(for: now)
+
+        func resolveOccurrence(slot: Slot) -> Slot? {
+            let start = Time.resolve(timeOfDay: slot.start, on: nowPsychDay)
+            var end = Time.resolve(timeOfDay: slot.end, on: nowPsychDay)
+            if end <= start { end = cal.date(byAdding: .day, value: 1, to: end) ?? end }
+            guard slot.isActive(on: start, calendar: cal) else { return nil }
+            let resolved = Slot(start: start, end: end)
+            resolved.id = slot.id
+            return resolved
+        }
+
+        var todaySlots = slots.compactMap { resolveOccurrence(slot: $0) }
+        todaySlots.sort { $0.start < $1.start }
+
+        let remaining = todaySlots.filter { occ in
+            occ.end >= now &&
+            (occ.start > now || !(slots.first { $0.id == occ.id }?.isSnoozed(at: now) ?? false))
+        }
+
+        guard let first = remaining.first else {
+            return StageStatus(category: .others, nextUpSlots: [], behindCount: 0)
+        }
+
+        if first.start <= now {
+            return StageStatus(category: .current, nextUpSlots: remaining, behindCount: 0)
+        }
+        return StageStatus(category: .future, nextUpSlots: remaining, behindCount: 0)
     }
 }
