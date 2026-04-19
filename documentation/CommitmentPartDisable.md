@@ -637,13 +637,143 @@ xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo \
 
 #### Commit 8 — feat: Target.isEnabled — FinishedCycleReport
 
-**Modify:** `Wilgo/Features/Commitments/FinishedCycleReport/PreTokenReportBuilder.swift`
+**UI design** (applies to both Page 1 `CheckInSummaryPage` and Page 2 `PositivityTokenPage`):
 
-When building `CycleReport`, set `targetCheckIns` to 0 when target disabled:
+
+| State           | Icon                          | Body text                                                                                                                    |
+| --------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| Normal pass     | `checkmark.circle.fill` green | `"3/3 check-ins"`                                                                                                            |
+| Normal fail     | `xmark.circle.fill` red       | `"1/3 check-ins"`                                                                                                            |
+| Grace           | `shield.lefthalf.filled` gray | `"2/3 check-ins · grace"` — target still shown because grace is a *temporary suspension* of an active goal                   |
+| Target disabled | `minus.circle` gray/tertiary  | `"2 check-ins · no target"` — no denominator because the stored count is a *saved default for next time*, not an active goal |
+
+
+Grace and target-disabled are mechanically identical — no goal evaluation, no PT consumed — but semantically different: grace means "still your goal, just temporarily suspended"; target-disabled means "not a goal right now."
+
+**PT rule:** Neither grace nor target-disabled cycles consume PT. PT only applies when a user has an active goal and fell short of it. Both states opt out of that evaluation entirely.
+
+**Future refactor note (deferred):** `isGrace` and `Target.isEnabled = false` are largely overlapping concepts — grace is essentially "target disabled with a temporary end date." When target is disabled, `isGrace` has no meaningful distinction (a grace period on a disabled target is redundant). These two concepts should eventually be unified, but that is out of scope here.
+
+**Design analysis for the future unification:**
+
+The unified model would fold grace into `Target`/`QuantifiedCycle`:
 
 ```swift
-let targetCount = commitment.target.isEnabled ? commitment.target.count : 0
-// pass targetCount into CycleReport(targetCheckIns: targetCount, ...)
+// Option A — enum
+enum TargetState {
+    case enabled
+    case disabled                    // permanent, no end date
+    case suspended(until: Date)      // grace — temporary, end date known
+}
+
+// Option B — struct
+struct TargetSuspension {
+    var isEnabled: Bool
+    var suspendedUntil: Date?        // nil = permanent disable, non-nil = grace
+}
+```
+
+UI and report behavior falls out naturally:
+
+
+| `isEnabled` | `suspendedUntil` | Report display                                                         | PT             |
+| ----------- | ---------------- | ---------------------------------------------------------------------- | -------------- |
+| `true`      | —                | `"3/3 check-ins"`                                                      | yes, if missed |
+| `false`     | `nil`            | `"2 check-ins · no target"`                                            | no             |
+| `false`     | some date        | `"2/3 check-ins · grace"` (target shown as it's still the active goal) | no             |
+
+
+**The main blocker for deferral:** Grace is currently stored as `gracePeriods: [GracePeriod]` — a separate `@Relationship` on `Commitment`, not inside `QuantifiedCycle`. The refactor would need to migrate grace into `Target` where it semantically belongs, making it a SwiftData model migration — not just a rename.
+
+---
+
+**Modify:** `Wilgo/Features/Commitments/FinishedCycleReport/Models.swift`
+
+Add `isTargetEnabled: Bool` to `CycleReport` (analogous to `isGrace`), so views can branch without recomputing:
+
+```swift
+struct CycleReport: Identifiable {
+    ...
+    let isGrace: Bool
+    let isTargetEnabled: Bool   // NEW
+}
+```
+
+**Modify:** `Wilgo/Features/Commitments/FinishedCycleReport/PreTokenReportBuilder.swift`
+
+Pass `isTargetEnabled: commitment.target.isEnabled` when constructing `CycleReport`. Do **not** set `targetCheckIns` to 0 — keep the actual count so Grace can display `actual/target`. The view uses `isTargetEnabled` to decide whether to show the denominator.
+
+```swift
+CycleReport(
+    ...
+    targetCheckIns: draft.targetCheckIns,  // unchanged — real count preserved
+    isTargetEnabled: commitment.target.isEnabled,
+    isGrace: draft.isGrace
+)
+```
+
+**Modify:** `Wilgo/Features/Commitments/FinishedCycleReport/CheckInSummaryPage.swift`
+
+Update `CheckInCycleRow` to handle the target-disabled state. The row currently branches on `isGrace`; add a new branch for `!isTargetEnabled`:
+
+```swift
+// icon
+if cycle.isGrace {
+    Image(systemName: "shield.lefthalf.filled")
+        .foregroundStyle(.secondary)
+} else if !cycle.isTargetEnabled {
+    Image(systemName: "minus.circle")
+        .foregroundStyle(.tertiary)
+} else {
+    Image(systemName: rawMetTarget ? "checkmark.circle.fill" : "xmark.circle.fill")
+        .foregroundStyle(rawMetTarget ? .green : .red)
+}
+
+// body text
+if cycle.isGrace {
+    Text("\(cycle.actualCheckIns)/\(cycle.targetCheckIns) check-ins · grace")
+        .font(.body)
+        .foregroundStyle(.secondary)
+} else if !cycle.isTargetEnabled {
+    Text("\(cycle.actualCheckIns) check-ins · no target")
+        .font(.body)
+        .foregroundStyle(.tertiary)
+} else {
+    Text("\(cycle.actualCheckIns)/\(cycle.targetCheckIns) check-ins")
+        .font(.body)
+}
+```
+
+**Modify:** `Wilgo/Features/Commitments/FinishedCycleReport/PositivityTokenPage.swift`
+
+Update `CycleResultRow` with the same branching logic. Also fix the existing inconsistency where grace cycles currently show a pass/fail icon on Page 2:
+
+```swift
+// icon
+if cycle.isGrace {
+    Image(systemName: "shield.lefthalf.filled")
+        .foregroundStyle(.secondary)
+} else if !cycle.isTargetEnabled {
+    Image(systemName: "minus.circle")
+        .foregroundStyle(.tertiary)
+} else {
+    Image(systemName: cycle.metTarget ? "checkmark.circle.fill" : "xmark.circle.fill")
+        .foregroundStyle(cycle.metTarget ? .green : .red)
+}
+
+// body text
+if cycle.isGrace {
+    Text("\(cycle.actualCheckIns)/\(cycle.targetCheckIns) check-ins · grace")
+        .font(.body)
+        .foregroundStyle(.secondary)
+} else if !cycle.isTargetEnabled {
+    Text("\(cycle.actualCheckIns) check-ins · no target")
+        .font(.body)
+        .foregroundStyle(.tertiary)
+} else {
+    Text("\(cycle.compensatedCheckIns)/\(cycle.targetCheckIns) check-ins")
+        .font(.body)
+}
 ```
 
 **Modify:** `WilgoTests/FinishedCycleReport/FinishedCycleReportBuilderTests.swift`
@@ -651,8 +781,8 @@ let targetCount = commitment.target.isEnabled ? commitment.target.count : 0
 Add test:
 
 ```swift
-@Test("target disabled: report shows check-in stats, targetCheckIns is 0")
-@MainActor func targetDisabled_reportShowsStatsOnly() throws {
+@Test("target disabled: isTargetEnabled false, targetCheckIns preserves real count, no PT")
+@MainActor func targetDisabled_reportPreservesCount() throws {
     let container = try makeContainer()
     let ctx = container.mainContext
     let anchor = date(year: 2026, month: 2, day: 1)
@@ -676,7 +806,8 @@ Add test:
     #expect(preReport.count == 1)
     let cycle = try #require(preReport.first?.cycles.first)
     #expect(cycle.actualCheckIns == 1)
-    #expect(cycle.targetCheckIns == 0)
+    #expect(cycle.targetCheckIns == 3)   // preserved, not zeroed out
+    #expect(cycle.isTargetEnabled == false)
     #expect(cycle.consumedPTReasons.isEmpty)
 }
 ```

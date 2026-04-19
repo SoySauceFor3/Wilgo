@@ -45,21 +45,43 @@ private struct CycleResultRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            Image(
-                systemName: cycle.metTarget
-                    ? "checkmark.circle.fill" : "xmark.circle.fill"
-            )
-            .foregroundStyle(cycle.metTarget ? .green : .red)
-            .font(.title3)
-            .frame(width: 24)
+            if cycle.isGrace {
+                Image(systemName: "shield.lefthalf.filled")
+                    .foregroundStyle(.secondary)
+                    .font(.title3)
+                    .frame(width: 24)
+            } else if !cycle.isTargetEnabled {
+                Image(systemName: "minus.circle")
+                    .foregroundStyle(.tertiary)
+                    .font(.title3)
+                    .frame(width: 24)
+            } else {
+                Image(
+                    systemName: cycle.metTarget
+                        ? "checkmark.circle.fill" : "xmark.circle.fill"
+                )
+                .foregroundStyle(cycle.metTarget ? .green : .red)
+                .font(.title3)
+                .frame(width: 24)
+            }
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(cycle.cycleLabel)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                Text("\(cycle.compensatedCheckIns)/\(cycle.targetCheckIns) check-ins")
-                    .font(.body)
+                if cycle.isGrace {
+                    Text("\(cycle.actualCheckIns)/\(cycle.targetCheckIns) check-ins · grace")
+                        .font(.body)
+                        .foregroundStyle(.secondary)
+                } else if !cycle.isTargetEnabled {
+                    Text("\(cycle.actualCheckIns) check-ins · no target")
+                        .font(.body)
+                        .foregroundStyle(.tertiary)
+                } else {
+                    Text("\(cycle.compensatedCheckIns)/\(cycle.targetCheckIns) check-ins")
+                        .font(.body)
+                }
 
                 if cycle.isAidedByPositivityToken {
                     Text(reasonsCopy(for: cycle.consumedPTReasons))

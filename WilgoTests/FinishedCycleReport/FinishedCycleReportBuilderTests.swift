@@ -243,6 +243,76 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         #expect(t2.status == .active)
     }
 
+    @Test("target disabled: isTargetEnabled false, targetCheckIns preserves real count, no PT")
+    @MainActor func targetDisabled_reportPreservesCount() throws {
+        let container = try makeContainer()
+        let ctx = container.mainContext
+        let anchor = date(year: 2026, month: 2, day: 1)
+        let c = Commitment(
+            title: "Draw",
+            cycle: Cycle(kind: .daily, referencePsychDay: anchor),
+            slots: [],
+            target: Target(count: 3, isEnabled: false)
+        )
+        ctx.insert(c)
+        let checkIn = CheckIn(commitment: c, createdAt: date(year: 2026, month: 2, day: 1, hour: 9))
+        ctx.insert(checkIn)
+        c.checkIns.append(checkIn)
+
+        let preReport = PreTokenReportBuilder.build(
+            commitments: [c],
+            startPsychDay: date(year: 2026, month: 2, day: 1),
+            endPsychDay: date(year: 2026, month: 2, day: 2)
+        )
+
+        #expect(preReport.count == 1)
+        let cycle = try #require(preReport.first?.cycles.first)
+        #expect(cycle.actualCheckIns == 1)
+        #expect(cycle.targetCheckIns == 3)   // preserved, not zeroed out
+        #expect(cycle.isTargetEnabled == false)
+        #expect(cycle.consumedPTReasons.isEmpty)
+    }
+
+    @Test("target disabled: appears in report but receives no PT compensation")
+    @MainActor func targetDisabled_receivesNoPTCompensation() throws {
+        let container = try makeContainer()
+        let ctx = container.mainContext
+        let anchor = date(year: 2026, month: 2, day: 1)
+        let c = Commitment(
+            title: "Draw",
+            cycle: Cycle(kind: .daily, referencePsychDay: anchor),
+            slots: [],
+            target: Target(count: 3, isEnabled: false)
+        )
+        ctx.insert(c)
+        // 0 check-ins, target disabled — PT should not be consumed
+        let t1 = PositivityToken(reason: "a", createdAt: date(year: 2026, month: 1, day: 1))
+        let t2 = PositivityToken(reason: "b", createdAt: date(year: 2026, month: 1, day: 2))
+        ctx.insert(t1)
+        ctx.insert(t2)
+
+        let preReport = PreTokenReportBuilder.build(
+            commitments: [c],
+            startPsychDay: date(year: 2026, month: 2, day: 1),
+            endPsychDay: date(year: 2026, month: 2, day: 2)
+        )
+        let report = AfterPositivityTokenReportBuilder.apply(
+            to: preReport,
+            allTokens: [t1, t2],
+            monthlyCap: 10
+        )
+
+        #expect(report.count == 1)
+        let cycle = try #require(report.first?.cycles.first)
+        // Target-disabled cycle must appear in the report
+        #expect(cycle.isTargetEnabled == false)
+        // No PT tokens consumed
+        #expect(cycle.aidedByPositivityTokenCount == 0)
+        // Tokens remain active
+        #expect(t1.status == .active)
+        #expect(t2.status == .active)
+    }
+
     @Test("start >= end returns empty report")
     @MainActor
     func invalidDateRangeReturnsEmpty() throws {

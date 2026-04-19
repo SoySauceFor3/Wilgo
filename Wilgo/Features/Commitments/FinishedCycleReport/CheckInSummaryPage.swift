@@ -36,6 +36,9 @@ private struct CheckInCycleRow: View {
     @State private var isExpanded = false
     @State private var showingBackfill = false
 
+    // NOTE: Only meaningful when cycle.isTargetEnabled == true.
+    // When disabled, targetCheckIns holds the preserved count (not zero),
+    // so this comparison would be misleading — callers must guard on isTargetEnabled first.
     private var rawMetTarget: Bool { cycle.actualCheckIns >= cycle.targetCheckIns }
 
     private var cycleRange: ClosedRange<Date> {
@@ -48,6 +51,11 @@ private struct CheckInCycleRow: View {
                 if cycle.isGrace {
                     Image(systemName: "shield.lefthalf.filled")
                         .foregroundStyle(.secondary)
+                        .font(.title3)
+                        .frame(width: 24)
+                } else if !cycle.isTargetEnabled {
+                    Image(systemName: "minus.circle")
+                        .foregroundStyle(.tertiary)
                         .font(.title3)
                         .frame(width: 24)
                 } else {
@@ -66,9 +74,13 @@ private struct CheckInCycleRow: View {
                         .foregroundStyle(.secondary)
 
                     if cycle.isGrace {
-                        Text("no penalty · grace period")
+                        Text("\(cycle.actualCheckIns)/\(cycle.targetCheckIns) check-ins · grace")
                             .font(.body)
                             .foregroundStyle(.secondary)
+                    } else if !cycle.isTargetEnabled {
+                        Text("\(cycle.actualCheckIns) check-ins · no target")
+                            .font(.body)
+                            .foregroundStyle(.tertiary)
                     } else {
                         Text("\(cycle.actualCheckIns)/\(cycle.targetCheckIns) check-ins")
                             .font(.body)

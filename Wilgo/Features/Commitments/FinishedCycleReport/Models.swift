@@ -17,6 +17,9 @@ struct CycleReport: Identifiable {
     let checkIns: [CheckIn]
     /// True when this cycle is covered by a grace period — no penalty and no PT tokens applied.
     let isGrace: Bool
+    /// True when the commitment's target was enabled for this cycle.
+    /// When false, the cycle is informational only — no pass/fail and no PT consumed.
+    let isTargetEnabled: Bool
 
     var aidedByPositivityTokenCount: Int { consumedPTReasons.count }
     var compensatedCheckIns: Int { actualCheckIns + aidedByPositivityTokenCount }

@@ -55,7 +55,12 @@ enum PreTokenReportBuilder {
                         cycleEndPsychDay: draft.cycleEndPsychDay,
                         consumedPTReasons: [],
                         checkIns: draft.checkIns,
-                        isGrace: draft.isGrace
+                        isGrace: draft.isGrace,
+                        // NOTE: isTargetEnabled reflects the commitment's current toggle state
+                        // at report-build time, not a per-cycle historical snapshot. If the
+                        // user changes the toggle after cycles have completed, those historical
+                        // cycles will be labeled with the current value.
+                        isTargetEnabled: commitment.target.isEnabled
                     )
                 }
             )
