@@ -18,10 +18,11 @@ struct FinishedCycleReportView: View {
         )
     }
 
-    /// Phase 2: PT compensation applied once and frozen in @State.
-    /// Must NOT be a computed property — PositivityTokenCompensator mutates token.status
-    /// to .used, so recomputing after that mutation would see zero active tokens and
-    /// return an empty result (showing "0 PT used").
+    /// Phase 2: PT compensation applied once and frozen at navigation time.
+    /// Computed from the live preTokenReport when the user taps "Next", so any
+    /// backfills done on Page 1 are already reflected before PT is applied.
+    /// Must NOT be recomputed after navigation — PositivityTokenCompensator mutates
+    /// token.status to .used, so re-running it would see zero active tokens.
     @State private var finalReport: [CommitmentReport] = []
     @State private var showTokenStep = false
 
@@ -32,7 +33,13 @@ struct FinishedCycleReportView: View {
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
-                        Button("Next") { showTokenStep = true }
+                        Button("Next") {
+                            finalReport = AfterPositivityTokenReportBuilder.apply(
+                                to: preTokenReport,
+                                allTokens: tokens
+                            )
+                            showTokenStep = true
+                        }
                     }
                 }
                 .navigationDestination(isPresented: $showTokenStep) {
@@ -46,20 +53,8 @@ struct FinishedCycleReportView: View {
                         }
                 }
         }
-        .task {
-            let report = PreTokenReportBuilder.build(
-                commitments: commitments,
-                startPsychDay: request.startPsychDay,
-                endPsychDay: request.endPsychDay
-            )
-            if report.isEmpty {
-                dismiss()
-                return
-            }
-            finalReport = AfterPositivityTokenReportBuilder.apply(
-                to: report,
-                allTokens: tokens
-            )
+        .onAppear {
+            if preTokenReport.isEmpty { dismiss() }
         }
         .onChange(of: preTokenReport.isEmpty) { _, isEmpty in
             if isEmpty { dismiss() }
