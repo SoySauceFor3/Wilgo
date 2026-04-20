@@ -7,15 +7,15 @@ import SwiftUI
 /// `.finishedCycleReport()`.
 struct FinishedCycleReportModifier: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
-    @State private var pendingReport: FinishedCycleReportRequest?
-    @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
+    @Environment(\.modelContext) private var modelContext
+    @State private var reportRequest: FinishedCycleReportRequest?
 
     func body(content: Content) -> some View {
         content
             #if DEBUG
                 .environment(\.triggerCycleReport, checkAndShow)
             #endif
-            .fullScreenCover(item: $pendingReport) { request in
+            .fullScreenCover(item: $reportRequest) { request in
                 FinishedCycleReportView(request: request)
             }
             .task(id: scenePhase) {  // the id parameter is a change detector + fires on app's first launch.
@@ -24,39 +24,38 @@ struct FinishedCycleReportModifier: ViewModifier {
     }
 
     private func checkAndShow() {
-        // Only set/replace the sheet when there's an actual report to show.
-        // If the user is currently looking at the sheet, we don't want to
-        // automatically dismiss it due to a refresh tick (by then request might be None).
-        guard let request = reportRange() else { return }
-        let report = PreTokenReportBuilder.build(
-            commitments: commitments,
-            startPsychDay: request.startPsychDay,
-            endPsychDay: request.endPsychDay
-        )
-        if !report.isEmpty {
-            pendingReport = request
+        guard let request = peekReportRange() else { return }
+        guard hasFinishedCycles(in: request) else { return }
+        advanceWatermark()
+        reportRequest = request
+    }
+
+    private func hasFinishedCycles(in request: FinishedCycleReportRequest) -> Bool {
+        // This fetch is intentionally synchronous on the main actor.
+        // The data set is small (O(tens) of commitments) and this is a one-time
+        // check on scene activation — not worth the complexity of actor hopping.
+        // If commitment data ever grows large, move to a background ModelContext.
+        let commitments = (try? modelContext.fetch(FetchDescriptor<Commitment>())) ?? []
+        return commitments.contains { commitment in
+            let cycleEnd = commitment.cycle.endDayOfCycle(including: request.startPsychDay)
+            return cycleEnd <= request.endPsychDay
         }
     }
 }
 
-/// Calculate the date range for the report (i.e. last report date - now)
+/// Calculate the date range for the report (i.e. last report date - now).
 ///
-/// Side effect:
-/// reads persisted watermark, and advances it to now.
+/// Pure — no side effects. Reads the persisted watermark and returns the
+/// window if valid, but does NOT write anything to UserDefaults.
 ///
 /// Notes:
 /// - If persisted watermark is `0`, this is first app run: establish baseline
 ///   at current psych-day and do not show historical cycles.
-private func reportRange() -> FinishedCycleReportRequest? {
+private func peekReportRange() -> FinishedCycleReportRequest? {
     let previousRef = UserDefaults.standard.double(
         forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
     )
     let nowPsychDay = Time.startOfDay(for: Time.now())
-    // Persist watermark updates regardless of whether we show anything.
-    UserDefaults.standard.set(
-        toPsychDayRef(nowPsychDay),
-        forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
-    )
     // First bootstrap: establish baseline and do not show historical cycles.
     guard previousRef != 0 else { return nil }
 
@@ -67,6 +66,14 @@ private func reportRange() -> FinishedCycleReportRequest? {
     return FinishedCycleReportRequest(
         startPsychDay: startPsychDay,
         endPsychDay: nowPsychDay
+    )
+}
+
+private func advanceWatermark() {
+    let nowPsychDay = Time.startOfDay(for: Time.now())
+    UserDefaults.standard.set(
+        toPsychDayRef(nowPsychDay),
+        forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
     )
 }
 
