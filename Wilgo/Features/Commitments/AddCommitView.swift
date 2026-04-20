@@ -15,10 +15,7 @@ struct AddCommitmentView: View {
     @State private var selectedTags: [Tag] = []
     @State private var isRemindersEnabled: Bool = true
 
-    @State private var showingGraceDialog = false
-    /// Cached cycle boundaries used when the grace dialog is presented.
-    @State private var pendingCycleStart: Date = .now
-    @State private var pendingCycleEnd: Date = .now
+    @State private var graceDialog = GraceDialogState()
 
     init() {
         let (start, end) = ReminderWindowsSection.defaultFirstWindow()
@@ -51,16 +48,8 @@ struct AddCommitmentView: View {
                         .disabled(!canSave)
                 }
             }
-            .confirmationDialog(
-                graceDialogTitle, isPresented: $showingGraceDialog, titleVisibility: .visible
-            ) {
-                Button("Yes — I'm committed") { persistCommitment(grace: false) }
-                Button("No — grace period") { persistCommitment(grace: true) }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text(
-                    "The goal changes take effect immediately. This only decides whether the current period counts toward penalties."
-                )
+            .graceDialog(state: graceDialog) { grace in
+                persistCommitment(grace: grace)
             }
         }
     }
@@ -70,41 +59,15 @@ struct AddCommitmentView: View {
             && (!isRemindersEnabled || slotWindows.allSatisfy { $0.recurrence.isValidSelection })
     }
 
-    /// Checks if creation is mid-cycle. If so, shows the grace dialog; otherwise saves directly.
+    /// Shows the grace dialog.
     private func handleSaveTap() {
         let today = Time.startOfDay(for: Time.now())
-        let cycleStart = cycle.startDayOfCycle(including: today)
-        let cycleEnd = cycle.endDayOfCycle(including: today)
-
-        pendingCycleStart = cycleStart
-        pendingCycleEnd = cycleEnd
-        showingGraceDialog = true
-
-    }
-
-    /// Human-readable title for the grace confirmation dialog.
-    private var graceDialogTitle: String {
-        let cal = Time.calendar
-        let today = Time.startOfDay(for: Time.now())
-        var addOn = ""
-        switch cycle.kind {
-        case .weekly:
-            let weekdayFmt = DateFormatter()
-            weekdayFmt.dateFormat = "EEEE"
-            weekdayFmt.calendar = cal
-            let weekday = weekdayFmt.string(from: today)
-            addOn = "Today is \(weekday) of \(cycle.kind.thisNoun). "
-        case .monthly:
-            let day = cal.component(.day, from: today)
-            let ordinalFmt = NumberFormatter()
-            ordinalFmt.numberStyle = .ordinal
-            let ordinal = ordinalFmt.string(from: NSNumber(value: day)) ?? "\(day)"
-            addOn =
-                "Today is the \(ordinal) day of \(cycle.kind.thisNoun). "
-        case .daily:
-            break
-        }
-        return addOn + "Should \(cycle.kind.thisNoun) count toward penalties?"
+        graceDialog.trigger(
+            context: .creation,
+            cycle: cycle,
+            cycleStart: cycle.startDayOfCycle(including: today),
+            cycleEnd: cycle.endDayOfCycle(including: today)
+        )
     }
 
     private func persistCommitment(grace: Bool) {
@@ -127,8 +90,8 @@ struct AddCommitmentView: View {
         if grace {
             commitment.gracePeriods.append(
                 GracePeriod(
-                    startPsychDay: pendingCycleStart,
-                    endPsychDay: pendingCycleEnd,
+                    startPsychDay: graceDialog.cycleStart,
+                    endPsychDay: graceDialog.cycleEnd,
                     reason: .creation
                 )
             )
