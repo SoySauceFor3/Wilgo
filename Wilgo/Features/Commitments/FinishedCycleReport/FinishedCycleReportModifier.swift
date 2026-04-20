@@ -8,6 +8,7 @@ import SwiftUI
 struct FinishedCycleReportModifier: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @State private var pendingReport: FinishedCycleReportRequest?
+    @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
 
     func body(content: Content) -> some View {
         content
@@ -26,7 +27,13 @@ struct FinishedCycleReportModifier: ViewModifier {
         // Only set/replace the sheet when there's an actual report to show.
         // If the user is currently looking at the sheet, we don't want to
         // automatically dismiss it due to a refresh tick (by then request might be None).
-        if let request = reportRange() {
+        guard let request = reportRange() else { return }
+        let report = PreTokenReportBuilder.build(
+            commitments: commitments,
+            startPsychDay: request.startPsychDay,
+            endPsychDay: request.endPsychDay
+        )
+        if !report.isEmpty {
             pendingReport = request
         }
     }
