@@ -11,6 +11,8 @@ final class GraceDialogState {
         case creation
         /// An existing commitment's rules changed (new target count or cycle kind).
         case ruleChange(targetCount: Int)
+        /// Target was previously disabled and is now being re-enabled.
+        case reEnable(targetCount: Int)
     }
 
     var isPresented = false
@@ -53,6 +55,8 @@ private struct GraceDialogModifier: ViewModifier {
             return creationTitle
         case .ruleChange(let count):
             return "Your goal changes to \(count) per \(state.cycle.kind.nounSingle.lowercased()) now. Should \(state.cycle.kind.thisNoun) count toward penalties?"
+        case .reEnable(let count):
+            return "Target re-enabled (\(count)× per \(state.cycle.kind.nounSingle.lowercased())). Should \(state.cycle.kind.thisNoun) count toward penalties?"
         }
     }
 

@@ -826,7 +826,7 @@ xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo \
 
 **Modify:** `Wilgo/Features/Commitments/CommitmentFormFields.swift`
 
-Add `targetEnabledBinding`. Wrap count/cycle pickers in toggle. Hide Punishment section when target disabled:
+Add `targetEnabledBinding`. Wrap count picker in toggle. The Punishment section remains always visible (Phase 3 was skipped — no `isPunishmentEnabled` flag exists):
 
 ```swift
 Section("Target") {
@@ -846,9 +846,7 @@ Section("Target") {
     }
 }
 
-if target.isEnabled {
-    // existing Punishment section (with isPunishmentEnabled toggle from Commit 5)
-}
+// Punishment section is unchanged — always visible regardless of target state.
 
 private var targetEnabledBinding: Binding<Bool> {
     Binding(get: { target.isEnabled }, set: { target.isEnabled = $0 })
@@ -857,19 +855,80 @@ private var targetEnabledBinding: Binding<Bool> {
 
 **Modify:** `Wilgo/Features/Commitments/AddCommitView.swift`
 
-Default target: `@State private var target: Target = Target(count: 5, isEnabled: true)`. In `persistCommitment`, punishment conditional also checks target enabled:
+Default target: `@State private var target: Target = Target(count: 5, isEnabled: true)`. No changes needed to the punishment line — it was already not gated on `isPunishmentEnabled` (Phase 3 skipped).
+
+Also guard `handleSaveTap` — when target is disabled at creation time, the grace dialog is meaningless (no goal to penalize against), so skip it. Uses the shared `GraceDialogState` (already on main):
 
 ```swift
-punishment: (isPunishmentEnabled && target.isEnabled && !trimmedPunishment.isEmpty) ? trimmedPunishment : nil
+private func handleSaveTap() {
+    guard target.isEnabled else {
+        persistCommitment(grace: false)
+        return
+    }
+    let today = Time.startOfDay(for: Time.now())
+    graceDialog.trigger(
+        context: .creation,
+        cycle: cycle,
+        cycleStart: cycle.startDayOfCycle(including: today),
+        cycleEnd: cycle.endDayOfCycle(including: today)
+    )
+}
 ```
 
 **Modify:** `Wilgo/Features/Commitments/EditCommitmentView.swift`
 
 `target` already carries `isEnabled` — no additional state needed. Verify `commitment.target = target` in `saveChanges` writes `isEnabled`.
 
+**Grace dialog — re-enable only.** When the user re-enables a target (`false → true`), the current cycle may have already started without a target. Offer the grace dialog so the user can opt out of penalties for that partial cycle. Disabling (`true → false`) must **not** trigger the dialog — there is nothing to penalize when target is off.
+
+Snapshot the original `isEnabled` in `init` alongside `originalTarget`:
+
+```swift
+private let originalTargetWasEnabled: Bool  // add alongside originalTarget
+
+// in init:
+originalTargetWasEnabled = commitment.target.isEnabled
+```
+
+Add a helper to detect re-enable:
+
+```swift
+/// True only when the target is being re-enabled this save.
+private var targetBeingReEnabled: Bool {
+    !originalTargetWasEnabled && target.isEnabled
+}
+```
+
+Update `handleSaveTap` — skip the grace dialog when disabling, and use the correct `GraceDialogState.Context` for the re-enable case. Uses the shared `GraceDialogState` (already on main):
+
+```swift
+private func handleSaveTap() {
+    guard anyRuleChanged else {
+        saveChanges(grace: false)
+        return
+    }
+    // Only offer grace when target is active after save (re-enable or count change while enabled).
+    guard target.isEnabled else {
+        saveChanges(grace: false)
+        return
+    }
+    let newCycle = Cycle.makeDefault(cycle.kind)
+    let today = Time.startOfDay(for: Time.now())
+    let context: GraceDialogState.Context = targetBeingReEnabled
+        ? .reEnable(targetCount: target.count)   // "Target re-enabled (N× per day)..."
+        : .ruleChange(targetCount: target.count) // "Your goal changes to N per day now..."
+    graceDialog.trigger(
+        context: context,
+        cycle: newCycle,
+        cycleStart: newCycle.startDayOfCycle(including: today),
+        cycleEnd: newCycle.endDayOfCycle(including: today)
+    )
+}
+```
+
 **Modify:** `Wilgo/Features/Commitments/SingleCommitment/CommitmentRowView.swift`
 
-Update target row and punishment row:
+Update target row only. The punishment row is unchanged — no `isPunishmentEnabled` flag exists (Phase 3 skipped):
 
 ```swift
 // Target row
@@ -880,11 +939,7 @@ if commitment.target.isEnabled {
     Text("Disabled").font(.caption).foregroundStyle(.tertiary)
 }
 
-// Punishment row
-let showDisabled = !commitment.isPunishmentEnabled || !commitment.target.isEnabled
-Text(showDisabled ? "Disabled" : (commitment.punishment ?? "None"))
-    .font(.caption)
-    .foregroundStyle(showDisabled ? .tertiary : .secondary)
+// Punishment row — no change needed
 ```
 
 **Modify:** `Wilgo/Features/Commitments/SingleCommitment/CommitmentDetailView.swift`
@@ -910,7 +965,10 @@ commitment.target.isEnabled
     : statTile(value: "—", label: "\(commitment.cycle.kind.rawValue)\ngoal disabled")
 ```
 
-**Manual verification:** Toggle Target off → count picker and Punishment section disappear. Save → row shows "Target · Disabled", "Punishment · Disabled". Edit → toggle is off, count value preserved. Toggle back on → previous count reappears. Detail view shows "—" for goal tile.
+**Manual verification:**
+- Toggle Target off → count picker disappears; Punishment section remains visible. Save → **no grace dialog** (disabling never triggers it). Target row shows "Disabled".
+- Edit → toggle is off, count value preserved. Toggle back on → grace dialog appears with re-enable wording. Choosing "grace" exempts the current cycle. Choosing "committed" does not.
+- Detail view shows "—" for goal tile when target is disabled.
 
 ---
 
@@ -920,7 +978,7 @@ commitment.target.isEnabled
 
 ```bash
 xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo \
-  -destination 'platform=iOS Simulator,id=4D4E7E2F-1CE5-4697-A734-85AB68DC55D4' 2>&1 | tail -50
+  -destination 'platform=iOS Simulator,id=4492FF84-2E83-4350-8008-B87DE7AE2588' 2>&1 | tail -50
 ```
 
 Expected: all tests pass except pre-existing failure `stageStatus_snoozeDoesNotAffectFutureOccurrence` (known since 2026-04-14). Fix any unexpected failures before closing.
