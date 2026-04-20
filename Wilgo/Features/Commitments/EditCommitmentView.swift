@@ -21,6 +21,7 @@ struct EditCommitmentView: View {
     /// Snapshot of rule values at open time, used to detect if any rule changed.
     private let originalTarget: Target
     private let originalCycle: Cycle
+    private let originalTargetWasEnabled: Bool
 
     @State private var graceDialog = GraceDialogState()
 
@@ -43,6 +44,7 @@ struct EditCommitmentView: View {
 
         originalTarget = commitment.target
         originalCycle = commitment.cycle
+        originalTargetWasEnabled = commitment.target.isEnabled
     }
 
     var body: some View {
@@ -90,18 +92,31 @@ struct EditCommitmentView: View {
         target != originalTarget || cycle != originalCycle  // || skipBudget != originalSkipBudget
     }
 
+    /// True only when the target is being re-enabled this save.
+    private var targetBeingReEnabled: Bool {
+        !originalTargetWasEnabled && target.isEnabled
+    }
+
     // MARK: - Save
 
     /// If rules changed, shows the grace dialog; otherwise saves directly.
+    /// Disabling target skips the dialog — nothing to penalize when target is off.
     private func handleSaveTap() {
         guard anyRuleChanged else {
             saveChanges(grace: false)
             return
         }
+        guard target.isEnabled else {
+            saveChanges(grace: false)
+            return
+        }
         let newCycle = Cycle.makeDefault(cycle.kind)
         let today = Time.startOfDay(for: Time.now())
+        let context: GraceDialogState.Context = targetBeingReEnabled
+            ? .reEnable(targetCount: target.count)
+            : .ruleChange(targetCount: target.count)
         graceDialog.trigger(
-            context: .ruleChange(targetCount: target.count),
+            context: context,
             cycle: newCycle,
             cycleStart: newCycle.startDayOfCycle(including: today),
             cycleEnd: newCycle.endDayOfCycle(including: today)

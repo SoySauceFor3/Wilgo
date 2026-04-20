@@ -7,7 +7,7 @@ struct AddCommitmentView: View {
 
     @State private var title: String = ""
     @State private var cycle: Cycle = Cycle.makeDefault(.daily)
-    @State private var target: Target = Target(count: 1)
+    @State private var target: Target = Target(count: 5, isEnabled: true)
     @State private var slotWindows: [SlotWindow]
     @State private var proofOfWorkType: ProofOfWorkType = .manual
     @State private var punishment: String = ""
@@ -59,8 +59,12 @@ struct AddCommitmentView: View {
             && (!isRemindersEnabled || slotWindows.allSatisfy { $0.recurrence.isValidSelection })
     }
 
-    /// Shows the grace dialog.
+    /// Shows the grace dialog, or saves directly if target is disabled (no goal to penalize against).
     private func handleSaveTap() {
+        guard target.isEnabled else {
+            persistCommitment(grace: false)
+            return
+        }
         let today = Time.startOfDay(for: Time.now())
         graceDialog.trigger(
             context: .creation,

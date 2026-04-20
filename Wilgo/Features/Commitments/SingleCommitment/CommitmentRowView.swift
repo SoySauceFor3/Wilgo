@@ -43,9 +43,15 @@ struct CommitmentRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text("\(commitment.target.count)× \(commitment.cycle.kind.adj)")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                if commitment.target.isEnabled {
+                    Text("\(commitment.target.count)× \(commitment.cycle.kind.adj)")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Text("Disabled")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
             }
 
             // Fifth line: skip credits + proof-of-work

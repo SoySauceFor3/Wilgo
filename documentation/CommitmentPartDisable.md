@@ -86,9 +86,9 @@ Same pattern in `CatchUpReminder` before its `catchUpWithBehind` call.
 
 **How this applies to each part:**
 
-- `**isRemindersEnabled` (slots):** Slots are only written to DB when `effectiveRemindersEnabled = isRemindersEnabled && !slotWindows.isEmpty` is true. When disabled, existing DB slots are left untouched. In the edit form, `slotWindows` state is kept populated even when the toggle is off — the UI is hidden but the data is not cleared. Derived at save time, not from toggle alone, to handle the edge case where the user edits slots and then disables: in-progress edits are discarded, original DB slots are preserved.
-- `**isPunishmentEnabled` (punishment text):** The `punishment` string on `Commitment` is never cleared when `isPunishmentEnabled` is false. The UI hides the text field when disabled, but the value is preserved.
-- `**Target.isEnabled` (count):** `QuantifiedCycle` stores `count` and `isEnabled` together so the count survives toggling. The UI hides the count picker when disabled, but the value is preserved.
+- `**isRemindersEnabled` (slots):\*\* Slots are only written to DB when `effectiveRemindersEnabled = isRemindersEnabled && !slotWindows.isEmpty` is true. When disabled, existing DB slots are left untouched. In the edit form, `slotWindows` state is kept populated even when the toggle is off — the UI is hidden but the data is not cleared. Derived at save time, not from toggle alone, to handle the edge case where the user edits slots and then disables: in-progress edits are discarded, original DB slots are preserved.
+- `**isPunishmentEnabled` (punishment text):\*\* The `punishment` string on `Commitment` is never cleared when `isPunishmentEnabled` is false. The UI hides the text field when disabled, but the value is preserved.
+- `**Target.isEnabled` (count):\*\* `QuantifiedCycle` stores `count` and `isEnabled` together so the count survives toggling. The UI hides the count picker when disabled, but the value is preserved.
 
 ### Sequential phases, not parallel
 
@@ -100,7 +100,6 @@ Same pattern in `CatchUpReminder` before its `catchUpWithBehind` call.
 
 ## Major Model Changes
 
-
 | Entity                                                                       | Change                                                                                                 |
 | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `Shared/Models/Commitment.swift`                                             | `cycle: Cycle` added as top-level field; `isRemindersEnabled: Bool`, `isPunishmentEnabled: Bool` added |
@@ -110,7 +109,6 @@ Same pattern in `CatchUpReminder` before its `catchUpWithBehind` call.
 | `Wilgo/Features/Stage/StageViewModel.swift`                                  | New `remindersOnly: [WithBehind]` property (Commit 7)                                                  |
 | `Wilgo/Features/Commitments/FinishedCycleReport/Models.swift`                | `CycleReport` gains `isPunishmentEnabled: Bool`                                                        |
 | `Wilgo/Features/Commitments/FinishedCycleReport/PreTokenReportBuilder.swift` | Uses `commitment.cycle`; sets `targetCheckIns = 0` when target disabled                                |
-
 
 After restructure, the relevant shape of `Commitment` is:
 
@@ -639,14 +637,12 @@ xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo \
 
 **UI design** (applies to both Page 1 `CheckInSummaryPage` and Page 2 `PositivityTokenPage`):
 
-
 | State           | Icon                          | Body text                                                                                                                    |
 | --------------- | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
 | Normal pass     | `checkmark.circle.fill` green | `"3/3 check-ins"`                                                                                                            |
 | Normal fail     | `xmark.circle.fill` red       | `"1/3 check-ins"`                                                                                                            |
-| Grace           | `shield.lefthalf.filled` gray | `"2/3 check-ins · grace"` — target still shown because grace is a *temporary suspension* of an active goal                   |
-| Target disabled | `minus.circle` gray/tertiary  | `"2 check-ins · no target"` — no denominator because the stored count is a *saved default for next time*, not an active goal |
-
+| Grace           | `shield.lefthalf.filled` gray | `"2/3 check-ins · grace"` — target still shown because grace is a _temporary suspension_ of an active goal                   |
+| Target disabled | `minus.circle` gray/tertiary  | `"2 check-ins · no target"` — no denominator because the stored count is a _saved default for next time_, not an active goal |
 
 Grace and target-disabled are mechanically identical — no goal evaluation, no PT consumed — but semantically different: grace means "still your goal, just temporarily suspended"; target-disabled means "not a goal right now."
 
@@ -675,13 +671,11 @@ struct TargetSuspension {
 
 UI and report behavior falls out naturally:
 
-
 | `isEnabled` | `suspendedUntil` | Report display                                                         | PT             |
 | ----------- | ---------------- | ---------------------------------------------------------------------- | -------------- |
 | `true`      | —                | `"3/3 check-ins"`                                                      | yes, if missed |
 | `false`     | `nil`            | `"2 check-ins · no target"`                                            | no             |
 | `false`     | some date        | `"2/3 check-ins · grace"` (target shown as it's still the active goal) | no             |
-
 
 **The main blocker for deferral:** Grace is currently stored as `gracePeriods: [GracePeriod]` — a separate `@Relationship` on `Commitment`, not inside `QuantifiedCycle`. The refactor would need to migrate grace into `Target` where it semantically belongs, making it a SwiftData model migration — not just a rename.
 
@@ -966,6 +960,7 @@ commitment.target.isEnabled
 ```
 
 **Manual verification:**
+
 - Toggle Target off → count picker disappears; Punishment section remains visible. Save → **no grace dialog** (disabling never triggers it). Target row shows "Disabled".
 - Edit → toggle is off, count value preserved. Toggle back on → grace dialog appears with re-enable wording. Choosing "grace" exempts the current cycle. Choosing "committed" does not.
 - Detail view shows "—" for goal tile when target is disabled.
@@ -987,7 +982,6 @@ Expected: all tests pass except pre-existing failure `stageStatus_snoozeDoesNotA
 
 ## Critical Files
 
-
 | File                                                                         | Role                                   |
 | ---------------------------------------------------------------------------- | -------------------------------------- |
 | `Shared/Models/Commitment.swift`                                             | Model changes across all phases        |
@@ -997,7 +991,6 @@ Expected: all tests pass except pre-existing failure `stageStatus_snoozeDoesNotA
 | `Wilgo/Features/Commitments/EditCommitmentView.swift`                        | Loads + saves new fields               |
 | `Wilgo/Features/Stage/StageViewModel.swift`                                  | remindersOnly list                     |
 | `Wilgo/Features/Commitments/FinishedCycleReport/PreTokenReportBuilder.swift` | Target-disabled report handling        |
-
 
 ### Dependency Graph
 

@@ -102,9 +102,12 @@ struct CommitmentDetailView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     statTile(
-                        value:
-                            "\(checkInsInCurrentTargetCycle.count)/\(commitment.target.count)",
-                        label: "Completed \(commitment.cycle.kind.thisNoun)"
+                        value: commitment.target.isEnabled
+                            ? "\(checkInsInCurrentTargetCycle.count)/\(commitment.target.count)"
+                            : "\(checkInsInCurrentTargetCycle.count)",
+                        label: commitment.target.isEnabled
+                            ? "Completed \(commitment.cycle.kind.thisNoun)"
+                            : "Check-ins \(commitment.cycle.kind.thisNoun)"
                     )
 
                 }
@@ -140,10 +143,9 @@ struct CommitmentDetailView: View {
                 value: "\(commitment.checkIns.count)",
                 label: "All-time\ncheck-ins"
             )
-            statTile(
-                value: "\(commitment.target.count)×",
-                label: "\(commitment.cycle.kind.rawValue)\ngoal"
-            )
+            commitment.target.isEnabled
+                ? statTile(value: "\(commitment.target.count)×", label: "\(commitment.cycle.kind.rawValue)\ngoal")
+                : statTile(value: "—", label: "\(commitment.cycle.kind.rawValue)\ngoal disabled")
             statTile(
                 value: daysTracked,
                 label: "Days tracked\nsince \(formattedShortDate(commitment.createdAt))"

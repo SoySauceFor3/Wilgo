@@ -53,16 +53,19 @@ struct CommitmentFormFields: View {
         EncouragementSection(encouragements: $encouragements)
 
         Section("Target") {
-            HStack(spacing: 4) {
-                Picker("", selection: targetCountBinding) {
-                    ForEach(0..<31, id: \.self) { value in
-                        Text("\(value)").tag(value)
+            Toggle("Enable target", isOn: targetEnabledBinding)
+            if target.isEnabled {
+                HStack(spacing: 4) {
+                    Picker("", selection: targetCountBinding) {
+                        ForEach(0..<31, id: \.self) { value in
+                            Text("\(value)").tag(value)
+                        }
                     }
-                }
-                .labelsHidden()
+                    .labelsHidden()
 
-                Text("times every \(cycle.kind.rawValue.lowercased())")
-                    .foregroundStyle(.secondary)
+                    Text("times every \(cycle.kind.rawValue.lowercased())")
+                        .foregroundStyle(.secondary)
+                }
             }
         }
 
@@ -96,6 +99,13 @@ struct CommitmentFormFields: View {
             set: { newKind in
                 cycle = Cycle.makeDefault(newKind)
             }
+        )
+    }
+
+    private var targetEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { target.isEnabled },
+            set: { target.isEnabled = $0 }
         )
     }
 
