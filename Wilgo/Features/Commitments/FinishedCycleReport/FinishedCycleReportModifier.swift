@@ -9,28 +9,34 @@ struct FinishedCycleReportModifier: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var modelContext
     @State private var reportRequest: FinishedCycleReportRequest?
+    @State private var shouldShowReport = false
 
     func body(content: Content) -> some View {
         content
             #if DEBUG
                 .environment(\.triggerCycleReport, checkAndShow)
             #endif
-            .fullScreenCover(item: $reportRequest) { request in
-                FinishedCycleReportView(request: request)
+            .fullScreenCover(isPresented: $shouldShowReport) {
+                if let request = reportRequest {
+                    FinishedCycleReportView(request: request)
+                }
             }
             .task(id: scenePhase) {  // the id parameter is a change detector + fires on app's first launch.
                 if scenePhase == .active { checkAndShow() }
             }
     }
 
+    // Side effects:
+    // 1. advances the watermark
+    // 2. sets reportRequest and shouldShowReport
     private func checkAndShow() {
         guard let request = peekReportRange() else { return }
-        guard hasFinishedCycles(in: request) else { return }
-        advanceWatermark()
+        advanceWatermark(to: request.endPsychDay)
         reportRequest = request
+        shouldShowReport = anyFinishedCycles(in: request)
     }
 
-    private func hasFinishedCycles(in request: FinishedCycleReportRequest) -> Bool {
+    private func anyFinishedCycles(in request: FinishedCycleReportRequest) -> Bool {
         // This fetch is intentionally synchronous on the main actor.
         // The data set is small (O(tens) of commitments) and this is a one-time
         // check on scene activation — not worth the complexity of actor hopping.
@@ -38,7 +44,9 @@ struct FinishedCycleReportModifier: ViewModifier {
         let commitments = (try? modelContext.fetch(FetchDescriptor<Commitment>())) ?? []
         return commitments.contains { commitment in
             let cycleEnd = commitment.cycle.endDayOfCycle(including: request.startPsychDay)
-            return cycleEnd <= request.endPsychDay
+            // The cycle must end strictly after the window start (not already reported)
+            // and at or before the window end.
+            return cycleEnd > request.startPsychDay && cycleEnd <= request.endPsychDay
         }
     }
 }
@@ -69,10 +77,9 @@ private func peekReportRange() -> FinishedCycleReportRequest? {
     )
 }
 
-private func advanceWatermark() {
-    let nowPsychDay = Time.startOfDay(for: Time.now())
+private func advanceWatermark(to psychDay: Date) {
     UserDefaults.standard.set(
-        toPsychDayRef(nowPsychDay),
+        toPsychDayRef(psychDay),
         forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
     )
 }
