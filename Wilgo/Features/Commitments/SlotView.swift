@@ -46,6 +46,17 @@ struct SlotWindow: Identifiable {
     var start: Date
     var end: Date
     var recurrence: SlotRecurrence = .everyDay
+
+    /// Returns true when start and end represent the same time-of-day,
+    /// which is the sentinel for "active the whole day".
+    /// The existing `contains(timeOfDay:)` midnight-crossing branch already
+    /// returns `true` for all times in this case.
+    var isWholeDay: Bool {
+        let calendar = Calendar.current
+        let s = calendar.dateComponents([.hour, .minute], from: start)
+        let e = calendar.dateComponents([.hour, .minute], from: end)
+        return s.hour == e.hour && s.minute == e.minute
+    }
 }
 
 // MARK: - SlotWindowRow (per-slot UI, including recurrence)

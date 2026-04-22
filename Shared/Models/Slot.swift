@@ -125,7 +125,24 @@ extension Slot {
     /// End of the slot mapped onto the current psychological day.
     var endToday: Date { Time.resolve(timeOfDay: end) }
 
+    /// Returns true when start and end represent the same time-of-day,
+    /// which is the sentinel for "active the whole day".
+    /// The existing `contains(timeOfDay:)` midnight-crossing branch already
+    /// returns `true` for all times in this case.
+    var isWholeDay: Bool {
+        let calendar = Calendar.current
+        let s = calendar.dateComponents([.hour, .minute], from: start)
+        let e = calendar.dateComponents([.hour, .minute], from: end)
+        return s.hour == e.hour && s.minute == e.minute
+    }
+
     var timeOfDayText: String {
+        if isWholeDay {
+            let formatter = DateFormatter()
+            formatter.timeStyle = .short
+            formatter.dateStyle = .none
+            return "Whole day (from \(formatter.string(from: start)))"
+        }
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         formatter.dateStyle = .none
