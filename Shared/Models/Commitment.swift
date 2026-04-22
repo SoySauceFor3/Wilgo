@@ -174,6 +174,18 @@ extension Commitment {
         let cal = Time.calendar
 
         func resolveSlotOccurrence(slot: Slot, psychDay: Date) -> Slot? {
+            if slot.isWholeDay {
+                // Whole-day slots span the entire psych day regardless of the anchor time.
+                // Use psychDay start as start and +24h as end.
+                let start = psychDay
+                let end = cal.date(byAdding: .day, value: 1, to: psychDay) ?? psychDay
+                // Check recurrence against the psych day itself.
+                guard slot.isActive(on: psychDay, calendar: cal) else { return nil }
+                let resolved = Slot(start: start, end: end)
+                resolved.id = slot.id
+                return resolved
+            }
+
             let start = Time.resolve(timeOfDay: slot.start, on: psychDay)
             var end = Time.resolve(timeOfDay: slot.end, on: psychDay)
             if end <= start {
@@ -268,6 +280,14 @@ extension Commitment {
         let nowPsychDay = Time.startOfDay(for: now)
 
         func resolveOccurrence(slot: Slot) -> Slot? {
+            if slot.isWholeDay {
+                let start = nowPsychDay
+                let end = cal.date(byAdding: .day, value: 1, to: nowPsychDay) ?? nowPsychDay
+                guard slot.isActive(on: nowPsychDay, calendar: cal) else { return nil }
+                let resolved = Slot(start: start, end: end)
+                resolved.id = slot.id
+                return resolved
+            }
             let start = Time.resolve(timeOfDay: slot.start, on: nowPsychDay)
             var end = Time.resolve(timeOfDay: slot.end, on: nowPsychDay)
             if end <= start { end = cal.date(byAdding: .day, value: 1, to: end) ?? end }

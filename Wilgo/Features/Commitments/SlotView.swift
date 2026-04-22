@@ -46,17 +46,11 @@ struct SlotWindow: Identifiable {
     var start: Date
     var end: Date
     var recurrence: SlotRecurrence = .everyDay
-
-    /// Returns true when start and end represent the same time-of-day,
-    /// which is the sentinel for "active the whole day".
-    /// The existing `contains(timeOfDay:)` midnight-crossing branch already
-    /// returns `true` for all times in this case.
-    var isWholeDay: Bool {
-        let calendar = Calendar.current
-        let s = calendar.dateComponents([.hour, .minute], from: start)
-        let e = calendar.dateComponents([.hour, .minute], from: end)
-        return (s.hour ?? 0) == (e.hour ?? 0) && (s.minute ?? 0) == (e.minute ?? 0)
-    }
+    /// Explicit toggle state. When true, `end` is kept equal to `start` so the
+    /// saved `Slot` satisfies the `isWholeDay` sentinel (`start == end`).
+    /// Stored separately so the UI toggle doesn't auto-flip when the user
+    /// happens to pick identical start/end times in normal mode.
+    var isWholeDay: Bool = false
 }
 
 // MARK: - SlotWindowRow (per-slot UI, including recurrence)
@@ -68,6 +62,15 @@ struct SlotWindowRow: View {
 
     private var crossesMidnight: Bool {
         !window.isWholeDay && window.end < window.start
+    }
+
+    private var timesMatchButNotWholeDay: Bool {
+        !window.isWholeDay && {
+            let cal = Calendar.current
+            let s = cal.dateComponents([.hour, .minute], from: window.start)
+            let e = cal.dateComponents([.hour, .minute], from: window.end)
+            return (s.hour ?? 0) == (e.hour ?? 0) && (s.minute ?? 0) == (e.minute ?? 0)
+        }()
     }
     @State private var showingRecurrenceEditor = false
     private var showsRepeatWarning: Bool {
@@ -92,7 +95,7 @@ struct SlotWindowRow: View {
                     .font(.footnote)
 
                 if window.isWholeDay {
-                    // Only show the start (day-anchor) picker; end is kept in sync.
+                    // Only show the start (day-anchor) picker; end is kept in sync imperatively.
                     HStack(spacing: 8) {
                         Text("From")
                             .foregroundStyle(.secondary)
@@ -102,9 +105,6 @@ struct SlotWindowRow: View {
                             displayedComponents: .hourAndMinute
                         )
                         .labelsHidden()
-                        .onChange(of: window.start) { _, newStart in
-                            window.end = newStart
-                        }
                     }
                     .font(.footnote)
                 } else {
@@ -130,6 +130,10 @@ struct SlotWindowRow: View {
 
                     if crossesMidnight {
                         Text("Crosses midnight")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    } else if timesMatchButNotWholeDay {
+                        Text("Whole day (from \(formattedStart))")
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                     }
@@ -181,16 +185,24 @@ struct SlotWindowRow: View {
         Binding(
             get: { window.isWholeDay },
             set: { newValue in
+                window.isWholeDay = newValue
                 if newValue {
-                    // Keep start as-is (user's day-anchor); sync end to start.
+                    // Sync end to start so the saved Slot satisfies the sentinel.
                     window.end = window.start
                 } else {
-                    // Restore a 1-hour window: keep start, set end = start + 1 hour.
+                    // Restore a 1-hour window.
                     let end = Calendar.current.date(byAdding: .hour, value: 1, to: window.start) ?? window.start
                     window.end = end
                 }
             }
         )
+    }
+
+    private var formattedStart: String {
+        let formatter = DateFormatter()
+        formatter.timeStyle = .short
+        formatter.dateStyle = .none
+        return formatter.string(from: window.start)
     }
 }
 
