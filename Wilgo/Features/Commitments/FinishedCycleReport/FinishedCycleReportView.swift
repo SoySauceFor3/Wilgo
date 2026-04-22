@@ -54,9 +54,14 @@ struct FinishedCycleReportView: View {
                 }
         }
         .onAppear {
+            print("[FCR] FinishedCycleReportView appeared — commitments=\(commitments.count) tokens=\(tokens.count) preTokenReport=\(preTokenReport.count) time=\(Date())")
             if preTokenReport.isEmpty { dismiss() }
         }
+        .onChange(of: commitments.count) { old, new in
+            print("[FCR] @Query commitments changed: \(old) → \(new) time=\(Date())")
+        }
         .onChange(of: preTokenReport.isEmpty) { _, isEmpty in
+            print("[FCR] preTokenReport.isEmpty → \(isEmpty) time=\(Date())")
             if isEmpty { dismiss() }
         }
     }

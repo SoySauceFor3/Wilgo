@@ -19,10 +19,20 @@ struct FinishedCycleReportModifier: ViewModifier {
             .fullScreenCover(isPresented: $shouldShowReport) {
                 if let request = reportRequest {
                     FinishedCycleReportView(request: request)
+                } else {
+                    // reportRequest was nil when cover opened — should never happen
+                    let _ = print("[FCR] fullScreenCover body: reportRequest is nil!")
+                    Color.clear
                 }
             }
+            .onChange(of: shouldShowReport) { _, newValue in
+                print("[FCR] shouldShowReport → \(newValue) time=\(Date())")
+            }
             .task(id: scenePhase) {  // the id parameter is a change detector + fires on app's first launch.
-                if scenePhase == .active { checkAndShow() }
+                print("[FCR] scenePhase changed → \(scenePhase) time=\(Date())")
+                if scenePhase == .active {
+                    checkAndShow()
+                }
             }
     }
 
@@ -33,7 +43,10 @@ struct FinishedCycleReportModifier: ViewModifier {
         guard let request = peekReportRange() else { return }
         advanceWatermark(to: request.endPsychDay)
         reportRequest = request
-        shouldShowReport = anyFinishedCycles(in: request)
+        print("[FCR] checkAndShow: fetch start — thread=\(Thread.isMainThread ? "main" : "bg") time=\(Date())")
+        let result = anyFinishedCycles(in: request)
+        print("[FCR] checkAndShow: fetch end — hasFinishedCycles=\(result) time=\(Date())")
+        shouldShowReport = result
     }
 
     private func anyFinishedCycles(in request: FinishedCycleReportRequest) -> Bool {
@@ -42,6 +55,7 @@ struct FinishedCycleReportModifier: ViewModifier {
         // check on scene activation — not worth the complexity of actor hopping.
         // If commitment data ever grows large, move to a background ModelContext.
         let commitments = (try? modelContext.fetch(FetchDescriptor<Commitment>())) ?? []
+        print("[FCR] anyFinishedCycles: fetched \(commitments.count) commitments")
         return commitments.contains { commitment in
             let cycleEnd = commitment.cycle.endDayOfCycle(including: request.startPsychDay)
             // The cycle must end strictly after the window start (not already reported)
