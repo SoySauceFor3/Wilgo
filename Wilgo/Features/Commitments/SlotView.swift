@@ -66,12 +66,14 @@ struct SlotWindowRow: View {
     @Binding var window: SlotWindow
     var onDelete: () -> Void
 
-    private var crossesMidnight: Bool { window.end < window.start }
+    private var crossesMidnight: Bool {
+        !window.isWholeDay && window.end < window.start
+    }
     @State private var showingRecurrenceEditor = false
     private var showsRepeatWarning: Bool {
         !window.recurrence.isValidSelection && window.recurrence.kindChoice != .everyDay
     }
-    
+
     private var recurrenceSummaryText: String {
         let summary = window.recurrence.summaryText
         if summary.isEmpty && window.recurrence.kindChoice != .everyDay {
@@ -86,30 +88,51 @@ struct SlotWindowRow: View {
                 Text("Slot \(index + 1)")
                     .font(.subheadline.weight(.semibold))
 
-                HStack(spacing: 8) {
-                    DatePicker(
-                        "",
-                        selection: $window.start,
-                        displayedComponents: .hourAndMinute
-                    )
-                    .labelsHidden()
+                Toggle("Whole day", isOn: wholeDayBinding)
+                    .font(.footnote)
 
-                    Text("–")
-                        .foregroundStyle(.secondary)
+                if window.isWholeDay {
+                    // Only show the start (day-anchor) picker; end is kept in sync.
+                    HStack(spacing: 8) {
+                        Text("From")
+                            .foregroundStyle(.secondary)
+                        DatePicker(
+                            "",
+                            selection: $window.start,
+                            displayedComponents: .hourAndMinute
+                        )
+                        .labelsHidden()
+                        .onChange(of: window.start) { _, newStart in
+                            window.end = newStart
+                        }
+                    }
+                    .font(.footnote)
+                } else {
+                    HStack(spacing: 8) {
+                        DatePicker(
+                            "",
+                            selection: $window.start,
+                            displayedComponents: .hourAndMinute
+                        )
+                        .labelsHidden()
 
-                    DatePicker(
-                        "",
-                        selection: $window.end,
-                        displayedComponents: .hourAndMinute
-                    )
-                    .labelsHidden()
-                }
-                .font(.footnote)
+                        Text("–")
+                            .foregroundStyle(.secondary)
 
-                if crossesMidnight {
-                    Text("Crosses midnight")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        DatePicker(
+                            "",
+                            selection: $window.end,
+                            displayedComponents: .hourAndMinute
+                        )
+                        .labelsHidden()
+                    }
+                    .font(.footnote)
+
+                    if crossesMidnight {
+                        Text("Crosses midnight")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
                 }
 
                 Button {
@@ -151,6 +174,22 @@ struct SlotWindowRow: View {
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color(.secondarySystemBackground))
+        )
+    }
+
+    private var wholeDayBinding: Binding<Bool> {
+        Binding(
+            get: { window.isWholeDay },
+            set: { newValue in
+                if newValue {
+                    // Keep start as-is (user's day-anchor); sync end to start.
+                    window.end = window.start
+                } else {
+                    // Restore a 1-hour window: keep start, set end = start + 1 hour.
+                    let end = Calendar.current.date(byAdding: .hour, value: 1, to: window.start) ?? window.start
+                    window.end = end
+                }
+            }
         )
     }
 }
