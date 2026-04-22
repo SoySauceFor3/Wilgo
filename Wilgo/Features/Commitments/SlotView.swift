@@ -55,7 +55,7 @@ struct SlotWindow: Identifiable {
         let calendar = Calendar.current
         let s = calendar.dateComponents([.hour, .minute], from: start)
         let e = calendar.dateComponents([.hour, .minute], from: end)
-        return s.hour == e.hour && s.minute == e.minute
+        return (s.hour ?? 0) == (e.hour ?? 0) && (s.minute ?? 0) == (e.minute ?? 0)
     }
 }
 
