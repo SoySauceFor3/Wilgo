@@ -39,7 +39,7 @@ struct ReminderWindowsSection: View {
 }
 
 // MARK: - SlotDraft (shared value type)
-
+// Slot is a SwiftData @Model (reference type, tied to a persistence context)
 struct SlotDraft: Identifiable {
     let id = UUID()
     var start: Date
@@ -56,12 +56,12 @@ struct SlotWindowRow: View {
     private var crossesMidnight: Bool { window.end < window.start }
     @State private var showingRecurrenceEditor = false
     private var showsRepeatWarning: Bool {
-        !window.recurrence.isValidSelection && window.recurrence.kindChoice != .everyDay
+        !window.recurrence.isValidSelection && !(window.recurrence == .everyDay)
     }
 
     private var recurrenceSummaryText: String {
         let summary = window.recurrence.summaryText
-        if summary.isEmpty && window.recurrence.kindChoice != .everyDay {
+        if summary.isEmpty && !(window.recurrence == .everyDay) {
             return "Select days"
         }
         return summary
@@ -155,14 +155,12 @@ private enum RecurrenceKindChoice: Hashable, CaseIterable {
         case .monthly: return "Monthly"
         }
     }
-}
 
-extension SlotRecurrence {
-    fileprivate var kindChoice: RecurrenceKindChoice {
-        switch self {
-        case .everyDay: return .everyDay
-        case .specificWeekdays: return .weekly
-        case .specificMonthDays: return .monthly
+    init(from recurrence: SlotRecurrence) {
+        switch recurrence {
+        case .everyDay: self = .everyDay
+        case .specificWeekdays: self = .weekly
+        case .specificMonthDays: self = .monthly
         }
     }
 }
@@ -254,7 +252,7 @@ private struct RecurrenceEditorSheet: View {
                 }
             }
             .onAppear {
-                kind = recurrence.kindChoice
+                kind = RecurrenceKindChoice(from: recurrence)
                 recurrenceByKind[kind] = recurrence
             }
         }
