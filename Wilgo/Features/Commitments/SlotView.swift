@@ -6,12 +6,11 @@ struct ReminderWindowsSection: View {
     @Binding var slotWindows: [SlotDraft]
 
     var body: some View {
-        ForEach(Array(slotWindows.enumerated()), id: \.element.id) { index, _ in
+        ForEach($slotWindows) { $window in
             SlotWindowRow(
-                index: index,
-                window: $slotWindows[index]
+                window: $window
             ) {
-                slotWindows.remove(at: index)
+                slotWindows.removeAll { $0.id == window.id }
             }
         }
 
@@ -51,7 +50,6 @@ struct SlotDraft: Identifiable {
 // MARK: - SlotWindowRow (per-slot UI, including recurrence)
 
 struct SlotWindowRow: View {
-    let index: Int
     @Binding var window: SlotDraft
     var onDelete: () -> Void
 
@@ -70,15 +68,9 @@ struct SlotWindowRow: View {
     }
 
     var body: some View {
-        let _ = print(
-            "[SlotWindowRow \(index)] body evaluated, showingRecurrenceEditor=\(showingRecurrenceEditor)"
-        )
-
         HStack(spacing: 12) {
 
             VStack(alignment: .leading, spacing: 6) {
-                Text("Slot \(index + 1)")
-                    .font(.subheadline.weight(.semibold))
 
                 HStack(spacing: 8) {
                     DatePicker(
