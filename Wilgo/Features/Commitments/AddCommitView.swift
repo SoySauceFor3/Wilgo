@@ -8,7 +8,7 @@ struct AddCommitmentView: View {
     @State private var title: String = ""
     @State private var cycle: Cycle = Cycle.makeDefault(.daily)
     @State private var target: Target = Target(count: 5, isEnabled: true)
-    @State private var slotWindows: [SlotWindow]
+    @State private var slotWindows: [SlotDraft]
     @State private var proofOfWorkType: ProofOfWorkType = .manual
     @State private var punishment: String = ""
     @State private var encouragements: [String] = []
@@ -19,7 +19,7 @@ struct AddCommitmentView: View {
 
     init() {
         let (start, end) = ReminderWindowsSection.defaultFirstWindow()
-        _slotWindows = State(initialValue: [SlotWindow(start: start, end: end)])
+        _slotWindows = State(initialValue: [SlotDraft(start: start, end: end)])
     }
 
     var body: some View {
@@ -76,11 +76,13 @@ struct AddCommitmentView: View {
 
     private func persistCommitment(grace: Bool) {
         let effectiveRemindersEnabled = isRemindersEnabled && !slotWindows.isEmpty
-        let slots: [Slot] = effectiveRemindersEnabled ? slotWindows.map { window in
-            let slot = Slot(start: window.start, end: window.end, recurrence: window.recurrence)
-            modelContext.insert(slot)
-            return slot
-        } : []
+        let slots: [Slot] =
+            effectiveRemindersEnabled
+            ? slotWindows.map { window in
+                let slot = Slot(start: window.start, end: window.end, recurrence: window.recurrence)
+                modelContext.insert(slot)
+                return slot
+            } : []
         let trimmedPunishment = punishment.trimmingCharacters(in: .whitespacesAndNewlines)
         let commitment = Commitment(
             title: title.trimmingCharacters(in: .whitespacesAndNewlines),
