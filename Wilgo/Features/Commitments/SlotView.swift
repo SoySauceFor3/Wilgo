@@ -70,7 +70,12 @@ struct SlotWindowRow: View {
     }
 
     var body: some View {
+        let _ = print(
+            "[SlotWindowRow \(index)] body evaluated, showingRecurrenceEditor=\(showingRecurrenceEditor)"
+        )
+
         HStack(spacing: 12) {
+
             VStack(alignment: .leading, spacing: 6) {
                 Text("Slot \(index + 1)")
                     .font(.subheadline.weight(.semibold))
@@ -175,7 +180,6 @@ private struct RecurrenceEditorSheet: View {
     @Binding var recurrence: SlotRecurrence
 
     @State private var kind: RecurrenceKindChoice = .everyDay
-    @State private var measuredContentHeight: CGFloat = 0
     // One entry per kind; preserves picks when switching between kinds.
     @State private var recurrenceByKind: [RecurrenceKindChoice: SlotRecurrence] = [
         .everyDay: .everyDay,
@@ -184,6 +188,17 @@ private struct RecurrenceEditorSheet: View {
     ]
 
     private var currentRecurrence: SlotRecurrence { recurrenceByKind[kind]! }
+
+    /// Fixed detent heights per kind – avoids the layout cycle that dynamic
+    /// GeometryReader-based sizing caused (sheet measuring → detent change →
+    /// re-measure → oscillation → auto-dismiss).
+    private var detentForKind: CGFloat {
+        switch kind {
+        case .everyDay: return 260
+        case .weekly: return 380
+        case .monthly: return 500
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -230,13 +245,12 @@ private struct RecurrenceEditorSheet: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
                 .padding(.bottom, 20)
-                .readHeight(into: $measuredContentHeight)
             }
             .scrollIndicators(.hidden)
             .navigationTitle("Repeat")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Close") { dismiss() }
+                    Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") {
@@ -253,14 +267,7 @@ private struct RecurrenceEditorSheet: View {
             }
         }
         .presentationDragIndicator(.visible)
-        .presentationDetents([.height(preferredDetentHeight)])
-    }
-
-    private var preferredDetentHeight: CGFloat {
-        let chrome: CGFloat = 140
-        let minHeight: CGFloat = 260
-        let maxHeight: CGFloat = 720
-        return min(max(measuredContentHeight + chrome, minHeight), maxHeight)
+        .presentationDetents([.height(detentForKind)])
     }
 }
 
@@ -276,24 +283,6 @@ extension SlotRecurrence {
         case .specificMonthDays(let set): return set
         default: return []
         }
-    }
-}
-
-private enum SheetHeightPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
-extension View {
-    fileprivate func readHeight(into binding: Binding<CGFloat>) -> some View {
-        background(
-            GeometryReader { proxy in
-                Color.clear.preference(key: SheetHeightPreferenceKey.self, value: proxy.size.height)
-            }
-        )
-        .onPreferenceChange(SheetHeightPreferenceKey.self) { binding.wrappedValue = $0 }
     }
 }
 
