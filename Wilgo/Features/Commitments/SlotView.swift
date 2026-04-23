@@ -95,13 +95,19 @@ struct SlotWindowRow: View {
                     .font(.footnote)
 
                 if window.isWholeDay {
-                    // Only show the start (day-anchor) picker; end is kept in sync imperatively.
+                    // Only show the start (day-anchor) picker; end is kept in sync via a custom binding.
                     HStack(spacing: 8) {
                         Text("From")
                             .foregroundStyle(.secondary)
                         DatePicker(
                             "",
-                            selection: $window.start,
+                            selection: Binding(
+                                get: { window.start },
+                                set: { newStart in
+                                    window.start = newStart
+                                    window.end = newStart
+                                }
+                            ),
                             displayedComponents: .hourAndMinute
                         )
                         .labelsHidden()
