@@ -15,6 +15,8 @@ struct StageView: View {
     @Query private var slotSnoozes: [SlotSnooze]
 
     @State private var viewModel = StageViewModel()
+    @State private var commitmentForDetail: Commitment?
+    @State private var commitmentForEdit: Commitment?
 
     private var todayTitle: String {
         let today = Time.startOfDay(for: Time.now())
@@ -42,7 +44,7 @@ struct StageView: View {
                                     commitment: item.commitment,
                                     slots: item.slots,
                                     behindCount: item.behindCount
-                                )
+                                ) { commitmentForDetail = item.commitment }
                             }
                         }
                     }
@@ -59,7 +61,7 @@ struct StageView: View {
                                     commitment: item.commitment,
                                     slots: item.slots,
                                     behindCount: item.behindCount
-                                )
+                                ) { commitmentForDetail = item.commitment }
                             }
                         }
                     }
@@ -76,7 +78,7 @@ struct StageView: View {
                                     commitment: item.commitment,
                                     slots: item.slots,
                                     behindCount: item.behindCount
-                                )
+                                ) { commitmentForDetail = item.commitment }
                             }
                         }
                     }
@@ -107,6 +109,19 @@ struct StageView: View {
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { viewModel.refresh(commitments: commitments) }
+            }
+            .sheet(item: $commitmentForDetail) { commitment in
+                CommitmentDetailView(commitment: commitment) {
+                    commitmentForDetail = nil
+                    commitmentForEdit = commitment
+                }
+                .presentationDetents([.fraction(0.65), .large])
+                .presentationDragIndicator(.visible)
+            }
+            .fullScreenCover(item: $commitmentForEdit) { commitment in
+                NavigationStack {
+                    EditCommitmentView(commitment: commitment)
+                }
             }
         }
     }

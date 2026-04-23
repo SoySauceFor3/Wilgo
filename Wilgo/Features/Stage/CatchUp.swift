@@ -7,8 +7,7 @@ struct CatchUpCommitmentRow: View {
     let slots: [Slot]
     /// Pre-computed by `StageViewModel`; avoids re-running `stageStatus` per row.
     let behindCount: Int
-    @State private var isPresentingDetail = false
-    @State private var isPresentingEdit = false
+    var onTap: () -> Void
 
     var body: some View {
         CommitmentStatsCard(
@@ -36,22 +35,7 @@ struct CatchUpCommitmentRow: View {
             }
         }
         .contentShape(Rectangle())
-        .onTapGesture {
-            isPresentingDetail = true
-        }
-        .sheet(isPresented: $isPresentingDetail) {
-            CommitmentDetailView(commitment: commitment) {
-                isPresentingDetail = false
-                isPresentingEdit = true
-            }
-            .presentationDetents([.fraction(0.65), .large])
-            .presentationDragIndicator(.visible)
-        }
-        .fullScreenCover(isPresented: $isPresentingEdit) {
-            NavigationStack {
-                EditCommitmentView(commitment: commitment)
-            }
-        }
+        .onTapGesture { onTap() }
     }
 }
 
@@ -69,7 +53,7 @@ struct CatchUpCommitmentRow: View {
         target: Target(count: 1),
     )
 
-    CatchUpCommitmentRow(commitment: commitment, slots: [slot], behindCount: 0)
+    CatchUpCommitmentRow(commitment: commitment, slots: [slot], behindCount: 0, onTap: {})
         .modelContainer(
             for: [Commitment.self, Slot.self, CheckIn.self], inMemory: true
         )
