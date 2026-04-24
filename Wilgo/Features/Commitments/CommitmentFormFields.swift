@@ -4,7 +4,7 @@ import SwiftUI
 struct CommitmentFormFields: View {
     @Binding var title: String
     @Binding var cycle: Cycle
-    @Binding var slotWindows: [SlotWindow]
+    @Binding var slotWindows: [SlotDraft]
     @Binding var target: Target
     @Binding var proofOfWorkType: ProofOfWorkType
     @Binding var punishment: String

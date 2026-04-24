@@ -10,7 +10,7 @@ struct EditCommitmentView: View {
 
     @State private var title: String
     @State private var cycle: Cycle
-    @State private var slotWindows: [SlotWindow]
+    @State private var slotWindows: [SlotDraft]
     @State private var target: Target
     @State private var proofOfWorkType: ProofOfWorkType
     @State private var punishment: String
@@ -32,7 +32,7 @@ struct EditCommitmentView: View {
         _cycle = State(initialValue: commitment.cycle)
         _slotWindows = State(
             initialValue: commitment.slots.sorted().map {
-                SlotWindow(start: $0.start, end: $0.end, recurrence: $0.recurrence)
+                SlotDraft(start: $0.start, end: $0.end, recurrence: $0.recurrence)
             }
         )
         _target = State(initialValue: commitment.target)
@@ -112,7 +112,8 @@ struct EditCommitmentView: View {
         }
         let newCycle = Cycle.makeDefault(cycle.kind)
         let today = Time.startOfDay(for: Time.now())
-        let context: GraceDialogState.Context = targetBeingReEnabled
+        let context: GraceDialogState.Context =
+            targetBeingReEnabled
             ? .reEnable(targetCount: target.count)
             : .ruleChange(targetCount: target.count)
         graceDialog.trigger(

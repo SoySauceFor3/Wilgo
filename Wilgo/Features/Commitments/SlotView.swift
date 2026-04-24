@@ -3,21 +3,20 @@ import SwiftUI
 // MARK: - Reminder windows section (used by commitment form)
 
 struct ReminderWindowsSection: View {
-    @Binding var slotWindows: [SlotWindow]
+    @Binding var slotWindows: [SlotDraft]
 
     var body: some View {
-        ForEach(Array(slotWindows.enumerated()), id: \.element.id) { index, _ in
+        ForEach($slotWindows) { $window in
             SlotWindowRow(
-                index: index,
-                window: $slotWindows[index]
+                window: $window
             ) {
-                slotWindows.remove(at: index)
+                slotWindows.removeAll { $0.id == window.id }
             }
         }
 
         Button {
             let (defaultStart, defaultEnd) = defaultWindowForNewSlot()
-            slotWindows.append(SlotWindow(start: defaultStart, end: defaultEnd))
+            slotWindows.append(SlotDraft(start: defaultStart, end: defaultEnd))
         } label: {
             Label("Add window", systemImage: "plus")
         }
@@ -39,9 +38,9 @@ struct ReminderWindowsSection: View {
     }
 }
 
-// MARK: - SlotWindow (shared value type)
-
-struct SlotWindow: Identifiable {
+// MARK: - SlotDraft (shared value type)
+// Slot is a SwiftData @Model (reference type, tied to a persistence context)
+struct SlotDraft: Identifiable {
     let id = UUID()
     var start: Date
     var end: Date
@@ -56,8 +55,7 @@ struct SlotWindow: Identifiable {
 // MARK: - SlotWindowRow (per-slot UI, including recurrence)
 
 struct SlotWindowRow: View {
-    let index: Int
-    @Binding var window: SlotWindow
+    @Binding var window: SlotDraft
     var onDelete: () -> Void
 
     private var crossesMidnight: Bool {
@@ -74,12 +72,12 @@ struct SlotWindowRow: View {
     }
     @State private var showingRecurrenceEditor = false
     private var showsRepeatWarning: Bool {
-        !window.recurrence.isValidSelection && window.recurrence.kindChoice != .everyDay
+        !window.recurrence.isValidSelection && !(window.recurrence == .everyDay)
     }
 
     private var recurrenceSummaryText: String {
         let summary = window.recurrence.summaryText
-        if summary.isEmpty && window.recurrence.kindChoice != .everyDay {
+        if summary.isEmpty && !(window.recurrence == .everyDay) {
             return "Select days"
         }
         return summary
@@ -87,9 +85,8 @@ struct SlotWindowRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
+
             VStack(alignment: .leading, spacing: 6) {
-                Text("Slot \(index + 1)")
-                    .font(.subheadline.weight(.semibold))
 
                 Toggle("Whole day", isOn: wholeDayBinding)
                     .font(.footnote)
@@ -166,9 +163,6 @@ struct SlotWindowRow: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .sheet(isPresented: $showingRecurrenceEditor) {
-                    RecurrenceEditorSheet(recurrence: $window.recurrence)
-                }
             }
 
             Spacer()
@@ -181,6 +175,9 @@ struct SlotWindowRow: View {
             .buttonStyle(.borderless)
         }
         .padding(10)
+        .sheet(isPresented: $showingRecurrenceEditor) {
+            RecurrenceEditorSheet(recurrence: $window.recurrence)
+        }
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color(.secondarySystemBackground))
@@ -226,14 +223,12 @@ private enum RecurrenceKindChoice: Hashable, CaseIterable {
         case .monthly: return "Monthly"
         }
     }
-}
 
-extension SlotRecurrence {
-    fileprivate var kindChoice: RecurrenceKindChoice {
-        switch self {
-        case .everyDay: return .everyDay
-        case .specificWeekdays: return .weekly
-        case .specificMonthDays: return .monthly
+    init(from recurrence: SlotRecurrence) {
+        switch recurrence {
+        case .everyDay: self = .everyDay
+        case .specificWeekdays: self = .weekly
+        case .specificMonthDays: self = .monthly
         }
     }
 }
@@ -243,9 +238,25 @@ private struct RecurrenceEditorSheet: View {
     @Binding var recurrence: SlotRecurrence
 
     @State private var kind: RecurrenceKindChoice = .everyDay
-    @State private var measuredContentHeight: CGFloat = 0
-    @State private var cachedWeekdays: Set<Int> = []
-    @State private var cachedMonthDays: Set<Int> = []
+    // One entry per kind; preserves picks when switching between kinds.
+    @State private var recurrenceByKind: [RecurrenceKindChoice: SlotRecurrence] = [
+        .everyDay: .everyDay,
+        .weekly: .specificWeekdays([2, 3, 4, 5, 6]),  // Mon–Fri default
+        .monthly: .specificMonthDays([1]),
+    ]
+
+    private var currentRecurrence: SlotRecurrence { recurrenceByKind[kind]! }
+
+    /// Fixed detent heights per kind – avoids the layout cycle that dynamic
+    /// GeometryReader-based sizing caused (sheet measuring → detent change →
+    /// re-measure → oscillation → auto-dismiss).
+    private var detentForKind: CGFloat {
+        switch kind {
+        case .everyDay: return 260
+        case .weekly: return 380
+        case .monthly: return 500
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -263,26 +274,20 @@ private struct RecurrenceEditorSheet: View {
                             if kind == .weekly {
                                 WeeklySpecificDaysPicker(
                                     selectedWeekdays: Binding(
-                                        get: { cachedWeekdays },
-                                        set: { newValue in
-                                            cachedWeekdays = newValue
-                                            recurrence = .specificWeekdays(newValue)
-                                        }
+                                        get: { currentRecurrence.weekdaysSet },
+                                        set: { recurrenceByKind[.weekly] = .specificWeekdays($0) }
                                     )
                                 )
                             } else {
                                 MonthlySpecificDaysPicker(
                                     selectedMonthDays: Binding(
-                                        get: { cachedMonthDays },
-                                        set: { newValue in
-                                            cachedMonthDays = newValue
-                                            recurrence = .specificMonthDays(newValue)
-                                        }
+                                        get: { currentRecurrence.monthDaysSet },
+                                        set: { recurrenceByKind[.monthly] = .specificMonthDays($0) }
                                     )
                                 )
                             }
 
-                            if !recurrence.isValidSelection {
+                            if !currentRecurrence.isValidSelection {
                                 Text("Please select at least 1 day.")
                                     .font(.footnote)
                                     .foregroundStyle(.red)
@@ -298,65 +303,29 @@ private struct RecurrenceEditorSheet: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 12)
                 .padding(.bottom, 20)
-                .readHeight(into: $measuredContentHeight)
             }
             .scrollIndicators(.hidden)
             .navigationTitle("Repeat")
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Close") { dismiss() }
+                    Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") { dismiss() }
-                        .fontWeight(.semibold)
-                        .disabled(!recurrence.isValidSelection)
+                    Button("Done") {
+                        recurrence = currentRecurrence
+                        dismiss()
+                    }
+                    .fontWeight(.semibold)
+                    .disabled(!currentRecurrence.isValidSelection)
                 }
             }
             .onAppear {
-                kind = recurrence.kindChoice
-                cachedWeekdays = recurrence.weekdaysSet
-                cachedMonthDays = recurrence.monthDaysSet
-                normalizeForKind()
-            }
-            .onChange(of: kind) { oldKind, _ in
-                // Preserve the user's last picks per-kind while switching.
-                switch oldKind {
-                case .weekly:
-                    cachedWeekdays = recurrence.weekdaysSet
-                case .monthly:
-                    cachedMonthDays = recurrence.monthDaysSet
-                case .everyDay:
-                    break
-                }
-                normalizeForKind()
+                kind = RecurrenceKindChoice(from: recurrence)
+                recurrenceByKind[kind] = recurrence
             }
         }
         .presentationDragIndicator(.visible)
-        .presentationDetents([.height(preferredDetentHeight)])
-    }
-
-    private func normalizeForKind() {
-        switch kind {
-        case .everyDay:
-            recurrence = .everyDay
-        case .weekly:
-            let chosen = cachedWeekdays.isEmpty ? [2, 3, 4, 5, 6] : cachedWeekdays  // Mon–Fri default
-            cachedWeekdays = chosen
-            recurrence = .specificWeekdays(chosen)
-        case .monthly:
-            let chosen = cachedMonthDays.isEmpty ? [1] : cachedMonthDays
-            cachedMonthDays = chosen
-            recurrence = .specificMonthDays(chosen)
-        }
-    }
-
-    private var preferredDetentHeight: CGFloat {
-        // Include navigation bar + safe-area-ish allowance.
-        let chrome: CGFloat = 140
-        let minHeight: CGFloat = 260
-        let maxHeight: CGFloat = 720
-        let candidate = measuredContentHeight + chrome
-        return min(max(candidate, minHeight), maxHeight)
+        .presentationDetents([.height(detentForKind)])
     }
 }
 
@@ -372,24 +341,6 @@ extension SlotRecurrence {
         case .specificMonthDays(let set): return set
         default: return []
         }
-    }
-}
-
-private enum SheetHeightPreferenceKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
-    }
-}
-
-extension View {
-    fileprivate func readHeight(into binding: Binding<CGFloat>) -> some View {
-        background(
-            GeometryReader { proxy in
-                Color.clear.preference(key: SheetHeightPreferenceKey.self, value: proxy.size.height)
-            }
-        )
-        .onPreferenceChange(SheetHeightPreferenceKey.self) { binding.wrappedValue = $0 }
     }
 }
 

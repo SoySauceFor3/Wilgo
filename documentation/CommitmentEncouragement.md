@@ -14,22 +14,23 @@
 
 ## File Map
 
-| File | Change |
-|------|--------|
-| `Shared/Models/Commitment.swift` | Add `encouragements: [String]` property |
-| `Shared/NowAttributes.swift` | Add `encouragementText: String?` to `ContentState` |
-| `Wilgo/Features/Commitments/CommitmentFormFields.swift` | Add `encouragements` binding + `EncouragementSection` view |
-| `Wilgo/Features/Commitments/AddCommitView.swift` | Add `@State var encouragements: [String]` + pass to form + persist |
-| `Wilgo/Features/Commitments/EditCommitmentView.swift` | Add `@State var encouragements: [String]` + pass to form + persist |
+| File                                                                    | Change                                                                |
+| ----------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `Shared/Models/Commitment.swift`                                        | Add `encouragements: [String]` property                               |
+| `Shared/NowAttributes.swift`                                            | Add `encouragementText: String?` to `ContentState`                    |
+| `Wilgo/Features/Commitments/CommitmentFormFields.swift`                 | Add `encouragements` binding + `EncouragementSection` view            |
+| `Wilgo/Features/Commitments/AddCommitView.swift`                        | Add `@State var encouragements: [String]` + pass to form + persist    |
+| `Wilgo/Features/Commitments/EditCommitmentView.swift`                   | Add `@State var encouragements: [String]` + pass to form + persist    |
 | `Wilgo/Features/Commitments/SingleCommitment/CommitmentStatsCard.swift` | Remove "Commitment" label, show random encouragement in yellow italic |
-| `Wilgo/Features/Notifications/NowLiveActivityManager.swift` | Pick random encouragement + pass to `ContentState` |
-| `WidgetExtension/NowLiveActivity.swift` | Render `encouragementText` in lock screen banner + update preview |
+| `Wilgo/Features/Notifications/NowLiveActivityManager.swift`             | Pick random encouragement + pass to `ContentState`                    |
+| `WidgetExtension/NowLiveActivity.swift`                                 | Render `encouragementText` in lock screen banner + update preview     |
 
 ---
 
 ## Task 1: Add `encouragements` to the `Commitment` model
 
 **Files:**
+
 - Modify: `Shared/Models/Commitment.swift`
 
 - [ ] **Step 1: Add the property to `Commitment`**
@@ -60,6 +61,7 @@ git commit -m "feat: add encouragements property to Commitment model"
 ## Task 2: Add `EncouragementSection` to `CommitmentFormFields`
 
 **Files:**
+
 - Modify: `Wilgo/Features/Commitments/CommitmentFormFields.swift`
 
 - [ ] **Step 1: Add `encouragements` binding to `CommitmentFormFields`**
@@ -69,7 +71,7 @@ Replace the struct signature and body:
 ```swift
 struct CommitmentFormFields: View {
     @Binding var title: String
-    @Binding var slotWindows: [SlotWindow]
+    @Binding var slotWindows: [SlotDraft]
     @Binding var target: Target
     @Binding var proofOfWorkType: ProofOfWorkType
     @Binding var punishment: String
@@ -144,6 +146,7 @@ git commit -m "feat: add EncouragementSection to CommitmentFormFields"
 ## Task 3: Wire `encouragements` through `AddCommitmentView`
 
 **Files:**
+
 - Modify: `Wilgo/Features/Commitments/AddCommitView.swift`
 
 - [ ] **Step 1: Add state and wire to form**
@@ -193,6 +196,7 @@ git commit -m "feat: wire encouragements through AddCommitmentView"
 ## Task 4: Wire `encouragements` through `EditCommitmentView`
 
 **Files:**
+
 - Modify: `Wilgo/Features/Commitments/EditCommitmentView.swift`
 
 - [ ] **Step 1: Add state initialized from the commitment**
@@ -250,6 +254,7 @@ git commit -m "feat: wire encouragements through EditCommitmentView"
 ## Task 5: Show encouragement in `CommitmentStatsCard`
 
 **Files:**
+
 - Modify: `Wilgo/Features/Commitments/SingleCommitment/CommitmentStatsCard.swift`
 
 - [ ] **Step 1: Add a computed property for the random encouragement**
@@ -293,6 +298,7 @@ Note: the `title: ""` removes the "Commitment" label. The `statTile` helper rend
 - [ ] **Step 3: Build and visually verify in Preview**
 
 Build in Xcode (⌘B) and run the `CommitmentStatsCard` preview if one exists, or launch the app on simulator and navigate to the Stage view. Confirm:
+
 - "Commitment" label is gone
 - Commitment title still shows
 - Yellow italic encouragement appears below title (if the commitment has one)
@@ -310,6 +316,7 @@ git commit -m "feat: show random encouragement in CommitmentStatsCard title tile
 ## Task 6: Thread `encouragementText` through `NowAttributes`
 
 **Files:**
+
 - Modify: `Shared/NowAttributes.swift`
 
 - [ ] **Step 1: Add `encouragementText` to `ContentState`**
@@ -346,6 +353,7 @@ git commit -m "feat: add encouragementText to NowAttributes.ContentState"
 ## Task 7: Pass encouragement from `NowLiveActivityManager`
 
 **Files:**
+
 - Modify: `Wilgo/Features/Notifications/NowLiveActivityManager.swift`
 
 - [ ] **Step 1: Update `makeLiveActivityContentState` to pick a random encouragement**
@@ -388,6 +396,7 @@ git commit -m "feat: pass random encouragement to NowLiveActivity content state"
 ## Task 8: Render encouragement in `NowLiveActivity`
 
 **Files:**
+
 - Modify: `WidgetExtension/NowLiveActivity.swift`
 
 - [ ] **Step 1: Add encouragement line in the lock screen banner**
@@ -447,6 +456,7 @@ fileprivate static var withCommitment: NowAttributes.ContentState {
 - [ ] **Step 3: Build and visually verify**
 
 Build in Xcode (⌘B). Open the `NowLiveActivity` preview in Xcode canvas and confirm:
+
 - Yellow italic encouragement appears below the slot time
 - It sits above the secondary commitments line
 - When `encouragementText` is nil the layout is unchanged
