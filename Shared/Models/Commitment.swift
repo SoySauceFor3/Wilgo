@@ -88,29 +88,6 @@ final class Commitment {
 // MARK: - Slot queries
 
 extension Commitment {
-    /// The first slot whose window overlaps with `now`, skipping excluded ones.
-    func firstCurrentSlot(
-        now: Date = Time.now(),
-        excluding excluded: [Slot]
-    ) -> Slot? {
-        return slots.first(where: { slot in
-            if excluded.contains(where: { $0 === slot }) {
-                return false
-            }
-
-            return slot.contains(timeOfDay: now)
-        })
-    }
-
-    /// The first slot after `time`.
-    func firstSlotAfter(time: Date = Time.now()) -> Slot? {
-        return slots.sorted().first(where: {
-            time
-                <= Time.resolve(
-                    timeOfDay: $0.start, on: time)
-        })
-    }
-
     func checkInsInCycle(
         cycle: Cycle,
         until psychDay: Date = Time.startOfDay(for: Time.now()),
