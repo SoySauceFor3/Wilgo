@@ -160,10 +160,13 @@ struct SlotTests {
                 let slot = Slot(
                     start: timeOfDay(hour: 9, minute: 0),
                     end: timeOfDay(hour: 11, minute: 0),
-                    recurrence: .specificWeekdays([7]) // Saturday
+                    recurrence: .specificWeekdays([7])  // Saturday
                 )
                 // 09:30 on Saturday 2026-04-25 — inside window, correct weekday.
-                #expect(slot.isScheduled(on: date(year: 2026, month: 4, day: 25, hour: 9, minute: 30), calendar: calendar))
+                #expect(
+                    slot.isScheduled(
+                        on: date(year: 2026, month: 4, day: 25, hour: 9, minute: 30),
+                        calendar: calendar))
             }
 
             @Test("same-day window — wrong weekday is not scheduled")
@@ -171,10 +174,13 @@ struct SlotTests {
                 let slot = Slot(
                     start: timeOfDay(hour: 9, minute: 0),
                     end: timeOfDay(hour: 11, minute: 0),
-                    recurrence: .specificWeekdays([7]) // Saturday only
+                    recurrence: .specificWeekdays([7])  // Saturday only
                 )
                 // 09:30 on Sunday 2026-04-26 — inside window, wrong weekday.
-                #expect(!slot.isScheduled(on: date(year: 2026, month: 4, day: 26, hour: 9, minute: 30), calendar: calendar))
+                #expect(
+                    !slot.isScheduled(
+                        on: date(year: 2026, month: 4, day: 26, hour: 9, minute: 30),
+                        calendar: calendar))
             }
 
             @Test("cross-midnight window — pre-midnight portion on matching weekday is scheduled")
@@ -182,21 +188,29 @@ struct SlotTests {
                 let slot = Slot(
                     start: timeOfDay(hour: 23, minute: 0),
                     end: timeOfDay(hour: 1, minute: 0),
-                    recurrence: .specificWeekdays([7]) // Saturday
+                    recurrence: .specificWeekdays([7])  // Saturday
                 )
                 // 23:30 on Saturday 2026-04-25 — pre-midnight, anchor = Saturday.
-                #expect(slot.isScheduled(on: date(year: 2026, month: 4, day: 25, hour: 23, minute: 30), calendar: calendar))
+                #expect(
+                    slot.isScheduled(
+                        on: date(year: 2026, month: 4, day: 25, hour: 23, minute: 30),
+                        calendar: calendar))
             }
 
-            @Test("cross-midnight window — post-midnight portion anchors to previous day (Saturday), is scheduled")
+            @Test(
+                "cross-midnight window — post-midnight portion anchors to previous day (Saturday), is scheduled"
+            )
             @MainActor func crossMidnight_postMidnight_anchorsToSaturday_isScheduled() {
                 let slot = Slot(
                     start: timeOfDay(hour: 23, minute: 0),
                     end: timeOfDay(hour: 1, minute: 0),
-                    recurrence: .specificWeekdays([7]) // Saturday
+                    recurrence: .specificWeekdays([7])  // Saturday
                 )
                 // 00:30 on Sunday 2026-04-26 — post-midnight, anchor = Saturday 2026-04-25.
-                #expect(slot.isScheduled(on: date(year: 2026, month: 4, day: 26, hour: 0, minute: 30), calendar: calendar))
+                #expect(
+                    slot.isScheduled(
+                        on: date(year: 2026, month: 4, day: 26, hour: 0, minute: 30),
+                        calendar: calendar))
             }
 
             @Test("cross-midnight window — pre-midnight portion on wrong weekday is not scheduled")
@@ -204,10 +218,13 @@ struct SlotTests {
                 let slot = Slot(
                     start: timeOfDay(hour: 23, minute: 0),
                     end: timeOfDay(hour: 1, minute: 0),
-                    recurrence: .specificWeekdays([7]) // Saturday only
+                    recurrence: .specificWeekdays([7])  // Saturday only
                 )
                 // 23:30 on Sunday 2026-04-26 — pre-midnight, anchor = Sunday, not Saturday.
-                #expect(!slot.isScheduled(on: date(year: 2026, month: 4, day: 26, hour: 23, minute: 30), calendar: calendar))
+                #expect(
+                    !slot.isScheduled(
+                        on: date(year: 2026, month: 4, day: 26, hour: 23, minute: 30),
+                        calendar: calendar))
             }
         }
 
@@ -226,7 +243,10 @@ struct SlotTests {
                     recurrence: .specificMonthDays([25])
                 )
                 // 09:30 on 2026-04-25 — inside window, day 25.
-                #expect(slot.isScheduled(on: date(year: 2026, month: 4, day: 25, hour: 9, minute: 30), calendar: calendar))
+                #expect(
+                    slot.isScheduled(
+                        on: date(year: 2026, month: 4, day: 25, hour: 9, minute: 30),
+                        calendar: calendar))
             }
 
             @Test("same-day window — wrong month day is not scheduled")
@@ -237,10 +257,15 @@ struct SlotTests {
                     recurrence: .specificMonthDays([25])
                 )
                 // 09:30 on 2026-04-26 — inside window, day 26 ≠ 25.
-                #expect(!slot.isScheduled(on: date(year: 2026, month: 4, day: 26, hour: 9, minute: 30), calendar: calendar))
+                #expect(
+                    !slot.isScheduled(
+                        on: date(year: 2026, month: 4, day: 26, hour: 9, minute: 30),
+                        calendar: calendar))
             }
 
-            @Test("cross-midnight window — post-midnight portion anchors to day 25 (previous day), is scheduled")
+            @Test(
+                "cross-midnight window — post-midnight portion anchors to day 25 (previous day), is scheduled"
+            )
             @MainActor func crossMidnight_postMidnight_anchorsToDay25_isScheduled() {
                 let slot = Slot(
                     start: timeOfDay(hour: 23, minute: 0),
@@ -248,10 +273,15 @@ struct SlotTests {
                     recurrence: .specificMonthDays([25])
                 )
                 // 00:30 on 2026-04-26 — post-midnight, anchor = 2026-04-25 (day 25).
-                #expect(slot.isScheduled(on: date(year: 2026, month: 4, day: 26, hour: 0, minute: 30), calendar: calendar))
+                #expect(
+                    slot.isScheduled(
+                        on: date(year: 2026, month: 4, day: 26, hour: 0, minute: 30),
+                        calendar: calendar))
             }
 
-            @Test("cross-midnight window — post-midnight portion on wrong anchor day is not scheduled")
+            @Test(
+                "cross-midnight window — post-midnight portion on wrong anchor day is not scheduled"
+            )
             @MainActor func crossMidnight_postMidnight_wrongAnchorDay_notScheduled() {
                 let slot = Slot(
                     start: timeOfDay(hour: 23, minute: 0),
@@ -259,8 +289,186 @@ struct SlotTests {
                     recurrence: .specificMonthDays([25])
                 )
                 // 00:30 on 2026-04-27 — post-midnight, anchor = 2026-04-26 (day 26 ≠ 25).
-                #expect(!slot.isScheduled(on: date(year: 2026, month: 4, day: 27, hour: 0, minute: 30), calendar: calendar))
+                #expect(
+                    !slot.isScheduled(
+                        on: date(year: 2026, month: 4, day: 27, hour: 0, minute: 30),
+                        calendar: calendar))
             }
+        }
+
+    }
+
+    // MARK: - Slot.isScheduled (whole-day slots)
+
+    @Suite("Slot — isScheduled (whole-day)")
+    struct SlotWholeDayIsScheduledTests {
+
+        private let calendar = Calendar.current
+
+        // Whole-day sentinel: start == end (same minutes-since-midnight).
+        // 2026-04-25 is a Saturday (weekday 7).
+        // 2026-04-26 is a Sunday (weekday 1).
+        // 2026-04-27 is a Monday (weekday 2).
+
+        private func wholeDaySlot(recurrence: SlotRecurrence = .everyDay) -> Slot {
+            Slot(start: timeOfDay(hour: 0), end: timeOfDay(hour: 0), recurrence: recurrence)
+        }
+
+        // MARK: everyDay
+
+        @Test("everyDay whole-day sloty")
+        @MainActor func everyDay_scheduledAtAnyTime() {
+            let slot = wholeDaySlot()
+            #expect(
+                slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 25, hour: 0, minute: 0), calendar: calendar)
+            )
+            #expect(
+                slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 25, hour: 12, minute: 0), calendar: calendar
+                ))
+            #expect(
+                slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 25, hour: 23, minute: 59),
+                    calendar: calendar))
+        }
+
+        // MARK: specificWeekdays
+
+        @Test("specificWeekdays whole-day slot")
+        @MainActor func specificWeekdays_matchingDay_scheduledAllDay() {
+            let slot = wholeDaySlot(recurrence: .specificWeekdays([7]))  // Saturday
+            #expect(
+                slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 25, hour: 0, minute: 0), calendar: calendar)
+            )
+            #expect(
+                slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 25, hour: 14, minute: 0), calendar: calendar
+                ))
+            #expect(
+                slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 25, hour: 23, minute: 59),
+                    calendar: calendar))
+            #expect(
+                !slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 26, hour: 9, minute: 0), calendar: calendar)
+            )  // Sunday
+            #expect(
+                !slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 27, hour: 9, minute: 0), calendar: calendar)
+            )  // Monday
+        }
+
+        // A 5am–5am slot: whole-day sentinel with a non-midnight sentinel time.
+        // Pre-5am times (e.g. 4am) are in the post-midnight portion of the cross-midnight
+        // window, so anchorDate returns the *previous* calendar day.
+        // 2026-04-27 is a Monday (weekday 2). 2026-04-26 is a Sunday (weekday 1).
+
+        @Test("5am–5am slot: 4am on Monday anchors to Sunday — not scheduled for Monday-only rule")
+        @MainActor func fiveAM_sentinel_preSentinelTime_anchorsToYesterday_weekdays() {
+            // Monday-only slot using 5am sentinel.
+            let ref = timeOfDay(hour: 5)
+            let slot = Slot(start: ref, end: ref, recurrence: .specificWeekdays([2]))  // Monday
+            // 4am on Monday 2026-04-27: post-midnight portion → anchor = Sunday 2026-04-26 (weekday 1 ≠ 2).
+            #expect(
+                !slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 27, hour: 4, minute: 0), calendar: calendar)
+            )
+        }
+
+        @Test("5am–5am slot: 6am on Monday anchors to Monday — scheduled for Monday-only rule")
+        @MainActor func fiveAM_sentinel_postSentinelTime_anchorsToToday_weekdays() {
+            let ref = timeOfDay(hour: 5)
+            let slot = Slot(start: ref, end: ref, recurrence: .specificWeekdays([2]))  // Monday
+            // 6am on Monday 2026-04-27: pre-midnight portion (6am >= 5am) → anchor = Monday 2026-04-27 (weekday 2 ✓).
+            #expect(
+                slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 27, hour: 6, minute: 0), calendar: calendar)
+            )
+        }
+
+        @Test(
+            "5am–5am slot: 4am on day-1 anchors to previous day — not scheduled for day-1-only rule"
+        )
+        @MainActor func fiveAM_sentinel_preSentinelTime_anchorsToYesterday_monthDays() {
+            let ref = timeOfDay(hour: 5)
+            let slot = Slot(start: ref, end: ref, recurrence: .specificMonthDays([1]))  // 1st of month
+            // 4am on 2026-04-01: post-midnight portion → anchor = 2026-03-31 (day 31 ≠ 1).
+            #expect(
+                !slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 1, hour: 4, minute: 0), calendar: calendar))
+        }
+
+        @Test("5am–5am slot: 6am on day-1 anchors to day-1 — scheduled for day-1-only rule")
+        @MainActor func fiveAM_sentinel_postSentinelTime_anchorsToToday_monthDays() {
+            let ref = timeOfDay(hour: 5)
+            let slot = Slot(start: ref, end: ref, recurrence: .specificMonthDays([1]))  // 1st of month
+            // 6am on 2026-04-01: pre-midnight portion (6am >= 5am) → anchor = 2026-04-01 (day 1 ✓).
+            #expect(
+                slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 1, hour: 6, minute: 0), calendar: calendar))
+        }
+
+        @Test("specificWeekdays whole-day slot with multiple weekdays")
+        @MainActor func specificWeekdays_multipleDays() {
+            let slot = wholeDaySlot(recurrence: .specificWeekdays([7, 1]))  // Saturday + Sunday
+            #expect(
+                slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 25, hour: 10, minute: 0), calendar: calendar
+                ))  // Saturday
+            #expect(
+                slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 26, hour: 10, minute: 0), calendar: calendar
+                ))  // Sunday
+            #expect(
+                !slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 27, hour: 10, minute: 0), calendar: calendar
+                ))  // Monday
+        }
+
+        // MARK: specificMonthDays
+
+        @Test("specificMonthDays whole-day slot")
+        @MainActor func specificMonthDays_matchingDay_scheduledAllDay() {
+            let slot = wholeDaySlot(recurrence: .specificMonthDays([25]))
+            #expect(
+                slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 25, hour: 0, minute: 0), calendar: calendar)
+            )
+            #expect(
+                slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 25, hour: 12, minute: 0), calendar: calendar
+                ))
+            #expect(
+                slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 25, hour: 23, minute: 59),
+                    calendar: calendar))
+            #expect(
+                !slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 24, hour: 9, minute: 0), calendar: calendar)
+            )
+            #expect(
+                !slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 26, hour: 9, minute: 0), calendar: calendar)
+            )
+        }
+
+        @Test("specificMonthDays whole-day slot with multiple month days")
+        @MainActor func specificMonthDays_multipleDays() {
+            let slot = wholeDaySlot(recurrence: .specificMonthDays([1, 25]))
+            #expect(
+                slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 1, hour: 10, minute: 0), calendar: calendar)
+            )
+            #expect(
+                slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 25, hour: 10, minute: 0), calendar: calendar
+                ))
+            #expect(
+                !slot.isScheduled(
+                    on: date(year: 2026, month: 4, day: 15, hour: 10, minute: 0), calendar: calendar
+                ))
         }
     }
 
@@ -270,7 +478,8 @@ struct SlotTests {
         @MainActor func remainingFraction_sameDay() throws {
             let slot = Slot(
                 start: timeOfDay(hour: 10, minute: 0),
-                end: timeOfDay(hour: 11, minute: 0)
+                end: timeOfDay(hour: 11, minute: 0),
+                recurrence: .everyDay
             )
 
             // Full window remaining at start.

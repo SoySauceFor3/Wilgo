@@ -140,17 +140,6 @@ extension Slot {
     /// End of the slot mapped onto the current psychological day.
     var endToday: Date { Time.resolve(timeOfDay: end) }
 
-    /// Returns true when start and end represent the same time-of-day,
-    /// which is the sentinel for "active the whole day".
-    /// The existing `contains(timeOfDay:)` midnight-crossing branch already
-    /// returns `true` for all times in this case.
-    var isWholeDay: Bool {
-        let calendar = Calendar.current
-        let s = calendar.dateComponents([.hour, .minute], from: start)
-        let e = calendar.dateComponents([.hour, .minute], from: end)
-        return (s.hour ?? 0) == (e.hour ?? 0) && (s.minute ?? 0) == (e.minute ?? 0)
-    }
-
     var timeOfDayText: String {
         if isWholeDay {
             let formatter = DateFormatter()
@@ -170,6 +159,18 @@ extension Slot {
             return timeOfDayText
         }
         return "\(timeOfDayText) on \(recurrenceText)"
+    }
+
+    /// Minutes elapsed since midnight for the time-of-day component of `date`.
+    private func minutesSinceMidnight(of date: Date) -> Int {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (c.hour ?? 0) * 60 + (c.minute ?? 0)
+    }
+
+    /// Returns true when start and end represent the same time-of-day,
+    /// which is the sentinel for "active the whole day".
+    var isWholeDay: Bool {
+        minutesSinceMidnight(of: start) == minutesSinceMidnight(of: end)
     }
 
     /// Whether this slot's time window crosses midnight (e.g. 23:00–01:00).
@@ -200,12 +201,6 @@ extension Slot {
         let duration = minutesInDay - s + e
         let remaining = e >= t ? e - t : minutesInDay - t + e
         return Double(remaining) / Double(duration)
-    }
-
-    /// Minutes elapsed since midnight for the time-of-day component of `date`.
-    private func minutesSinceMidnight(of date: Date) -> Int {
-        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
-        return (c.hour ?? 0) * 60 + (c.minute ?? 0)
     }
 
     /// The calendar day (at 00:00) this occurrence "belongs to".

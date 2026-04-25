@@ -157,7 +157,7 @@ extension Commitment {
                 let start = psychDay
                 let end = cal.date(byAdding: .day, value: 1, to: psychDay) ?? psychDay
                 // Check recurrence against the psych day itself.
-                guard slot.isActive(on: psychDay, calendar: cal) else { return nil }
+                guard slot.isScheduled(on: psychDay, calendar: cal) else { return nil }
                 let resolved = Slot(start: start, end: end)
                 resolved.id = slot.id
                 return resolved
@@ -278,8 +278,9 @@ extension Commitment {
         todaySlots.sort { $0.start < $1.start }
 
         let remaining = todaySlots.filter { occ in
-            occ.end >= now &&
-            (occ.start > now || !(slots.first { $0.id == occ.id }?.isSnoozed(at: now) ?? false))
+            occ.end >= now
+                && (occ.start > now
+                    || !(slots.first { $0.id == occ.id }?.isSnoozed(at: now) ?? false))
         }
 
         guard let first = remaining.first else {
