@@ -156,68 +156,39 @@ extension Slot {
     }
 
     /// Whether this slot's time window crosses midnight (e.g. 23:00–01:00).
-    var crossesMidnight: Bool {
-        let calendar = Calendar.current
-        let startComponents = calendar.dateComponents([.hour, .minute], from: start)
-        let endComponents = calendar.dateComponents([.hour, .minute], from: end)
-        let startMinutes = (startComponents.hour ?? 0) * 60 + (startComponents.minute ?? 0)
-        let endMinutes = (endComponents.hour ?? 0) * 60 + (endComponents.minute ?? 0)
-        return startMinutes >= endMinutes
-    }
+    var crossesMidnight: Bool { minutesSinceMidnight(of: start) >= minutesSinceMidnight(of: end) }
 
     /// Returns true if the given date's time-of-day falls within this slot's window.
     /// Pure time-of-day check — does not consider recurrence or snooze.
     private func containsTime(_ timeOfDay: Date) -> Bool {
-        let calendar = Calendar.current
-        let timeComponents = calendar.dateComponents([.hour, .minute], from: timeOfDay)
-        let startComponents = calendar.dateComponents([.hour, .minute], from: start)
-        let endComponents = calendar.dateComponents([.hour, .minute], from: end)
-
-        let timeMinutes = (timeComponents.hour ?? 0) * 60 + (timeComponents.minute ?? 0)
-        let startMinutes = (startComponents.hour ?? 0) * 60 + (startComponents.minute ?? 0)
-        let endMinutes = (endComponents.hour ?? 0) * 60 + (endComponents.minute ?? 0)
-
-        if startMinutes < endMinutes {
-            // Window does not cross midnight.
-            return startMinutes <= timeMinutes && timeMinutes <= endMinutes
-        } else {
-            // Window crosses midnight.
-            return timeMinutes >= startMinutes || timeMinutes <= endMinutes
-        }
+        let t = minutesSinceMidnight(of: timeOfDay)
+        let s = minutesSinceMidnight(of: start)
+        let e = minutesSinceMidnight(of: end)
+        return crossesMidnight ? (t >= s || t <= e) : (t >= s && t <= e)
     }
 
-    /// Fraction of the window remaining at the given date's time-of-day.
-    /// Assumes `time` lies within the slot's window.
-    func remainingFraction(at timeOfDay: Date) -> Double {
+    /// Fraction of the window remaining at `time`.
+    /// Precondition: `dateTime` must satisfy `isScheduled(on:)` — i.e. within the window and on a scheduled day.
+    func remainingFraction(at dateTime: Date, calendar: Calendar = Time.calendar) -> Double {
         precondition(
-            containsTime(timeOfDay),
-            "timeOfDay is not within the slot's window"
-        )
-        let calendar = Calendar.current
-        let timeComponents = calendar.dateComponents([.hour, .minute], from: timeOfDay)
-        let startComponents = calendar.dateComponents([.hour, .minute], from: start)
-        let endComponents = calendar.dateComponents([.hour, .minute], from: end)
-
-        let timeMinutes = (timeComponents.hour ?? 0) * 60 + (timeComponents.minute ?? 0)
-        let startMinutes = (startComponents.hour ?? 0) * 60 + (startComponents.minute ?? 0)
-        let endMinutes = (endComponents.hour ?? 0) * 60 + (endComponents.minute ?? 0)
-
-        let remaining: Double
-        let duration: Double
-
-        if startMinutes < endMinutes {
-            remaining = Double(endMinutes - timeMinutes)
-            duration = Double(endMinutes - startMinutes)
-        } else {
-            let minutesInDay = 24 * 60
-            remaining = Double(
-                (endMinutes >= timeMinutes
-                    ? endMinutes - timeMinutes
-                    : minutesInDay - timeMinutes + endMinutes))
-            duration = Double(minutesInDay - startMinutes + endMinutes)
+            isScheduled(on: dateTime, calendar: calendar),
+            "time is not within the slot's scheduled window")
+        let t = minutesSinceMidnight(of: dateTime)
+        let s = minutesSinceMidnight(of: start)
+        let e = minutesSinceMidnight(of: end)
+        if !crossesMidnight {
+            return Double(e - t) / Double(e - s)
         }
+        let minutesInDay = 24 * 60
+        let duration = minutesInDay - s + e
+        let remaining = e >= t ? e - t : minutesInDay - t + e
+        return Double(remaining) / Double(duration)
+    }
 
-        return remaining / duration
+    /// Minutes elapsed since midnight for the time-of-day component of `date`.
+    private func minutesSinceMidnight(of date: Date) -> Int {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (c.hour ?? 0) * 60 + (c.minute ?? 0)
     }
 
     /// The calendar day (at 00:00) this occurrence "belongs to".
@@ -230,11 +201,7 @@ extension Slot {
             return calendar.startOfDay(for: time)
         }
         guard crossesMidnight else { return calendar.startOfDay(for: time) }
-        let startComponents = calendar.dateComponents([.hour, .minute], from: start)
-        let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
-        let startTotal = (startComponents.hour ?? 0) * 60 + (startComponents.minute ?? 0)
-        let timeTotal = (timeComponents.hour ?? 0) * 60 + (timeComponents.minute ?? 0)
-        if timeTotal >= startTotal {
+        if minutesSinceMidnight(of: time) >= minutesSinceMidnight(of: start) {
             // Pre-midnight portion: belongs to the current calendar day.
             return calendar.startOfDay(for: time)
         }
