@@ -230,6 +230,27 @@ extension Slot {
         let anchor = anchorDate(for: time, calendar: calendar)
         return recurrence.matches(date: anchor, calendar: calendar)
     }
+
+    /// Resolves this slot's time-of-day window into concrete datetimes on the given psych day.
+    /// Returns `nil` if the slot's recurrence rule excludes this day.
+    /// The returned `Slot` carries the original slot's `id` so callers can look up the
+    /// persisted Slot in the SwiftData store.
+    func resolveOccurrence(on psychDay: Date, calendar: Calendar = Time.calendar) -> Slot? {
+        guard self.recurrence.matches(date: psychDay, calendar: calendar) else { return nil }
+
+        let start = Time.resolve(timeOfDay: self.start, on: psychDay)
+        var end = Time.resolve(timeOfDay: self.end, on: psychDay)
+        if end <= start {
+            end = calendar.date(byAdding: .day, value: 1, to: end) ?? end
+        }
+
+        // For slots with selected days
+        guard isScheduled(on: start, calendar: calendar) else { return nil }
+
+        let resolved = Slot(start: start, end: end)
+        resolved.id = self.id
+        return resolved
+    }
 }
 
 extension Slot {

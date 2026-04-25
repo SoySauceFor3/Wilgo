@@ -186,7 +186,7 @@ extension Commitment {
         var dayCursor = startDay
         while dayCursor < endDay {
             for slot in slots {
-                if let occurrence = resolveSlotOccurrence(slot: slot, psychDay: dayCursor) {
+                if let occurrence = slot.resolveOccurrence(on: dayCursor) {
                     resolvedPairs.append((occurrence: occurrence, original: slot))
                 }
             }
@@ -253,28 +253,9 @@ extension Commitment {
     }
 
     private func targetDisabledStatus(now: Date) -> StageStatus {
-        let cal = Time.calendar
         let nowPsychDay = Time.startOfDay(for: now)
 
-        func resolveOccurrence(slot: Slot) -> Slot? {
-            if slot.isWholeDay {
-                let start = nowPsychDay
-                let end = cal.date(byAdding: .day, value: 1, to: nowPsychDay) ?? nowPsychDay
-                guard slot.isActive(on: nowPsychDay, calendar: cal) else { return nil }
-                let resolved = Slot(start: start, end: end)
-                resolved.id = slot.id
-                return resolved
-            }
-            let start = Time.resolve(timeOfDay: slot.start, on: nowPsychDay)
-            var end = Time.resolve(timeOfDay: slot.end, on: nowPsychDay)
-            if end <= start { end = cal.date(byAdding: .day, value: 1, to: end) ?? end }
-            guard slot.isScheduled(on: start, calendar: cal) else { return nil }
-            let resolved = Slot(start: start, end: end)
-            resolved.id = slot.id
-            return resolved
-        }
-
-        var todaySlots = slots.compactMap { resolveOccurrence(slot: $0) }
+        var todaySlots = slots.compactMap { $0.resolveOccurrence(on: nowPsychDay) }
         todaySlots.sort { $0.start < $1.start }
 
         let remaining = todaySlots.filter { occ in
