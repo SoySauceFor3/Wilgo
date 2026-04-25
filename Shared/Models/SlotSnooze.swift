@@ -70,12 +70,12 @@ extension SlotSnooze {
         }
 
         // Guard: `time`` must be within an active window for this slot.
-        guard slot.isActive(on: time) else { return nil }
+        guard slot.isScheduled(on: time) else { return nil }
 
         // psychDay is the psychDay of the slot's start occurrence at `time`.
         // For cross-midnight slots (e.g. 11pm–1am), a snooze tapped at 12am Jan 1
         // belongs to the Dec 31 occurrence (start was 11pm Dec 31), so psychDay = Dec 31.
-        // slotPsychDay can't throw here — we already guarded isActive above.
+        // slotPsychDay can't throw here — we already guarded isScheduled above.
         guard let psychDay = try? slotPsychDay(slot: slot, at: time, calendar: calendar) else {
             return nil
         }
@@ -99,7 +99,7 @@ extension SlotSnooze {
     ///
     /// - Throws: `SlotPsychDayError.slotNotActive` if `time` is outside the slot's active window.
     static func slotPsychDay(slot: Slot, at time: Date, calendar: Calendar) throws -> Date {
-        guard slot.isActive(on: time, calendar: calendar) else {
+        guard slot.isScheduled(on: time, calendar: calendar) else {
             throw SlotPsychDayError.slotNotActive
         }
 

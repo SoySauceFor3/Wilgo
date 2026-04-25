@@ -158,7 +158,7 @@ extension Commitment {
             }
 
             // Respect recurrence (if any). Evaluate at the concrete start time.
-            guard slot.isActive(on: start, calendar: cal) else { return nil }
+            guard slot.isScheduled(on: start, calendar: cal) else { return nil }
 
             // IMPORTANT: This Slot carries concrete datetimes in start/end.
             // Preserve the original slot's id so callers (e.g. SnoozeIntent) can
@@ -248,7 +248,7 @@ extension Commitment {
             let start = Time.resolve(timeOfDay: slot.start, on: nowPsychDay)
             var end = Time.resolve(timeOfDay: slot.end, on: nowPsychDay)
             if end <= start { end = cal.date(byAdding: .day, value: 1, to: end) ?? end }
-            guard slot.isActive(on: start, calendar: cal) else { return nil }
+            guard slot.isScheduled(on: start, calendar: cal) else { return nil }
             let resolved = Slot(start: start, end: end)
             resolved.id = slot.id
             return resolved
