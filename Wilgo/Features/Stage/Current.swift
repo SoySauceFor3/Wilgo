@@ -51,7 +51,7 @@ struct CurrentCommitmentRow: View {
         // original SwiftData objects. We match back by looking for the original slot whose
         // time-of-day window contains now.
         let now = Time.now()
-        guard let originalSlot = commitment.slots.first(where: { $0.isActive(on: now) }) else {
+        guard let originalSlot = commitment.slots.first(where: { $0.isScheduled(on: now) }) else {
             return
         }
         SlotSnooze.create(slot: originalSlot, at: now, in: modelContext)

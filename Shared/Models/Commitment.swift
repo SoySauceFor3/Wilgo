@@ -88,29 +88,6 @@ final class Commitment {
 // MARK: - Slot queries
 
 extension Commitment {
-    /// The first slot whose window overlaps with `now`, skipping excluded ones.
-    func firstCurrentSlot(
-        now: Date = Time.now(),
-        excluding excluded: [Slot]
-    ) -> Slot? {
-        return slots.first(where: { slot in
-            if excluded.contains(where: { $0 === slot }) {
-                return false
-            }
-
-            return slot.contains(timeOfDay: now)
-        })
-    }
-
-    /// The first slot after `time`.
-    func firstSlotAfter(time: Date = Time.now()) -> Slot? {
-        return slots.sorted().first(where: {
-            time
-                <= Time.resolve(
-                    timeOfDay: $0.start, on: time)
-        })
-    }
-
     func checkInsInCycle(
         cycle: Cycle,
         until psychDay: Date = Time.startOfDay(for: Time.now()),
@@ -193,7 +170,7 @@ extension Commitment {
             }
 
             // Respect recurrence (if any). Evaluate at the concrete start time.
-            guard slot.isActive(on: start, calendar: cal) else { return nil }
+            guard slot.isScheduled(on: start, calendar: cal) else { return nil }
 
             // IMPORTANT: This Slot carries concrete datetimes in start/end.
             // Preserve the original slot's id so callers (e.g. SnoozeIntent) can
@@ -291,7 +268,7 @@ extension Commitment {
             let start = Time.resolve(timeOfDay: slot.start, on: nowPsychDay)
             var end = Time.resolve(timeOfDay: slot.end, on: nowPsychDay)
             if end <= start { end = cal.date(byAdding: .day, value: 1, to: end) ?? end }
-            guard slot.isActive(on: start, calendar: cal) else { return nil }
+            guard slot.isScheduled(on: start, calendar: cal) else { return nil }
             let resolved = Slot(start: start, end: end)
             resolved.id = slot.id
             return resolved

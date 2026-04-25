@@ -20,6 +20,21 @@ enum SlotRecurrence: Codable, Hashable {
         }
     }
 
+    /// Returns true if this recurrence rule matches the given calendar date.
+    /// Only the date's calendar day matters — the time-of-day component is ignored.
+    func matches(date: Date, calendar: Calendar) -> Bool {
+        switch self {
+        case .everyDay:
+            return true
+        case .specificWeekdays(let weekdays):
+            let weekday = calendar.component(.weekday, from: date)
+            return weekdays.contains(weekday)
+        case .specificMonthDays(let days):
+            let day = calendar.component(.day, from: date)
+            return days.contains(day)
+        }
+    }
+
     var summaryText: String {
         let calendar = Calendar.current
         switch self {
@@ -157,115 +172,76 @@ extension Slot {
         return "\(timeOfDayText) on \(recurrenceText)"
     }
 
+    /// Whether this slot's time window crosses midnight (e.g. 23:00–01:00).
+    var crossesMidnight: Bool { minutesSinceMidnight(of: start) >= minutesSinceMidnight(of: end) }
+
     /// Returns true if the given date's time-of-day falls within this slot's window.
-    /// timeOfDay: only considers the hour and minute.
-    func contains(timeOfDay: Date) -> Bool {
-        let calendar = Calendar.current
-        let timeComponents = calendar.dateComponents([.hour, .minute], from: timeOfDay)
-        let startComponents = calendar.dateComponents([.hour, .minute], from: start)
-        let endComponents = calendar.dateComponents([.hour, .minute], from: end)
-
-        let timeMinutes = (timeComponents.hour ?? 0) * 60 + (timeComponents.minute ?? 0)
-        let startMinutes = (startComponents.hour ?? 0) * 60 + (startComponents.minute ?? 0)
-        let endMinutes = (endComponents.hour ?? 0) * 60 + (endComponents.minute ?? 0)
-
-        if startMinutes < endMinutes {
-            // Window does not cross midnight.
-            return startMinutes <= timeMinutes && timeMinutes <= endMinutes
-        } else {
-            // Window crosses midnight.
-            return timeMinutes >= startMinutes || timeMinutes <= endMinutes
-        }
+    /// Pure time-of-day check — does not consider recurrence or snooze.
+    private func containsTime(_ timeOfDay: Date) -> Bool {
+        let t = minutesSinceMidnight(of: timeOfDay)
+        let s = minutesSinceMidnight(of: start)
+        let e = minutesSinceMidnight(of: end)
+        return crossesMidnight ? (t >= s || t <= e) : (t >= s && t <= e)
     }
 
-    /// Fraction of the window remaining at the given date's time-of-day.
-    /// Assumes `time` lies within the slot's window.
-    func remainingFraction(at timeOfDay: Date) -> Double {
+    /// Fraction of the window remaining at `time`.
+    /// Precondition: `dateTime` must satisfy `isScheduled(on:)` — i.e. within the window and on a scheduled day.
+    func remainingFraction(at dateTime: Date, calendar: Calendar = Time.calendar) -> Double {
         precondition(
-            contains(timeOfDay: timeOfDay),
-            "timeOfDay is not within the slot's window"
-        )
-        let calendar = Calendar.current
-        let timeComponents = calendar.dateComponents([.hour, .minute], from: timeOfDay)
-        let startComponents = calendar.dateComponents([.hour, .minute], from: start)
-        let endComponents = calendar.dateComponents([.hour, .minute], from: end)
-
-        let timeMinutes = (timeComponents.hour ?? 0) * 60 + (timeComponents.minute ?? 0)
-        let startMinutes = (startComponents.hour ?? 0) * 60 + (startComponents.minute ?? 0)
-        let endMinutes = (endComponents.hour ?? 0) * 60 + (endComponents.minute ?? 0)
-
-        let remaining: Double
-        let duration: Double
-
-        if startMinutes < endMinutes {
-            remaining = Double(endMinutes - timeMinutes)
-            duration = Double(endMinutes - startMinutes)
-        } else {
-            let minutesInDay = 24 * 60
-            remaining = Double(
-                (endMinutes >= timeMinutes
-                    ? endMinutes - timeMinutes
-                    : minutesInDay - timeMinutes + endMinutes))
-            duration = Double(minutesInDay - startMinutes + endMinutes)
+            isScheduled(on: dateTime, calendar: calendar),
+            "time is not within the slot's scheduled window")
+        let t = minutesSinceMidnight(of: dateTime)
+        let s = minutesSinceMidnight(of: start)
+        let e = minutesSinceMidnight(of: end)
+        if !crossesMidnight {
+            return Double(e - t) / Double(e - s)
         }
+        let minutesInDay = 24 * 60
+        let duration = minutesInDay - s + e
+        let remaining = e >= t ? e - t : minutesInDay - t + e
+        return Double(remaining) / Double(duration)
+    }
 
-        return remaining / duration
+    /// Minutes elapsed since midnight for the time-of-day component of `date`.
+    private func minutesSinceMidnight(of date: Date) -> Int {
+        let c = Calendar.current.dateComponents([.hour, .minute], from: date)
+        return (c.hour ?? 0) * 60 + (c.minute ?? 0)
+    }
+
+    /// The calendar day (at 00:00) this occurrence "belongs to".
+    /// For cross-midnight windows (e.g. 23:00–01:00), post-midnight times are
+    /// attributed back to the previous calendar day (the day the window started).
+    /// Precondition: `time` must be within this slot's window (`containsTime` is true).
+    private func anchorDate(for time: Date, calendar: Calendar) -> Date {
+        guard containsTime(time) else {
+            assertionFailure("anchorDate(for:) called with time outside slot window")
+            return calendar.startOfDay(for: time)
+        }
+        guard crossesMidnight else { return calendar.startOfDay(for: time) }
+        if minutesSinceMidnight(of: time) >= minutesSinceMidnight(of: start) {
+            // Pre-midnight portion: belongs to the current calendar day.
+            return calendar.startOfDay(for: time)
+        }
+        // Post-midnight portion: belongs to the previous calendar day.
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: time) ?? time
+        return calendar.startOfDay(for: yesterday)
     }
 
     /// Returns true if, at the given **calendar** time, this slot is both
-    /// within its start–end window and active according to its recurrence rule.
-    ///
-    /// This deliberately ignores psychDay offsets. For example, if the user sets their
-    /// day-start offset to noon, a slot configured for "Monday 00:00–01:00" is still
-    /// considered to belong to **calendar Monday**, not Tuesday.
-    func isActive(on time: Date, calendar: Calendar = Time.calendar) -> Bool {
-        // First ensure the time-of-day lies within this slot's window.
-        guard contains(timeOfDay: time) else { return false }
-        // Determine the "anchor" calendar date that this occurrence belongs to.
-        // For windows that cross midnight (e.g. 23:00–01:00), times between midnight
-        // and the end-of-window are attributed back to the *start* day.
-        let timeComponents = calendar.dateComponents([.hour, .minute], from: time)
-        let startComponents = calendar.dateComponents([.hour, .minute], from: start)
-        let endComponents = calendar.dateComponents([.hour, .minute], from: end)
-        let timeMinutes = (timeComponents.hour ?? 0) * 60 + (timeComponents.minute ?? 0)
-        let startMinutes = (startComponents.hour ?? 0) * 60 + (startComponents.minute ?? 0)
-        let endMinutes = (endComponents.hour ?? 0) * 60 + (endComponents.minute ?? 0)
-
-        let anchorDate: Date
-        if startMinutes < endMinutes {
-            // Does not cross midnight: use the calendar day of `time` directly.
-            anchorDate = time
-        } else {
-            // Crosses midnight:
-            //  - times >= startMinutes are on the start day
-            //  - times < startMinutes (i.e. after midnight) belong to the previous calendar day
-            if timeMinutes >= startMinutes {
-                anchorDate = time
-            } else {
-                anchorDate = calendar.date(byAdding: .day, value: -1, to: time) ?? time
-            }
-        }
-
-        switch recurrence {
-        case .everyDay:
-            return true
-
-        case .specificWeekdays(let weekdays):
-            let weekday = calendar.component(.weekday, from: anchorDate)  // 1 = Sunday … 7 = Saturday
-            return weekdays.contains(weekday)
-
-        case .specificMonthDays(let days):
-            let day = calendar.component(.day, from: anchorDate)
-            return days.contains(day)
-        }
+    /// within its start–end window and scheduled according to its recurrence rule.
+    /// Does not consider snooze state.
+    func isScheduled(on time: Date, calendar: Calendar = Time.calendar) -> Bool {
+        guard containsTime(time) else { return false }
+        let anchor = anchorDate(for: time, calendar: calendar)
+        return recurrence.matches(date: anchor, calendar: calendar)
     }
 }
 
 extension Slot {
     /// Returns true if this slot's occurrence on the psychDay of `time` has been snoozed.
-    /// Returns false if `time` is outside this slot's active window (no active occurrence → not snoozed).
+    /// Returns false if `time` is outside this slot's scheduled window (no occurrence → not snoozed).
     func isSnoozed(at time: Date, calendar: Calendar = Time.calendar) -> Bool {
-        guard self.isActive(on: time, calendar: calendar) else {
+        guard self.isScheduled(on: time, calendar: calendar) else {
             return false
         }
 
