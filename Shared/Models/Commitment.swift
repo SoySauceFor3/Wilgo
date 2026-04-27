@@ -121,7 +121,6 @@ extension Commitment {
         let behindCount: Int
     }
 
-    /// TODO: THIS NEED TO CHANGED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     /// Classifies this commitment for the current psychological day at the given time.
     ///
     /// Precedence:

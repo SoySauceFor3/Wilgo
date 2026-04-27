@@ -18,9 +18,7 @@ struct CatchUpCommitmentRow: View {
             let count = slots.count
             VStack(alignment: .leading, spacing: 2) {
                 Text(
-                    count == 0
-                        ? "whole day"
-                        : "\(count) " + (count == 1 ? "slot" : "slots")
+                    "\(count) " + (count <= 1 ? "slot" : "slots")
                 )
                 .font(.caption2)
                 .foregroundStyle(.primary)
