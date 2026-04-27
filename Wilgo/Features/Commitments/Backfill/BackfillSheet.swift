@@ -5,7 +5,7 @@ struct BackfillSheet: View {
     let commitment: Commitment
     /// When provided, clamps the date picker to the cycle's date range so the
     /// user doesn't accidentally backfill into the wrong cycle.
-    var dateRange: ClosedRange<Date>? = nil
+    var dateRange: ClosedRange<Date>
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
@@ -15,10 +15,10 @@ struct BackfillSheet: View {
 
     init(commitment: Commitment, dateRange: ClosedRange<Date>? = nil) {
         self.commitment = commitment
-        self.dateRange = dateRange
+        self.dateRange = dateRange ?? Date.distantPast...Time.now()
         // Pre-select the start of the cycle (most recent missed check-in is likely near there),
         // or now when there is no range constraint.
-        _selectedDate = State(initialValue: dateRange?.lowerBound ?? .now)
+        _selectedDate = State(initialValue: dateRange?.lowerBound ?? Time.now())
     }
 
     var body: some View {
@@ -28,7 +28,7 @@ struct BackfillSheet: View {
                     DatePicker(
                         "Date & Time",
                         selection: $selectedDate,
-                        in: dateRange ?? Date.distantPast...Date.distantFuture,
+                        in: dateRange,
                         displayedComponents: [.date, .hourAndMinute]
                     )
                 } footer: {

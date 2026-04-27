@@ -66,7 +66,7 @@ struct CommitmentDetailView: View {
                 }
             }
             .sheet(isPresented: $isPresentingBackfill) {
-                BackfillSheet(commitment: commitment, dateRange: Date.distantPast...Date.now)
+                BackfillSheet(commitment: commitment)
                     .presentationDetents([.medium])
                     .presentationDragIndicator(.visible)
             }
@@ -144,7 +144,9 @@ struct CommitmentDetailView: View {
                 label: "All-time\ncheck-ins"
             )
             commitment.target.isEnabled
-                ? statTile(value: "\(commitment.target.count)×", label: "\(commitment.cycle.kind.rawValue)\ngoal")
+                ? statTile(
+                    value: "\(commitment.target.count)×",
+                    label: "\(commitment.cycle.kind.rawValue)\ngoal")
                 : statTile(value: "—", label: "\(commitment.cycle.kind.rawValue)\ngoal disabled")
             statTile(
                 value: daysTracked,
