@@ -107,6 +107,10 @@ struct StageView: View {
             .onChange(of: slotSnoozes) {
                 viewModel.refresh(commitments: commitments)
             }
+            // Slots edited in EditCommitmentView don't surface through the commitments query either.
+            .onChange(of: commitmentForEdit) { _, newValue in
+                if newValue == nil { viewModel.refresh(commitments: commitments) }
+            }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { viewModel.refresh(commitments: commitments) }
             }
