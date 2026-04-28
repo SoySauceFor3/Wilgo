@@ -7,6 +7,10 @@
 
 import SwiftUI
 
+#if DEBUG
+    import Supabase
+#endif
+
 struct SettingsView: View {
     @AppStorage(AppSettings.positivityTokenMonthlyCapKey)
     private var positivityTokenMonthlyCap: Int = 0
@@ -14,6 +18,8 @@ struct SettingsView: View {
     #if DEBUG
         @Environment(\.triggerCycleReport) private var triggerCycleReport
         @State private var debugWatermarkDate: Date = Date()
+        @State private var supabaseSpikeResult: String = ""
+        @State private var supabaseSpikeRunning: Bool = false
     #endif
 
     var body: some View {
@@ -52,6 +58,27 @@ struct SettingsView: View {
                 }
 
                 #if DEBUG
+                    // TODO: remove in Phase 1b cleanup. Phase 1a smoke spike — proves the
+                    // iOS app can round-trip a row through Supabase. See documentation/Backend/01a-Spike.md.
+                    Section {
+                        Button(supabaseSpikeRunning ? "Running…" : "Spike: Insert + Read") {
+                            runSupabaseSpike()
+                        }
+                        .disabled(supabaseSpikeRunning)
+                        if !supabaseSpikeResult.isEmpty {
+                            Text(supabaseSpikeResult)
+                                .font(.caption)
+                                .foregroundStyle(
+                                    supabaseSpikeResult.hasPrefix("OK") ? .green : .red)
+                        }
+                    } header: {
+                        Text("Debug — Supabase Spike (Phase 1a)")
+                    } footer: {
+                        Text(
+                            "Inserts a row into commitments_spike, reads it back, then deletes it. Verifies the SDK + config wiring work end-to-end."
+                        )
+                    }
+
                     Section {
                         DatePicker(
                             "Watermark date",
@@ -101,6 +128,60 @@ struct SettingsView: View {
         default: return hour < 12 ? "\(hour):00 AM" : "\(hour - 12):00 PM"
         }
     }
+
+    #if DEBUG
+        // TODO: remove in Phase 1b cleanup.
+        private func runSupabaseSpike() {
+            supabaseSpikeRunning = true
+            supabaseSpikeResult = ""
+            Task {
+                do {
+                    let id = UUID()
+                    let title = "spike-\(Int(Date().timeIntervalSince1970))"
+
+                    struct SpikeInsert: Encodable {
+                        let id: UUID
+                        let title: String
+                    }
+                    struct SpikeRow: Decodable {
+                        let id: UUID
+                        let title: String
+                    }
+
+                    try await Backend.client
+                        .from("commitments_spike")
+                        .insert(SpikeInsert(id: id, title: title))
+                        .execute()
+
+                    let read: SpikeRow = try await Backend.client
+                        .from("commitments_spike")
+                        .select()
+                        .eq("id", value: id)
+                        .single()
+                        .execute()
+                        .value
+
+                    try await Backend.client
+                        .from("commitments_spike")
+                        .delete()
+                        .eq("id", value: id)
+                        .execute()
+
+                    let ok = read.title == title
+                    await MainActor.run {
+                        supabaseSpikeResult =
+                            ok ? "OK: round-trip succeeded (id=\(id))" : "FAIL: title mismatch"
+                        supabaseSpikeRunning = false
+                    }
+                } catch {
+                    await MainActor.run {
+                        supabaseSpikeResult = "FAIL: \(error)"
+                        supabaseSpikeRunning = false
+                    }
+                }
+            }
+        }
+    #endif
 }
 
 #Preview {
