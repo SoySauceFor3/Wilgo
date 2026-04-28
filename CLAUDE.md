@@ -4,6 +4,7 @@
 2. Ask any clarification questions if needed before you make decisions.
 3. No filler/preamble
 4. Reflect on the rules you think should be put into this file `./CLAUDE.md`), and put into them while keeping this file organized. You should note the date and the author of each rules you added.
+5. Use superpower skill, whenever possible for planning, execution, debugging, etc.
 
 ## Plan mode
 
