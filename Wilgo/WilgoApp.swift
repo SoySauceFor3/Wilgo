@@ -44,6 +44,11 @@ struct WilgoApp: App {
     @State private var ptBadgeState = PTBadgeState()
 
     init() {
+        MemoryProbe.log("app.init")
+        MainActor.assumeIsolated {
+            MemoryProbe.installMemoryWarningObserver()
+        }
+
         // Set up CatchUpReminderService.
         CatchUpReminder.registerBackgroundTask()
         CatchUpReminder.startHourlyRunWhileActive()
@@ -69,6 +74,7 @@ struct WilgoApp: App {
         }
         .modelContainer(Self.sharedModelContainer)
         .onChange(of: scenePhase) { _, newPhase in
+            MemoryProbe.log("scenePhase=\(newPhase)")
             if newPhase == .active {
                 // Watchdog: re-queue in case iOS skipped a BGTask fire.
                 NowLiveActivityManager.workAndScheduleNextBGTask()  // Not really necessary because LiveActivity is only needed when scene != .active, just a safe net.

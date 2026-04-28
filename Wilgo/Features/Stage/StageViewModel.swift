@@ -24,8 +24,9 @@ final class StageViewModel {
     /// Recomputes all three lists from `commitments` and reschedules the
     /// internal timer to fire at the next slot-boundary transition.
     func refresh(commitments: [Commitment]) {
+        MemoryProbe.log("Stage.refresh", extra: "commitments=\(commitments.count)")
         lastCommitments = commitments
-        recompute()
+        MemoryProbe.measure("Stage.recompute") { recompute() }
         scheduleTimer()
     }
 

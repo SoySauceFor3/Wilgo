@@ -37,8 +37,13 @@ enum CatchUpReminder {
     static func updateAndScheduleNotificationAndBackgroundTask(
         now: Date = Time.now()
     ) {
+        MemoryProbe.log("CatchUpReminder.update.start")
         let context = ModelContext(WilgoApp.sharedModelContainer)
         let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
+        MemoryProbe.log(
+            "CatchUpReminder.update.afterFetch",
+            extra: "commitments=\(commitments.count)"
+        )
         let remindersOn = commitments.filter { $0.isRemindersEnabled }
         let catchUp = CommitmentAndSlot.catchUpWithBehind(commitments: remindersOn)
 
