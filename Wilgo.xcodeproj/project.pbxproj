@@ -20,6 +20,7 @@
 		701EC1C42F537F980060F5B6 /* NowAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701EC1C22F537F6E0060F5B6 /* NowAttributes.swift */; };
 		7091C4192FA1262300F46C04 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 7091C4182FA1262300F46C04 /* Supabase */; };
 		7091C41C2FA12DB500F46C04 /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7091C41A2FA12DB500F46C04 /* SupabaseClient.swift */; };
+		7091C4212FA138EE00F46C04 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 7091C4202FA138EE00F46C04 /* Supabase */; };
 		AABB00010001000100010001 /* MemoryProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00000000000000000000 /* MemoryProbe.swift */; };
 		AABB00010001000100010002 /* MemoryProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00000000000000000000 /* MemoryProbe.swift */; };
 /* End PBXBuildFile section */
@@ -175,6 +176,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7091C4212FA138EE00F46C04 /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -302,6 +304,7 @@
 			);
 			name = WilgoTests;
 			packageProductDependencies = (
+				7091C4202FA138EE00F46C04 /* Supabase */,
 			);
 			productName = WilgoTests;
 			productReference = 701EBDA62F4CDF360060F5B6 /* WilgoTests.xctest */;
@@ -966,6 +969,11 @@
 			productName = Inject;
 		};
 		7091C4182FA1262300F46C04 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7091C4172FA1262300F46C04 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+		7091C4202FA138EE00F46C04 /* Supabase */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 7091C4172FA1262300F46C04 /* XCRemoteSwiftPackageReference "supabase-swift" */;
 			productName = Supabase;
