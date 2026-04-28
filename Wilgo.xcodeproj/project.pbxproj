@@ -18,6 +18,8 @@
 		701EBE892F5348DC0060F5B6 /* WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 701EBE772F5348DA0060F5B6 /* WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		701EC1C32F537F980060F5B6 /* NowAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701EC1C22F537F6E0060F5B6 /* NowAttributes.swift */; };
 		701EC1C42F537F980060F5B6 /* NowAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701EC1C22F537F6E0060F5B6 /* NowAttributes.swift */; };
+		7091C4192FA1262300F46C04 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 7091C4182FA1262300F46C04 /* Supabase */; };
+		7091C41C2FA12DB500F46C04 /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7091C41A2FA12DB500F46C04 /* SupabaseClient.swift */; };
 		AABB00010001000100010001 /* MemoryProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00000000000000000000 /* MemoryProbe.swift */; };
 		AABB00010001000100010002 /* MemoryProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00000000000000000000 /* MemoryProbe.swift */; };
 /* End PBXBuildFile section */
@@ -71,6 +73,7 @@
 		701EBE792F5348DA0060F5B6 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		701EBE7B2F5348DA0060F5B6 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		701EC1C22F537F6E0060F5B6 /* NowAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowAttributes.swift; sourceTree = "<group>"; };
+		7091C41A2FA12DB500F46C04 /* SupabaseClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseClient.swift; sourceTree = "<group>"; };
 		AABB00000000000000000000 /* MemoryProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryProbe.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -163,6 +166,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				7091C4192FA1262300F46C04 /* Supabase in Frameworks */,
 				701EBDC82F4E386C0060F5B6 /* Inject in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -229,6 +233,7 @@
 		701EC1C12F537F610060F5B6 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				7091C41B2FA12DB500F46C04 /* Backend */,
 				700D160C2F833A60004B6B57 /* AppSettings.swift */,
 				700D160D2F833A60004B6B57 /* InAppScheduler.swift */,
 				700D166D2F838172004B6B57 /* WilgoConstants.swift */,
@@ -238,6 +243,14 @@
 				700D16762F838544004B6B57 /* Models */,
 			);
 			path = Shared;
+			sourceTree = "<group>";
+		};
+		7091C41B2FA12DB500F46C04 /* Backend */ = {
+			isa = PBXGroup;
+			children = (
+				7091C41A2FA12DB500F46C04 /* SupabaseClient.swift */,
+			);
+			path = Backend;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -265,6 +278,7 @@
 			name = Wilgo;
 			packageProductDependencies = (
 				701EBDC72F4E386C0060F5B6 /* Inject */,
+				7091C4182FA1262300F46C04 /* Supabase */,
 			);
 			productName = Wilgo;
 			productReference = 701EBD952F4CDF320060F5B6 /* Wilgo.app */;
@@ -375,6 +389,7 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				701EBDC62F4E386C0060F5B6 /* XCRemoteSwiftPackageReference "Inject" */,
+				7091C4172FA1262300F46C04 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 701EBD962F4CDF320060F5B6 /* Products */;
@@ -426,6 +441,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				701EC1C32F537F980060F5B6 /* NowAttributes.swift in Sources */,
+				7091C41C2FA12DB500F46C04 /* SupabaseClient.swift in Sources */,
 				700D166F2F838172004B6B57 /* WilgoConstants.swift in Sources */,
 				700D16412F833A60004B6B57 /* AppSettings.swift in Sources */,
 				700D16422F833A60004B6B57 /* InAppScheduler.swift in Sources */,
@@ -481,6 +497,8 @@
 /* Begin XCBuildConfiguration section */
 		701EBDBA2F4CDF360060F5B6 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 701EBD972F4CDF320060F5B6 /* Wilgo */;
+			baseConfigurationReferenceRelativePath = Config/Supabase.local.xcconfig;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -527,6 +545,8 @@
 		};
 		701EBDBB2F4CDF360060F5B6 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReferenceAnchor = 701EBD972F4CDF320060F5B6 /* Wilgo */;
+			baseConfigurationReferenceRelativePath = Config/Supabase.local.xcconfig;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -929,6 +949,14 @@
 				minimumVersion = 1.5.2;
 			};
 		};
+		7091C4172FA1262300F46C04 /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -936,6 +964,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 701EBDC62F4E386C0060F5B6 /* XCRemoteSwiftPackageReference "Inject" */;
 			productName = Inject;
+		};
+		7091C4182FA1262300F46C04 /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7091C4172FA1262300F46C04 /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

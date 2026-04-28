@@ -19,6 +19,7 @@
 Phase 1a proved we can talk to Supabase. Phase 1b builds the real, multi-table schema that mirrors our SwiftData models, plus the RLS policies that make the database safe for multiple users to share. No SyncEngine yet — that's Phase 4. No auth integration yet — Phase 2 fills `auth.uid()` in for real. Phase 1b's RLS tests use seeded `auth.users` rows.
 
 What stays out of Phase 1b (deferred to Phase 4):
+
 - `updated_at` / `deleted_at` columns and triggers.
 - `(user_id, updated_at)` composite indexes.
 - Tombstone purge logic.
@@ -29,18 +30,18 @@ What stays out of Phase 1b (deferred to Phase 4):
 
 ### Schema overview — 7 tables
 
-| Swift model | Postgres | Why this shape |
-|---|---|---|
-| `Commitment` | table `commitments` | top-level entity |
-| `Slot` | table `slots` | child with own lifecycle (created/edited/deleted independently) |
-| `Tag` | table `tags` | independent entity |
-| `Commitment.tags` ↔ `Tag.commitments` | join table `commitment_tags` | many-to-many; can't be a column |
-| `CheckIn` | table `check_ins` | append-shaped event (insert + delete only, no updates) |
-| `SlotSnooze` | table `slot_snoozes` | append-shaped event |
-| `PositivityToken` | table `positivity_tokens` | top-level entity, mutable status |
-| `Cycle` (struct) | JSONB column on `commitments.cycle` | value type, no identity, only meaningful inside Commitment |
-| `GracePeriod` (struct) | JSONB column on `commitments.grace_periods` | value-type array |
-| `Target` (`QuantifiedCycle`) | JSONB column on `commitments.target` | value type |
+| Swift model                           | Postgres                                    | Why this shape                                                  |
+| ------------------------------------- | ------------------------------------------- | --------------------------------------------------------------- |
+| `Commitment`                          | table `commitments`                         | top-level entity                                                |
+| `Slot`                                | table `slots`                               | child with own lifecycle (created/edited/deleted independently) |
+| `Tag`                                 | table `tags`                                | independent entity                                              |
+| `Commitment.tags` ↔ `Tag.commitments` | join table `commitment_tags`                | many-to-many; can't be a column                                 |
+| `CheckIn`                             | table `check_ins`                           | append-shaped event (insert + delete only, no updates)          |
+| `SlotSnooze`                          | table `slot_snoozes`                        | append-shaped event                                             |
+| `PositivityToken`                     | table `positivity_tokens`                   | top-level entity, mutable status                                |
+| `Cycle` (struct)                      | JSONB column on `commitments.cycle`         | value type, no identity, only meaningful inside Commitment      |
+| `GracePeriod` (struct)                | JSONB column on `commitments.grace_periods` | value-type array                                                |
+| `Target` (`QuantifiedCycle`)          | JSONB column on `commitments.target`        | value type                                                      |
 
 Rule of thumb: **a model gets its own table only if it has identity (own ID + lifecycle) or is queried independently.** Cycle/Target/GracePeriod fail both tests.
 
@@ -71,11 +72,11 @@ Flat columns (`cycle_kind`, `cycle_reference`, ...) would work for `Cycle` but n
 
 ### FK + cascade
 
-| SwiftData side | Postgres |
-|---|---|
-| `Slot.commitment` (cascade) | `slots.commitment_id` FK with `ON DELETE CASCADE` |
-| `CheckIn.commitment` (cascade) | `check_ins.commitment_id` FK with `ON DELETE CASCADE` |
-| `SlotSnooze.slot` (cascade) | `slot_snoozes.slot_id` FK with `ON DELETE CASCADE` |
+| SwiftData side                 | Postgres                                                       |
+| ------------------------------ | -------------------------------------------------------------- |
+| `Slot.commitment` (cascade)    | `slots.commitment_id` FK with `ON DELETE CASCADE`              |
+| `CheckIn.commitment` (cascade) | `check_ins.commitment_id` FK with `ON DELETE CASCADE`          |
+| `SlotSnooze.slot` (cascade)    | `slot_snoozes.slot_id` FK with `ON DELETE CASCADE`             |
 | `Commitment` ↔ `Tag` (nullify) | `commitment_tags` join row deleted when either side is deleted |
 
 Server-side cascades are for hard-delete admin work. Sync-time deletes will be soft-deletes via `deleted_at` once Phase 4 lands.
@@ -93,11 +94,13 @@ Schema lives under `supabase/migrations/`. No dashboard clicking. Every schema c
 ## TODOs (to expand into a commit plan once Phase 1a is merged)
 
 ### Pre-work (TODO during Phase 1a or right after)
+
 - [ ] Read the `supabase-swift` SDK README and find its idiomatic encode/decode patterns for: insert, select-by-id, batch insert, joined select.
 - [ ] Decide on the Swift "DTO" layer: do `@Model` SwiftData classes encode/decode directly, or do we add a parallel `CommitmentDTO: Codable` for transport? (Probably parallel DTOs — `@Model` types have SwiftData baggage that doesn't serialize cleanly.)
 - [ ] Confirm Supabase's RLS test harness (`supabase test db` + pgTAP) is set up.
 
 ### Schema migrations (one commit per table or pair)
+
 - [ ] Drop `commitments_spike` from Phase 1a.
 - [ ] `commitments` — id, user_id, title, created_at, cycle JSONB, target JSONB, grace_periods JSONB, encouragements JSONB, proof_of_work_type TEXT, punishment TEXT NULL, is_reminders_enabled BOOL, RLS.
 - [ ] `tags` — id, user_id, name, display_order, created_at, RLS.
@@ -108,11 +111,13 @@ Schema lives under `supabase/migrations/`. No dashboard clicking. Every schema c
 - [ ] `positivity_tokens` — id, user_id, reason, created_at, status, day_of_status NULL, RLS.
 
 ### Verification
+
 - [ ] RLS isolation tests: User A's writes are invisible to User B for SELECT/INSERT/UPDATE/DELETE on every table.
 - [ ] Round-trip test (replacing the spike one): `Commitment` Swift DTO → insert → select → decode → assert equal across all fields including JSONB.
 - [ ] Round-trip test for FK cascades: deleting a commitment row deletes its slots, check-ins, slot_snoozes, and commitment_tags entries server-side.
 
 ### Cleanup of Phase 1a artifacts
+
 - [ ] Drop `commitments_spike` table.
 - [ ] Remove the `#if DEBUG` "Spike: Insert + Read" button from `SettingsView.swift`.
 - [ ] Remove `SupabaseSpikeTests.swift`.
