@@ -48,3 +48,6 @@ buildServer.json
 
 # Git worktrees
 .worktrees/
+
+# Supabase secrets (anon key + URL live here, never committed)
+Wilgo/Config/Supabase.local.xcconfig

@@ -1,0 +1,7 @@
+// Supabase config template.
+// Copy this file to `Supabase.local.xcconfig` (gitignored) and fill in the real values.
+// Find both values in the Supabase dashboard: Settings → API.
+
+// The `//` characters in URLs would be parsed as a comment; escape with $().
+SUPABASE_URL = https:/$()/YOUR_PROJECT_REF.supabase.co
+SUPABASE_ANON_KEY = your_anon_publishable_key_here

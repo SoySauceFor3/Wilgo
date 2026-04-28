@@ -1,7 +1,7 @@
 # Phase 1a — Supabase Smoke Spike
 
 **PRD:** [Backend (Notion)](https://www.notion.so/Backend-34a4b58e32c3808dbb2be218a09e73cd)
-**Tracking:** TBD (3Sauce will paste a Notion sub-page URL before implementation begins)
+**Tracking:** [01a spike (Notion)](https://www.notion.so/01a-spike-3504b58e32c380a0988dc10ff56634cb?v=3174b58e32c38157ac2d000c36ca2e73&source=copy_link)
 **Tag:** `#backendSpike1a`
 
 > Roadmap: [README.md](./README.md). Schema doc to follow this: [01b-Schema.md](./01b-Schema.md).
@@ -188,10 +188,6 @@ Depends on Commit 1 only for the project URL/key existing in the dev project; if
 3. No regressions in any pre-existing test.
 
 Depends on Commits 1 and 2.
-
-### Commit 4 — Update roadmap pointer
-
-**Modify:** [documentation/Backend/README.md](./README.md) — Phase 1 row points to both `01a-Spike.md` (this) and `01b-Schema.md` (next).
 
 ---
 
