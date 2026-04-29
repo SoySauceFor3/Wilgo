@@ -21,6 +21,7 @@
 		7091C4192FA1262300F46C04 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 7091C4182FA1262300F46C04 /* Supabase */; };
 		7091C41C2FA12DB500F46C04 /* SupabaseClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7091C41A2FA12DB500F46C04 /* SupabaseClient.swift */; };
 		7091C4212FA138EE00F46C04 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 7091C4202FA138EE00F46C04 /* Supabase */; };
+		7091C4252FA1F61900F46C04 /* PositivityTokenDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7091C4242FA1F61900F46C04 /* PositivityTokenDTO.swift */; };
 		AABB00010001000100010001 /* MemoryProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00000000000000000000 /* MemoryProbe.swift */; };
 		AABB00010001000100010002 /* MemoryProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00000000000000000000 /* MemoryProbe.swift */; };
 /* End PBXBuildFile section */
@@ -75,6 +76,7 @@
 		701EBE7B2F5348DA0060F5B6 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
 		701EC1C22F537F6E0060F5B6 /* NowAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowAttributes.swift; sourceTree = "<group>"; };
 		7091C41A2FA12DB500F46C04 /* SupabaseClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SupabaseClient.swift; sourceTree = "<group>"; };
+		7091C4242FA1F61900F46C04 /* PositivityTokenDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PositivityTokenDTO.swift; sourceTree = "<group>"; };
 		AABB00000000000000000000 /* MemoryProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryProbe.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -250,6 +252,7 @@
 		7091C41B2FA12DB500F46C04 /* Backend */ = {
 			isa = PBXGroup;
 			children = (
+				7091C4242FA1F61900F46C04 /* PositivityTokenDTO.swift */,
 				7091C41A2FA12DB500F46C04 /* SupabaseClient.swift */,
 			);
 			path = Backend;
@@ -445,6 +448,7 @@
 			files = (
 				701EC1C32F537F980060F5B6 /* NowAttributes.swift in Sources */,
 				7091C41C2FA12DB500F46C04 /* SupabaseClient.swift in Sources */,
+				7091C4252FA1F61900F46C04 /* PositivityTokenDTO.swift in Sources */,
 				700D166F2F838172004B6B57 /* WilgoConstants.swift in Sources */,
 				700D16412F833A60004B6B57 /* AppSettings.swift in Sources */,
 				700D16422F833A60004B6B57 /* InAppScheduler.swift in Sources */,
