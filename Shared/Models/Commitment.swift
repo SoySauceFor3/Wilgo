@@ -199,12 +199,15 @@ extension Commitment {
         }
 
         // Remaining slot occurrences in the cycle that have not yet ended.
-        // Also filter out occurrences that are currently active but snoozed.
-        // Only active occurrences (start <= now) can be snoozed — future ones are always kept.
+        // Filter out occurrences that are currently active and either snoozed or saturated.
+        // Only active occurrences (start <= now) can be filtered — future ones are always kept.
         var remainingPairs: [(occurrence: Slot, original: Slot)]
         if let firstNotEndedIndex = resolvedPairs.firstIndex(where: { $0.occurrence.end >= now }) {
             remainingPairs = resolvedPairs[firstNotEndedIndex...].filter { pair in
-                pair.occurrence.start > now || !pair.original.isSnoozed(at: now)
+                if pair.occurrence.start > now { return true }
+                if pair.original.isSnoozed(at: now) { return false }
+                if pair.original.isSaturated(at: now, checkIns: checkInsInCycle) { return false }
+                return true
             }
         } else {
             remainingPairs = []
