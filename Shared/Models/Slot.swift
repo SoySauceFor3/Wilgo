@@ -65,6 +65,17 @@ final class Slot {
     /// End of this slot's ideal window (time-of-day only).
     var end: Date
 
+    /// Optional cap on how many check-ins inside one resolved occurrence's window
+    /// can satisfy this slot. `nil` = unlimited (default).
+    ///
+    /// Capacity is per-occurrence: a recurring slot's Monday occurrence and
+    /// Tuesday occurrence each have their own cap.
+    ///
+    /// Forward-compat: a future `SlotCapacityGroup` entity (Path 2) will hold its
+    /// own `maxCheckIns` for cross-slot capacity. The two fields will coexist;
+    /// when a slot has a group, the group's cap supersedes this one.
+    var maxCheckIns: Int? = nil
+
     // MARK: - Recurrence backing storage (SwiftData-friendly)
 
     private enum RecurrenceKind: String, Codable {
@@ -268,6 +279,50 @@ extension Slot {
 
         return snoozes.contains { snooze in
             calendar.isDate(snooze.psychDay, inSameDayAs: psychDay)
+        }
+    }
+}
+
+// MARK: - Capacity
+
+extension Slot {
+    /// Returns true if this slot's occurrence on the psych-day of `time`
+    /// has been saturated by check-ins whose `createdAt` falls in
+    /// `[occurrence.start, occurrence.end)`.
+    ///
+    /// Returns false if:
+    /// - `maxCheckIns` is nil (unlimited), or
+    /// - `time` is outside this slot's scheduled window (no occurrence to saturate).
+    func isSaturated(
+        at time: Date,
+        checkIns: [CheckIn],
+        calendar: Calendar = Time.calendar
+    ) -> Bool {
+        guard let cap = maxCheckIns, cap > 0 else { return false }
+        guard self.isScheduled(on: time, calendar: calendar) else { return false }
+
+        // Resolve the occurrence anchored on `time`'s psych-day in order to
+        // get concrete [start, end) datetimes. Use the same anchorDate logic
+        // implicit in resolveOccurrence by walking from the calendar day of `time`.
+        let psychDay = calendar.startOfDay(for: time)
+        guard let occurrence = self.resolveOccurrence(on: psychDay, calendar: calendar) else {
+            return false
+        }
+        return Self.countCheckInsInWindow(
+            checkIns: checkIns,
+            start: occurrence.start,
+            end: occurrence.end
+        ) >= cap
+    }
+
+    /// Pure helper: how many check-ins fall in `[start, end)` by `createdAt`.
+    static func countCheckInsInWindow(
+        checkIns: [CheckIn],
+        start: Date,
+        end: Date
+    ) -> Int {
+        checkIns.reduce(0) { acc, checkIn in
+            (checkIn.createdAt >= start && checkIn.createdAt < end) ? acc + 1 : acc
         }
     }
 }
