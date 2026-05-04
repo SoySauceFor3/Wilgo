@@ -79,7 +79,12 @@ struct AddCommitmentView: View {
         let slots: [Slot] =
             effectiveRemindersEnabled
             ? slotWindows.map { window in
-                let slot = Slot(start: window.start, end: window.end, recurrence: window.recurrence)
+                let slot = Slot(
+                    start: window.start,
+                    end: window.end,
+                    recurrence: window.recurrence,
+                    maxCheckIns: window.maxCheckIns
+                )
                 modelContext.insert(slot)
                 return slot
             } : []

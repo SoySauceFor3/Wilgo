@@ -50,6 +50,8 @@ struct SlotDraft: Identifiable {
     /// Stored separately so the UI toggle doesn't auto-flip when the user
     /// happens to pick identical start/end times in normal mode.
     var isWholeDay: Bool = false
+    /// Optional cap on check-ins inside one occurrence's window. nil = unlimited.
+    var maxCheckIns: Int? = nil
 }
 
 // MARK: - SlotWindowRow (per-slot UI, including recurrence)

@@ -32,7 +32,13 @@ struct EditCommitmentView: View {
         _cycle = State(initialValue: commitment.cycle)
         _slotWindows = State(
             initialValue: commitment.slots.sorted().map {
-                SlotDraft(start: $0.start, end: $0.end, recurrence: $0.recurrence)
+                SlotDraft(
+                    start: $0.start,
+                    end: $0.end,
+                    recurrence: $0.recurrence,
+                    isWholeDay: $0.isWholeDay,
+                    maxCheckIns: $0.maxCheckIns
+                )
             }
         )
         _target = State(initialValue: commitment.target)
@@ -158,7 +164,12 @@ struct EditCommitmentView: View {
         if effectiveRemindersEnabled {
             for old in commitment.slots { modelContext.delete(old) }
             let newSlots: [Slot] = slotWindows.map { window in
-                let slot = Slot(start: window.start, end: window.end, recurrence: window.recurrence)
+                let slot = Slot(
+                    start: window.start,
+                    end: window.end,
+                    recurrence: window.recurrence,
+                    maxCheckIns: window.maxCheckIns
+                )
                 modelContext.insert(slot)
                 return slot
             }

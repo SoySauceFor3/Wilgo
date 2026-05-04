@@ -98,11 +98,13 @@ final class Slot {
     init(
         start: Date,
         end: Date,
-        recurrence: SlotRecurrence = .everyDay
+        recurrence: SlotRecurrence = .everyDay,
+        maxCheckIns: Int? = nil
     ) {
         self.id = UUID()
         self.start = start
         self.end = end
+        self.maxCheckIns = maxCheckIns
         self.recurrence = recurrence
     }
 }
