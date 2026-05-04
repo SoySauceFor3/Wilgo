@@ -257,13 +257,18 @@ extension Commitment {
     private func targetDisabledStatus(now: Date) -> StageStatus {
         let nowPsychDay = Time.startOfDay(for: now)
 
-        var todaySlots = slots.compactMap { $0.resolveOccurrence(on: nowPsychDay) }
-        todaySlots.sort { $0.start < $1.start }
+        var todayPairs = slots.compactMap { slot -> (occurrence: Slot, original: Slot)? in
+            guard let occurrence = slot.resolveOccurrence(on: nowPsychDay) else { return nil }
+            return (occurrence: occurrence, original: slot)
+        }
+        todayPairs.sort { $0.occurrence.start < $1.occurrence.start }
 
-        let remaining = todaySlots.filter { occ in
-            occ.end >= now
-                && (occ.start > now
-                    || !(slots.first { $0.id == occ.id }?.isSnoozed(at: now) ?? false))
+        let remaining = todayPairs.compactMap { pair -> Slot? in
+            guard pair.occurrence.end >= now else { return nil }
+            guard pair.occurrence.start <= now else { return pair.occurrence }
+            guard !pair.original.isSnoozed(at: now) else { return nil }
+            guard !pair.original.isSaturated(at: now, checkIns: checkIns) else { return nil }
+            return pair.occurrence
         }
 
         guard let first = remaining.first else {

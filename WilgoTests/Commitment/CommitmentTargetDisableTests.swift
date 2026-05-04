@@ -138,4 +138,29 @@ final class CommitmentTargetDisableTests {
         #expect(status.category == .future)
         #expect(status.nextUpSlots.allSatisfy { $0.start > now })
     }
+
+    @Test("target disabled + out-of-window check-in does not saturate active slot")
+    @MainActor func targetDisabled_outOfWindowCheckIn_doesNotSaturateActiveSlot() throws {
+        let container = try makeContainer()
+        let ctx = container.mainContext
+        let anchor = date(year: 2026, month: 1, day: 1)
+        let slot = Slot(start: tod(hour: 17), end: tod(hour: 20), maxCheckIns: 1)
+        let c = Commitment(
+            title: "Draw",
+            cycle: Cycle(kind: .daily, referencePsychDay: anchor),
+            slots: [slot],
+            target: Target(count: 3, isEnabled: false)
+        )
+        ctx.insert(c)
+        ctx.insert(slot)
+
+        let checkIn = CheckIn(commitment: c, createdAt: date(year: 2026, month: 3, day: 5, hour: 12))
+        ctx.insert(checkIn)
+        c.checkIns = [checkIn]
+
+        let now = date(year: 2026, month: 3, day: 5, hour: 18)
+        let status = c.stageStatus(now: now)
+        #expect(status.category == .current)
+        #expect(!status.nextUpSlots.isEmpty)
+    }
 }
