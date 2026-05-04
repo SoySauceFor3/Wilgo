@@ -86,4 +86,56 @@ final class CommitmentTargetDisableTests {
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
         #expect(c.stageStatus(now: now).category != .metGoal)
     }
+
+    @Test("target disabled + saturated active slot → .others")
+    @MainActor func targetDisabled_saturatedActiveSlot_isOthers() throws {
+        let container = try makeContainer()
+        let ctx = container.mainContext
+        let anchor = date(year: 2026, month: 1, day: 1)
+        let slot = Slot(start: tod(hour: 9), end: tod(hour: 11), maxCheckIns: 1)
+        let c = Commitment(
+            title: "Draw",
+            cycle: Cycle(kind: .daily, referencePsychDay: anchor),
+            slots: [slot],
+            target: Target(count: 3, isEnabled: false)
+        )
+        ctx.insert(c)
+        ctx.insert(slot)
+
+        let checkIn = CheckIn(commitment: c, createdAt: date(year: 2026, month: 3, day: 5, hour: 10))
+        ctx.insert(checkIn)
+        c.checkIns = [checkIn]
+
+        let now = date(year: 2026, month: 3, day: 5, hour: 10)
+        let status = c.stageStatus(now: now)
+        #expect(status.category == .others)
+        #expect(status.nextUpSlots.isEmpty)
+    }
+
+    @Test("target disabled + saturated active slot keeps future slot")
+    @MainActor func targetDisabled_saturatedActiveSlot_keepsFutureSlot() throws {
+        let container = try makeContainer()
+        let ctx = container.mainContext
+        let anchor = date(year: 2026, month: 1, day: 1)
+        let morning = Slot(start: tod(hour: 9), end: tod(hour: 11), maxCheckIns: 1)
+        let afternoon = Slot(start: tod(hour: 15), end: tod(hour: 17))
+        let c = Commitment(
+            title: "Draw",
+            cycle: Cycle(kind: .daily, referencePsychDay: anchor),
+            slots: [morning, afternoon],
+            target: Target(count: 3, isEnabled: false)
+        )
+        ctx.insert(c)
+        ctx.insert(morning)
+        ctx.insert(afternoon)
+
+        let checkIn = CheckIn(commitment: c, createdAt: date(year: 2026, month: 3, day: 5, hour: 10))
+        ctx.insert(checkIn)
+        c.checkIns = [checkIn]
+
+        let now = date(year: 2026, month: 3, day: 5, hour: 10)
+        let status = c.stageStatus(now: now)
+        #expect(status.category == .future)
+        #expect(status.nextUpSlots.allSatisfy { $0.start > now })
+    }
 }

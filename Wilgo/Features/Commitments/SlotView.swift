@@ -165,6 +165,24 @@ struct SlotWindowRow: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+
+                Toggle("Limit check-ins", isOn: limitBinding)
+                    .font(.footnote)
+
+                if window.maxCheckIns != nil {
+                    HStack(spacing: 8) {
+                        Text("Max")
+                            .foregroundStyle(.secondary)
+                        Stepper(
+                            value: maxCheckInsStepperBinding,
+                            in: 1...20
+                        ) {
+                            Text("\(window.maxCheckIns ?? 1)")
+                                .monospacedDigit()
+                        }
+                    }
+                    .font(.footnote)
+                }
             }
 
             Spacer()
@@ -200,6 +218,22 @@ struct SlotWindowRow: View {
                     window.end = end
                 }
             }
+        )
+    }
+
+    private var limitBinding: Binding<Bool> {
+        Binding(
+            get: { window.maxCheckIns != nil },
+            set: { newValue in
+                window.maxCheckIns = newValue ? 1 : nil
+            }
+        )
+    }
+
+    private var maxCheckInsStepperBinding: Binding<Int> {
+        Binding(
+            get: { window.maxCheckIns ?? 1 },
+            set: { window.maxCheckIns = max(1, $0) }
         )
     }
 
