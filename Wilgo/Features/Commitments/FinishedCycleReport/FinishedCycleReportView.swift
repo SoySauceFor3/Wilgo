@@ -24,6 +24,7 @@ struct FinishedCycleReportView: View {
     /// Must NOT be recomputed after navigation — PositivityTokenCompensator mutates
     /// token.status to .used, so re-running it would see zero active tokens.
     @State private var finalReport: [CommitmentReport] = []
+    @State private var tokenUsageSummary: PositivityTokenUsageSummary?
     @State private var showTokenStep = false
 
     var body: some View {
@@ -34,16 +35,25 @@ struct FinishedCycleReportView: View {
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button("Next") {
-                            finalReport = AfterPositivityTokenReportBuilder.apply(
+                            let report = AfterPositivityTokenReportBuilder.apply(
                                 to: preTokenReport,
                                 allTokens: tokens
                             )
+                            tokenUsageSummary = AfterPositivityTokenReportBuilder.usageSummary(
+                                preReport: preTokenReport,
+                                finalReport: report,
+                                allTokens: tokens
+                            )
+                            finalReport = report
                             showTokenStep = true
                         }
                     }
                 }
                 .navigationDestination(isPresented: $showTokenStep) {
-                    PositivityTokenPage(commitmentReports: finalReport)
+                    PositivityTokenPage(
+                        commitmentReports: finalReport,
+                        usageSummary: tokenUsageSummary
+                    )
                         .navigationTitle("Positivity Tokens")
                         .navigationBarTitleDisplayMode(.inline)
                         .toolbar {

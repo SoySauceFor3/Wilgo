@@ -83,6 +83,63 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         #expect(cycle.metTarget)
     }
 
+    @Test("PT usage summary shows before and after availability")
+    @MainActor
+    func usageSummaryShowsBeforeAndAfterAvailability() throws {
+        let container = try makeContainer()
+        let ctx = container.mainContext
+
+        let anchor = date(year: 2026, month: 2, day: 1)
+        let targetCycle = Cycle(kind: .daily, referencePsychDay: anchor)
+        let commitment = Commitment(
+            title: "Read",
+            cycle: targetCycle,
+            slots: [],
+            target: QuantifiedCycle(count: 5),
+        )
+        ctx.insert(commitment)
+
+        for hour in [9, 10, 11] {
+            let checkIn = CheckIn(
+                commitment: commitment,
+                createdAt: date(year: 2026, month: 2, day: 1, hour: hour)
+            )
+            ctx.insert(checkIn)
+            commitment.checkIns.append(checkIn)
+        }
+
+        let alreadyUsed = PositivityToken(reason: "already used", createdAt: date(year: 2026, month: 1, day: 1))
+        alreadyUsed.status = .used
+        alreadyUsed.dayOfStatus = date(year: 2026, month: 2, day: 1)
+        let t1 = PositivityToken(reason: "a", createdAt: date(year: 2026, month: 1, day: 2))
+        let t2 = PositivityToken(reason: "b", createdAt: date(year: 2026, month: 1, day: 3))
+        let t3 = PositivityToken(reason: "c", createdAt: date(year: 2026, month: 1, day: 4))
+
+        let preReport = PreTokenReportBuilder.build(
+            commitments: [commitment],
+            startPsychDay: date(year: 2026, month: 2, day: 1),
+            endPsychDay: date(year: 2026, month: 2, day: 2)
+        )
+        let finalReport = AfterPositivityTokenReportBuilder.apply(
+            to: preReport,
+            allTokens: [alreadyUsed, t1, t2, t3],
+            monthlyCap: 3
+        )
+
+        let summary = AfterPositivityTokenReportBuilder.usageSummary(
+            preReport: preReport,
+            finalReport: finalReport,
+            allTokens: [alreadyUsed, t1, t2, t3],
+            monthlyCap: 3
+        )
+
+        #expect(summary.activeTokensBefore == 3)
+        #expect(summary.activeTokensAfter == 1)
+        #expect(summary.availableBudgetBefore == 2)
+        #expect(summary.availableBudgetAfter == 0)
+        #expect(summary.totalTokensUsed == 2)
+    }
+
     @Test("no tokens → no compensation")
     @MainActor
     func noTokensNoCompensation() throws {

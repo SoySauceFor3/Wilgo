@@ -102,6 +102,33 @@ enum AfterPositivityTokenReportBuilder {
         return max(0, value)
     }
 
+    static func usageSummary(
+        preReport: [CommitmentReport],
+        finalReport: [CommitmentReport],
+        allTokens: [PositivityToken],
+        monthlyCap: Int? = nil,
+        calendar: Calendar = Time.calendar
+    ) -> PositivityTokenUsageSummary {
+        let totalTokensUsed = finalReport
+            .flatMap(\.cycles)
+            .reduce(0) { $0 + $1.aidedByPositivityTokenCount }
+        let activeTokensAfter = allTokens.filter { $0.status == .active }.count
+        let availableBudgetAfter = reportBudgetAvailable(
+            for: preReport,
+            allTokens: allTokens,
+            monthlyCap: monthlyCap ?? positivityTokenMonthlyCap(),
+            calendar: calendar
+        )
+
+        return PositivityTokenUsageSummary(
+            activeTokensBefore: activeTokensAfter + totalTokensUsed,
+            activeTokensAfter: activeTokensAfter,
+            availableBudgetBefore: availableBudgetAfter + totalTokensUsed,
+            availableBudgetAfter: availableBudgetAfter,
+            totalTokensUsed: totalTokensUsed
+        )
+    }
+
     /// Phase 2: takes a pre-token report and returns a new report with positivity
     /// token compensation applied — populating each cycle's `consumedPTReasons`.
     static func apply(
@@ -150,5 +177,55 @@ enum AfterPositivityTokenReportBuilder {
             )
         }
         return updatedCommitments
+    }
+
+    private static func reportBudgetAvailable(
+        for report: [CommitmentReport],
+        allTokens: [PositivityToken],
+        monthlyCap: Int,
+        calendar: Calendar
+    ) -> Int {
+        guard monthlyCap > 0 else { return 0 }
+
+        let neededMonthKeys = Set(
+            report.flatMap { commitmentReport in
+                commitmentReport.cycles.compactMap { cycle -> String? in
+                    guard !cycle.isGrace, cycle.isTargetEnabled else { return nil }
+                    guard cycle.targetCheckIns > cycle.actualCheckIns else { return nil }
+                    let usagePsychDay = previousPsychDay(cycle.cycleEndPsychDay, calendar: calendar)
+                    return psychMonthKey(of: usagePsychDay, calendar: calendar)
+                }
+            }
+        )
+
+        guard !neededMonthKeys.isEmpty else { return 0 }
+
+        let usedCountByMonth = usedCountByMonth(from: allTokens, calendar: calendar)
+        return neededMonthKeys.reduce(0) { total, monthKey in
+            total + max(0, monthlyCap - usedCountByMonth[monthKey, default: 0])
+        }
+    }
+
+    private static func usedCountByMonth(
+        from tokens: [PositivityToken],
+        calendar: Calendar
+    ) -> [String: Int] {
+        var result: [String: Int] = [:]
+        for token in tokens {
+            if token.status == .used, let usedAtPsychDay = token.dayOfStatus {
+                let key = psychMonthKey(of: usedAtPsychDay, calendar: calendar)
+                result[key, default: 0] += 1
+            }
+        }
+        return result
+    }
+
+    private static func previousPsychDay(_ date: Date, calendar: Calendar) -> Date {
+        calendar.date(byAdding: .day, value: -1, to: date) ?? date
+    }
+
+    private static func psychMonthKey(of psychDay: Date, calendar: Calendar) -> String {
+        let components = calendar.dateComponents([.year, .month], from: psychDay)
+        return "\(components.year ?? 0)-\(components.month ?? 0)"
     }
 }

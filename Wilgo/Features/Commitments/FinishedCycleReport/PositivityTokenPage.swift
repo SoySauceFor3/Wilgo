@@ -9,22 +9,39 @@ import SwiftUI
 /// passes a freshly-built report.
 struct PositivityTokenPage: View {
     let commitmentReports: [CommitmentReport]
+    let usageSummary: PositivityTokenUsageSummary?
 
     private var totalTokensUsed: Int {
-        commitmentReports
-            .flatMap(\.cycles)
-            .reduce(0) { $0 + $1.aidedByPositivityTokenCount }
+        usageSummary?.totalTokensUsed ??
+            commitmentReports
+                .flatMap(\.cycles)
+                .reduce(0) { $0 + $1.aidedByPositivityTokenCount }
     }
 
     var body: some View {
         List {
             Section {
-                Label(
-                    "\(totalTokensUsed) positivity token\(totalTokensUsed == 1 ? "" : "s") used",
-                    systemImage: "sparkles"
-                )
-                .foregroundStyle(totalTokensUsed > 0 ? .blue : .secondary)
-                .font(.subheadline)
+                VStack(alignment: .leading, spacing: 10) {
+                    Label(
+                        "\(totalTokensUsed) positivity token\(totalTokensUsed == 1 ? "" : "s") used",
+                        systemImage: "sparkles"
+                    )
+                    .foregroundStyle(totalTokensUsed > 0 ? .blue : .secondary)
+                    .font(.subheadline)
+
+                    if let usageSummary {
+                        AvailabilityTransitionRow(
+                            title: "Available PTs",
+                            before: usageSummary.activeTokensBefore,
+                            after: usageSummary.activeTokensAfter
+                        )
+                        AvailabilityTransitionRow(
+                            title: "Available budget",
+                            before: usageSummary.availableBudgetBefore,
+                            after: usageSummary.availableBudgetAfter
+                        )
+                    }
+                }
                 .padding(.vertical, 2)
             }
             ForEach(commitmentReports) { report in
@@ -35,6 +52,32 @@ struct PositivityTokenPage: View {
                 }
             }
         }
+    }
+}
+
+// MARK: - AvailabilityTransitionRow
+
+private struct AvailabilityTransitionRow: View {
+    let title: String
+    let before: Int
+    let after: Int
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(title)
+                .foregroundStyle(.secondary)
+
+            Spacer()
+
+            Text("\(before)")
+                .fontWeight(.medium)
+            Image(systemName: "arrow.right")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Text("\(after)")
+                .fontWeight(.medium)
+        }
+        .font(.subheadline)
     }
 }
 

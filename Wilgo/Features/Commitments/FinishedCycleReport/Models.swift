@@ -27,6 +27,14 @@ struct CycleReport: Identifiable {
     var isAidedByPositivityToken: Bool { aidedByPositivityTokenCount > 0 }
 }
 
+struct PositivityTokenUsageSummary {
+    let activeTokensBefore: Int
+    let activeTokensAfter: Int
+    let availableBudgetBefore: Int
+    let availableBudgetAfter: Int
+    let totalTokensUsed: Int
+}
+
 /// A lightweight token passed to `FinishedCycleReportView` that captures the
 /// date window for the report.  The sheet re-derives the full report live from
 /// `@Query` sources, so backfills and other data changes are reflected
