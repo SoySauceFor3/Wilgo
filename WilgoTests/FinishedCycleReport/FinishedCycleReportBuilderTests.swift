@@ -140,6 +140,55 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         #expect(summary.totalTokensUsed == 2)
     }
 
+    @Test("PT step preparation freezes report and summary together")
+    @MainActor
+    func positivityTokenStepPreparationFreezesReportAndSummaryTogether() throws {
+        let container = try makeContainer()
+        let ctx = container.mainContext
+
+        let anchor = date(year: 2026, month: 2, day: 1)
+        let targetCycle = Cycle(kind: .daily, referencePsychDay: anchor)
+        let commitment = Commitment(
+            title: "Read",
+            cycle: targetCycle,
+            slots: [],
+            target: QuantifiedCycle(count: 5),
+        )
+        ctx.insert(commitment)
+
+        for hour in [9, 10, 11] {
+            let checkIn = CheckIn(
+                commitment: commitment,
+                createdAt: date(year: 2026, month: 2, day: 1, hour: hour)
+            )
+            ctx.insert(checkIn)
+            commitment.checkIns.append(checkIn)
+        }
+
+        let t1 = PositivityToken(reason: "a", createdAt: date(year: 2026, month: 1, day: 1))
+        let t2 = PositivityToken(reason: "b", createdAt: date(year: 2026, month: 1, day: 2))
+        ctx.insert(t1)
+        ctx.insert(t2)
+
+        let preReport = PreTokenReportBuilder.build(
+            commitments: [commitment],
+            startPsychDay: date(year: 2026, month: 2, day: 1),
+            endPsychDay: date(year: 2026, month: 2, day: 2)
+        )
+
+        let prepared = PositivityTokenStepPreparation.prepare(
+            preTokenReport: preReport,
+            allTokens: [t1, t2],
+            monthlyCap: 10
+        )
+
+        let cycle = try #require(prepared.finalReport.first?.cycles.first)
+        #expect(cycle.aidedByPositivityTokenCount == 2)
+        #expect(prepared.usageSummary.totalTokensUsed == 2)
+        #expect(prepared.usageSummary.activeTokensBefore == 2)
+        #expect(prepared.usageSummary.activeTokensAfter == 0)
+    }
+
     @Test("no tokens → no compensation")
     @MainActor
     func noTokensNoCompensation() throws {
