@@ -180,4 +180,27 @@ final class SlotCapacityTests {
         let nowEvening = date(2026, 3, 5, 22)
         #expect(slot.isSaturated(at: nowEvening, checkIns: [ciMorning]) == true)
     }
+
+    @Test("5am whole-day slot, cap=1, previous occurrence check-in saturates at 1am")
+    @MainActor func fiveAMWholeDay_capOne_previousOccurrenceSaturatesAtOneAM() throws {
+        let container = try makeContainer()
+        let ctx = container.mainContext
+        let slot = Slot(start: tod(hour: 5), end: tod(hour: 5))
+        slot.maxCheckIns = 1
+        let commitment = Commitment(
+            title: "T",
+            cycle: Cycle(kind: .daily, referencePsychDay: date(2026, 1, 1)),
+            slots: [slot],
+            target: QuantifiedCycle(count: 1)
+        )
+        ctx.insert(commitment)
+        ctx.insert(slot)
+
+        let previousOccurrenceCheckIn = date(2026, 3, 4, 22)
+        let checkIn = CheckIn(commitment: commitment, createdAt: previousOccurrenceCheckIn)
+        ctx.insert(checkIn)
+
+        let postMidnight = date(2026, 3, 5, 1)
+        #expect(slot.isSaturated(at: postMidnight, checkIns: [checkIn]) == true)
+    }
 }

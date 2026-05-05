@@ -288,10 +288,12 @@ extension Slot {
 // MARK: - Capacity
 
 extension Slot {
-    /// Returns true if this slot's occurrence on the psych-day of `time`
-    /// has been saturated by check-ins whose `createdAt` falls in
-    /// `[occurrence.start, occurrence.end)`.
+    /// Returns true if the given occurrence has been saturated by check-ins
+    /// whose `createdAt` falls in `[occurrence.start, occurrence.end)`.
     ///
+    /// Precondition:
+    /// maxCheckIn is not 0.
+    /// the given time is within a slot occurrence.
     /// Returns false if:
     /// - `maxCheckIns` is nil (unlimited), or
     /// - `time` is outside this slot's scheduled window (no occurrence to saturate).
@@ -303,10 +305,9 @@ extension Slot {
         guard let cap = maxCheckIns, cap > 0 else { return false }
         guard self.isScheduled(on: time, calendar: calendar) else { return false }
 
-        // Resolve the occurrence anchored on `time`'s psych-day in order to
-        // get concrete [start, end) datetimes. Use the same anchorDate logic
-        // implicit in resolveOccurrence by walking from the calendar day of `time`.
-        let psychDay = calendar.startOfDay(for: time)
+        // Resolve the occurrence that actually contains `time`. For cross-midnight
+        // windows, post-midnight times belong to the previous occurrence.
+        let psychDay = anchorDate(for: time, calendar: calendar)
         guard let occurrence = self.resolveOccurrence(on: psychDay, calendar: calendar) else {
             return false
         }
