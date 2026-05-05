@@ -42,15 +42,15 @@ final class StageViewModel {
 
     private func scheduleTimer() {
         timerTask?.cancel()
-        timerTask = Task { [weak self] in
-            guard let self else { return }
-            let nextDate = CommitmentAndSlot.nextTransitionDate(
-                commitments: self.lastCommitments, now: Date())
-            let delay = nextDate?.timeIntervalSince(Date()) ?? 60
+        let nextDate = CommitmentAndSlot.nextTransitionDate(
+            commitments: lastCommitments, now: Date())
+        let delay = nextDate?.timeIntervalSince(Date()) ?? 60
+        timerTask = Task { [weak self, delay] in
             if delay > 0 {
                 try? await Task.sleep(until: .now + .seconds(delay), clock: .continuous)
             }
             guard !Task.isCancelled else { return }
+            guard let self else { return }
             self.recompute()
             self.scheduleTimer()
         }
