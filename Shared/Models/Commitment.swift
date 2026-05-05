@@ -88,6 +88,8 @@ final class Commitment {
 // MARK: - Slot queries
 
 extension Commitment {
+    private typealias ResolvedSlotPair = (occurrence: Slot, original: Slot)
+
     func checkInsInCycle(
         cycle: Cycle,
         until psychDay: Date = Time.startOfDay(for: Time.now()),
@@ -121,6 +123,42 @@ extension Commitment {
         let behindCount: Int
     }
 
+    private func resolvedSlotPairs(
+        from startDay: Date,
+        until endDay: Date,
+        includeCarryOver: Bool = true,
+        calendar: Calendar = Time.calendar
+    ) -> [ResolvedSlotPair] {
+        var pairs: [ResolvedSlotPair] = []
+
+        if includeCarryOver,
+            let previousDay = calendar.date(byAdding: .day, value: -1, to: startDay)
+        {
+            for slot in slots {
+                guard let occurrence = slot.resolveOccurrence(on: previousDay) else { continue }
+                guard occurrence.end > startDay else { continue }
+                pairs.append((occurrence: occurrence, original: slot))
+            }
+        }
+
+        var dayCursor = startDay
+        while dayCursor < endDay {
+            for slot in slots {
+                guard let occurrence = slot.resolveOccurrence(on: dayCursor) else { continue }
+                pairs.append((occurrence: occurrence, original: slot))
+            }
+            dayCursor = calendar.date(byAdding: .day, value: 1, to: dayCursor) ?? endDay
+        }
+
+        pairs.sort {
+            let lhs = $0.occurrence
+            let rhs = $1.occurrence
+            if lhs.start == rhs.start { return lhs.end < rhs.end }
+            return lhs.start < rhs.start
+        }
+        return pairs
+    }
+
     /// Classifies this commitment for the current psychological day at the given time.
     ///
     /// Precedence:
@@ -149,59 +187,14 @@ extension Commitment {
 
         let cal = Time.calendar
 
-        func resolveSlotOccurrence(slot: Slot, psychDay: Date) -> Slot? {
-            if slot.isWholeDay {
-                // Whole-day slots span the entire psych day regardless of the anchor time.
-                // Use psychDay start as start and +24h as end.
-                let start = psychDay
-                let end = cal.date(byAdding: .day, value: 1, to: psychDay) ?? psychDay
-                // Check recurrence against the psych day itself.
-                guard slot.isScheduled(on: psychDay, calendar: cal) else { return nil }
-                let resolved = Slot(start: start, end: end)
-                resolved.id = slot.id
-                return resolved
-            }
-
-            let start = Time.resolve(timeOfDay: slot.start, on: psychDay)
-            var end = Time.resolve(timeOfDay: slot.end, on: psychDay)
-            if end <= start {
-                end = cal.date(byAdding: .day, value: 1, to: end) ?? end
-            }
-
-            // Respect recurrence (if any). Evaluate at the concrete start time.
-            guard slot.isScheduled(on: start, calendar: cal) else { return nil }
-
-            // IMPORTANT: This Slot carries concrete datetimes in start/end.
-            // Preserve the original slot's id so callers (e.g. SnoozeIntent) can
-            // look up the persisted Slot in the SwiftData store.
-            let resolved = Slot(start: start, end: end)
-            resolved.id = slot.id
-            return resolved
-        }
-
         // Get all slot occurrences in the target cycle (with concrete datetimes), then sort.
         // Each entry pairs the resolved occurrence with the original Slot model (for snooze checks).
-        var resolvedPairs: [(occurrence: Slot, original: Slot)] = []
-        var dayCursor = startDay
-        while dayCursor < endDay {
-            for slot in slots {
-                if let occurrence = slot.resolveOccurrence(on: dayCursor) {
-                    resolvedPairs.append((occurrence: occurrence, original: slot))
-                }
-            }
-            dayCursor = cal.date(byAdding: .day, value: 1, to: dayCursor) ?? endDay
-        }
-
-        resolvedPairs.sort {
-            let l = $0.occurrence
-            let r = $1.occurrence
-            if l.start == r.start { return l.end < r.end } else { return l.start < r.start }
-        }
+        let resolvedPairs = resolvedSlotPairs(from: startDay, until: endDay, calendar: cal)
 
         // Remaining slot occurrences in the cycle that have not yet ended.
         // Filter out occurrences that are currently active and either snoozed or saturated.
         // Only active occurrences (start <= now) can be filtered — future ones are always kept.
-        var remainingPairs: [(occurrence: Slot, original: Slot)]
+        var remainingPairs: [ResolvedSlotPair]
         if let firstNotEndedIndex = resolvedPairs.firstIndex(where: { $0.occurrence.end >= now }) {
             remainingPairs = resolvedPairs[firstNotEndedIndex...].filter { pair in
                 if pair.occurrence.start > now { return true }
@@ -257,11 +250,8 @@ extension Commitment {
     private func targetDisabledStatus(now: Date) -> StageStatus {
         let nowPsychDay = Time.startOfDay(for: now)
 
-        var todayPairs = slots.compactMap { slot -> (occurrence: Slot, original: Slot)? in
-            guard let occurrence = slot.resolveOccurrence(on: nowPsychDay) else { return nil }
-            return (occurrence: occurrence, original: slot)
-        }
-        todayPairs.sort { $0.occurrence.start < $1.occurrence.start }
+        let todayEnd = Time.calendar.date(byAdding: .day, value: 1, to: nowPsychDay) ?? nowPsychDay
+        let todayPairs = resolvedSlotPairs(from: nowPsychDay, until: todayEnd)
 
         let remaining = todayPairs.compactMap { pair -> Slot? in
             guard pair.occurrence.end >= now else { return nil }
