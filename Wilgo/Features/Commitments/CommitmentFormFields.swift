@@ -12,6 +12,10 @@ struct CommitmentFormFields: View {
     @Binding var selectedTags: [Tag]
     @Binding var isRemindersEnabled: Bool
 
+    private var debugExtra: String {
+        "slots=\(slotWindows.count) encouragements=\(encouragements.count) tags=\(selectedTags.count) reminders=\(isRemindersEnabled) target=\(target.count)/\(target.isEnabled)"
+    }
+
     var body: some View {
         Section("Basics") {
             TextField("Title", text: $title)
@@ -86,6 +90,12 @@ struct CommitmentFormFields: View {
         }
 
         TagPickerSection(selectedTags: $selectedTags)
+            .onAppear {
+                MemoryProbe.log("CommitmentForm.appear", extra: debugExtra)
+            }
+            .onDisappear {
+                MemoryProbe.log("CommitmentForm.disappear", extra: debugExtra)
+            }
     }
 
     // MARK: - Helpers
@@ -97,6 +107,10 @@ struct CommitmentFormFields: View {
         Binding(
             get: { cycle.kind },
             set: { newKind in
+                MemoryProbe.log(
+                    "CommitmentForm.cycleKind.set",
+                    extra: "from=\(cycle.kind) to=\(newKind) \(debugExtra)"
+                )
                 cycle = Cycle.makeDefault(newKind)
             }
         )
@@ -105,7 +119,13 @@ struct CommitmentFormFields: View {
     private var targetEnabledBinding: Binding<Bool> {
         Binding(
             get: { target.isEnabled },
-            set: { target.isEnabled = $0 }
+            set: {
+                MemoryProbe.log(
+                    "CommitmentForm.targetEnabled.set",
+                    extra: "from=\(target.isEnabled) to=\($0) \(debugExtra)"
+                )
+                target.isEnabled = $0
+            }
         )
     }
 
@@ -114,6 +134,10 @@ struct CommitmentFormFields: View {
         Binding(
             get: { target.count },
             set: { newValue in
+                MemoryProbe.log(
+                    "CommitmentForm.targetCount.set",
+                    extra: "from=\(target.count) to=\(newValue) \(debugExtra)"
+                )
                 target.count = newValue
             }
         )
@@ -145,6 +169,10 @@ struct EncouragementSection: View {
                         .focused($focusedID, equals: item.id)
                     Spacer()
                     Button(role: .destructive) {
+                        MemoryProbe.log(
+                            "EncouragementSection.delete.tap",
+                            extra: "input=\(encouragements.count) taggedBefore=\(tagged.count)"
+                        )
                         tagged.removeAll { $0.id == item.id }
                         flush()
                     } label: {
@@ -156,6 +184,10 @@ struct EncouragementSection: View {
             }
 
             Button {
+                MemoryProbe.log(
+                    "EncouragementSection.add.tap",
+                    extra: "input=\(encouragements.count) taggedBefore=\(tagged.count)"
+                )
                 let newItem = TaggedEncouragement(text: "")
                 tagged.append(newItem)
                 focusedID = newItem.id
@@ -169,11 +201,29 @@ struct EncouragementSection: View {
             Text("Shown randomly while you work.")
         }
         .onAppear {
+            MemoryProbe.log(
+                "EncouragementSection.appear",
+                extra: "input=\(encouragements.count) taggedBefore=\(tagged.count)"
+            )
             tagged = encouragements.map { TaggedEncouragement(text: $0) }
+            MemoryProbe.log(
+                "EncouragementSection.loaded",
+                extra: "input=\(encouragements.count) taggedAfter=\(tagged.count)"
+            )
+        }
+        .onDisappear {
+            MemoryProbe.log(
+                "EncouragementSection.disappear",
+                extra: "input=\(encouragements.count) tagged=\(tagged.count)"
+            )
         }
     }
 
     private func flush() {
         encouragements = tagged.map(\.text)
+        MemoryProbe.log(
+            "EncouragementSection.flush",
+            extra: "input=\(encouragements.count) tagged=\(tagged.count)"
+        )
     }
 }

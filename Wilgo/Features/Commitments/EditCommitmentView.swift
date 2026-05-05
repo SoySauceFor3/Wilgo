@@ -2,6 +2,9 @@ import SwiftData
 import SwiftUI
 import WidgetKit
 
+@MainActor
+private var nextEditCommitmentViewDebugID = 0
+
 struct EditCommitmentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -17,6 +20,7 @@ struct EditCommitmentView: View {
     @State private var encouragements: [String]
     @State private var selectedTags: [Tag]
     @State private var isRemindersEnabled: Bool
+    @State private var debugID: Int
 
     /// Snapshot of rule values at open time, used to detect if any rule changed.
     private let originalTarget: Target
@@ -28,6 +32,9 @@ struct EditCommitmentView: View {
     init(commitment: Commitment) {
         self.commitment = commitment
 
+        nextEditCommitmentViewDebugID += 1
+        let debugID = nextEditCommitmentViewDebugID
+        _debugID = State(initialValue: debugID)
         _title = State(initialValue: commitment.title)
         _cycle = State(initialValue: commitment.cycle)
         _slotWindows = State(
@@ -51,6 +58,12 @@ struct EditCommitmentView: View {
         originalTarget = commitment.target
         originalCycle = commitment.cycle
         originalTargetWasEnabled = commitment.target.isEnabled
+
+        MemoryProbe.log(
+            "EditCommitment.init",
+            extra:
+                "view=\(debugID) id=\(commitment.id) slots=\(commitment.slots.count) checkIns=\(commitment.checkIns.count) tags=\(commitment.tags.count)"
+        )
     }
 
     var body: some View {
@@ -72,7 +85,10 @@ struct EditCommitmentView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button("Cancel") {
+                        MemoryProbe.log("EditCommitment.cancel", extra: debugExtra)
+                        dismiss()
+                    }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { handleSaveTap() }
@@ -83,9 +99,37 @@ struct EditCommitmentView: View {
                 saveChanges(grace: grace)
             }
         }
+        .onAppear {
+            MemoryProbe.log("EditCommitment.appear", extra: debugExtra)
+        }
+        .onDisappear {
+            MemoryProbe.log("EditCommitment.disappear", extra: debugExtra)
+        }
+        .onChange(of: title) {
+            MemoryProbe.log("EditCommitment.title.change", extra: debugExtra)
+        }
+        .onChange(of: cycle) {
+            MemoryProbe.log("EditCommitment.cycle.change", extra: debugExtra)
+        }
+        .onChange(of: target) {
+            MemoryProbe.log("EditCommitment.target.change", extra: debugExtra)
+        }
+        .onChange(of: punishment) {
+            MemoryProbe.log("EditCommitment.punishment.change", extra: debugExtra)
+        }
+        .onChange(of: encouragements) {
+            MemoryProbe.log("EditCommitment.encouragements.change", extra: debugExtra)
+        }
+        .onChange(of: isRemindersEnabled) {
+            MemoryProbe.log("EditCommitment.reminders.change", extra: debugExtra)
+        }
     }
 
     // MARK: - Derived state
+
+    private var debugExtra: String {
+        "view=\(debugID) id=\(commitment.id) slots=\(slotWindows.count) encouragements=\(encouragements.count) tags=\(selectedTags.count) reminders=\(isRemindersEnabled) target=\(target.count)/\(target.isEnabled)"
+    }
 
     private var canSave: Bool {
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -108,6 +152,10 @@ struct EditCommitmentView: View {
     /// If rules changed, shows the grace dialog; otherwise saves directly.
     /// Disabling target skips the dialog — nothing to penalize when target is off.
     private func handleSaveTap() {
+        MemoryProbe.log(
+            "EditCommitment.save.tap",
+            extra: "\(debugExtra) ruleChanged=\(anyRuleChanged)"
+        )
         guard anyRuleChanged else {
             saveChanges(grace: false)
             return
@@ -122,6 +170,7 @@ struct EditCommitmentView: View {
             targetBeingReEnabled
             ? .reEnable(targetCount: target.count)
             : .ruleChange(targetCount: target.count)
+        MemoryProbe.log("EditCommitment.grace.trigger", extra: debugExtra)
         graceDialog.trigger(
             context: context,
             cycle: newCycle,
@@ -131,6 +180,7 @@ struct EditCommitmentView: View {
     }
 
     private func saveChanges(grace: Bool) {
+        MemoryProbe.log("EditCommitment.save.start", extra: "\(debugExtra) grace=\(grace)")
         // Apply scalar field changes.
         commitment.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
         commitment.proofOfWorkType = proofOfWorkType
@@ -158,10 +208,18 @@ struct EditCommitmentView: View {
         commitment.tags = selectedTags
         let effectiveRemindersEnabled = isRemindersEnabled && !slotWindows.isEmpty
         commitment.isRemindersEnabled = effectiveRemindersEnabled
+        MemoryProbe.log(
+            "EditCommitment.save.scalarsApplied",
+            extra: "\(debugExtra) effectiveReminders=\(effectiveRemindersEnabled)"
+        )
 
         // Only write slots to DB when reminders are being saved as enabled.
         // When disabled, existing slots are preserved as-is for future re-enable.
         if effectiveRemindersEnabled {
+            MemoryProbe.log(
+                "EditCommitment.save.slots.deleteOld",
+                extra: "\(debugExtra) oldSlots=\(commitment.slots.count)"
+            )
             for old in commitment.slots { modelContext.delete(old) }
             let newSlots: [Slot] = slotWindows.map { window in
                 let slot = Slot(
@@ -174,9 +232,16 @@ struct EditCommitmentView: View {
                 return slot
             }
             commitment.slots = newSlots.sorted()
+            MemoryProbe.log(
+                "EditCommitment.save.slots.inserted",
+                extra: "\(debugExtra) newSlots=\(newSlots.count)"
+            )
         }
+        MemoryProbe.log("EditCommitment.save.beforeContextSave", extra: debugExtra)
         try? modelContext.save()  //TODO: try? means that if errors, we ignore it. Better to use a do/catch statement to properly handle it.
+        MemoryProbe.log("EditCommitment.save.afterContextSave", extra: debugExtra)
         WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
+        MemoryProbe.log("EditCommitment.save.beforeDismiss", extra: debugExtra)
         dismiss()
     }
 }

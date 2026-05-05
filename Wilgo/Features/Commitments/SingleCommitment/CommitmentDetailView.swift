@@ -11,6 +11,10 @@ struct CommitmentDetailView: View {
     init(commitment: Commitment, onEdit: (() -> Void)? = nil) {
         self.commitment = commitment
         self.onEdit = onEdit
+        MemoryProbe.log(
+            "CommitmentDetail.init",
+            extra: "id=\(commitment.id) slots=\(commitment.slots.count) checkIns=\(commitment.checkIns.count)"
+        )
     }
 
     // MARK: - Derived data
@@ -59,24 +63,48 @@ struct CommitmentDetailView: View {
             .navigationBarTitleDisplayMode(.large)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Done") { dismiss() }
+                    Button("Done") {
+                        MemoryProbe.log("CommitmentDetail.done", extra: debugExtra)
+                        dismiss()
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button("Edit") { onEdit?() }
+                    Button("Edit") {
+                        MemoryProbe.log("CommitmentDetail.edit.tap", extra: debugExtra)
+                        onEdit?()
+                    }
                 }
             }
             .sheet(isPresented: $isPresentingBackfill) {
+                let _ = MemoryProbe.log("CommitmentDetail.backfill.sheet", extra: debugExtra)
                 BackfillSheet(commitment: commitment)
                     .presentationDetents([.medium])
                     .presentationDragIndicator(.visible)
             }
         }
+        .onAppear {
+            MemoryProbe.log("CommitmentDetail.appear", extra: debugExtra)
+        }
+        .onDisappear {
+            MemoryProbe.log("CommitmentDetail.disappear", extra: debugExtra)
+        }
+        .onChange(of: isPresentingBackfill) { _, isPresented in
+            MemoryProbe.log(
+                "CommitmentDetail.backfill.presentation",
+                extra: "presented=\(isPresented) \(debugExtra)"
+            )
+        }
+    }
+
+    private var debugExtra: String {
+        "id=\(commitment.id) slots=\(commitment.slots.count) checkIns=\(commitment.checkIns.count) target=\(commitment.target.count)/\(commitment.target.isEnabled)"
     }
 
     // MARK: - Backfill
 
     private var backfillButton: some View {
         Button {
+            MemoryProbe.log("CommitmentDetail.backfill.tap", extra: debugExtra)
             isPresentingBackfill = true
         } label: {
             Label("Backfill a Check-in", systemImage: "clock.arrow.circlepath")
