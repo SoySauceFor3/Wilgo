@@ -11,7 +11,7 @@ enum CatchUpReminder {
     static func startHourlyRunWhileActive() {
         guard scheduler == nil else { return }  // avoid double-start
         scheduler = InAppScheduler(interval: 60 * 60) {
-            Task.detached(priority: .utility) {
+            Task { @MainActor in
                 CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()
             }
         }
@@ -28,15 +28,19 @@ enum CatchUpReminder {
                 task.setTaskCompleted(success: false)
                 return
             }
-            updateAndScheduleNotificationAndBackgroundTask()
-            refreshTask.setTaskCompleted(success: true)
+            Task { @MainActor in
+                updateAndScheduleNotificationAndBackgroundTask()
+                refreshTask.setTaskCompleted(success: true)
+            }
         }
     }
 
     // The real work that we should do once in a while (hour)
+    @MainActor
     static func updateAndScheduleNotificationAndBackgroundTask(
-        now: Date = Time.now()
+        now: Date? = nil
     ) {
+        let now = now ?? Time.now()
         MemoryProbe.log("CatchUpReminder.update.start")
         let context = ModelContext(WilgoApp.sharedModelContainer)
         let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
@@ -54,7 +58,7 @@ enum CatchUpReminder {
 
     /// Queue the next catch-up reminder.
     static func scheduleBackgroundTask(
-        now: Date = Time.now()
+        now: Date
     ) {
         let request = BGAppRefreshTaskRequest(identifier: backgroundTaskIdentifier)
 
