@@ -8,15 +8,7 @@ struct AddCommitmentView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
 
-    @State private var title: String = ""
-    @State private var cycle: Cycle = Cycle.makeDefault(.daily)
-    @State private var target: Target = Target(count: 5, isEnabled: true)
-    @State private var slotWindows: [SlotDraft]
-    @State private var proofOfWorkType: ProofOfWorkType = .manual
-    @State private var punishment: String = ""
-    @State private var encouragements: [String] = []
-    @State private var selectedTags: [Tag] = []
-    @State private var isRemindersEnabled: Bool = true
+    @State private var draft: CommitmentFormDraft
     @State private var debugID: Int
 
     @State private var graceDialog = GraceDialogState()
@@ -26,7 +18,11 @@ struct AddCommitmentView: View {
         let debugID = nextAddCommitmentViewDebugID
         _debugID = State(initialValue: debugID)
         let (start, end) = ReminderWindowsSection.defaultFirstWindow()
-        _slotWindows = State(initialValue: [SlotDraft(start: start, end: end)])
+        _draft = State(
+            initialValue: CommitmentFormDraft(
+                slotWindows: [SlotDraft(start: start, end: end)]
+            )
+        )
         MemoryProbe.log("AddCommitment.init", extra: "view=\(debugID)")
     }
 
@@ -34,15 +30,15 @@ struct AddCommitmentView: View {
         NavigationStack {
             Form {
                 CommitmentFormFields(
-                    title: $title,
-                    cycle: $cycle,
-                    slotWindows: $slotWindows,
-                    target: $target,
-                    proofOfWorkType: $proofOfWorkType,
-                    punishment: $punishment,
-                    encouragements: $encouragements,
-                    selectedTags: $selectedTags,
-                    isRemindersEnabled: $isRemindersEnabled
+                    title: $draft.title,
+                    cycle: $draft.cycle,
+                    slotWindows: $draft.slotWindows,
+                    target: $draft.target,
+                    proofOfWorkType: $draft.proofOfWorkType,
+                    punishment: $draft.punishment,
+                    encouragements: $draft.encouragements,
+                    selectedTags: $draft.selectedTags,
+                    isRemindersEnabled: $draft.isRemindersEnabled
                 )
             }
             .navigationTitle("New Commitment")
@@ -56,7 +52,7 @@ struct AddCommitmentView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { handleSaveTap() }
-                        .disabled(!canSave)
+                        .disabled(!draft.canSave)
                 }
             }
             .graceDialog(state: graceDialog) { grace in
@@ -69,39 +65,34 @@ struct AddCommitmentView: View {
         .onDisappear {
             MemoryProbe.log("AddCommitment.disappear", extra: debugExtra)
         }
-        .onChange(of: title) {
+        .onChange(of: draft.title) {
             MemoryProbe.log("AddCommitment.title.change", extra: debugExtra)
         }
-        .onChange(of: cycle) {
+        .onChange(of: draft.cycle) {
             MemoryProbe.log("AddCommitment.cycle.change", extra: debugExtra)
         }
-        .onChange(of: target) {
+        .onChange(of: draft.target) {
             MemoryProbe.log("AddCommitment.target.change", extra: debugExtra)
         }
-        .onChange(of: punishment) {
+        .onChange(of: draft.punishment) {
             MemoryProbe.log("AddCommitment.punishment.change", extra: debugExtra)
         }
-        .onChange(of: encouragements) {
+        .onChange(of: draft.encouragements) {
             MemoryProbe.log("AddCommitment.encouragements.change", extra: debugExtra)
         }
-        .onChange(of: isRemindersEnabled) {
+        .onChange(of: draft.isRemindersEnabled) {
             MemoryProbe.log("AddCommitment.reminders.change", extra: debugExtra)
         }
     }
 
     private var debugExtra: String {
-        "view=\(debugID) slots=\(slotWindows.count) encouragements=\(encouragements.count) tags=\(selectedTags.count) reminders=\(isRemindersEnabled) target=\(target.count)/\(target.isEnabled)"
-    }
-
-    private var canSave: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && (!isRemindersEnabled || slotWindows.allSatisfy { $0.recurrence.isValidSelection })
+        "view=\(debugID) slots=\(draft.slotWindows.count) encouragements=\(draft.encouragements.count) tags=\(draft.selectedTags.count) reminders=\(draft.isRemindersEnabled) target=\(draft.target.count)/\(draft.target.isEnabled)"
     }
 
     /// Shows the grace dialog, or saves directly if target is disabled (no goal to penalize against).
     private func handleSaveTap() {
         MemoryProbe.log("AddCommitment.save.tap", extra: debugExtra)
-        guard target.isEnabled else {
+        guard draft.target.isEnabled else {
             persistCommitment(grace: false)
             return
         }
@@ -109,60 +100,37 @@ struct AddCommitmentView: View {
         MemoryProbe.log("AddCommitment.grace.trigger", extra: debugExtra)
         graceDialog.trigger(
             context: .creation,
-            cycle: cycle,
-            cycleStart: cycle.startDayOfCycle(including: today),
-            cycleEnd: cycle.endDayOfCycle(including: today)
+            cycle: draft.cycle,
+            cycleStart: draft.cycle.startDayOfCycle(including: today),
+            cycleEnd: draft.cycle.endDayOfCycle(including: today)
         )
     }
 
     private func persistCommitment(grace: Bool) {
         MemoryProbe.log("AddCommitment.persist.start", extra: "\(debugExtra) grace=\(grace)")
-        let effectiveRemindersEnabled = isRemindersEnabled && !slotWindows.isEmpty
-        let slots: [Slot] =
-            effectiveRemindersEnabled
-            ? slotWindows.map { window in
-                let slot = Slot(
-                    start: window.start,
-                    end: window.end,
-                    recurrence: window.recurrence,
-                    maxCheckIns: window.maxCheckIns
-                )
-                modelContext.insert(slot)
-                return slot
-            } : []
+        let gracePeriod =
+            grace
+            ? GracePeriod(
+                startPsychDay: graceDialog.cycleStart,
+                endPsychDay: graceDialog.cycleEnd,
+                reason: .creation
+            )
+            : nil
+        let commitment = draft.insertCommitment(in: modelContext, gracePeriod: gracePeriod)
         MemoryProbe.log(
             "AddCommitment.persist.slotsBuilt",
-            extra: "\(debugExtra) effectiveReminders=\(effectiveRemindersEnabled) slots=\(slots.count)"
+            extra:
+                "\(debugExtra) effectiveReminders=\(draft.effectiveRemindersEnabled) slots=\(commitment.slots.count)"
         )
-        let trimmedPunishment = punishment.trimmingCharacters(in: .whitespacesAndNewlines)
-        let commitment = Commitment(
-            title: title.trimmingCharacters(in: .whitespacesAndNewlines),
-            cycle: cycle,
-            slots: slots.sorted(),
-            target: target,
-            proofOfWorkType: proofOfWorkType,
-            punishment: trimmedPunishment.isEmpty ? nil : trimmedPunishment,
-            isRemindersEnabled: effectiveRemindersEnabled
-        )
-        if grace {
-            commitment.gracePeriods.append(
-                GracePeriod(
-                    startPsychDay: graceDialog.cycleStart,
-                    endPsychDay: graceDialog.cycleEnd,
-                    reason: .creation
-                )
-            )
-        }
-        modelContext.insert(commitment)
-        MemoryProbe.log("AddCommitment.persist.inserted", extra: "\(debugExtra) id=\(commitment.id)")
-        commitment.encouragements = encouragements.map {
-            $0.trimmingCharacters(in: .whitespacesAndNewlines)
-        }.filter { !$0.isEmpty }
-        commitment.tags = selectedTags
-        MemoryProbe.log("AddCommitment.persist.beforeSave", extra: "\(debugExtra) id=\(commitment.id)")
+        MemoryProbe.log(
+            "AddCommitment.persist.inserted", extra: "\(debugExtra) id=\(commitment.id)")
+        MemoryProbe.log(
+            "AddCommitment.persist.beforeSave", extra: "\(debugExtra) id=\(commitment.id)")
         try? modelContext.save()
-        MemoryProbe.log("AddCommitment.persist.afterSave", extra: "\(debugExtra) id=\(commitment.id)")
-        MemoryProbe.log("AddCommitment.persist.beforeDismiss", extra: "\(debugExtra) id=\(commitment.id)")
+        MemoryProbe.log(
+            "AddCommitment.persist.afterSave", extra: "\(debugExtra) id=\(commitment.id)")
+        MemoryProbe.log(
+            "AddCommitment.persist.beforeDismiss", extra: "\(debugExtra) id=\(commitment.id)")
         dismiss()
     }
 }

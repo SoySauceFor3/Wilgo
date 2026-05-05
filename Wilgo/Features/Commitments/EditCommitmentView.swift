@@ -11,15 +11,7 @@ struct EditCommitmentView: View {
 
     @Bindable var commitment: Commitment
 
-    @State private var title: String
-    @State private var cycle: Cycle
-    @State private var slotWindows: [SlotDraft]
-    @State private var target: Target
-    @State private var proofOfWorkType: ProofOfWorkType
-    @State private var punishment: String
-    @State private var encouragements: [String]
-    @State private var selectedTags: [Tag]
-    @State private var isRemindersEnabled: Bool
+    @State private var draft: CommitmentFormDraft
     @State private var debugID: Int
 
     /// Snapshot of rule values at open time, used to detect if any rule changed.
@@ -35,25 +27,7 @@ struct EditCommitmentView: View {
         nextEditCommitmentViewDebugID += 1
         let debugID = nextEditCommitmentViewDebugID
         _debugID = State(initialValue: debugID)
-        _title = State(initialValue: commitment.title)
-        _cycle = State(initialValue: commitment.cycle)
-        _slotWindows = State(
-            initialValue: commitment.slots.sorted().map {
-                SlotDraft(
-                    start: $0.start,
-                    end: $0.end,
-                    recurrence: $0.recurrence,
-                    isWholeDay: $0.isWholeDay,
-                    maxCheckIns: $0.maxCheckIns
-                )
-            }
-        )
-        _target = State(initialValue: commitment.target)
-        _proofOfWorkType = State(initialValue: commitment.proofOfWorkType)
-        _punishment = State(initialValue: commitment.punishment ?? "")
-        _encouragements = State(initialValue: commitment.encouragements)
-        _selectedTags = State(initialValue: commitment.tags)
-        _isRemindersEnabled = State(initialValue: commitment.isRemindersEnabled)
+        _draft = State(initialValue: CommitmentFormDraft(commitment: commitment))
 
         originalTarget = commitment.target
         originalCycle = commitment.cycle
@@ -70,15 +44,15 @@ struct EditCommitmentView: View {
         NavigationStack {
             Form {
                 CommitmentFormFields(
-                    title: $title,
-                    cycle: $cycle,
-                    slotWindows: $slotWindows,
-                    target: $target,
-                    proofOfWorkType: $proofOfWorkType,
-                    punishment: $punishment,
-                    encouragements: $encouragements,
-                    selectedTags: $selectedTags,
-                    isRemindersEnabled: $isRemindersEnabled
+                    title: $draft.title,
+                    cycle: $draft.cycle,
+                    slotWindows: $draft.slotWindows,
+                    target: $draft.target,
+                    proofOfWorkType: $draft.proofOfWorkType,
+                    punishment: $draft.punishment,
+                    encouragements: $draft.encouragements,
+                    selectedTags: $draft.selectedTags,
+                    isRemindersEnabled: $draft.isRemindersEnabled
                 )
             }
             .navigationTitle("Edit Commitment")
@@ -92,7 +66,7 @@ struct EditCommitmentView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { handleSaveTap() }
-                        .disabled(!canSave)
+                        .disabled(!draft.canSave)
                 }
             }
             .graceDialog(state: graceDialog) { grace in
@@ -105,22 +79,22 @@ struct EditCommitmentView: View {
         .onDisappear {
             MemoryProbe.log("EditCommitment.disappear", extra: debugExtra)
         }
-        .onChange(of: title) {
+        .onChange(of: draft.title) {
             MemoryProbe.log("EditCommitment.title.change", extra: debugExtra)
         }
-        .onChange(of: cycle) {
+        .onChange(of: draft.cycle) {
             MemoryProbe.log("EditCommitment.cycle.change", extra: debugExtra)
         }
-        .onChange(of: target) {
+        .onChange(of: draft.target) {
             MemoryProbe.log("EditCommitment.target.change", extra: debugExtra)
         }
-        .onChange(of: punishment) {
+        .onChange(of: draft.punishment) {
             MemoryProbe.log("EditCommitment.punishment.change", extra: debugExtra)
         }
-        .onChange(of: encouragements) {
+        .onChange(of: draft.encouragements) {
             MemoryProbe.log("EditCommitment.encouragements.change", extra: debugExtra)
         }
-        .onChange(of: isRemindersEnabled) {
+        .onChange(of: draft.isRemindersEnabled) {
             MemoryProbe.log("EditCommitment.reminders.change", extra: debugExtra)
         }
     }
@@ -128,23 +102,18 @@ struct EditCommitmentView: View {
     // MARK: - Derived state
 
     private var debugExtra: String {
-        "view=\(debugID) id=\(commitment.id) slots=\(slotWindows.count) encouragements=\(encouragements.count) tags=\(selectedTags.count) reminders=\(isRemindersEnabled) target=\(target.count)/\(target.isEnabled)"
-    }
-
-    private var canSave: Bool {
-        !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && (!isRemindersEnabled || slotWindows.allSatisfy { $0.recurrence.isValidSelection })
+        "view=\(debugID) id=\(commitment.id) slots=\(draft.slotWindows.count) encouragements=\(draft.encouragements.count) tags=\(draft.selectedTags.count) reminders=\(draft.isRemindersEnabled) target=\(draft.target.count)/\(draft.target.isEnabled)"
     }
 
     /// True when any rule field (timesPerDay, skipCreditCount, cycle) changed.
     /// Rule changes re-anchor the cycle to today so the new rules start from a clean slate.
     private var anyRuleChanged: Bool {
-        target != originalTarget || cycle != originalCycle  // || skipBudget != originalSkipBudget
+        draft.target != originalTarget || draft.cycle != originalCycle
     }
 
     /// True only when the target is being re-enabled this save.
     private var targetBeingReEnabled: Bool {
-        !originalTargetWasEnabled && target.isEnabled
+        !originalTargetWasEnabled && draft.target.isEnabled
     }
 
     // MARK: - Save
@@ -160,16 +129,16 @@ struct EditCommitmentView: View {
             saveChanges(grace: false)
             return
         }
-        guard target.isEnabled else {
+        guard draft.target.isEnabled else {
             saveChanges(grace: false)
             return
         }
-        let newCycle = Cycle.makeDefault(cycle.kind)
+        let newCycle = Cycle.makeDefault(draft.cycle.kind)
         let today = Time.startOfDay(for: Time.now())
         let context: GraceDialogState.Context =
             targetBeingReEnabled
-            ? .reEnable(targetCount: target.count)
-            : .ruleChange(targetCount: target.count)
+            ? .reEnable(targetCount: draft.target.count)
+            : .ruleChange(targetCount: draft.target.count)
         MemoryProbe.log("EditCommitment.grace.trigger", extra: debugExtra)
         graceDialog.trigger(
             context: context,
@@ -181,60 +150,33 @@ struct EditCommitmentView: View {
 
     private func saveChanges(grace: Bool) {
         MemoryProbe.log("EditCommitment.save.start", extra: "\(debugExtra) grace=\(grace)")
-        // Apply scalar field changes.
-        commitment.title = title.trimmingCharacters(in: .whitespacesAndNewlines)
-        commitment.proofOfWorkType = proofOfWorkType
-        let trimmed = punishment.trimmingCharacters(in: .whitespacesAndNewlines)
-        commitment.punishment = trimmed.isEmpty ? nil : trimmed
-        commitment.encouragements = encouragements.map {
-            $0.trimmingCharacters(in: .whitespacesAndNewlines)
-        }.filter { !$0.isEmpty }
-
+        var draftToSave = draft
+        let gracePeriod: GracePeriod?
         // Rule change: re-anchor to canonical start day via makeDefault.
         if anyRuleChanged {
-            cycle = Cycle.makeDefault(cycle.kind)
-            if grace {
-                commitment.gracePeriods.append(
-                    GracePeriod(
-                        startPsychDay: graceDialog.cycleStart,
-                        endPsychDay: graceDialog.cycleEnd,
-                        reason: .ruleChange
-                    )
+            draftToSave.cycle = Cycle.makeDefault(draftToSave.cycle.kind)
+            gracePeriod =
+                grace
+                ? GracePeriod(
+                    startPsychDay: graceDialog.cycleStart,
+                    endPsychDay: graceDialog.cycleEnd,
+                    reason: .ruleChange
                 )
-            }
+                : nil
+        } else {
+            gracePeriod = nil
         }
-        commitment.cycle = cycle
-        commitment.target = target
-        commitment.tags = selectedTags
-        let effectiveRemindersEnabled = isRemindersEnabled && !slotWindows.isEmpty
-        commitment.isRemindersEnabled = effectiveRemindersEnabled
+        draft = draftToSave
+        draftToSave.apply(to: commitment, in: modelContext, gracePeriod: gracePeriod)
         MemoryProbe.log(
             "EditCommitment.save.scalarsApplied",
-            extra: "\(debugExtra) effectiveReminders=\(effectiveRemindersEnabled)"
+            extra: "\(debugExtra) effectiveReminders=\(draftToSave.effectiveRemindersEnabled)"
         )
 
-        // Only write slots to DB when reminders are being saved as enabled.
-        // When disabled, existing slots are preserved as-is for future re-enable.
-        if effectiveRemindersEnabled {
-            MemoryProbe.log(
-                "EditCommitment.save.slots.deleteOld",
-                extra: "\(debugExtra) oldSlots=\(commitment.slots.count)"
-            )
-            for old in commitment.slots { modelContext.delete(old) }
-            let newSlots: [Slot] = slotWindows.map { window in
-                let slot = Slot(
-                    start: window.start,
-                    end: window.end,
-                    recurrence: window.recurrence,
-                    maxCheckIns: window.maxCheckIns
-                )
-                modelContext.insert(slot)
-                return slot
-            }
-            commitment.slots = newSlots.sorted()
+        if draftToSave.effectiveRemindersEnabled {
             MemoryProbe.log(
                 "EditCommitment.save.slots.inserted",
-                extra: "\(debugExtra) newSlots=\(newSlots.count)"
+                extra: "\(debugExtra) newSlots=\(commitment.slots.count)"
             )
         }
         MemoryProbe.log("EditCommitment.save.beforeContextSave", extra: debugExtra)
