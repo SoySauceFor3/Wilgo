@@ -159,6 +159,20 @@ extension Commitment {
         return pairs
     }
 
+    private func remainingUsableOccurrences(
+        in pairs: [ResolvedSlotPair],
+        now: Date,
+        checkIns: [CheckIn]
+    ) -> [Slot] {
+        pairs.compactMap { pair in
+            guard pair.occurrence.end >= now else { return nil }
+            guard pair.occurrence.start <= now else { return pair.occurrence }
+            guard !pair.original.isSnoozed(at: now) else { return nil }
+            guard !pair.original.isSaturated(at: now, checkIns: checkIns) else { return nil }
+            return pair.occurrence
+        }
+    }
+
     /// Classifies this commitment for the current psychological day at the given time.
     ///
     /// Precedence:
@@ -185,64 +199,40 @@ extension Commitment {
             return StageStatus(category: .metGoal, nextUpSlots: [], behindCount: 0)
         }
 
-        let cal = Time.calendar
-
         // Get all slot occurrences in the target cycle (with concrete datetimes), then sort.
         // Each entry pairs the resolved occurrence with the original Slot model (for snooze checks).
-        let resolvedPairs = resolvedSlotPairs(from: startDay, until: endDay, calendar: cal)
-
-        // Remaining slot occurrences in the cycle that have not yet ended.
-        // Filter out occurrences that are currently active and either snoozed or saturated.
-        // Only active occurrences (start <= now) can be filtered — future ones are always kept.
-        var remainingPairs: [ResolvedSlotPair]
-        if let firstNotEndedIndex = resolvedPairs.firstIndex(where: { $0.occurrence.end >= now }) {
-            remainingPairs = resolvedPairs[firstNotEndedIndex...].filter { pair in
-                if pair.occurrence.start > now { return true }
-                if pair.original.isSnoozed(at: now) { return false }
-                if pair.original.isSaturated(at: now, checkIns: checkInsInCycle) { return false }
-                return true
-            }
-        } else {
-            remainingPairs = []
-        }
-        let remainingInCycle = remainingPairs.map(\.occurrence)
-
-        let remainingSlotsCount = remainingInCycle.count
-        let behindCount = max(0, leftToDo - remainingSlotsCount)
+        let remainingSlots = remainingUsableOccurrences(
+            in: resolvedSlotPairs(from: startDay, until: endDay),
+            now: now,
+            checkIns: checkInsInCycle
+        )
+        let behindCount = max(0, leftToDo - remainingSlots.count)
 
         // If there is slot overlapping with now, it's current.
-        if let first = remainingInCycle.first, first.start <= now {
+        if let first = remainingSlots.first, first.start <= now {
             return StageStatus(
                 category: .current,
-                nextUpSlots: remainingInCycle,
+                nextUpSlots: remainingSlots,
                 behindCount: behindCount
             )
         }
 
         // Else if there is slot in the rest of the psych-day, it's future.
-        let todayStart = nowPsychDay
-        let todayEnd = todayStart.addingTimeInterval(24 * 60 * 60)
-        let hasSlotInRestOfPsychDay = remainingInCycle.contains { $0.start < todayEnd }
-        if hasSlotInRestOfPsychDay {
+        let todayEnd =
+            Time.calendar.date(byAdding: .day, value: 1, to: nowPsychDay) ?? nowPsychDay
+        if remainingSlots.contains(where: { $0.start < todayEnd }) {
             return StageStatus(
                 category: .future,
-                nextUpSlots: remainingInCycle,
+                nextUpSlots: remainingSlots,
                 behindCount: behindCount
             )
         }
 
         // If the count of remaining slots < leftToDo, it's catchUp. Else it's others.
-        if remainingSlotsCount < leftToDo {
-            return StageStatus(
-                category: .catchUp,
-                nextUpSlots: remainingInCycle,
-                behindCount: behindCount
-            )
-        }
-
+        let category: StageCategory = behindCount > 0 ? .catchUp : .others
         return StageStatus(
-            category: .others,
-            nextUpSlots: remainingInCycle,
+            category: category,
+            nextUpSlots: remainingSlots,
             behindCount: behindCount
         )
     }
@@ -251,15 +241,11 @@ extension Commitment {
         let nowPsychDay = Time.startOfDay(for: now)
 
         let todayEnd = Time.calendar.date(byAdding: .day, value: 1, to: nowPsychDay) ?? nowPsychDay
-        let todayPairs = resolvedSlotPairs(from: nowPsychDay, until: todayEnd)
-
-        let remaining = todayPairs.compactMap { pair -> Slot? in
-            guard pair.occurrence.end >= now else { return nil }
-            guard pair.occurrence.start <= now else { return pair.occurrence }
-            guard !pair.original.isSnoozed(at: now) else { return nil }
-            guard !pair.original.isSaturated(at: now, checkIns: checkIns) else { return nil }
-            return pair.occurrence
-        }
+        let remaining = remainingUsableOccurrences(
+            in: resolvedSlotPairs(from: nowPsychDay, until: todayEnd),
+            now: now,
+            checkIns: checkIns
+        )
 
         guard let first = remaining.first else {
             return StageStatus(category: .others, nextUpSlots: [], behindCount: 0)
