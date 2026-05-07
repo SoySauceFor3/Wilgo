@@ -3,6 +3,7 @@ import SwiftUI
 
 struct FinishedCycleReportView: View {
     let request: FinishedCycleReportRequest
+    let onFinished: () -> Void
     @Environment(\.dismiss) private var dismiss
 
     @State private var preTokenReportForTokenStep: [CommitmentReport] = []
@@ -16,12 +17,18 @@ struct FinishedCycleReportView: View {
                     preTokenReportForTokenStep = preTokenReport
                     showTokenStep = true
                 },
-                onEmptyReport: { dismiss() }
+                onEmptyReport: {
+                    onFinished()
+                    dismiss()
+                }
             )
                 .navigationDestination(isPresented: $showTokenStep) {
                     PositivityTokenStep(
                         preTokenReport: preTokenReportForTokenStep,
-                        onDone: { dismiss() }
+                        onDone: {
+                            onFinished()
+                            dismiss()
+                        }
                     )
                 }
         }
@@ -39,7 +46,7 @@ struct FinishedCycleReportViewPreview: View {
             startPsychDay: startPsychDay,
             endPsychDay: endPsychDay
         )
-        FinishedCycleReportView(request: request)
+        FinishedCycleReportView(request: request, onFinished: {})
     }
 }
 

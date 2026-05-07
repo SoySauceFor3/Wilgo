@@ -8,24 +8,26 @@ import SwiftUI
 struct FinishedCycleReportModifier: ViewModifier {
     @Environment(\.scenePhase) private var scenePhase
     @Environment(\.modelContext) private var modelContext
-    @State private var reportRequest: FinishedCycleReportRequest?
-    @State private var shouldShowReport = false
+    @State private var presentationState = FinishedCycleReportPresentationState()
 
     func body(content: Content) -> some View {
         content
             #if DEBUG
                 .environment(\.triggerCycleReport, checkAndShow)
             #endif
-            .fullScreenCover(isPresented: $shouldShowReport) {
-                if let request = reportRequest {
-                    FinishedCycleReportView(request: request)
+            .fullScreenCover(isPresented: $presentationState.shouldShowReport) {
+                if let request = presentationState.reportRequest {
+                    FinishedCycleReportView(
+                        request: request,
+                        onFinished: { finalizeReport(request) }
+                    )
                 } else {
                     // reportRequest was nil when cover opened — should never happen
                     let _ = print("[FCR] fullScreenCover body: reportRequest is nil!")
                     Color.clear
                 }
             }
-            .onChange(of: shouldShowReport) { _, newValue in
+            .onChange(of: presentationState.shouldShowReport) { _, newValue in
                 print("[FCR] shouldShowReport → \(newValue) time=\(Date())")
             }
             .task(id: scenePhase) {  // the id parameter is a change detector + fires on app's first launch.
@@ -36,17 +38,23 @@ struct FinishedCycleReportModifier: ViewModifier {
             }
     }
 
-    // Side effects:
-    // 1. advances the watermark
-    // 2. sets reportRequest and shouldShowReport
     private func checkAndShow() {
         guard let request = peekReportRange() else { return }
-        advanceWatermark(to: request.endPsychDay)
-        reportRequest = request
+        presentationState.prepare(request)
         print("[FCR] checkAndShow: fetch start — thread=\(Thread.isMainThread ? "main" : "bg") time=\(Date())")
         let result = anyFinishedCycles(in: request)
         print("[FCR] checkAndShow: fetch end — hasFinishedCycles=\(result) time=\(Date())")
-        shouldShowReport = result
+        if result {
+            presentationState.show()
+        } else {
+            finalizeReport(request)
+        }
+    }
+
+    private func finalizeReport(_ request: FinishedCycleReportRequest) {
+        presentationState.finalize(request) { psychDay in
+            advanceWatermark(to: psychDay)
+        }
     }
 
     private func anyFinishedCycles(in request: FinishedCycleReportRequest) -> Bool {
@@ -104,4 +112,27 @@ private func toPsychDayRef(_ date: Date) -> Double {
 
 private func fromPsychDayRef(_ ref: Double) -> Date {
     Date(timeIntervalSinceReferenceDate: ref)
+}
+
+struct FinishedCycleReportPresentationState {
+    var reportRequest: FinishedCycleReportRequest?
+    var shouldShowReport = false
+
+    mutating func prepare(_ request: FinishedCycleReportRequest) {
+        reportRequest = request
+        shouldShowReport = false
+    }
+
+    mutating func show() {
+        shouldShowReport = true
+    }
+
+    mutating func finalize(
+        _ request: FinishedCycleReportRequest,
+        advanceWatermark: (Date) -> Void
+    ) {
+        advanceWatermark(request.endPsychDay)
+        reportRequest = nil
+        shouldShowReport = false
+    }
 }
