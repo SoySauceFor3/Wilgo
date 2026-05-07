@@ -319,32 +319,49 @@ struct TargetModeTests {
     }
 
     @Test("on is effective on")
-    func onIsEffectiveOn() {
-        #expect(TargetMode.on.effectiveMode(on: date(2026, 3, 1)) == .on)
+    func onIsEffectiveOn() throws {
+        #expect(try TargetMode.on.effectiveMode(on: date(2026, 3, 1)) == .on)
     }
 
     @Test("disabled is effective disabled")
-    func disabledIsEffectiveDisabled() {
-        #expect(TargetMode.disabled.effectiveMode(on: date(2026, 3, 1)) == .disabled)
+    func disabledIsEffectiveDisabled() throws {
+        #expect(try TargetMode.disabled.effectiveMode(on: date(2026, 3, 1)) == .disabled)
     }
 
     @Test("finite inspiration only is effective before until and on at until")
-    func finiteInspirationOnlyExpires() {
+    func finiteInspirationOnlyExpires() throws {
         let mode = TargetMode.inspirationOnly(
             start: date(2025, 12, 1),
             until: date(2026, 1, 1)
         )
 
-        #expect(mode.effectiveMode(on: date(2025, 12, 15)) == mode)
-        #expect(mode.effectiveMode(on: date(2026, 1, 1)) == .on)
-        #expect(mode.effectiveMode(on: date(2026, 3, 1)) == .on)
+        #expect(try mode.effectiveMode(on: date(2025, 12, 15)) == mode)
+        #expect(try mode.effectiveMode(on: date(2026, 1, 1)) == .on)
+        #expect(try mode.effectiveMode(on: date(2026, 3, 1)) == .on)
+    }
+
+    @Test("inspiration only before start throws")
+    func inspirationOnlyBeforeStartThrows() {
+        let mode = TargetMode.inspirationOnly(
+            start: date(2025, 12, 1),
+            until: date(2026, 1, 1)
+        )
+
+        do {
+            _ = try mode.effectiveMode(on: date(2025, 11, 30))
+            Issue.record("Expected effectiveMode before inspiration start to throw")
+        } catch TargetModeError.effectiveModeBeforeInspirationStart {
+            // expected
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
     }
 
     @Test("forever inspiration only stays effective")
-    func foreverInspirationOnlyStaysEffective() {
+    func foreverInspirationOnlyStaysEffective() throws {
         let mode = TargetMode.inspirationOnly(start: date(2025, 12, 1), until: nil)
 
-        #expect(mode.effectiveMode(on: date(2026, 3, 1)) == mode)
+        #expect(try mode.effectiveMode(on: date(2026, 3, 1)) == mode)
     }
 
     @Test("finite inspiration only overlaps only its interval")
@@ -354,9 +371,9 @@ struct TargetModeTests {
             until: date(2026, 1, 1)
         )
 
-        #expect(!mode.isInspirationOnly(cycleStart: date(2025, 11, 1), cycleEnd: date(2025, 12, 1)))
-        #expect(mode.isInspirationOnly(cycleStart: date(2025, 12, 1), cycleEnd: date(2026, 1, 1)))
-        #expect(!mode.isInspirationOnly(cycleStart: date(2026, 1, 1), cycleEnd: date(2026, 2, 1)))
+        #expect(!mode.overlapsInspirationOnlyInterval(cycleStart: date(2025, 11, 1), cycleEnd: date(2025, 12, 1)))
+        #expect(mode.overlapsInspirationOnlyInterval(cycleStart: date(2025, 12, 1), cycleEnd: date(2026, 1, 1)))
+        #expect(!mode.overlapsInspirationOnlyInterval(cycleStart: date(2026, 1, 1), cycleEnd: date(2026, 2, 1)))
     }
 
     @Test("expired finite inspiration only can normalize to on")
@@ -368,6 +385,26 @@ struct TargetModeTests {
 
         #expect(mode.normalized(afterReportedThrough: date(2025, 12, 31)) == mode)
         #expect(mode.normalized(afterReportedThrough: date(2026, 1, 1)) == .on)
+    }
+
+    @Test("old disabled target decodes as disabled mode")
+    func oldDisabledTargetDecodesAsDisabledMode() throws {
+        let data = #"{"count":3,"isEnabled":false}"#.data(using: .utf8)!
+
+        let target = try JSONDecoder().decode(QuantifiedCycle.self, from: data)
+
+        #expect(target.count == 3)
+        #expect(target.mode == .disabled)
+    }
+
+    @Test("old target without isEnabled decodes as on")
+    func oldTargetWithoutIsEnabledDecodesAsOn() throws {
+        let data = #"{"count":3}"#.data(using: .utf8)!
+
+        let target = try JSONDecoder().decode(QuantifiedCycle.self, from: data)
+
+        #expect(target.count == 3)
+        #expect(target.mode == .on)
     }
 }
 ```
@@ -394,31 +431,48 @@ enum TargetMode: Codable, Hashable {
     case inspirationOnly(start: Date, until: Date?)
     case disabled
 
-    func effectiveMode(on psychDay: Date) -> TargetMode {
+    func effectiveMode(on psychDay: Date) throws -> TargetMode {
         switch self {
         case .on, .disabled:
             return self
-        case .inspirationOnly(_, let until):
-            guard let until else { return self }
-            return psychDay >= until ? .on : self
+        case .inspirationOnly(let start, let until):
+            if psychDay < start {
+                throw TargetModeError.effectiveModeBeforeInspirationStart(
+                    psychDay: psychDay,
+                    start: start
+                )
+            }
+
+            if let until, psychDay >= until {
+                return .on
+            } else {
+                return self
+            }
         }
     }
 
-    func isInspirationOnly(cycleStart: Date, cycleEnd: Date) -> Bool {
+    func overlapsInspirationOnlyInterval(cycleStart: Date, cycleEnd: Date) -> Bool {
         guard case .inspirationOnly(let start, let until) = self else { return false }
         let end = until ?? Date.distantFuture
         return start < cycleEnd && end > cycleStart
     }
 
     func normalized(afterReportedThrough reportedEndPsychDay: Date) -> TargetMode {
-        guard case .inspirationOnly(_, let until) = self,
-              let until,
-              until <= reportedEndPsychDay
-        else {
+        switch self {
+        case .on, .disabled:
             return self
+        case .inspirationOnly(_, let until):
+            if let until, until <= reportedEndPsychDay {
+                return .on
+            } else {
+                return self
+            }
         }
-        return .on
     }
+}
+
+enum TargetModeError: Error, Equatable {
+    case effectiveModeBeforeInspirationStart(psychDay: Date, start: Date)
 }
 
 ```
@@ -448,18 +502,22 @@ Keep `var gracePeriods: [GracePeriod] = []` in `Commitment` during this commit s
 Add commitment helpers:
 
 ```swift
-func effectiveTargetMode(on psychDay: Date = Time.startOfDay(for: Time.now())) -> TargetMode {
-    target.mode.effectiveMode(on: psychDay)
+func effectiveTargetMode(on psychDay: Date = Time.startOfDay(for: Time.now())) throws -> TargetMode {
+    try target.mode.effectiveMode(on: psychDay)
 }
 
-func isInspirationOnly(cycleStart: Date, cycleEnd: Date) -> Bool {
-    target.mode.isInspirationOnly(cycleStart: cycleStart, cycleEnd: cycleEnd)
+func hasInspirationOnlyOverlap(cycleStart: Date, cycleEnd: Date) -> Bool {
+    target.mode.overlapsInspirationOnlyInterval(cycleStart: cycleStart, cycleEnd: cycleEnd)
 }
 
 func normalizeTargetMode(afterReportedThrough reportedEndPsychDay: Date) {
     target.mode = target.mode.normalized(afterReportedThrough: reportedEndPsychDay)
 }
 ```
+
+Do not migrate form cycle-boundary behavior in this commit. Later form commits must re-snap
+`inspirationOnly(start:until:)` to valid cycle starts whenever the user changes the commitment
+cycle but keeps Inspiration Only.
 
 - [ ] **Step 4: Run model tests and verify pass**
 

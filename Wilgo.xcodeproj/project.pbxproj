@@ -94,6 +94,7 @@
 				Slot.swift,
 				SlotSnooze.swift,
 				Tag.swift,
+				TargetMode.swift,
 			);
 			target = 701EBE762F5348DA0060F5B6 /* WidgetExtension */;
 		};

@@ -9,10 +9,51 @@ enum ProofOfWorkType: String, Codable {
 
 struct QuantifiedCycle: Codable, Hashable {
     var count: Int  // “how many per that cycle”
-    var isEnabled: Bool = true
+    var mode: TargetMode = .on
+
+    init(count: Int, mode: TargetMode = .on) {
+        self.count = count
+        self.mode = mode
+    }
+
+    init(count: Int, isEnabled: Bool) {
+        self.count = count
+        self.mode = isEnabled ? .on : .disabled
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case count
+        case mode
+        case isEnabled
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        count = try container.decode(Int.self, forKey: .count)
+
+        if let mode = try container.decodeIfPresent(TargetMode.self, forKey: .mode) {
+            self.mode = mode
+        } else {
+            let isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
+            mode = isEnabled ? .on : .disabled
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(count, forKey: .count)
+        try container.encode(mode, forKey: .mode)
+    }
 }
 
 typealias Target = QuantifiedCycle
+
+extension QuantifiedCycle {
+    var isEnabled: Bool {
+        get { mode != .disabled }
+        set { mode = newValue ? .on : .disabled }
+    }
+}
 
 // MARK: - Commitment
 
@@ -82,6 +123,18 @@ final class Commitment {
             $0.psychDay >= startPsychDay && $0.psychDay < endPsychDay
         }
         return checkInsInRange.sorted { $0.createdAt < $1.createdAt }
+    }
+
+    func effectiveTargetMode(on psychDay: Date = Time.startOfDay(for: Time.now())) throws -> TargetMode {
+        try target.mode.effectiveMode(on: psychDay)
+    }
+
+    func hasInspirationOnlyOverlap(cycleStart: Date, cycleEnd: Date) -> Bool {
+        target.mode.overlapsInspirationOnlyInterval(cycleStart: cycleStart, cycleEnd: cycleEnd)
+    }
+
+    func normalizeTargetMode(afterReportedThrough reportedEndPsychDay: Date) {
+        target.mode = target.mode.normalized(afterReportedThrough: reportedEndPsychDay)
     }
 }
 
