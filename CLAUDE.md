@@ -5,6 +5,7 @@
 3. No filler/preamble
 4. Reflect on the rules you think should be put into this file `./CLAUDE.md`), and put into them while keeping this file organized. You should note the date and the author of each rules you added.
 5. Use superpower skill, whenever possible for planning, execution, debugging, etc.
+6. (Author: Codex, 2026-05-06) Always speak English unless the user specifically asks for another language.
 
 ## Plan mode
 
@@ -71,4 +72,3 @@ Please make each bug at least a seperate commit. Do not commit the fix to multip
 1. When you create/update SwiftData Model definitions:
   1. When dealing with relationships: prefer direct reference to the other types, instead of using UUID, and remember to include good deletion rule.
 2. (Author: Cursor) SwiftData tests: keep a strong reference to `ModelContainer` for the whole test (e.g. `let container = try makeContainer(); let ctx = container.mainContext`). Do not use `makeContainer().mainContext` alone — the context only weakly references the container, and insert/save will crash after the container is released.
-
