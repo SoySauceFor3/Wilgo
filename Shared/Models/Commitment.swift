@@ -243,7 +243,7 @@ extension Commitment {
     ) -> StageStatus {
         let nowPsychDay = Time.startOfDay(for: now)
 
-        if (try? target.effectiveMode(on: nowPsychDay)) == .disabled {
+        if case .disabled = try? target.effectiveMode(on: nowPsychDay) {
             return targetDisabledStatus(now: now)
         }
 

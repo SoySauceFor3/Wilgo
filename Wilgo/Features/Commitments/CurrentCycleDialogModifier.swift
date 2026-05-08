@@ -1,11 +1,11 @@
 import SwiftUI
 
-// MARK: - GraceDialogState
+// MARK: - CurrentCycleDialogState
 
-/// Observable state owned by the parent view. Pass it to `.graceDialog(state:onConfirm:)`.
+/// Observable state owned by the parent view. Pass it to `.currentCycleDialog(state:onConfirm:)`.
 /// Call `state.trigger(...)` to present the dialog.
 @Observable
-final class GraceDialogState {
+final class CurrentCycleDialogState {
     enum Context {
         /// Commitment is being created for the first time.
         case creation
@@ -30,10 +30,10 @@ final class GraceDialogState {
     }
 }
 
-// MARK: - GraceDialogModifier
+// MARK: - CurrentCycleDialogModifier
 
-private struct GraceDialogModifier: ViewModifier {
-    @Bindable var state: GraceDialogState
+private struct CurrentCycleDialogModifier: ViewModifier {
+    @Bindable var state: CurrentCycleDialogState
     let onConfirm: (Bool) -> Void
 
     func body(content: Content) -> some View {
@@ -85,11 +85,14 @@ private struct GraceDialogModifier: ViewModifier {
 // MARK: - View extension
 
 extension View {
-    /// Attaches the shared grace-period confirmation dialog.
+    /// Attaches the shared current-cycle confirmation dialog.
     ///
-    /// Create `@State private var graceDialog = GraceDialogState()` in the parent view,
-    /// then call `graceDialog.trigger(context:cycle:cycleStart:cycleEnd:)` to present it.
-    func graceDialog(state: GraceDialogState, onConfirm: @escaping (Bool) -> Void) -> some View {
-        modifier(GraceDialogModifier(state: state, onConfirm: onConfirm))
+    /// Create `@State private var currentCycleDialog = CurrentCycleDialogState()` in the parent view,
+    /// then call `currentCycleDialog.trigger(context:cycle:cycleStart:cycleEnd:)` to present it.
+    func currentCycleDialog(
+        state: CurrentCycleDialogState,
+        onConfirm: @escaping (Bool) -> Void
+    ) -> some View {
+        modifier(CurrentCycleDialogModifier(state: state, onConfirm: onConfirm))
     }
 }

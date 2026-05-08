@@ -11,7 +11,7 @@ struct AddCommitmentView: View {
     @State private var draft: CommitmentFormDraft
     @State private var debugID: Int
 
-    @State private var graceDialog = GraceDialogState()
+    @State private var currentCycleDialog = CurrentCycleDialogState()
 
     init() {
         nextAddCommitmentViewDebugID += 1
@@ -55,8 +55,8 @@ struct AddCommitmentView: View {
                         .disabled(!draft.canSave)
                 }
             }
-            .graceDialog(state: graceDialog) { grace in
-                persistCommitment(grace: grace)
+            .currentCycleDialog(state: currentCycleDialog) { makeCurrentCycleInspirationOnly in
+                persistCommitment(makeCurrentCycleInspirationOnly: makeCurrentCycleInspirationOnly)
             }
         }
         .onAppear {
@@ -93,12 +93,12 @@ struct AddCommitmentView: View {
     private func handleSaveTap() {
         MemoryProbe.log("AddCommitment.save.tap", extra: debugExtra)
         guard draft.target.configuredMode == .on else {
-            persistCommitment(grace: false)
+            persistCommitment(makeCurrentCycleInspirationOnly: false)
             return
         }
         let today = Time.startOfDay(for: Time.now())
-        MemoryProbe.log("AddCommitment.grace.trigger", extra: debugExtra)
-        graceDialog.trigger(
+        MemoryProbe.log("AddCommitment.currentCycleDialog.trigger", extra: debugExtra)
+        currentCycleDialog.trigger(
             context: .creation,
             cycle: draft.cycle,
             cycleStart: draft.cycle.startDayOfCycle(including: today),
@@ -106,14 +106,17 @@ struct AddCommitmentView: View {
         )
     }
 
-    private func persistCommitment(grace: Bool) {
-        MemoryProbe.log("AddCommitment.persist.start", extra: "\(debugExtra) grace=\(grace)")
+    private func persistCommitment(makeCurrentCycleInspirationOnly: Bool) {
+        MemoryProbe.log(
+            "AddCommitment.persist.start",
+            extra: "\(debugExtra) inspirationOnlyCurrentCycle=\(makeCurrentCycleInspirationOnly)"
+        )
         var draftToSave = draft
-        if grace {
+        if makeCurrentCycleInspirationOnly {
             draftToSave.target.setConfiguredMode(
                 .inspirationOnly(
-                    start: graceDialog.cycleStart,
-                    until: graceDialog.cycleEnd
+                    start: currentCycleDialog.cycleStart,
+                    until: currentCycleDialog.cycleEnd
                 )
             )
         }

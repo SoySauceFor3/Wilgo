@@ -19,7 +19,7 @@ struct EditCommitmentView: View {
     private let originalCycle: Cycle
     private let originalTargetMode: TargetMode
 
-    @State private var graceDialog = GraceDialogState()
+    @State private var currentCycleDialog = CurrentCycleDialogState()
 
     init(commitment: Commitment) {
         self.commitment = commitment
@@ -69,8 +69,8 @@ struct EditCommitmentView: View {
                         .disabled(!draft.canSave)
                 }
             }
-            .graceDialog(state: graceDialog) { grace in
-                saveChanges(grace: grace)
+            .currentCycleDialog(state: currentCycleDialog) { makeCurrentCycleInspirationOnly in
+                saveChanges(makeCurrentCycleInspirationOnly: makeCurrentCycleInspirationOnly)
             }
         }
         .onAppear {
@@ -125,21 +125,21 @@ struct EditCommitmentView: View {
             extra: "\(debugExtra) ruleChanged=\(anyRuleChanged)"
         )
         guard anyRuleChanged else {
-            saveChanges(grace: false)
+            saveChanges(makeCurrentCycleInspirationOnly: false)
             return
         }
         guard draft.target.configuredMode == .on else {
-            saveChanges(grace: false)
+            saveChanges(makeCurrentCycleInspirationOnly: false)
             return
         }
         let newCycle = Cycle.makeDefault(draft.cycle.kind)
         let today = Time.startOfDay(for: Time.now())
-        let context: GraceDialogState.Context =
+        let context: CurrentCycleDialogState.Context =
             targetBeingReEnabled
             ? .reEnable(targetCount: draft.target.count)
             : .ruleChange(targetCount: draft.target.count)
-        MemoryProbe.log("EditCommitment.grace.trigger", extra: debugExtra)
-        graceDialog.trigger(
+        MemoryProbe.log("EditCommitment.currentCycleDialog.trigger", extra: debugExtra)
+        currentCycleDialog.trigger(
             context: context,
             cycle: newCycle,
             cycleStart: newCycle.startDayOfCycle(including: today),
@@ -147,17 +147,20 @@ struct EditCommitmentView: View {
         )
     }
 
-    private func saveChanges(grace: Bool) {
-        MemoryProbe.log("EditCommitment.save.start", extra: "\(debugExtra) grace=\(grace)")
+    private func saveChanges(makeCurrentCycleInspirationOnly: Bool) {
+        MemoryProbe.log(
+            "EditCommitment.save.start",
+            extra: "\(debugExtra) inspirationOnlyCurrentCycle=\(makeCurrentCycleInspirationOnly)"
+        )
         var draftToSave = draft
         // Rule change: re-anchor to canonical start day via makeDefault.
         if anyRuleChanged {
             draftToSave.cycle = Cycle.makeDefault(draftToSave.cycle.kind)
-            if grace {
+            if makeCurrentCycleInspirationOnly {
                 draftToSave.target.setConfiguredMode(
                     .inspirationOnly(
-                        start: graceDialog.cycleStart,
-                        until: graceDialog.cycleEnd
+                        start: currentCycleDialog.cycleStart,
+                        until: currentCycleDialog.cycleEnd
                     )
                 )
             } else {
