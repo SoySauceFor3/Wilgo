@@ -976,7 +976,7 @@ func normalizeExpiredTargetModes(
     afterReportedThrough reportedEndPsychDay: Date
 ) {
     for commitment in commitments {
-        commitment.normalizeTargetMode(afterReportedThrough: reportedEndPsychDay)
+        commitment.target.normalizeMode(afterReportedThrough: reportedEndPsychDay)
     }
 }
 ```

@@ -55,6 +55,14 @@ struct FinishedCycleReportModifier: ViewModifier {
         presentationState.finalize(request) { psychDay in
             advanceWatermark(to: psychDay)
         }
+
+        do {
+            let commitments = try modelContext.fetch(FetchDescriptor<Commitment>())
+            normalizeExpiredTargetModes(in: commitments, afterReportedThrough: request.endPsychDay)
+            try modelContext.save()
+        } catch {
+            print("[FCR] target mode normalization failed after report finalization: \(error)")
+        }
     }
 
     private func anyFinishedCycles(in request: FinishedCycleReportRequest) -> Bool {
@@ -104,6 +112,15 @@ private func advanceWatermark(to psychDay: Date) {
         toPsychDayRef(psychDay),
         forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
     )
+}
+
+func normalizeExpiredTargetModes(
+    in commitments: [Commitment],
+    afterReportedThrough reportedEndPsychDay: Date
+) {
+    for commitment in commitments {
+        commitment.target.normalizeMode(afterReportedThrough: reportedEndPsychDay)
+    }
 }
 
 private func toPsychDayRef(_ date: Date) -> Double {
