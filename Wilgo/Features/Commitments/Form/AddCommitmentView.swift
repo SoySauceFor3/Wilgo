@@ -108,19 +108,20 @@ struct AddCommitmentView: View {
 
     private func persistCommitment(grace: Bool) {
         MemoryProbe.log("AddCommitment.persist.start", extra: "\(debugExtra) grace=\(grace)")
-        let gracePeriod =
-            grace
-            ? GracePeriod(
-                startPsychDay: graceDialog.cycleStart,
-                endPsychDay: graceDialog.cycleEnd,
-                reason: .creation
+        var draftToSave = draft
+        if grace {
+            draftToSave.target.setConfiguredMode(
+                .inspirationOnly(
+                    start: graceDialog.cycleStart,
+                    until: graceDialog.cycleEnd
+                )
             )
-            : nil
-        let commitment = draft.insertCommitment(in: modelContext, gracePeriod: gracePeriod)
+        }
+        let commitment = draftToSave.insertCommitment(in: modelContext)
         MemoryProbe.log(
             "AddCommitment.persist.slotsBuilt",
             extra:
-                "\(debugExtra) effectiveReminders=\(draft.effectiveRemindersEnabled) slots=\(commitment.slots.count)"
+                "\(debugExtra) effectiveReminders=\(draftToSave.effectiveRemindersEnabled) slots=\(commitment.slots.count)"
         )
         MemoryProbe.log(
             "AddCommitment.persist.inserted", extra: "\(debugExtra) id=\(commitment.id)")

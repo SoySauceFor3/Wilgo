@@ -81,7 +81,7 @@ struct CommitmentFormDraft {
     }
 
     @MainActor
-    func insertCommitment(in modelContext: ModelContext, gracePeriod: GracePeriod?) -> Commitment {
+    func insertCommitment(in modelContext: ModelContext) -> Commitment {
         let slots = effectiveRemindersEnabled ? insertedSlots(in: modelContext) : []
         let commitment = Commitment(
             title: normalizedTitle,
@@ -92,9 +92,6 @@ struct CommitmentFormDraft {
             punishment: normalizedPunishment,
             isRemindersEnabled: effectiveRemindersEnabled
         )
-        if let gracePeriod {
-            commitment.gracePeriods.append(gracePeriod)
-        }
         modelContext.insert(commitment)
         commitment.encouragements = normalizedEncouragements
         commitment.tags = selectedTags
@@ -102,14 +99,11 @@ struct CommitmentFormDraft {
     }
 
     @MainActor
-    func apply(to commitment: Commitment, in modelContext: ModelContext, gracePeriod: GracePeriod?) {
+    func apply(to commitment: Commitment, in modelContext: ModelContext) {
         commitment.title = normalizedTitle
         commitment.proofOfWorkType = proofOfWorkType
         commitment.punishment = normalizedPunishment
         commitment.encouragements = normalizedEncouragements
-        if let gracePeriod {
-            commitment.gracePeriods.append(gracePeriod)
-        }
         commitment.cycle = cycle
         commitment.target = target
         commitment.tags = selectedTags

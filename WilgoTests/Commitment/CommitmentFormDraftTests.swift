@@ -49,7 +49,7 @@ final class CommitmentFormDraftTests {
         draft.selectedTags = [tag]
         draft.isRemindersEnabled = true
 
-        let commitment = draft.insertCommitment(in: context, gracePeriod: nil as GracePeriod?)
+        let commitment = draft.insertCommitment(in: context)
         try context.save()
 
         #expect(commitment.title == "Workout")
@@ -83,7 +83,7 @@ final class CommitmentFormDraftTests {
         draft.isRemindersEnabled = false
         draft.slotWindows = []
 
-        draft.apply(to: commitment, in: context, gracePeriod: nil as GracePeriod?)
+        draft.apply(to: commitment, in: context)
         try context.save()
 
         #expect(commitment.title == "Read slowly")
@@ -92,5 +92,22 @@ final class CommitmentFormDraftTests {
         #expect(commitment.isRemindersEnabled == false)
         #expect(commitment.slots.map(\.id) == [originalSlot.id])
         #expect(commitment.slots.first?.maxCheckIns == 1)
+    }
+
+    @Test("draft persists inspiration only target mode")
+    @MainActor func persistsInspirationOnlyTargetMode() throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        let start = date(hour: 0)
+        let until = Calendar.current.date(byAdding: .day, value: 1, to: start)!
+        let mode = TargetMode.inspirationOnly(start: start, until: until)
+        var draft = CommitmentFormDraft()
+        draft.title = "Recover"
+        draft.target = Target(count: 2, mode: mode)
+
+        let commitment = draft.insertCommitment(in: context)
+        try context.save()
+
+        #expect(commitment.target.configuredMode == mode)
     }
 }

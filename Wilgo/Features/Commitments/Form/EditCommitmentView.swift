@@ -151,23 +151,20 @@ struct EditCommitmentView: View {
     private func saveChanges(grace: Bool) {
         MemoryProbe.log("EditCommitment.save.start", extra: "\(debugExtra) grace=\(grace)")
         var draftToSave = draft
-        let gracePeriod: GracePeriod?
         // Rule change: re-anchor to canonical start day via makeDefault.
         if anyRuleChanged {
             draftToSave.cycle = Cycle.makeDefault(draftToSave.cycle.kind)
-            gracePeriod =
-                grace
-                ? GracePeriod(
-                    startPsychDay: graceDialog.cycleStart,
-                    endPsychDay: graceDialog.cycleEnd,
-                    reason: .ruleChange
+            if grace {
+                draftToSave.target.setConfiguredMode(
+                    .inspirationOnly(
+                        start: graceDialog.cycleStart,
+                        until: graceDialog.cycleEnd
+                    )
                 )
-                : nil
-        } else {
-            gracePeriod = nil
+            }
         }
         draft = draftToSave
-        draftToSave.apply(to: commitment, in: modelContext, gracePeriod: gracePeriod)
+        draftToSave.apply(to: commitment, in: modelContext)
         MemoryProbe.log(
             "EditCommitment.save.scalarsApplied",
             extra: "\(debugExtra) effectiveReminders=\(draftToSave.effectiveRemindersEnabled)"

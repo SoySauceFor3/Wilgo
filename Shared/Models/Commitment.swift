@@ -103,11 +103,6 @@ final class Commitment {
     /// Nil means no punishment is set.
     var punishment: String?
 
-    /// Grace periods during which cycles are exempt from penalty and PT evaluation.
-    /// Appended at creation (user opts in for partial first cycle) or on rule edits
-    /// (user chooses a grace period for the current cycle). See `GracePeriod`.
-    var gracePeriods: [GracePeriod] = []
-
     var encouragements: [String] = []
 
     @Relationship(deleteRule: .nullify, inverse: \Tag.commitments)
