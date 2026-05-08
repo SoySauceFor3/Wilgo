@@ -103,19 +103,19 @@ Storage cleanup should happen only after FinishedCycleReport has consumed the re
 
 ## Major Model Changes
 
-| Entity | Change |
-| --- | --- |
-| `Shared/Models/TargetMode.swift` | New target-mode enum and helper methods. |
-| `Shared/Models/GracePeriod.swift` | Legacy grace-period model removed after report and form flows no longer use grace-period storage. |
-| `Shared/Models/Commitment.swift` | Replace `gracePeriods` and `Target.isEnabled` branching with `Target.mode` / `effectiveMode`. Add report classification and normalization helpers. |
-| `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportModifier.swift` | Delay watermark advancement until report finalization. |
-| `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportView.swift` | Add `onFinished` callback. |
-| `Wilgo/Features/Commitments/Form/CommitmentFormDraft.swift` | Store and save `Target.mode`. |
-| `Wilgo/Features/Commitments/Form/CommitmentFormFields.swift` | Replace "Enable target" toggle with target mode picker. |
-| `Wilgo/Features/Commitments/Form/AddCommitmentView.swift` | Save explicit target modes directly; ask current-cycle question only when saving `On`. |
-| `Wilgo/Features/Commitments/Form/EditCommitmentView.swift` | Same save behavior as Add, with rule-change detection preserved. |
-| Finished-cycle report files | Replace report booleans with resolved `effectiveTargetMode`; keep PT exclusion behavior. |
-| Tests | Add FinishedCycleReport lifecycle, target-mode model, form-draft, Stage, and report regression coverage. |
+| Entity                                                                             | Change                                                                                                                                             |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Shared/Models/TargetMode.swift`                                                   | New target-mode enum and helper methods.                                                                                                           |
+| `Shared/Models/GracePeriod.swift`                                                  | Legacy grace-period model removed after report and form flows no longer use grace-period storage.                                                  |
+| `Shared/Models/Commitment.swift`                                                   | Replace `gracePeriods` and `Target.isEnabled` branching with `Target.mode` / `effectiveMode`. Add report classification and normalization helpers. |
+| `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportModifier.swift` | Delay watermark advancement until report finalization.                                                                                             |
+| `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportView.swift`     | Add `onFinished` callback.                                                                                                                         |
+| `Wilgo/Features/Commitments/Form/CommitmentFormDraft.swift`                        | Store and save `Target.mode`.                                                                                                                      |
+| `Wilgo/Features/Commitments/Form/CommitmentFormFields.swift`                       | Replace "Enable target" toggle with target mode picker.                                                                                            |
+| `Wilgo/Features/Commitments/Form/AddCommitmentView.swift`                          | Save explicit target modes directly; ask current-cycle question only when saving `On`.                                                             |
+| `Wilgo/Features/Commitments/Form/EditCommitmentView.swift`                         | Same save behavior as Add, with rule-change detection preserved.                                                                                   |
+| Finished-cycle report files                                                        | Replace report booleans with resolved `effectiveTargetMode`; keep PT exclusion behavior.                                                           |
+| Tests                                                                              | Add FinishedCycleReport lifecycle, target-mode model, form-draft, Stage, and report regression coverage.                                           |
 
 ---
 
@@ -703,22 +703,6 @@ extension QuantifiedCycle {
         get { mode != .disabled }
         set { mode = newValue ? .on : .disabled }
     }
-}
-```
-
-In `Commitment`, update helpers:
-
-```swift
-func effectiveTargetMode(on psychDay: Date = Time.startOfDay(for: Time.now())) throws -> TargetMode {
-    try target.effectiveMode(on: psychDay)
-}
-
-func effectiveTargetMode(from startPsychDay: Date, to endPsychDay: Date) throws -> TargetMode {
-    try target.effectiveMode(from: startPsychDay, to: endPsychDay)
-}
-
-func normalizeTargetMode(afterReportedThrough reportedEndPsychDay: Date) {
-    target.normalizeMode(afterReportedThrough: reportedEndPsychDay)
 }
 ```
 
@@ -1532,15 +1516,15 @@ tracking: https://www.notion.so/refactor-target-disable-grace-3574b58e32c38071b4
 
 ## Critical Files
 
-| File | Role |
-| --- | --- |
-| `Shared/Models/TargetMode.swift` | TargetMode enum and mode helper methods |
-| `Shared/Models/GracePeriod.swift` | Legacy grace model removed after migration |
-| `Shared/Models/Commitment.swift` | Target storage, effective mode, Stage routing, report classification |
-| `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportModifier.swift` | Report finalization, watermark, target-mode normalization |
-| `Wilgo/Features/Commitments/FinishedCycleReport/PreTokenReportBuilder.swift` | Per-cycle Inspiration Only classification |
-| `Wilgo/Features/Commitments/Form/CommitmentFormDraft.swift` | Form persistence |
-| `Wilgo/Features/Commitments/Form/CommitmentFormFields.swift` | Target mode UI |
+| File                                                                               | Role                                                                 |
+| ---------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| `Shared/Models/TargetMode.swift`                                                   | TargetMode enum and mode helper methods                              |
+| `Shared/Models/GracePeriod.swift`                                                  | Legacy grace model removed after migration                           |
+| `Shared/Models/Commitment.swift`                                                   | Target storage, effective mode, Stage routing, report classification |
+| `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportModifier.swift` | Report finalization, watermark, target-mode normalization            |
+| `Wilgo/Features/Commitments/FinishedCycleReport/PreTokenReportBuilder.swift`       | Per-cycle Inspiration Only classification                            |
+| `Wilgo/Features/Commitments/Form/CommitmentFormDraft.swift`                        | Form persistence                                                     |
+| `Wilgo/Features/Commitments/Form/CommitmentFormFields.swift`                       | Target mode UI                                                       |
 
 ## Dependency Graph
 

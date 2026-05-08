@@ -9,7 +9,7 @@ enum ProofOfWorkType: String, Codable {
 
 struct QuantifiedCycle: Codable, Hashable {
     var count: Int  // “how many per that cycle”
-    var mode: TargetMode = .on
+    private var mode: TargetMode = .on
 
     init(count: Int, mode: TargetMode = .on) {
         self.count = count
@@ -49,6 +49,26 @@ struct QuantifiedCycle: Codable, Hashable {
 typealias Target = QuantifiedCycle
 
 extension QuantifiedCycle {
+    var configuredMode: TargetMode {
+        mode
+    }
+
+    func effectiveMode(on psychDay: Date) throws -> TargetMode {
+        try mode.effectiveMode(on: psychDay)
+    }
+
+    func effectiveMode(from startPsychDay: Date, to endPsychDay: Date) throws -> TargetMode {
+        try mode.effectiveMode(from: startPsychDay, to: endPsychDay)
+    }
+
+    mutating func setConfiguredMode(_ mode: TargetMode) {
+        self.mode = mode
+    }
+
+    mutating func normalizeMode(afterReportedThrough reportedEndPsychDay: Date) {
+        mode = mode.normalized(afterReportedThrough: reportedEndPsychDay)
+    }
+
     var isEnabled: Bool {
         get { mode != .disabled }
         set { mode = newValue ? .on : .disabled }
@@ -125,17 +145,6 @@ final class Commitment {
         return checkInsInRange.sorted { $0.createdAt < $1.createdAt }
     }
 
-    func effectiveTargetMode(on psychDay: Date = Time.startOfDay(for: Time.now())) throws -> TargetMode {
-        try target.mode.effectiveMode(on: psychDay)
-    }
-
-    func hasInspirationOnlyOverlap(cycleStart: Date, cycleEnd: Date) -> Bool {
-        target.mode.overlapsInspirationOnlyInterval(cycleStart: cycleStart, cycleEnd: cycleEnd)
-    }
-
-    func normalizeTargetMode(afterReportedThrough reportedEndPsychDay: Date) {
-        target.mode = target.mode.normalized(afterReportedThrough: reportedEndPsychDay)
-    }
 }
 
 // MARK: - Slot queries
