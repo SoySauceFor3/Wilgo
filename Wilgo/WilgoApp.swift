@@ -4,9 +4,6 @@ import SwiftUI
 
 @main
 struct WilgoApp: App {
-    private static let forceExistingTargetModesOnMigrationKey =
-        "TargetMode.forceExistingTargetsOn.20260508"
-
     /// Static container so the BGTask handler closure can reach it without a global.
     /// Swift's lazy static initialiser is thread-safe; it's fine to access from the handler.
     static let sharedModelContainer: ModelContainer = {
@@ -49,7 +46,6 @@ struct WilgoApp: App {
         MemoryProbe.log("app.init")
         MainActor.assumeIsolated {
             MemoryProbe.installMemoryWarningObserver()
-            Self.forceExistingTargetModesOnIfNeeded()
         }
 
         // Set up CatchUpReminderService.
@@ -61,33 +57,6 @@ struct WilgoApp: App {
         // Observe Darwin notifications posted by widget extension intents (CheckInIntent, SnoozeIntent)
         // so the Live Activity refreshes immediately when the user taps a button.
         NowLiveActivityManager.startObservingIntentNotifications()
-    }
-
-    @MainActor
-    private static func forceExistingTargetModesOnIfNeeded() {
-        let defaults = UserDefaults.standard
-        guard !defaults.bool(forKey: forceExistingTargetModesOnMigrationKey) else { return }
-
-        let context = sharedModelContainer.mainContext
-        do {
-            let commitments = try context.fetch(FetchDescriptor<Commitment>())
-            for commitment in commitments {
-                commitment.target.setConfiguredMode(.on)
-            }
-            if !commitments.isEmpty {
-                try context.save()
-            }
-            defaults.set(true, forKey: forceExistingTargetModesOnMigrationKey)
-            MemoryProbe.log(
-                "TargetMode.forceExistingTargetsOnMigration",
-                extra: "commitments=\(commitments.count)"
-            )
-        } catch {
-            MemoryProbe.log(
-                "TargetMode.forceExistingTargetsOnMigration.failed",
-                extra: "\(error)"
-            )
-        }
     }
 
     var body: some Scene {

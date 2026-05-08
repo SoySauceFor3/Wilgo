@@ -15,23 +15,6 @@ struct QuantifiedCycle: Codable, Hashable {
         self.count = count
         self.mode = mode
     }
-
-    private enum CodingKeys: String, CodingKey {
-        case count
-        case mode
-    }
-
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        count = try container.decode(Int.self, forKey: .count)
-        mode = (try? container.decodeIfPresent(TargetMode.self, forKey: .mode)) ?? .on
-    }
-
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(count, forKey: .count)
-        try container.encode(mode, forKey: .mode)
-    }
 }
 
 typealias Target = QuantifiedCycle

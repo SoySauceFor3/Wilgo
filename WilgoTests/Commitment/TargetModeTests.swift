@@ -139,29 +139,6 @@ struct TargetModeTests {
         #expect(mode.normalized(afterReportedThrough: date(2026, 1, 1)) == .on)
     }
 
-    @Test("empty stored mode decodes as on for one-time migration")
-    func emptyStoredModeDecodesAsOnForOneTimeMigration() throws {
-        let data = #"{"count":3,"mode":{}}"#.data(using: .utf8)!
-
-        let target = try JSONDecoder().decode(QuantifiedCycle.self, from: data)
-
-        #expect(target.count == 3)
-        #expect(target.configuredMode == .on)
-    }
-
-    @Test("new target mode round trips")
-    func newTargetModeRoundTrips() throws {
-        let target = QuantifiedCycle(
-            count: 4,
-            mode: .inspirationOnly(start: date(2026, 1, 1), until: nil)
-        )
-
-        let data = try JSONEncoder().encode(target)
-        let decoded = try JSONDecoder().decode(QuantifiedCycle.self, from: data)
-
-        #expect(decoded == target)
-    }
-
     private func date(_ year: Int, _ month: Int, _ day: Int) -> Date {
         var comps = DateComponents()
         comps.year = year
