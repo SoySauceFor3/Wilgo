@@ -114,7 +114,7 @@ Storage cleanup should happen only after FinishedCycleReport has consumed the re
 | `Wilgo/Features/Commitments/Form/CommitmentFormFields.swift` | Replace "Enable target" toggle with target mode picker. |
 | `Wilgo/Features/Commitments/Form/AddCommitmentView.swift` | Save explicit target modes directly; ask current-cycle question only when saving `On`. |
 | `Wilgo/Features/Commitments/Form/EditCommitmentView.swift` | Same save behavior as Add, with rule-change detection preserved. |
-| Finished-cycle report files | Rename report semantics from `isGrace` to `isInspirationOnly`; keep PT exclusion behavior. |
+| Finished-cycle report files | Replace report booleans with resolved `effectiveTargetMode`; keep PT exclusion behavior. |
 | Tests | Add FinishedCycleReport lifecycle, target-mode model, form-draft, Stage, and report regression coverage. |
 
 ---
@@ -542,11 +542,211 @@ tracking: https://www.notion.so/refactor-target-disable-grace-3574b58e32c38071b4
 
 ---
 
-### Phase 2 — Reports and normalization
+### Phase 2 — Target API, reports, normalization, and grace-storage removal
 
-The goal of this phase is to make reports use `TargetMode` intervals and normalize expired finite modes only after report completion.
+The goal of this phase is to harden the target-mode API before report logic uses it, make reports classify each finished cycle from `TargetMode` intervals, normalize expired finite modes only after report completion, and remove old `GracePeriod` storage in a separate cleanup commit.
 
-#### Commit 2 — feat: report inspiration-only cycles from target mode
+#### Commit 2 — refactor: harden target mode API
+
+**Files:**
+
+- Modify: `Shared/Models/TargetMode.swift`
+- Modify: `Shared/Models/Commitment.swift`
+- Modify: `WilgoTests/Commitment/TargetModeTests.swift`
+
+- [ ] **Step 1: Add range effective-mode and configured-mode tests**
+
+In `TargetModeTests.swift`, add:
+
+```swift
+@Test("finite inspiration only effective range overlaps only its interval")
+func finiteInspirationOnlyEffectiveRangeOverlapsOnlyItsInterval() throws {
+    let mode = TargetMode.inspirationOnly(
+        start: date(2025, 12, 1),
+        until: date(2026, 1, 1)
+    )
+
+    #expect(try mode.effectiveMode(from: date(2025, 11, 1), to: date(2025, 12, 1)) == .on)
+    #expect(try mode.effectiveMode(from: date(2025, 12, 1), to: date(2026, 1, 1)) == mode)
+    #expect(try mode.effectiveMode(from: date(2026, 1, 1), to: date(2026, 2, 1)) == .on)
+}
+
+@Test("invalid effective range throws")
+func invalidEffectiveRangeThrows() {
+    do {
+        _ = try TargetMode.on.effectiveMode(from: date(2026, 1, 1), to: date(2026, 1, 1))
+        Issue.record("Expected invalid range to throw")
+    } catch TargetModeError.invalidEffectiveModeRange {
+        // expected
+    } catch {
+        Issue.record("Unexpected error: \(error)")
+    }
+}
+
+@Test("configured mode exposes stored mode explicitly")
+func configuredModeExposesStoredMode() {
+    var target = QuantifiedCycle(count: 3, mode: .disabled)
+
+    #expect(target.configuredMode == .disabled)
+
+    target.setConfiguredMode(.on)
+
+    #expect(target.configuredMode == .on)
+}
+```
+
+Update existing decode assertions from:
+
+```swift
+#expect(target.mode == .disabled)
+#expect(target.mode == .on)
+```
+
+to:
+
+```swift
+#expect(target.configuredMode == .disabled)
+#expect(target.configuredMode == .on)
+```
+
+- [ ] **Step 2: Run model tests and verify failure**
+
+Run:
+
+```bash
+xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo -destination 'platform=iOS Simulator,id=4492FF84-2E83-4350-8008-B87DE7AE2588' -only-testing:WilgoTests/TargetModeTests
+```
+
+Expected: build fails because range effective-mode and configured-mode APIs do not exist.
+
+- [ ] **Step 3: Add range effective-mode API**
+
+In `TargetMode.swift`, add:
+
+```swift
+func effectiveMode(from startPsychDay: Date, to endPsychDay: Date) throws -> TargetMode {
+    guard startPsychDay < endPsychDay else {
+        throw TargetModeError.invalidEffectiveModeRange(
+            startPsychDay: startPsychDay,
+            endPsychDay: endPsychDay
+        )
+    }
+
+    switch self {
+    case .on, .disabled:
+        return self
+    case .inspirationOnly(let start, let until):
+        let end = until ?? Date.distantFuture
+        if start < endPsychDay && end > startPsychDay {
+            return self
+        } else {
+            return .on
+        }
+    }
+}
+```
+
+and extend the error enum:
+
+```swift
+enum TargetModeError: Error, Equatable {
+    case effectiveModeBeforeInspirationStart(psychDay: Date, start: Date)
+    case invalidEffectiveModeRange(startPsychDay: Date, endPsychDay: Date)
+}
+```
+
+Keep `overlapsInspirationOnlyInterval(cycleStart:cycleEnd:)` only if an existing test still needs it during this commit; later report code should use `effectiveMode(from:to:)`.
+
+- [ ] **Step 4: Make stored mode private and add explicit configured/effective APIs**
+
+In `QuantifiedCycle`, change:
+
+```swift
+var mode: TargetMode = .on
+```
+
+to:
+
+```swift
+private var mode: TargetMode = .on
+```
+
+Add:
+
+```swift
+extension QuantifiedCycle {
+    var configuredMode: TargetMode { mode }
+
+    func effectiveMode(on psychDay: Date) throws -> TargetMode {
+        try mode.effectiveMode(on: psychDay)
+    }
+
+    func effectiveMode(from startPsychDay: Date, to endPsychDay: Date) throws -> TargetMode {
+        try mode.effectiveMode(from: startPsychDay, to: endPsychDay)
+    }
+
+    mutating func setConfiguredMode(_ mode: TargetMode) {
+        self.mode = mode
+    }
+
+    mutating func normalizeMode(afterReportedThrough reportedEndPsychDay: Date) {
+        mode = mode.normalized(afterReportedThrough: reportedEndPsychDay)
+    }
+}
+```
+
+Keep `isEnabled` as a compatibility shim, but implement it through private storage:
+
+```swift
+extension QuantifiedCycle {
+    var isEnabled: Bool {
+        get { mode != .disabled }
+        set { mode = newValue ? .on : .disabled }
+    }
+}
+```
+
+In `Commitment`, update helpers:
+
+```swift
+func effectiveTargetMode(on psychDay: Date = Time.startOfDay(for: Time.now())) throws -> TargetMode {
+    try target.effectiveMode(on: psychDay)
+}
+
+func effectiveTargetMode(from startPsychDay: Date, to endPsychDay: Date) throws -> TargetMode {
+    try target.effectiveMode(from: startPsychDay, to: endPsychDay)
+}
+
+func normalizeTargetMode(afterReportedThrough reportedEndPsychDay: Date) {
+    target.normalizeMode(afterReportedThrough: reportedEndPsychDay)
+}
+```
+
+Remove `hasInspirationOnlyOverlap(cycleStart:cycleEnd:)`; report classification should use the range effective-mode helper.
+
+- [ ] **Step 5: Run model tests and build**
+
+Run:
+
+```bash
+xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo -destination 'platform=iOS Simulator,id=4492FF84-2E83-4350-8008-B87DE7AE2588' -only-testing:WilgoTests/TargetModeTests
+xcodebuild build -project Wilgo.xcodeproj -scheme Wilgo -destination 'platform=iOS Simulator,id=4492FF84-2E83-4350-8008-B87DE7AE2588'
+```
+
+Expected: PASS and BUILD SUCCEEDED.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add Shared/Models/TargetMode.swift Shared/Models/Commitment.swift WilgoTests/Commitment/TargetModeTests.swift
+git commit -m "refactor: harden target mode API
+
+#TargetModes
+
+tracking: https://www.notion.so/refactor-target-disable-grace-3574b58e32c38071b420e3641a225d12"
+```
+
+#### Commit 3 — feat: report inspiration-only cycles from effective target mode
 
 **Files:**
 
@@ -555,9 +755,7 @@ The goal of this phase is to make reports use `TargetMode` intervals and normali
 - Modify: `Wilgo/Features/Commitments/FinishedCycleReport/PositivityTokenCompensator.swift`
 - Modify: `Wilgo/Features/Commitments/FinishedCycleReport/CheckInSummaryPage.swift`
 - Modify: `Wilgo/Features/Commitments/FinishedCycleReport/PositivityTokenPage.swift`
-- Modify: `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportModifier.swift`
 - Modify: `WilgoTests/FinishedCycleReport/FinishedCycleReportBuilderTests.swift`
-- Delete: `Shared/Models/GracePeriod.swift`
 
 - [ ] **Step 1: Add delayed report test**
 
@@ -592,9 +790,12 @@ func inspirationOnlyDelayedReportMarksOnlyOverlappingCycles() throws {
 
     let cycles = try #require(report.first?.cycles)
     #expect(cycles.count == 3)
-    #expect(cycles[0].isInspirationOnly)
-    #expect(!cycles[1].isInspirationOnly)
-    #expect(!cycles[2].isInspirationOnly)
+    #expect(cycles[0].effectiveTargetMode == .inspirationOnly(
+        start: date(year: 2025, month: 12, day: 1),
+        until: date(year: 2026, month: 1, day: 1)
+    ))
+    #expect(cycles[1].effectiveTargetMode == .on)
+    #expect(cycles[2].effectiveTargetMode == .on)
 }
 ```
 
@@ -606,23 +807,31 @@ Run:
 xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo -destination 'platform=iOS Simulator,id=4492FF84-2E83-4350-8008-B87DE7AE2588' -only-testing:WilgoTests/FinishedCycleReportBuilderTests
 ```
 
-Expected: build fails because report fields still use `isGrace`.
+Expected: build fails because report fields still use `isGrace` and `isTargetEnabled`.
 
-- [ ] **Step 3: Rename report fields**
+- [ ] **Step 3: Replace report booleans with effective target mode**
 
 In `Models.swift`, replace:
 
 ```swift
+/// True when this cycle is covered by a grace period — no penalty and no PT tokens applied.
 let isGrace: Bool
+/// True when the commitment's target was enabled for this cycle.
+/// When false, the cycle is informational only — no pass/fail and no PT consumed.
+let isTargetEnabled: Bool
 ```
 
 with:
 
 ```swift
-let isInspirationOnly: Bool
+/// Effective target mode for this finished cycle. This is resolved from the
+/// stored `TargetMode` and the cycle date range, so non-normalized expired
+/// Inspiration Only modes still report later cycles as `.on`.
+let effectiveTargetMode: TargetMode
 ```
 
-Update comments to say Inspiration Only.
+Do not pass raw `commitment.target.configuredMode` into `CycleReport`. Report rows must store
+the resolved value from `effectiveTargetMode(from:to:)`.
 
 - [ ] **Step 4: Update PreTokenReportBuilder**
 
@@ -637,19 +846,25 @@ let isGrace = commitment.gracePeriods.contains {
 with:
 
 ```swift
-let isInspirationOnly = commitment.isInspirationOnly(
-    cycleStart: cycleStart,
-    cycleEnd: cycleEnd
+let effectiveTargetMode = try commitment.effectiveTargetMode(
+    from: cycleStart,
+    to: cycleEnd
 )
 ```
 
-Pass `isInspirationOnly` into `CycleDraft` and `CycleReport`.
-
-Set `isTargetEnabled` from the stored mode for the report window:
+Because `cyclesForCommitment` now calls a throwing helper, make `build` skip cycles that cannot be
+classified and log the error:
 
 ```swift
-isTargetEnabled: commitment.target.mode != .disabled
+do {
+    let effectiveTargetMode = try commitment.effectiveTargetMode(from: cycleStart, to: cycleEnd)
+    // append CycleDraft
+} catch {
+    print("[FCR] failed to classify target mode for \(commitment.title): \(error)")
+}
 ```
+
+Pass `effectiveTargetMode` into `CycleDraft` and `CycleReport`.
 
 - [ ] **Step 5: Update PT filters and report UI copy**
 
@@ -662,7 +877,7 @@ guard !cycle.isGrace, cycle.isTargetEnabled else { return nil }
 with:
 
 ```swift
-guard !cycle.isInspirationOnly, cycle.isTargetEnabled else { return nil }
+guard case .on = cycle.effectiveTargetMode else { return nil }
 ```
 
 In `CheckInSummaryPage.swift` and `PositivityTokenPage.swift`, use:
@@ -671,40 +886,7 @@ In `CheckInSummaryPage.swift` and `PositivityTokenPage.swift`, use:
 Text("\(cycle.actualCheckIns)/\(cycle.targetCheckIns) check-ins · inspiration only")
 ```
 
-- [ ] **Step 6: Add normalization to report finalization**
-
-In `FinishedCycleReportModifier.finalizeReport(_:)`, fetch commitments and normalize. Use `do/catch` instead of `try?`, because the watermark should advance only after normalization saves successfully:
-
-```swift
-private func finalizeReport(_ request: FinishedCycleReportRequest) {
-    do {
-        let commitments = try modelContext.fetch(FetchDescriptor<Commitment>())
-        for commitment in commitments {
-            commitment.normalizeTargetMode(afterReportedThrough: request.endPsychDay)
-        }
-        try modelContext.save()
-        advanceWatermark(to: request.endPsychDay)
-        reportRequest = nil
-        shouldShowReport = false
-    } catch {
-        print("[FCR] finalizeReport failed: \(error)")
-    }
-}
-```
-
-Keep this order: normalize and save before advancing the watermark. If save fails, the report can reappear rather than losing normalization and report state.
-
-- [ ] **Step 7: Remove grace storage**
-
-After `PreTokenReportBuilder` and tests use `TargetMode`, remove:
-
-```swift
-var gracePeriods: [GracePeriod] = []
-```
-
-from `Commitment`, and delete `Shared/Models/GracePeriod.swift`.
-
-- [ ] **Step 8: Run focused report tests**
+- [ ] **Step 6: Run focused report tests**
 
 Run:
 
@@ -714,11 +896,196 @@ xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo -destination 'platform=iO
 
 Expected: PASS.
 
-- [ ] **Step 9: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add Shared/Models/Commitment.swift Shared/Models/GracePeriod.swift Wilgo/Features/Commitments/FinishedCycleReport WilgoTests/FinishedCycleReport/FinishedCycleReportBuilderTests.swift
+git add Wilgo/Features/Commitments/FinishedCycleReport WilgoTests/FinishedCycleReport/FinishedCycleReportBuilderTests.swift
 git commit -m "feat: report inspiration-only target modes
+
+#TargetModes
+
+tracking: https://www.notion.so/refactor-target-disable-grace-3574b58e32c38071b420e3641a225d12"
+```
+
+#### Commit 4 — refactor: normalize target modes after report finalization
+
+**Files:**
+
+- Modify: `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportModifier.swift`
+- Modify: `WilgoTests/FinishedCycleReport/FinishedCycleReportPresentationStateTests.swift`
+
+- [ ] **Step 1: Add normalization helper test**
+
+In `FinishedCycleReportPresentationStateTests.swift`, add a test for a pure helper that normalizes
+expired finite Inspiration Only modes after the consumed report window:
+
+```swift
+@Test("normalization turns expired finite inspiration only back on")
+func normalizationTurnsExpiredFiniteInspirationOnlyBackOn() {
+    let until = date(year: 2026, month: 1, day: 1)
+    let commitment = Commitment(
+        title: "Run",
+        cycle: Cycle(kind: .monthly, referencePsychDay: date(year: 2025, month: 12, day: 1)),
+        slots: [],
+        target: Target(
+            count: 3,
+            mode: .inspirationOnly(
+                start: date(year: 2025, month: 12, day: 1),
+                until: until
+            )
+        )
+    )
+
+    normalizeExpiredTargetModes(
+        in: [commitment],
+        afterReportedThrough: date(year: 2026, month: 3, day: 1)
+    )
+
+    #expect(commitment.target.configuredMode == .on)
+}
+```
+
+- [ ] **Step 2: Add non-expired normalization test**
+
+In `FinishedCycleReportPresentationStateTests.swift`, add:
+
+```swift
+@Test("normalization keeps active finite inspiration only")
+func normalizationKeepsActiveFiniteInspirationOnly() {
+    let mode = TargetMode.inspirationOnly(
+        start: date(year: 2026, month: 1, day: 1),
+        until: date(year: 2026, month: 4, day: 1)
+    )
+    let commitment = Commitment(
+        title: "Run",
+        cycle: Cycle(kind: .monthly, referencePsychDay: date(year: 2026, month: 1, day: 1)),
+        slots: [],
+        target: Target(count: 3, mode: mode)
+    )
+
+    normalizeExpiredTargetModes(
+        in: [commitment],
+        afterReportedThrough: date(year: 2026, month: 3, day: 1)
+    )
+
+    #expect(commitment.target.configuredMode == mode)
+}
+```
+
+- [ ] **Step 3: Run presentation-state tests and verify failure**
+
+Run:
+
+```bash
+xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo -destination 'platform=iOS Simulator,id=4492FF84-2E83-4350-8008-B87DE7AE2588' -only-testing:WilgoTests/FinishedCycleReportPresentationStateTests
+```
+
+Expected: build fails until `normalizeExpiredTargetModes` exists.
+
+- [ ] **Step 4: Add normalization helper and call it after report finalization**
+
+In `FinishedCycleReportModifier.swift`, add a top-level helper near `advanceWatermark(to:)`:
+
+```swift
+func normalizeExpiredTargetModes(
+    in commitments: [Commitment],
+    afterReportedThrough reportedEndPsychDay: Date
+) {
+    for commitment in commitments {
+        commitment.normalizeTargetMode(afterReportedThrough: reportedEndPsychDay)
+    }
+}
+```
+
+In `FinishedCycleReportModifier.finalizeReport(_:)`, advance and close the consumed report first.
+Then try to normalize expired finite modes as best-effort cleanup:
+
+```swift
+private func finalizeReport(_ request: FinishedCycleReportRequest) {
+    presentationState.finalize(request) { psychDay in
+        advanceWatermark(to: psychDay)
+    }
+
+    do {
+        let commitments = try modelContext.fetch(FetchDescriptor<Commitment>())
+        normalizeExpiredTargetModes(in: commitments, afterReportedThrough: request.endPsychDay)
+        try modelContext.save()
+    } catch {
+        print("[FCR] target mode normalization failed after report finalization: \(error)")
+    }
+}
+```
+
+If normalization does not happen in time, correctness still holds: delayed report classification uses
+the stored `start/until` interval, and effective mode treats expired finite Inspiration Only as On.
+The user should not see a duplicate report because cleanup failed.
+
+- [ ] **Step 5: Run focused presentation-state tests**
+
+Run:
+
+```bash
+xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo -destination 'platform=iOS Simulator,id=4492FF84-2E83-4350-8008-B87DE7AE2588' -only-testing:WilgoTests/FinishedCycleReportPresentationStateTests
+```
+
+Expected: PASS.
+
+- [ ] **Step 6: Commit**
+
+```bash
+git add Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportModifier.swift WilgoTests/FinishedCycleReport/FinishedCycleReportPresentationStateTests.swift
+git commit -m "refactor: normalize target modes after report finalization
+
+#TargetModes
+
+tracking: https://www.notion.so/refactor-target-disable-grace-3574b58e32c38071b420e3641a225d12"
+```
+
+#### Commit 5 — refactor: remove grace storage
+
+**Files:**
+
+- Modify: `Shared/Models/Commitment.swift`
+- Delete: `Shared/Models/GracePeriod.swift`
+- Modify: `Wilgo.xcodeproj/project.pbxproj` if target membership still references `GracePeriod.swift`
+- Modify tests found by `rg -n "GracePeriod|gracePeriods" WilgoTests Shared Wilgo`
+
+- [ ] **Step 1: Remove grace storage**
+
+After `PreTokenReportBuilder` and report tests use `TargetMode`, remove:
+
+```swift
+var gracePeriods: [GracePeriod] = []
+```
+
+from `Commitment`, and delete `Shared/Models/GracePeriod.swift`.
+
+- [ ] **Step 2: Remove stale grace-period tests and target membership**
+
+Run:
+
+```bash
+rg -n "GracePeriod|gracePeriods" Wilgo Shared WilgoTests WidgetExtension
+```
+
+Expected: remove or rename all source/test references to the old storage model. If
+`Wilgo.xcodeproj/project.pbxproj` references `GracePeriod.swift`, remove that target membership entry.
+
+- [ ] **Step 3: Run focused report tests**
+
+Run:
+
+```bash
+xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo -destination 'platform=iOS Simulator,id=4492FF84-2E83-4350-8008-B87DE7AE2588' -only-testing:WilgoTests/FinishedCycleReportBuilderTests
+```
+
+Expected: PASS.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add Shared/Models/Commitment.swift Shared/Models/GracePeriod.swift Wilgo.xcodeproj/project.pbxproj Wilgo/Features/Commitments/FinishedCycleReport WilgoTests/FinishedCycleReport/FinishedCycleReportBuilderTests.swift
+git commit -m "refactor: remove grace period storage
 
 #TargetModes
 
@@ -731,7 +1098,7 @@ tracking: https://www.notion.so/refactor-target-disable-grace-3574b58e32c38071b4
 
 The goal of this phase is to route Disabled through target-disabled scheduling while keeping Inspiration Only aligned with Target On.
 
-#### Commit 3 — refactor: route stage by effective target mode
+#### Commit 6 — refactor: route stage by effective target mode
 
 **Files:**
 
@@ -895,7 +1262,7 @@ tracking: https://www.notion.so/refactor-target-disable-grace-3574b58e32c38071b4
 
 The goal of this phase is to expose target modes in Add/Edit and preserve the current-cycle confirmation behavior.
 
-#### Commit 4 — feat: save target modes from commitment forms
+#### Commit 7 — feat: save target modes from commitment forms
 
 **Files:**
 
@@ -921,7 +1288,7 @@ func insertDisabledSavesDisabledMode() throws {
 
     let commitment = draft.insertCommitment(in: context)
 
-    #expect(commitment.target.mode == .disabled)
+    #expect(commitment.target.configuredMode == .disabled)
 }
 
 @Test("insert inspiration only saves start and until")
@@ -936,7 +1303,7 @@ func insertInspirationOnlySavesInterval() throws {
 
     let commitment = draft.insertCommitment(in: context)
 
-    #expect(commitment.target.mode == .inspirationOnly(start: start, until: until))
+    #expect(commitment.target.configuredMode == .inspirationOnly(start: start, until: until))
 }
 ```
 
@@ -979,7 +1346,7 @@ Map:
 private var targetModeChoiceBinding: Binding<TargetModeChoice> {
     Binding(
         get: {
-            switch target.mode {
+            switch target.configuredMode {
             case .on: return .on
             case .inspirationOnly: return .inspirationOnly
             case .disabled: return .disabled
@@ -988,13 +1355,15 @@ private var targetModeChoiceBinding: Binding<TargetModeChoice> {
         set: { choice in
             switch choice {
             case .on:
-                target.mode = .on
+                target.setConfiguredMode(.on)
             case .disabled:
-                target.mode = .disabled
+                target.setConfiguredMode(.disabled)
             case .inspirationOnly:
-                target.mode = .inspirationOnly(
-                    start: currentCycleStart,
-                    until: nextCycleStart
+                target.setConfiguredMode(
+                    .inspirationOnly(
+                        start: currentCycleStart,
+                        until: nextCycleStart
+                    )
                 )
             }
         }
@@ -1017,14 +1386,16 @@ private var nextCycleStart: Date {
 
 - [ ] **Step 4: Update Add flow**
 
-In `AddCommitmentView.handleSaveTap()`, ask the current-cycle question only when `draft.target.mode == .on`.
+In `AddCommitmentView.handleSaveTap()`, ask the current-cycle question only when `draft.target.configuredMode == .on`.
 
 When user chooses not to count current cycle, mutate draft before save:
 
 ```swift
-draft.target.mode = .inspirationOnly(
-    start: graceDialog.cycleStart,
-    until: graceDialog.cycleEnd
+draft.target.setConfiguredMode(
+    .inspirationOnly(
+        start: graceDialog.cycleStart,
+        until: graceDialog.cycleEnd
+    )
 )
 ```
 
@@ -1036,12 +1407,14 @@ let commitment = draft.insertCommitment(in: modelContext)
 
 - [ ] **Step 5: Update Edit flow**
 
-In `EditCommitmentView.handleSaveTap()`, ask the current-cycle question only when rules changed and `draft.target.mode == .on`.
+In `EditCommitmentView.handleSaveTap()`, ask the current-cycle question only when rules changed and `draft.target.configuredMode == .on`.
 
-When user chooses not to count current cycle, mutate `draftToSave.target.mode` to:
+When user chooses not to count current cycle, mutate `draftToSave.target` through `setConfiguredMode`:
 
 ```swift
-.inspirationOnly(start: graceDialog.cycleStart, until: graceDialog.cycleEnd)
+draftToSave.target.setConfiguredMode(
+    .inspirationOnly(start: graceDialog.cycleStart, until: graceDialog.cycleEnd)
+)
 ```
 
 Then call:
@@ -1098,7 +1471,7 @@ tracking: https://www.notion.so/refactor-target-disable-grace-3574b58e32c38071b4
 
 The goal of this phase is to remove remaining grace language from app/test source and verify the full target-mode slice.
 
-#### Commit 5 — chore: remove grace language from target modes
+#### Commit 8 — chore: remove grace language from target modes
 
 **Files:**
 
@@ -1119,7 +1492,7 @@ Expected: only compatibility comments or unrelated historical text remain. Renam
 Run:
 
 ```bash
-xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo -destination 'platform=iOS Simulator,id=4492FF84-2E83-4350-8008-B87DE7AE2588' -only-testing:WilgoTests/TargetModeTests -only-testing:WilgoTests/CommitmentFormDraftTests -only-testing:WilgoTests/CommitmentTargetDisableTests -only-testing:WilgoTests/CommitmentInspirationOnlyStageTests -only-testing:WilgoTests/FinishedCycleReportBuilderTests
+xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo -destination 'platform=iOS Simulator,id=4492FF84-2E83-4350-8008-B87DE7AE2588' -only-testing:WilgoTests/TargetModeTests -only-testing:WilgoTests/CommitmentFormDraftTests -only-testing:WilgoTests/CommitmentTargetDisableTests -only-testing:WilgoTests/CommitmentInspirationOnlyStageTests -only-testing:WilgoTests/FinishedCycleReportBuilderTests -only-testing:WilgoTests/FinishedCycleReportPresentationStateTests
 ```
 
 Expected: PASS.
@@ -1176,13 +1549,19 @@ Commit 0: FinishedCycleReport finalization flow
     |
     +-- Commit 1: TargetMode model
             |
-            +-- Commit 2: report classification and normalization
+            +-- Commit 2: target-mode API hardening
             |       |
-            |       +-- Commit 3: Stage routing
+            |       +-- Commit 3: report classification
             |               |
-            |               +-- Commit 4: form UX and save flows
+            |               +-- Commit 4: post-report normalization
             |                       |
-            |                       +-- Commit 5: cleanup and verification
+            |                       +-- Commit 5: remove grace storage
+            |                               |
+            |                               +-- Commit 6: Stage routing
+            |                                       |
+            |                                       +-- Commit 7: form UX and save flows
+            |                                               |
+            |                                               +-- Commit 8: cleanup and verification
 ```
 
 Commits are sequential because they touch overlapping model/report/form semantics.
