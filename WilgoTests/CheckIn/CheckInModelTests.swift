@@ -25,7 +25,7 @@ private func createTestCommitment(ctx: ModelContext) -> Commitment {
         title: "Test Commitment",
         cycle: cycle,
         slots: [],
-        target: QuantifiedCycle(count: 1)
+        target: Target(count: 1)
     )
     ctx.insert(commitment)
     return commitment

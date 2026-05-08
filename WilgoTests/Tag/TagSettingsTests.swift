@@ -30,12 +30,14 @@ private func makeCommitment(title: String = "Test") -> Commitment {
         title: title,
         cycle: cycle,
         slots: [],
-        target: QuantifiedCycle(count: 1)
+        target: Target(count: 1)
     )
 }
 
 /// Applies the same reorder logic used in TagsSettingsView.onMove.
-private func applyMove(tags: inout [Wilgo.Tag], fromOffsets source: IndexSet, toOffset destination: Int) {
+private func applyMove(
+    tags: inout [Wilgo.Tag], fromOffsets source: IndexSet, toOffset destination: Int
+) {
     tags.move(fromOffsets: source, toOffset: destination)
     for (i, tag) in tags.enumerated() {
         tag.displayOrder = i
@@ -176,7 +178,8 @@ struct TagSettingsTests {
 
         // Simulate the title logic from TagsSettingsView
         let count = tag.commitments.count
-        let title = count == 0
+        let title =
+            count == 0
             ? "Delete '\(tag.name)'?"
             : "Delete '\(tag.name)'? Used in \(count) commitment\(count == 1 ? "" : "s")."
 
@@ -196,7 +199,8 @@ struct TagSettingsTests {
         try ctx.save()
 
         let count = tag.commitments.count
-        let title = count == 0
+        let title =
+            count == 0
             ? "Delete '\(tag.name)'?"
             : "Delete '\(tag.name)'? Used in \(count) commitment\(count == 1 ? "" : "s")."
 
@@ -219,7 +223,8 @@ struct TagSettingsTests {
         try ctx.save()
 
         let count = tag.commitments.count
-        let title = count == 0
+        let title =
+            count == 0
             ? "Delete '\(tag.name)'?"
             : "Delete '\(tag.name)'? Used in \(count) commitment\(count == 1 ? "" : "s")."
 

@@ -52,7 +52,7 @@ private func makeSlotAndInsert(
         title: "Test",
         cycle: Cycle(kind: .daily, referencePsychDay: anchor),
         slots: [slot],
-        target: QuantifiedCycle(count: 1)
+        target: Target(count: 1)
     )
     ctx.insert(commitment)
     ctx.insert(slot)

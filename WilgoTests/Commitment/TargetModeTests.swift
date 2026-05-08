@@ -119,7 +119,7 @@ struct TargetModeTests {
 
     @Test("configured mode exposes stored mode explicitly")
     func configuredModeExposesStoredMode() {
-        var target = QuantifiedCycle(count: 3, mode: .disabled)
+        var target = Target(count: 3, mode: .disabled)
 
         #expect(target.configuredMode == .disabled)
 

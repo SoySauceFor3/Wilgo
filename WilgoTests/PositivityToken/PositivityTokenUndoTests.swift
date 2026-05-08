@@ -37,7 +37,7 @@ struct PositivityTokenUndoTests {
             title: "Test",
             cycle: cycle,
             slots: [],
-            target: QuantifiedCycle(count: 1),
+            target: Target(count: 1),
         )
         ctx.insert(commitment)
 
@@ -78,7 +78,7 @@ struct PositivityTokenUndoTests {
             title: "Test",
             cycle: cycle,
             slots: [],
-            target: QuantifiedCycle(count: 1),
+            target: Target(count: 1),
         )
         ctx.insert(commitment)
 
@@ -100,7 +100,9 @@ struct PositivityTokenUndoTests {
         #expect(tokens.isEmpty)
     }
 
-    @Test("deleting check-in with explicit PT delete (old behavior) removes PT — documents what NOT to do")
+    @Test(
+        "deleting check-in with explicit PT delete (old behavior) removes PT — documents what NOT to do"
+    )
     func explicitPTDeletionRemovesToken() throws {
         // This test documents the OLD broken undo behavior.
         // Production undo closures must NOT do this — they should only delete the check-in.
@@ -113,7 +115,7 @@ struct PositivityTokenUndoTests {
             title: "Test",
             cycle: cycle,
             slots: [],
-            target: QuantifiedCycle(count: 1),
+            target: Target(count: 1),
         )
         ctx.insert(commitment)
         let checkIn = CheckIn(commitment: commitment)
@@ -125,10 +127,12 @@ struct PositivityTokenUndoTests {
 
         // Simulate OLD (broken) undo behavior: delete both
         ctx.delete(checkIn)
-        ctx.delete(token)   // <-- this is what the old code did; new code must NOT do this
+        ctx.delete(token)  // <-- this is what the old code did; new code must NOT do this
         try ctx.save()
 
         let remaining = try ctx.fetch(FetchDescriptor<PositivityToken>())
-        #expect(remaining.isEmpty, "When PT is explicitly deleted (old behavior), it's gone — this is the bug we fixed")
+        #expect(
+            remaining.isEmpty,
+            "When PT is explicitly deleted (old behavior), it's gone — this is the bug we fixed")
     }
 }

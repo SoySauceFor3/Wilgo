@@ -21,14 +21,23 @@ final class SlotCapacityTests {
 
     private func tod(hour: Int, minute: Int = 0) -> Date {
         var c = DateComponents()
-        c.year = 2000; c.month = 1; c.day = 1
-        c.hour = hour; c.minute = minute; c.second = 0
+        c.year = 2000
+        c.month = 1
+        c.day = 1
+        c.hour = hour
+        c.minute = minute
+        c.second = 0
         return Calendar.current.date(from: c)!
     }
 
     private func date(_ y: Int, _ m: Int, _ d: Int, _ h: Int = 0, _ min: Int = 0) -> Date {
         var c = DateComponents()
-        c.year = y; c.month = m; c.day = d; c.hour = h; c.minute = min; c.second = 0
+        c.year = y
+        c.month = m
+        c.day = d
+        c.hour = h
+        c.minute = min
+        c.second = 0
         return Calendar.current.date(from: c)!
     }
 
@@ -44,7 +53,7 @@ final class SlotCapacityTests {
             title: "T",
             cycle: Cycle(kind: .daily, referencePsychDay: date(2026, 1, 1)),
             slots: [slot],
-            target: QuantifiedCycle(count: 5)
+            target: Target(count: 5)
         )
         ctx.insert(commitment)
         ctx.insert(slot)
@@ -91,7 +100,8 @@ final class SlotCapacityTests {
         let t2 = date(2026, 3, 5, 10, 30)
         let ci1 = CheckIn(commitment: commitment, createdAt: t1)
         let ci2 = CheckIn(commitment: commitment, createdAt: t2)
-        ctx.insert(ci1); ctx.insert(ci2)
+        ctx.insert(ci1)
+        ctx.insert(ci2)
 
         #expect(slot.isSaturated(at: t2, checkIns: [ci1, ci2]) == true)
     }
@@ -169,9 +179,10 @@ final class SlotCapacityTests {
             title: "T",
             cycle: Cycle(kind: .daily, referencePsychDay: date(2026, 1, 1)),
             slots: [slot],
-            target: QuantifiedCycle(count: 1)
+            target: Target(count: 1)
         )
-        ctx.insert(commitment); ctx.insert(slot)
+        ctx.insert(commitment)
+        ctx.insert(slot)
 
         let nowMorning = date(2026, 3, 5, 7)
         let ciMorning = CheckIn(commitment: commitment, createdAt: nowMorning)
@@ -191,7 +202,7 @@ final class SlotCapacityTests {
             title: "T",
             cycle: Cycle(kind: .daily, referencePsychDay: date(2026, 1, 1)),
             slots: [slot],
-            target: QuantifiedCycle(count: 1)
+            target: Target(count: 1)
         )
         ctx.insert(commitment)
         ctx.insert(slot)

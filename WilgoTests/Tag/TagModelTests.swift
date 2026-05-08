@@ -29,7 +29,7 @@ private func makeCommitment(title: String = "Test") -> Commitment {
         title: title,
         cycle: cycle,
         slots: [],
-        target: QuantifiedCycle(count: 1)
+        target: Target(count: 1)
     )
 }
 

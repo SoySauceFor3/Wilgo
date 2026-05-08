@@ -28,7 +28,7 @@ Default Stage behavior for Inspiration Only stays aligned with `On`: if the insp
 
 ## Architecture Summary
 
-Move target mode into `Target` itself. Replace `QuantifiedCycle.isEnabled` with a `TargetMode` enum that captures all three user-facing states:
+Move target mode into `Target` itself. Replace `Target.isEnabled` with a `TargetMode` enum that captures all three user-facing states:
 
 ```swift
 enum TargetMode: Codable, Hashable {
@@ -48,10 +48,10 @@ Add a pre-commit to improve FinishedCycleReport lifecycle: do not advance the re
 
 ### Store target mode on `Target`
 
-**Decision:** `QuantifiedCycle` becomes:
+**Decision:** `Target` becomes:
 
 ```swift
-struct QuantifiedCycle: Codable, Hashable {
+struct Target: Codable, Hashable {
     var count: Int
     var mode: TargetMode = .on
 }
@@ -391,7 +391,7 @@ struct TargetModeTests {
     func oldDisabledTargetDecodesAsDisabledMode() throws {
         let data = #"{"count":3,"isEnabled":false}"#.data(using: .utf8)!
 
-        let target = try JSONDecoder().decode(QuantifiedCycle.self, from: data)
+        let target = try JSONDecoder().decode(Target.self, from: data)
 
         #expect(target.count == 3)
         #expect(target.mode == .disabled)
@@ -401,7 +401,7 @@ struct TargetModeTests {
     func oldTargetWithoutIsEnabledDecodesAsOn() throws {
         let data = #"{"count":3}"#.data(using: .utf8)!
 
-        let target = try JSONDecoder().decode(QuantifiedCycle.self, from: data)
+        let target = try JSONDecoder().decode(Target.self, from: data)
 
         #expect(target.count == 3)
         #expect(target.mode == .on)
@@ -480,7 +480,7 @@ enum TargetModeError: Error, Equatable {
 In `Shared/Models/Commitment.swift`, change:
 
 ```swift
-struct QuantifiedCycle: Codable, Hashable {
+struct Target: Codable, Hashable {
     var count: Int
     var mode: TargetMode = .on
 }
@@ -489,7 +489,7 @@ struct QuantifiedCycle: Codable, Hashable {
 Add a compatibility computed property during migration:
 
 ```swift
-extension QuantifiedCycle {
+extension Target {
     var isEnabled: Bool {
         get { mode != .disabled }
         set { mode = newValue ? .on : .disabled }
@@ -585,7 +585,7 @@ func invalidEffectiveRangeThrows() {
 
 @Test("configured mode exposes stored mode explicitly")
 func configuredModeExposesStoredMode() {
-    var target = QuantifiedCycle(count: 3, mode: .disabled)
+    var target = Target(count: 3, mode: .disabled)
 
     #expect(target.configuredMode == .disabled)
 
@@ -659,7 +659,7 @@ Keep `overlapsInspirationOnlyInterval(cycleStart:cycleEnd:)` only if an existing
 
 - [ ] **Step 4: Make stored mode private and add explicit configured/effective APIs**
 
-In `QuantifiedCycle`, change:
+In `Target`, change:
 
 ```swift
 var mode: TargetMode = .on
@@ -674,7 +674,7 @@ private var mode: TargetMode = .on
 Add:
 
 ```swift
-extension QuantifiedCycle {
+extension Target {
     var configuredMode: TargetMode { mode }
 
     func effectiveMode(on psychDay: Date) throws -> TargetMode {
@@ -698,7 +698,7 @@ extension QuantifiedCycle {
 Keep `isEnabled` as a compatibility shim, but implement it through private storage:
 
 ```swift
-extension QuantifiedCycle {
+extension Target {
     var isEnabled: Bool {
         get { mode != .disabled }
         set { mode = newValue ? .on : .disabled }
@@ -756,7 +756,7 @@ func inspirationOnlyDelayedReportMarksOnlyOverlappingCycles() throws {
         title: "Run",
         cycle: Cycle(kind: .monthly, referencePsychDay: anchor),
         slots: [],
-        target: QuantifiedCycle(
+        target: Target(
             count: 3,
             mode: .inspirationOnly(
                 start: date(year: 2025, month: 12, day: 1),

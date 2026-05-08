@@ -26,7 +26,7 @@ private func makeCommitmentWithCheckIn(ctx: ModelContext) -> (Commitment, CheckI
         title: "Run",
         cycle: cycle,
         slots: [],
-        target: QuantifiedCycle(count: 1)
+        target: Target(count: 1)
     )
     ctx.insert(commitment)
 

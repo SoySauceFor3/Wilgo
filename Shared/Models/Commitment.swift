@@ -7,7 +7,7 @@ enum ProofOfWorkType: String, Codable {
     // case healthKit = "HealthKit"
 }
 
-struct QuantifiedCycle: Codable, Hashable {
+struct Target: Codable, Hashable {
     var count: Int  // “how many per that cycle”
     private var mode: TargetMode = .on
 
@@ -17,9 +17,7 @@ struct QuantifiedCycle: Codable, Hashable {
     }
 }
 
-typealias Target = QuantifiedCycle
-
-extension QuantifiedCycle {
+extension Target {
     var configuredMode: TargetMode {
         mode
     }

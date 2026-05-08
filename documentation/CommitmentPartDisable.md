@@ -24,9 +24,9 @@ A temporary "pause with end date" feature was explored but deferred — the perm
 
 ## Architecture Summary
 
-`Cycle` is moved out of `QuantifiedCycle` (Target) to a top-level field on `Commitment`. This is a prerequisite because cycle drives reporting regardless of whether a goal is set.
+`Cycle` is moved out of `Target` (Target) to a top-level field on `Commitment`. This is a prerequisite because cycle drives reporting regardless of whether a goal is set.
 
-Three boolean fields are then added one at a time — each with full-stack coverage (model → business logic → UI) before moving to the next. `isRemindersEnabled` and `isPunishmentEnabled` are flat fields on `Commitment`. `Target.isEnabled` lives inside `QuantifiedCycle` so the count value is preserved alongside its enabled state.
+Three boolean fields are then added one at a time — each with full-stack coverage (model → business logic → UI) before moving to the next. `isRemindersEnabled` and `isPunishmentEnabled` are flat fields on `Commitment`. `Target.isEnabled` lives inside `Target` so the count value is preserved alongside its enabled state.
 
 When `Target.isEnabled` is false, `stageStatus` bypasses all goal math and delegates to a private `targetDisabledStatus` helper, which returns `.current`, `.future`, or `.others` (reusing existing categories) with `behindCount` always `0`. The Stage view checks `commitment.target.isEnabled` before rendering goal counters or behind badges.
 
@@ -36,7 +36,7 @@ When `Target.isEnabled` is false, `stageStatus` bypasses all goal math and deleg
 
 ### Cycle moved to top-level `Commitment`
 
-**Decision:** `Commitment.cycle: Cycle` replaces `QuantifiedCycle.cycle`. `QuantifiedCycle` retains only `count` (and later `isEnabled`).
+**Decision:** `Commitment.cycle: Cycle` replaces `Target.cycle`. `Target` retains only `count` (and later `isEnabled`).
 
 **Why not leave cycle in Target?** Cycle drives reporting (FinishedCycleReport, check-in grouping, stage categorization) regardless of whether a goal is active. Keeping it inside Target would require special-casing "target disabled but cycle still exists" everywhere.
 
@@ -52,9 +52,9 @@ When `Target.isEnabled` is false, `stageStatus` bypasses all goal math and deleg
 
 **Why not group them?** `slots` is a SwiftData `@Relationship` and must live directly on the `@Model` class — SwiftData does not support `@Relationship` inside a plain `struct`. The struct would have to either become a nested `@Model` (overkill, adds a full persistence entity) or store slot UUIDs (which violates the repo rule of preferring direct references over UUIDs for relationships).
 
-### `Target.isEnabled` lives inside `QuantifiedCycle`
+### `Target.isEnabled` lives inside `Target`
 
-**Decision:** `QuantifiedCycle` gains `var isEnabled: Bool = true` so that `count` and `isEnabled` travel together.
+**Decision:** `Target` gains `var isEnabled: Bool = true` so that `count` and `isEnabled` travel together.
 
 **Why not a flat field on `Commitment`?** The count value must survive toggling off and back on. Keeping it adjacent to count inside the same struct makes the preservation contract obvious.
 
@@ -88,7 +88,7 @@ Same pattern in `CatchUpReminder` before its `catchUpWithBehind` call.
 
 - `**isRemindersEnabled` (slots):\*\* Slots are only written to DB when `effectiveRemindersEnabled = isRemindersEnabled && !slotWindows.isEmpty` is true. When disabled, existing DB slots are left untouched. In the edit form, `slotWindows` state is kept populated even when the toggle is off — the UI is hidden but the data is not cleared. Derived at save time, not from toggle alone, to handle the edge case where the user edits slots and then disables: in-progress edits are discarded, original DB slots are preserved.
 - `**isPunishmentEnabled` (punishment text):\*\* The `punishment` string on `Commitment` is never cleared when `isPunishmentEnabled` is false. The UI hides the text field when disabled, but the value is preserved.
-- `**Target.isEnabled` (count):\*\* `QuantifiedCycle` stores `count` and `isEnabled` together so the count survives toggling. The UI hides the count picker when disabled, but the value is preserved.
+- `**Target.isEnabled` (count):\*\* `Target` stores `count` and `isEnabled` together so the count survives toggling. The UI hides the count picker when disabled, but the value is preserved.
 
 ### Sequential phases, not parallel
 
@@ -103,7 +103,7 @@ Same pattern in `CatchUpReminder` before its `catchUpWithBehind` call.
 | Entity                                                                       | Change                                                                                                 |
 | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------ |
 | `Shared/Models/Commitment.swift`                                             | `cycle: Cycle` added as top-level field; `isRemindersEnabled: Bool`, `isPunishmentEnabled: Bool` added |
-| `Shared/Models/Commitment.swift` — `QuantifiedCycle`                         | `cycle: Cycle` removed; `isEnabled: Bool = true` added                                                 |
+| `Shared/Models/Commitment.swift` — `Target`                                  | `cycle: Cycle` removed; `isEnabled: Bool = true` added                                                 |
 | `Shared/Models/Commitment.swift` — `StageCategory`                           | No new cases — `.current`, `.future`, `.others` reused for target-disabled path                        |
 | `Shared/Scheduling/CommitmentAndSlot.swift`                                  | All three helpers filter `isRemindersEnabled`; new `remindersOnlyWithSlots()` helper (Commit 7)        |
 | `Wilgo/Features/Stage/StageViewModel.swift`                                  | New `remindersOnly: [WithBehind]` property (Commit 7)                                                  |
@@ -114,7 +114,7 @@ After restructure, the relevant shape of `Commitment` is:
 
 ```swift
 var cycle: Cycle                    // always present — drives reporting
-var target: Target                  // Target = QuantifiedCycle { count, isEnabled }
+var target: Target                  // Target = Target { count, isEnabled }
 var punishment: String?             // always preserved
 var isRemindersEnabled: Bool        // suppresses Stage view, notifications, Live Activity
 var isPunishmentEnabled: Bool       // suppresses punishment enforcement
@@ -128,7 +128,7 @@ var isPunishmentEnabled: Bool       // suppresses punishment enforcement
 
 ### Phase 1 — Move `Cycle` out of `Target` (pure refactor)
 
-No behavior change. `Cycle` moves from `QuantifiedCycle` to a top-level field on `Commitment`. All callers and test fixtures are updated in a single commit. Tests must be green at the end of this phase.
+No behavior change. `Cycle` moves from `Target` to a top-level field on `Commitment`. All callers and test fixtures are updated in a single commit. Tests must be green at the end of this phase.
 
 ---
 
@@ -441,10 +441,10 @@ private var hasPunishment: Bool {
 
 **Modify:** `Shared/Models/Commitment.swift`
 
-Add `isEnabled` to `QuantifiedCycle`:
+Add `isEnabled` to `Target`:
 
 ```swift
-struct QuantifiedCycle: Codable, Hashable {
+struct Target: Codable, Hashable {
     var count: Int
     var isEnabled: Bool = true
 }
@@ -652,7 +652,7 @@ Grace and target-disabled are mechanically identical — no goal evaluation, no 
 
 **Design analysis for the future unification:**
 
-The unified model would fold grace into `Target`/`QuantifiedCycle`:
+The unified model would fold grace into `Target`/`Target`:
 
 ```swift
 // Option A — enum
@@ -677,7 +677,7 @@ UI and report behavior falls out naturally:
 | `false`     | `nil`            | `"2 check-ins · no target"`                                            | no             |
 | `false`     | some date        | `"2/3 check-ins · grace"` (target shown as it's still the active goal) | no             |
 
-**The main blocker for deferral:** Grace is currently stored as `gracePeriods: [GracePeriod]` — a separate `@Relationship` on `Commitment`, not inside `QuantifiedCycle`. The refactor would need to migrate grace into `Target` where it semantically belongs, making it a SwiftData model migration — not just a rename.
+**The main blocker for deferral:** Grace is currently stored as `gracePeriods: [GracePeriod]` — a separate `@Relationship` on `Commitment`, not inside `Target`. The refactor would need to migrate grace into `Target` where it semantically belongs, making it a SwiftData model migration — not just a rename.
 
 ---
 

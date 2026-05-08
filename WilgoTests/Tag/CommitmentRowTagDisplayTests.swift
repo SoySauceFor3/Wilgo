@@ -27,7 +27,7 @@ private func makeCommitment(title: String = "Test") -> Commitment {
         title: title,
         cycle: cycle,
         slots: [],
-        target: QuantifiedCycle(count: 1)
+        target: Target(count: 1)
     )
 }
 
@@ -71,8 +71,8 @@ struct CommitmentRowTagDisplayTests {
         let c = try #require(fetched.first)
 
         let sorted = c.tags.sorted {
-            $0.displayOrder < $1.displayOrder ||
-            ($0.displayOrder == $1.displayOrder && $0.createdAt < $1.createdAt)
+            $0.displayOrder < $1.displayOrder
+                || ($0.displayOrder == $1.displayOrder && $0.createdAt < $1.createdAt)
         }
         let joined = sorted.map(\.name).joined(separator: ", ")
         #expect(joined == "Alpha, Beta")
@@ -99,8 +99,8 @@ struct CommitmentRowTagDisplayTests {
         let c = try #require(fetched.first)
 
         let sorted = c.tags.sorted {
-            $0.displayOrder < $1.displayOrder ||
-            ($0.displayOrder == $1.displayOrder && $0.createdAt < $1.createdAt)
+            $0.displayOrder < $1.displayOrder
+                || ($0.displayOrder == $1.displayOrder && $0.createdAt < $1.createdAt)
         }
         #expect(sorted.first?.name == "Low")
         #expect(sorted.last?.name == "High")
@@ -114,7 +114,8 @@ struct CommitmentRowTagDisplayTests {
         let commitment = makeCommitment()
         let base = Date(timeIntervalSince1970: 1_000_000)
         let tagOlder = Wilgo.Tag(name: "Older", displayOrder: 5, createdAt: base)
-        let tagNewer = Wilgo.Tag(name: "Newer", displayOrder: 5, createdAt: base.addingTimeInterval(60))
+        let tagNewer = Wilgo.Tag(
+            name: "Newer", displayOrder: 5, createdAt: base.addingTimeInterval(60))
 
         ctx.insert(commitment)
         ctx.insert(tagOlder)
@@ -127,8 +128,8 @@ struct CommitmentRowTagDisplayTests {
         let c = try #require(fetched.first)
 
         let sorted = c.tags.sorted {
-            $0.displayOrder < $1.displayOrder ||
-            ($0.displayOrder == $1.displayOrder && $0.createdAt < $1.createdAt)
+            $0.displayOrder < $1.displayOrder
+                || ($0.displayOrder == $1.displayOrder && $0.createdAt < $1.createdAt)
         }
         #expect(sorted.first?.name == "Older")
         #expect(sorted.last?.name == "Newer")

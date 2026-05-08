@@ -48,7 +48,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Read",
             cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(count: 5),
+            target: Target(count: 5),
         )
         ctx.insert(commitment)
 
@@ -95,7 +95,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Read",
             cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(count: 5),
+            target: Target(count: 5),
         )
         ctx.insert(commitment)
 
@@ -108,7 +108,8 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             commitment.checkIns.append(checkIn)
         }
 
-        let alreadyUsed = PositivityToken(reason: "already used", createdAt: date(year: 2026, month: 1, day: 1))
+        let alreadyUsed = PositivityToken(
+            reason: "already used", createdAt: date(year: 2026, month: 1, day: 1))
         alreadyUsed.status = .used
         alreadyUsed.dayOfStatus = date(year: 2026, month: 2, day: 1)
         let t1 = PositivityToken(reason: "a", createdAt: date(year: 2026, month: 1, day: 2))
@@ -152,7 +153,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Read",
             cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(count: 5),
+            target: Target(count: 5),
         )
         ctx.insert(commitment)
 
@@ -201,7 +202,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Run",
             cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(count: 3),
+            target: Target(count: 3),
         )
         ctx.insert(commitment)
 
@@ -238,7 +239,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Run",
             cycle: Cycle(kind: .monthly, referencePsychDay: anchor),
             slots: [],
-            target: QuantifiedCycle(
+            target: Target(
                 count: 3,
                 mode: .inspirationOnly(
                     start: date(year: 2025, month: 12, day: 1),
@@ -257,10 +258,11 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         let cycles = try #require(report.first?.cycles)
         #expect(cycles.count == 3)
         #expect(
-            cycles[0].effectiveTargetMode == .inspirationOnly(
-                start: date(year: 2025, month: 12, day: 1),
-                until: date(year: 2026, month: 1, day: 1)
-            )
+            cycles[0].effectiveTargetMode
+                == .inspirationOnly(
+                    start: date(year: 2025, month: 12, day: 1),
+                    until: date(year: 2026, month: 1, day: 1)
+                )
         )
         #expect(cycles[1].effectiveTargetMode == .on)
         #expect(cycles[2].effectiveTargetMode == .on)
@@ -278,7 +280,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Run",
             cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(
+            target: Target(
                 count: 3,
                 mode: .inspirationOnly(
                     start: date(year: 2026, month: 3, day: 30),
@@ -297,10 +299,11 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         #expect(preReport.count == 1)
         let cycle = try #require(preReport.first?.cycles.first)
         #expect(
-            cycle.effectiveTargetMode == .inspirationOnly(
-                start: date(year: 2026, month: 3, day: 30),
-                until: date(year: 2026, month: 4, day: 6)
-            )
+            cycle.effectiveTargetMode
+                == .inspirationOnly(
+                    start: date(year: 2026, month: 3, day: 30),
+                    until: date(year: 2026, month: 4, day: 6)
+                )
         )
     }
 
@@ -316,7 +319,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Run",
             cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(
+            target: Target(
                 count: 3,
                 mode: .inspirationOnly(
                     start: date(year: 2026, month: 3, day: 23),
@@ -349,7 +352,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Run",
             cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(
+            target: Target(
                 count: 3,
                 mode: .inspirationOnly(
                     start: date(year: 2026, month: 3, day: 30),
@@ -379,10 +382,11 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         let cycle = try #require(report.first?.cycles.first)
         // Inspiration-only cycle must appear in the report.
         #expect(
-            cycle.effectiveTargetMode == .inspirationOnly(
-                start: date(year: 2026, month: 3, day: 30),
-                until: date(year: 2026, month: 4, day: 6)
-            )
+            cycle.effectiveTargetMode
+                == .inspirationOnly(
+                    start: date(year: 2026, month: 3, day: 30),
+                    until: date(year: 2026, month: 4, day: 6)
+                )
         )
         // No PT tokens consumed
         #expect(cycle.aidedByPositivityTokenCount == 0)
@@ -391,7 +395,8 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         #expect(t2.status == .active)
     }
 
-    @Test("target disabled: effectiveTargetMode disabled, targetCheckIns preserves real count, no PT")
+    @Test(
+        "target disabled: effectiveTargetMode disabled, targetCheckIns preserves real count, no PT")
     @MainActor func targetDisabled_reportPreservesCount() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
@@ -416,7 +421,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         #expect(preReport.count == 1)
         let cycle = try #require(preReport.first?.cycles.first)
         #expect(cycle.actualCheckIns == 1)
-        #expect(cycle.targetCheckIns == 3)   // preserved, not zeroed out
+        #expect(cycle.targetCheckIns == 3)  // preserved, not zeroed out
         #expect(cycle.effectiveTargetMode == .disabled)
         #expect(cycle.consumedPTReasons.isEmpty)
     }
@@ -473,7 +478,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Read",
             cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(count: 1),
+            target: Target(count: 1),
         )
         ctx.insert(commitment)
 

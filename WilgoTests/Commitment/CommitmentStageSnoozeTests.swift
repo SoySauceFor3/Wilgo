@@ -49,7 +49,7 @@ final class CommitmentStageSnoozeTests {
             title: "Test",
             cycle: Cycle(kind: .daily, referencePsychDay: anchor),
             slots: slots,
-            target: QuantifiedCycle(count: 1)
+            target: Target(count: 1)
         )
         ctx.insert(commitment)
         slots.forEach { ctx.insert($0) }
@@ -78,7 +78,7 @@ final class CommitmentStageSnoozeTests {
         let commitment = makeCommitment(slots: [(9, 11), (15, 17)], in: ctx)
         commitment.cycle = Cycle(
             kind: .daily, referencePsychDay: date(year: 2026, month: 1, day: 1))
-        commitment.target = QuantifiedCycle(count: 2)
+        commitment.target = Target(count: 2)
 
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
         let slot = commitment.slots.first(where: { _ in true })!
@@ -126,7 +126,7 @@ final class CommitmentStageSnoozeTests {
             title: "Test",
             cycle: Cycle(kind: .weekly, referencePsychDay: anchor),
             slots: [slot],
-            target: QuantifiedCycle(count: 2)
+            target: Target(count: 2)
         )
         ctx.insert(commitment)
         ctx.insert(slot)

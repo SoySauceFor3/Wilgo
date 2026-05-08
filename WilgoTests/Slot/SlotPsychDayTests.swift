@@ -18,15 +18,23 @@ final class SlotPsychDayTests {
 
     private func tod(hour: Int, minute: Int = 0) -> Date {
         var c = DateComponents()
-        c.year = 2000; c.month = 1; c.day = 1
-        c.hour = hour; c.minute = minute; c.second = 0
+        c.year = 2000
+        c.month = 1
+        c.day = 1
+        c.hour = hour
+        c.minute = minute
+        c.second = 0
         return Calendar.current.date(from: c)!
     }
 
     private func date(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 0) -> Date {
         var c = DateComponents()
-        c.year = year; c.month = month; c.day = day
-        c.hour = hour; c.minute = minute; c.second = 0
+        c.year = year
+        c.month = month
+        c.day = day
+        c.hour = hour
+        c.minute = minute
+        c.second = 0
         return Calendar.current.date(from: c)!
     }
 
@@ -37,12 +45,13 @@ final class SlotPsychDayTests {
         in ctx: ModelContext
     ) -> Slot {
         let anchor = date(year: 2026, month: 1, day: 1)
-        let slot = Slot(start: tod(hour: startHour), end: tod(hour: endHour), recurrence: recurrence)
+        let slot = Slot(
+            start: tod(hour: startHour), end: tod(hour: endHour), recurrence: recurrence)
         let commitment = Commitment(
             title: "Test",
             cycle: Cycle(kind: .daily, referencePsychDay: anchor),
             slots: [slot],
-            target: QuantifiedCycle(count: 1)
+            target: Target(count: 1)
         )
         ctx.insert(commitment)
         ctx.insert(slot)
@@ -79,7 +88,9 @@ final class SlotPsychDayTests {
         #expect(Calendar.current.isDate(psychDay, inSameDayAs: expected))
     }
 
-    @Test("cross-midnight: time is post-midnight (12:30am Jan 1) → psychDay is previous calendar day (Dec 31)")
+    @Test(
+        "cross-midnight: time is post-midnight (12:30am Jan 1) → psychDay is previous calendar day (Dec 31)"
+    )
     @MainActor func crossMidnight_postMidnight_returnsPreviousDay() throws {
         let container = try makeContainer()
         // Slot 11pm–1am
@@ -111,7 +122,9 @@ final class SlotPsychDayTests {
     @MainActor func inactive_wrongDay_throws() throws {
         let container = try makeContainer()
         // Monday-only slot; time is a Tuesday
-        let slot = makeSlot(startHour: 9, endHour: 11, recurrence: .specificWeekdays([2]), in: container.mainContext)
+        let slot = makeSlot(
+            startHour: 9, endHour: 11, recurrence: .specificWeekdays([2]), in: container.mainContext
+        )
 
         // Jan 6 2026 is a Tuesday — correct time, wrong day
         let tuesday = date(year: 2026, month: 1, day: 6, hour: 10)

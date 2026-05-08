@@ -250,22 +250,22 @@ Key types the widget implementation works with directly.
     var title: String
     var checkIns: [CheckIn]        // all historical check-ins
     var slots: [Slot]              // scheduled time windows
-    var target: Target             // QuantifiedCycle: how many times per cycle
+    var target: Target             // Target: how many times per cycle
     var gracePeriods: [GracePeriod]
 }
 func checkInsInCycle(cycle: Cycle, until psychDay: Date, inclusive: Bool) -> [CheckIn]
 func stageStatus(now: Date) -> StageStatus  // categorises as .current, .future, etc.
 ```
 
-### `Target` / `QuantifiedCycle` (existing)
+### `Target` / `Target` (existing)
 
 ```swift
 // Wilgo/Shared/Models/Commitment.swift
-struct QuantifiedCycle: Codable {
+struct Target: Codable {
     var cycle: Cycle  // the reset cycle (daily/weekly/monthly + anchor)
     var count: Int    // target check-in count per cycle
 }
-typealias Target = QuantifiedCycle
+typealias Target = Target
 ```
 
 ### `Cycle` + `CycleKind` (existing)

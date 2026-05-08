@@ -72,7 +72,6 @@ The form layer (`SlotDraft`, `SlotWindowRow`) gains an optional capacity stepper
 
 ## Major Model Changes
 
-
 | Entity                                                               | Change                                                                                             |
 | -------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | `Shared/Models/Slot.swift`                                           | Add `var maxCheckIns: Int? = nil`                                                                  |
@@ -82,7 +81,6 @@ The form layer (`SlotDraft`, `SlotWindowRow`) gains an optional capacity stepper
 | `Wilgo/Features/Commitments/EditCommitmentView.swift`                | Persist `window.maxCheckIns` when constructing `Slot`; hydrate `SlotDraft` from `slot.maxCheckIns` |
 | `WilgoTests/Slot/SlotCapacityTests.swift` (new)                      | Saturation predicate tests on `Slot`                                                               |
 | `WilgoTests/Commitment/CommitmentSlotCapacityStageTests.swift` (new) | `stageStatus` integration tests for saturation across categories                                   |
-
 
 No SwiftData schema migration is required — adding an `Optional<Int>` with a default of `nil` is a non-breaking schema change in SwiftData. No `Schema([...])` lists need updating.
 
@@ -210,7 +208,7 @@ final class SlotCapacityTests {
             title: "T",
             cycle: Cycle(kind: .daily, referencePsychDay: date(2026, 1, 1)),
             slots: [slot],
-            target: QuantifiedCycle(count: 5)
+            target: Target(count: 5)
         )
         ctx.insert(commitment)
         ctx.insert(slot)
@@ -335,7 +333,7 @@ final class SlotCapacityTests {
             title: "T",
             cycle: Cycle(kind: .daily, referencePsychDay: date(2026, 1, 1)),
             slots: [slot],
-            target: QuantifiedCycle(count: 1)
+            target: Target(count: 1)
         )
         ctx.insert(commitment); ctx.insert(slot)
 
@@ -451,7 +449,7 @@ final class CommitmentSlotCapacityStageTests {
             title: "T",
             cycle: Cycle(kind: .daily, referencePsychDay: anchor),
             slots: slots,
-            target: QuantifiedCycle(count: targetCount)
+            target: Target(count: targetCount)
         )
         ctx.insert(commitment)
         slots.forEach { ctx.insert($0) }
@@ -585,7 +583,7 @@ final class CommitmentSlotCapacityStageTests {
             title: "T",
             cycle: Cycle(kind: .daily, referencePsychDay: date(2026, 1, 1)),
             slots: [slot],
-            target: QuantifiedCycle(count: 1)
+            target: Target(count: 1)
         )
         ctx.insert(commitment); ctx.insert(slot)
 
@@ -868,7 +866,6 @@ If everything is green, no extra commit is needed for this phase. If new failure
 
 ## Critical Files
 
-
 | File                                                  | Role                                              |
 | ----------------------------------------------------- | ------------------------------------------------- |
 | `Shared/Models/Slot.swift`                            | New `maxCheckIns` field + `isSaturated` predicate |
@@ -876,7 +873,6 @@ If everything is green, no extra commit is needed for this phase. If new failure
 | `Wilgo/Features/Commitments/SlotView.swift`           | `SlotDraft.maxCheckIns` + UI toggle/stepper       |
 | `Wilgo/Features/Commitments/AddCommitView.swift`      | Persist on creation                               |
 | `Wilgo/Features/Commitments/EditCommitmentView.swift` | Hydrate + persist on edit                         |
-
 
 ### Dependency Graph
 

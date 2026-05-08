@@ -26,7 +26,7 @@ private func makeCheckIn(ctx: ModelContext) -> CheckIn {
         title: "Test",
         cycle: cycle,
         slots: [],
-        target: QuantifiedCycle(count: 1)
+        target: Target(count: 1)
     )
     ctx.insert(commitment)
     let checkIn = CheckIn(commitment: commitment, source: .app)
@@ -148,7 +148,9 @@ struct InfoCardPendingDeleteTests {
                 case .backfill: return "backfilled"
                 }
             }()
-            #expect(label == expected, "sourceLabel for \(source) should be \(String(describing: expected))")
+            #expect(
+                label == expected,
+                "sourceLabel for \(source) should be \(String(describing: expected))")
         }
     }
 }
