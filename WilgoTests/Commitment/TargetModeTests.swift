@@ -159,6 +159,26 @@ struct TargetModeTests {
         #expect(target.configuredMode == .on)
     }
 
+    @Test("legacy empty mode decodes as on")
+    func legacyEmptyModeDecodesAsOn() throws {
+        let data = #"{"count":3,"mode":{}}"#.data(using: .utf8)!
+
+        let target = try JSONDecoder().decode(QuantifiedCycle.self, from: data)
+
+        #expect(target.count == 3)
+        #expect(target.configuredMode == .on)
+    }
+
+    @Test("legacy empty mode with disabled flag decodes as disabled")
+    func legacyEmptyModeWithDisabledFlagDecodesAsDisabled() throws {
+        let data = #"{"count":3,"mode":{},"isEnabled":false}"#.data(using: .utf8)!
+
+        let target = try JSONDecoder().decode(QuantifiedCycle.self, from: data)
+
+        #expect(target.count == 3)
+        #expect(target.configuredMode == .disabled)
+    }
+
     @Test("new target mode round trips")
     func newTargetModeRoundTrips() throws {
         let target = QuantifiedCycle(

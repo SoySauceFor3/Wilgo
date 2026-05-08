@@ -31,7 +31,7 @@ struct QuantifiedCycle: Codable, Hashable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         count = try container.decode(Int.self, forKey: .count)
 
-        if let mode = try container.decodeIfPresent(TargetMode.self, forKey: .mode) {
+        if let mode = try? container.decodeIfPresent(TargetMode.self, forKey: .mode) {
             self.mode = mode
         } else {
             let isEnabled = try container.decodeIfPresent(Bool.self, forKey: .isEnabled) ?? true
