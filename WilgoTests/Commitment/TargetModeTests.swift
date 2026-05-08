@@ -7,12 +7,12 @@ import Testing
 struct TargetModeTests {
     @Test("on is effective on")
     func onIsEffectiveOn() throws {
-        #expect(try TargetMode.on.effectiveMode(on: date(2026, 3, 1)) == .on)
+        #expect(TargetMode.on.effectiveMode(on: date(2026, 3, 1)) == .on)
     }
 
     @Test("disabled is effective disabled")
     func disabledIsEffectiveDisabled() throws {
-        #expect(try TargetMode.disabled.effectiveMode(on: date(2026, 3, 1)) == .disabled)
+        #expect(TargetMode.disabled.effectiveMode(on: date(2026, 3, 1)) == .disabled)
     }
 
     @Test("finite inspiration only is effective before until and on at until")
@@ -22,32 +22,19 @@ struct TargetModeTests {
             until: date(2026, 1, 1)
         )
 
-        #expect(try mode.effectiveMode(on: date(2025, 12, 15)) == mode)
-        #expect(try mode.effectiveMode(on: date(2026, 1, 1)) == .on)
-        #expect(try mode.effectiveMode(on: date(2026, 3, 1)) == .on)
+        #expect(mode.effectiveMode(on: date(2025, 12, 15)) == mode)
+        #expect(mode.effectiveMode(on: date(2026, 1, 1)) == .on)
+        #expect(mode.effectiveMode(on: date(2026, 3, 1)) == .on)
     }
 
-    @Test("inspiration only before start throws")
+    @Test("inspiration only before start return .on")
     func inspirationOnlyBeforeStartThrows() {
         let mode = TargetMode.inspirationOnly(
             start: date(2025, 12, 1),
             until: date(2026, 1, 1)
         )
+        #expect(mode.effectiveMode(on: date(2025, 11, 30)) == .on)
 
-        do {
-            _ = try mode.effectiveMode(on: date(2025, 11, 30))
-            Issue.record("Expected effectiveMode before inspiration start to throw")
-        } catch let error as TargetModeError {
-            switch error {
-            case .effectiveModeBeforeInspirationStart(let psychDay, let start):
-                #expect(psychDay == date(2025, 11, 30))
-                #expect(start == date(2025, 12, 1))
-            default:
-                Issue.record("Unexpected target mode error: \(error)")
-            }
-        } catch {
-            Issue.record("Unexpected error: \(error)")
-        }
     }
 
     @Test("forever inspiration only stays effective")

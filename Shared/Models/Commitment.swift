@@ -16,11 +16,6 @@ struct QuantifiedCycle: Codable, Hashable {
         self.mode = mode
     }
 
-    init(count: Int, isEnabled: Bool) {
-        self.count = count
-        self.mode = isEnabled ? .on : .disabled
-    }
-
     private enum CodingKeys: String, CodingKey {
         case count
         case mode
@@ -53,12 +48,22 @@ extension QuantifiedCycle {
         mode
     }
 
-    func effectiveMode(on psychDay: Date) throws -> TargetMode {
-        try mode.effectiveMode(on: psychDay)
+    func effectiveMode(on psychDay: Date) -> TargetMode {
+        do {
+            return try mode.effectiveMode(on: psychDay)
+        } catch {
+            return .on
+        }
+
     }
 
-    func effectiveMode(from startPsychDay: Date, to endPsychDay: Date) throws -> TargetMode {
-        try mode.effectiveMode(from: startPsychDay, to: endPsychDay)
+    func effectiveMode(from startPsychDay: Date, to endPsychDay: Date) -> TargetMode {
+        do {
+            return try mode.effectiveMode(from: startPsychDay, to: endPsychDay)
+        } catch {
+            return .on
+        }
+
     }
 
     mutating func setConfiguredMode(_ mode: TargetMode) {
@@ -69,10 +74,6 @@ extension QuantifiedCycle {
         mode = mode.normalized(afterReportedThrough: reportedEndPsychDay)
     }
 
-    var isEnabled: Bool {
-        get { mode != .disabled }
-        set { mode = newValue ? .on : .disabled }
-    }
 }
 
 // MARK: - Commitment
@@ -243,7 +244,7 @@ extension Commitment {
     ) -> StageStatus {
         let nowPsychDay = Time.startOfDay(for: now)
 
-        if case .disabled = try? target.effectiveMode(on: nowPsychDay) {
+        if case .disabled = target.effectiveMode(on: nowPsychDay) {
             return targetDisabledStatus(now: now)
         }
 

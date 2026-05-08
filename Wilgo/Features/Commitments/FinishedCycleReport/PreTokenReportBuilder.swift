@@ -88,7 +88,7 @@ enum PreTokenReportBuilder {
 
             let effectiveTargetMode: TargetMode
             do {
-                effectiveTargetMode = try commitment.target.effectiveMode(
+                effectiveTargetMode = commitment.target.effectiveMode(
                     from: cycleStart,
                     to: cycleEnd
                 )

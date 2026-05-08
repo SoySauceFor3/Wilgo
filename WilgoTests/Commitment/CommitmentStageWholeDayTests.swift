@@ -69,7 +69,7 @@ final class CommitmentStageWholeDayTests {
             createdAt: date(year: 2026, month: 3, day: 1, hour: 9),
             cycle: Cycle(kind: .daily, referencePsychDay: date(year: 2026, month: 1, day: 1)),
             slots: [slot],
-            target: Target(count: 1, isEnabled: false)
+            target: Target(count: 1, mode: .disabled)
         )
         ctx.insert(commitment)
         ctx.insert(slot)
@@ -115,7 +115,7 @@ final class CommitmentStageWholeDayTests {
             createdAt: date(year: 2026, month: 3, day: 1, hour: 9),
             cycle: Cycle(kind: .daily, referencePsychDay: date(year: 2026, month: 1, day: 1)),
             slots: [slot],
-            target: Target(count: 1, isEnabled: false)
+            target: Target(count: 1, mode: .disabled)
         )
         ctx.insert(commitment)
         ctx.insert(slot)

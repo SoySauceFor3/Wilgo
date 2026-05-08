@@ -116,7 +116,7 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
                             background: tileBackground,
                             cornerRadius: cornerRadius
                         ) {
-                            if commitment.target.isEnabled {
+                            if commitment.target.configuredMode != .disabled {
                                 HStack(alignment: .bottom, spacing: 4) {
                                     Text(
                                         "\(checkInsInCurrentTargetCycle.count)/\(commitment.target.count)"

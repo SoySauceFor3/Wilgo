@@ -97,7 +97,7 @@ struct CommitmentDetailView: View {
     }
 
     private var debugExtra: String {
-        "id=\(commitment.id) slots=\(commitment.slots.count) checkIns=\(commitment.checkIns.count) target=\(commitment.target.count)/\(commitment.target.isEnabled)"
+        "id=\(commitment.id) slots=\(commitment.slots.count) checkIns=\(commitment.checkIns.count) target=\(commitment.target.count)/\(commitment.target.configuredMode)"
     }
 
     // MARK: - Backfill
@@ -130,10 +130,10 @@ struct CommitmentDetailView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     statTile(
-                        value: commitment.target.isEnabled
+                        value: commitment.target.configuredMode != .disabled
                             ? "\(checkInsInCurrentTargetCycle.count)/\(commitment.target.count)"
                             : "\(checkInsInCurrentTargetCycle.count)",
-                        label: commitment.target.isEnabled
+                        label: commitment.target.configuredMode != .disabled
                             ? "Completed \(commitment.cycle.kind.thisNoun)"
                             : "Check-ins \(commitment.cycle.kind.thisNoun)"
                     )
@@ -171,7 +171,7 @@ struct CommitmentDetailView: View {
                 value: "\(commitment.checkIns.count)",
                 label: "All-time\ncheck-ins"
             )
-            commitment.target.isEnabled
+            commitment.target.configuredMode != .disabled
                 ? statTile(
                     value: "\(commitment.target.count)×",
                     label: "\(commitment.cycle.kind.rawValue)\ngoal")

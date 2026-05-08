@@ -43,7 +43,7 @@ struct CommitmentRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                if commitment.target.isEnabled {
+                if commitment.target.configuredMode != .disabled {
                     Text("\(commitment.target.count)× \(commitment.cycle.kind.adj)")
                         .font(.caption)
                         .foregroundStyle(.secondary)

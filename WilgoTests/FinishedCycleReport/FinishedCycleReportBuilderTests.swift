@@ -400,7 +400,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Draw",
             cycle: Cycle(kind: .daily, referencePsychDay: anchor),
             slots: [],
-            target: Target(count: 3, isEnabled: false)
+            target: Target(count: 3, mode: .disabled)
         )
         ctx.insert(c)
         let checkIn = CheckIn(commitment: c, createdAt: date(year: 2026, month: 2, day: 1, hour: 9))
@@ -430,7 +430,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Draw",
             cycle: Cycle(kind: .daily, referencePsychDay: anchor),
             slots: [],
-            target: Target(count: 3, isEnabled: false)
+            target: Target(count: 3, mode: .disabled)
         )
         ctx.insert(c)
         // 0 check-ins, target disabled — PT should not be consumed
