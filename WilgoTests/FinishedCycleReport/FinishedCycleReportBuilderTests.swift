@@ -228,9 +228,47 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         #expect(cycle.metTarget == false)
     }
 
-    @Test("grace cycle: isGrace is true when cycle overlaps a GracePeriod")
+    @Test("inspiration only until Jan 1: delayed report marks Dec only")
     @MainActor
-    func graceCycleIsMarkedGrace() throws {
+    func inspirationOnlyDelayedReportMarksOnlyOverlappingCycles() throws {
+        let container = try makeContainer()
+        let ctx = container.mainContext
+        let anchor = date(year: 2025, month: 12, day: 1)
+        let commitment = Commitment(
+            title: "Run",
+            cycle: Cycle(kind: .monthly, referencePsychDay: anchor),
+            slots: [],
+            target: QuantifiedCycle(
+                count: 3,
+                mode: .inspirationOnly(
+                    start: date(year: 2025, month: 12, day: 1),
+                    until: date(year: 2026, month: 1, day: 1)
+                )
+            )
+        )
+        ctx.insert(commitment)
+
+        let report = PreTokenReportBuilder.build(
+            commitments: [commitment],
+            startPsychDay: date(year: 2025, month: 12, day: 1),
+            endPsychDay: date(year: 2026, month: 3, day: 1)
+        )
+
+        let cycles = try #require(report.first?.cycles)
+        #expect(cycles.count == 3)
+        #expect(
+            cycles[0].effectiveTargetMode == .inspirationOnly(
+                start: date(year: 2025, month: 12, day: 1),
+                until: date(year: 2026, month: 1, day: 1)
+            )
+        )
+        #expect(cycles[1].effectiveTargetMode == .on)
+        #expect(cycles[2].effectiveTargetMode == .on)
+    }
+
+    @Test("inspiration-only cycle: effectiveTargetMode is inspiration only")
+    @MainActor
+    func inspirationOnlyCycleIsMarked() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
 
@@ -240,16 +278,14 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Run",
             cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(count: 3),
+            target: QuantifiedCycle(
+                count: 3,
+                mode: .inspirationOnly(
+                    start: date(year: 2026, month: 3, day: 30),
+                    until: date(year: 2026, month: 4, day: 6)
+                )
+            ),
         )
-        // Grace covers the week Mar 30 – Apr 6
-        commitment.gracePeriods = [
-            GracePeriod(
-                startPsychDay: date(year: 2026, month: 3, day: 30),
-                endPsychDay: date(year: 2026, month: 4, day: 6),
-                reason: .creation
-            )
-        ]
         ctx.insert(commitment)
 
         let preReport = PreTokenReportBuilder.build(
@@ -260,12 +296,17 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
 
         #expect(preReport.count == 1)
         let cycle = try #require(preReport.first?.cycles.first)
-        #expect(cycle.isGrace == true)
+        #expect(
+            cycle.effectiveTargetMode == .inspirationOnly(
+                start: date(year: 2026, month: 3, day: 30),
+                until: date(year: 2026, month: 4, day: 6)
+            )
+        )
     }
 
-    @Test("non-grace cycle: isGrace is false when no GracePeriod overlaps")
+    @Test("non-overlapping inspiration-only cycle reports as on")
     @MainActor
-    func nonGraceCycleIsNotMarkedGrace() throws {
+    func nonOverlappingInspirationOnlyCycleReportsAsOn() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
 
@@ -275,16 +316,14 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Run",
             cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(count: 3),
+            target: QuantifiedCycle(
+                count: 3,
+                mode: .inspirationOnly(
+                    start: date(year: 2026, month: 3, day: 23),
+                    until: date(year: 2026, month: 3, day: 30)
+                )
+            ),
         )
-        // Grace only covers the prior week — no overlap with the report window
-        commitment.gracePeriods = [
-            GracePeriod(
-                startPsychDay: date(year: 2026, month: 3, day: 23),
-                endPsychDay: date(year: 2026, month: 3, day: 30),
-                reason: .creation
-            )
-        ]
         ctx.insert(commitment)
 
         let preReport = PreTokenReportBuilder.build(
@@ -295,12 +334,12 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
 
         #expect(preReport.count == 1)
         let cycle = try #require(preReport.first?.cycles.first)
-        #expect(cycle.isGrace == false)
+        #expect(cycle.effectiveTargetMode == .on)
     }
 
-    @Test("grace cycle: appears in report but receives no PT compensation")
+    @Test("inspiration-only cycle: appears in report but receives no PT compensation")
     @MainActor
-    func graceCycleReceivesNoPTCompensation() throws {
+    func inspirationOnlyCycleReceivesNoPTCompensation() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
 
@@ -310,16 +349,14 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             title: "Run",
             cycle: targetCycle,
             slots: [],
-            target: QuantifiedCycle(count: 3),
+            target: QuantifiedCycle(
+                count: 3,
+                mode: .inspirationOnly(
+                    start: date(year: 2026, month: 3, day: 30),
+                    until: date(year: 2026, month: 4, day: 6)
+                )
+            ),
         )
-        // 0 check-ins, grace covers the full week — should see no PT applied
-        commitment.gracePeriods = [
-            GracePeriod(
-                startPsychDay: date(year: 2026, month: 3, day: 30),
-                endPsychDay: date(year: 2026, month: 4, day: 6),
-                reason: .creation
-            )
-        ]
         ctx.insert(commitment)
 
         let t1 = PositivityToken(reason: "a", createdAt: date(year: 2026, month: 1, day: 1))
@@ -340,8 +377,13 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
 
         #expect(report.count == 1)
         let cycle = try #require(report.first?.cycles.first)
-        // Grace cycle must appear in the report
-        #expect(cycle.isGrace == true)
+        // Inspiration-only cycle must appear in the report.
+        #expect(
+            cycle.effectiveTargetMode == .inspirationOnly(
+                start: date(year: 2026, month: 3, day: 30),
+                until: date(year: 2026, month: 4, day: 6)
+            )
+        )
         // No PT tokens consumed
         #expect(cycle.aidedByPositivityTokenCount == 0)
         // Tokens remain active
@@ -349,7 +391,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         #expect(t2.status == .active)
     }
 
-    @Test("target disabled: isTargetEnabled false, targetCheckIns preserves real count, no PT")
+    @Test("target disabled: effectiveTargetMode disabled, targetCheckIns preserves real count, no PT")
     @MainActor func targetDisabled_reportPreservesCount() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
@@ -375,7 +417,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         let cycle = try #require(preReport.first?.cycles.first)
         #expect(cycle.actualCheckIns == 1)
         #expect(cycle.targetCheckIns == 3)   // preserved, not zeroed out
-        #expect(cycle.isTargetEnabled == false)
+        #expect(cycle.effectiveTargetMode == .disabled)
         #expect(cycle.consumedPTReasons.isEmpty)
     }
 
@@ -411,7 +453,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         #expect(report.count == 1)
         let cycle = try #require(report.first?.cycles.first)
         // Target-disabled cycle must appear in the report
-        #expect(cycle.isTargetEnabled == false)
+        #expect(cycle.effectiveTargetMode == .disabled)
         // No PT tokens consumed
         #expect(cycle.aidedByPositivityTokenCount == 0)
         // Tokens remain active

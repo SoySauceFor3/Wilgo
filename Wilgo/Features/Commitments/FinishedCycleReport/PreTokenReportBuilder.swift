@@ -11,7 +11,7 @@ enum PreTokenReportBuilder {
         let cycleEndPsychDay: Date
         let checkIns: [CheckIn]
         let targetCheckIns: Int
-        let isGrace: Bool
+        let effectiveTargetMode: TargetMode
 
         var actualCheckIns: Int { checkIns.count }
     }
@@ -55,12 +55,7 @@ enum PreTokenReportBuilder {
                         cycleEndPsychDay: draft.cycleEndPsychDay,
                         consumedPTReasons: [],
                         checkIns: draft.checkIns,
-                        isGrace: draft.isGrace,
-                        // NOTE: isTargetEnabled reflects the commitment's current toggle state
-                        // at report-build time, not a per-cycle historical snapshot. If the
-                        // user changes the toggle after cycles have completed, those historical
-                        // cycles will be labeled with the current value.
-                        isTargetEnabled: commitment.target.isEnabled
+                        effectiveTargetMode: draft.effectiveTargetMode
                     )
                 }
             )
@@ -91,9 +86,18 @@ enum PreTokenReportBuilder {
                 endPsychDay: cycleEnd
             )
 
-            let isGrace = commitment.gracePeriods.contains {
-                $0.overlaps(cycleStart: cycleStart, cycleEnd: cycleEnd)
+            let effectiveTargetMode: TargetMode
+            do {
+                effectiveTargetMode = try commitment.target.effectiveMode(
+                    from: cycleStart,
+                    to: cycleEnd
+                )
+            } catch {
+                print("[FCR] failed to classify target mode for \(commitment.title): \(error)")
+                cycleCursorDay = cycleEnd
+                continue
             }
+
             let cycleID = "\(commitmentID)::\(cycleEnd.timeIntervalSinceReferenceDate)"
             cycles.append(
                 CycleDraft(
@@ -105,7 +109,7 @@ enum PreTokenReportBuilder {
                     cycleEndPsychDay: cycleEnd,
                     checkIns: cycleCheckIns,
                     targetCheckIns: commitment.target.count,
-                    isGrace: isGrace
+                    effectiveTargetMode: effectiveTargetMode
                 )
             )
             cycleCursorDay = cycleEnd

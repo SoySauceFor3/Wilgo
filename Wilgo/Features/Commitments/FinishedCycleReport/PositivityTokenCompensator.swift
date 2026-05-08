@@ -140,9 +140,7 @@ enum AfterPositivityTokenReportBuilder {
         let cap = monthlyCap ?? positivityTokenMonthlyCap()
         let cycleNeeds = report.flatMap { commitmentReport in
             commitmentReport.cycles.compactMap { cycle -> PositivityCycleNeed? in
-                // Grace cycles are exempt: no PT consumed, monthly cap unaffected.
-                // Target-disabled cycles are also exempt: the user has no target to compensate.
-                guard !cycle.isGrace, cycle.isTargetEnabled else { return nil }
+                guard case .on = cycle.effectiveTargetMode else { return nil }
                 return PositivityCycleNeed(
                     cycleID: cycle.id,
                     commitmentID: commitmentReport.commitment.id,
@@ -170,8 +168,7 @@ enum AfterPositivityTokenReportBuilder {
                         cycleEndPsychDay: cycle.cycleEndPsychDay,
                         consumedPTReasons: reasonsByCycleID[cycle.id, default: []],
                         checkIns: cycle.checkIns,
-                        isGrace: cycle.isGrace,
-                        isTargetEnabled: cycle.isTargetEnabled
+                        effectiveTargetMode: cycle.effectiveTargetMode
                     )
                 }
             )
@@ -190,7 +187,7 @@ enum AfterPositivityTokenReportBuilder {
         let neededMonthKeys = Set(
             report.flatMap { commitmentReport in
                 commitmentReport.cycles.compactMap { cycle -> String? in
-                    guard !cycle.isGrace, cycle.isTargetEnabled else { return nil }
+                    guard case .on = cycle.effectiveTargetMode else { return nil }
                     guard cycle.targetCheckIns > cycle.actualCheckIns else { return nil }
                     let usagePsychDay = previousPsychDay(cycle.cycleEndPsychDay, calendar: calendar)
                     return psychMonthKey(of: usagePsychDay, calendar: calendar)

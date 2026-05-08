@@ -36,9 +36,9 @@ private struct CheckInCycleRow: View {
     @State private var isExpanded = false
     @State private var showingBackfill = false
 
-    // NOTE: Only meaningful when cycle.isTargetEnabled == true.
-    // When disabled, targetCheckIns holds the preserved count (not zero),
-    // so this comparison would be misleading — callers must guard on isTargetEnabled first.
+    // NOTE: Only meaningful when the effective target mode is `.on`.
+    // When disabled or inspiration-only, targetCheckIns holds the preserved count,
+    // so this comparison would be misleading outside active target evaluation.
     private var rawMetTarget: Bool { cycle.actualCheckIns >= cycle.targetCheckIns }
 
     private var cycleRange: ClosedRange<Date> {
@@ -48,17 +48,18 @@ private struct CheckInCycleRow: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: 12) {
-                if cycle.isGrace {
+                switch cycle.effectiveTargetMode {
+                case .inspirationOnly:
                     Image(systemName: "shield.lefthalf.filled")
                         .foregroundStyle(.secondary)
                         .font(.title3)
                         .frame(width: 24)
-                } else if !cycle.isTargetEnabled {
+                case .disabled:
                     Image(systemName: "minus.circle")
                         .foregroundStyle(.tertiary)
                         .font(.title3)
                         .frame(width: 24)
-                } else {
+                case .on:
                     Image(
                         systemName: rawMetTarget
                             ? "checkmark.circle.fill" : "xmark.circle.fill"
@@ -73,15 +74,16 @@ private struct CheckInCycleRow: View {
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
-                    if cycle.isGrace {
-                        Text("\(cycle.actualCheckIns)/\(cycle.targetCheckIns) check-ins · grace")
+                    switch cycle.effectiveTargetMode {
+                    case .inspirationOnly:
+                        Text("\(cycle.actualCheckIns)/\(cycle.targetCheckIns) check-ins · inspiration only")
                             .font(.body)
                             .foregroundStyle(.secondary)
-                    } else if !cycle.isTargetEnabled {
+                    case .disabled:
                         Text("\(cycle.actualCheckIns) check-ins · no target")
                             .font(.body)
                             .foregroundStyle(.tertiary)
-                    } else {
+                    case .on:
                         Text("\(cycle.actualCheckIns)/\(cycle.targetCheckIns) check-ins")
                             .font(.body)
                     }

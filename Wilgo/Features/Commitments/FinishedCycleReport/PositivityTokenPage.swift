@@ -88,17 +88,18 @@ private struct CycleResultRow: View {
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
-            if cycle.isGrace {
+            switch cycle.effectiveTargetMode {
+            case .inspirationOnly:
                 Image(systemName: "shield.lefthalf.filled")
                     .foregroundStyle(.secondary)
                     .font(.title3)
                     .frame(width: 24)
-            } else if !cycle.isTargetEnabled {
+            case .disabled:
                 Image(systemName: "minus.circle")
                     .foregroundStyle(.tertiary)
                     .font(.title3)
                     .frame(width: 24)
-            } else {
+            case .on:
                 Image(
                     systemName: cycle.metTarget
                         ? "checkmark.circle.fill" : "xmark.circle.fill"
@@ -113,15 +114,16 @@ private struct CycleResultRow: View {
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
 
-                if cycle.isGrace {
-                    Text("\(cycle.actualCheckIns)/\(cycle.targetCheckIns) check-ins · grace")
+                switch cycle.effectiveTargetMode {
+                case .inspirationOnly:
+                    Text("\(cycle.actualCheckIns)/\(cycle.targetCheckIns) check-ins · inspiration only")
                         .font(.body)
                         .foregroundStyle(.secondary)
-                } else if !cycle.isTargetEnabled {
+                case .disabled:
                     Text("\(cycle.actualCheckIns) check-ins · no target")
                         .font(.body)
                         .foregroundStyle(.tertiary)
-                } else {
+                case .on:
                     Text("\(cycle.compensatedCheckIns)/\(cycle.targetCheckIns) check-ins")
                         .font(.body)
                 }
