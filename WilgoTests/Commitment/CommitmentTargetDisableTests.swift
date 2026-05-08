@@ -3,7 +3,7 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
-@Suite("Commitment — Target.isEnabled", .serialized)
+@Suite("Commitment - Target Disabled", .serialized)
 final class CommitmentTargetDisableTests {
 
     private func tod(hour: Int) -> Date {
@@ -25,14 +25,14 @@ final class CommitmentTargetDisableTests {
     }
 
     @MainActor
-    private func makeCommitment(targetEnabled: Bool, slotHour: Int = 9, in ctx: ModelContext) -> Commitment {
+    private func makeCommitment(targetMode: TargetMode, slotHour: Int = 9, in ctx: ModelContext) -> Commitment {
         let anchor = date(year: 2026, month: 1, day: 1)
         let slot = Slot(start: tod(hour: slotHour), end: tod(hour: slotHour + 2))
         let c = Commitment(
             title: "Draw",
             cycle: Cycle(kind: .daily, referencePsychDay: anchor),
             slots: [slot],
-            target: Target(count: 3, isEnabled: targetEnabled)
+            target: Target(count: 3, mode: targetMode)
         )
         ctx.insert(c); ctx.insert(slot)
         return c
@@ -41,7 +41,7 @@ final class CommitmentTargetDisableTests {
     @Test("target disabled + slot active now → .current (no goal math)")
     @MainActor func targetDisabled_slotActive_isCurrent() throws {
         let container = try makeContainer()
-        let c = makeCommitment(targetEnabled: false, in: container.mainContext)
+        let c = makeCommitment(targetMode: .disabled, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
         let status = c.stageStatus(now: now)
         #expect(status.category == .current)
@@ -51,7 +51,7 @@ final class CommitmentTargetDisableTests {
     @Test("target disabled + slot in future today → .future with nextUpSlots")
     @MainActor func targetDisabled_slotFuture_isFuture() throws {
         let container = try makeContainer()
-        let c = makeCommitment(targetEnabled: false, slotHour: 15, in: container.mainContext)
+        let c = makeCommitment(targetMode: .disabled, slotHour: 15, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
         let status = c.stageStatus(now: now)
         #expect(status.category == .future)
@@ -68,7 +68,7 @@ final class CommitmentTargetDisableTests {
             title: "Draw",
             cycle: Cycle(kind: .daily, referencePsychDay: anchor),
             slots: [],
-            target: Target(count: 3, isEnabled: false)
+            target: Target(count: 3, mode: .disabled)
         )
         ctx.insert(c)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
@@ -79,7 +79,7 @@ final class CommitmentTargetDisableTests {
     @MainActor func targetDisabled_manyCheckIns_notMetGoal() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
-        let c = makeCommitment(targetEnabled: false, in: ctx)
+        let c = makeCommitment(targetMode: .disabled, in: ctx)
         let checkIn = CheckIn(commitment: c, createdAt: date(year: 2026, month: 3, day: 5, hour: 8))
         ctx.insert(checkIn)
         c.checkIns.append(checkIn)
@@ -97,7 +97,7 @@ final class CommitmentTargetDisableTests {
             title: "Draw",
             cycle: Cycle(kind: .daily, referencePsychDay: anchor),
             slots: [slot],
-            target: Target(count: 3, isEnabled: false)
+            target: Target(count: 3, mode: .disabled)
         )
         ctx.insert(c)
         ctx.insert(slot)
@@ -123,7 +123,7 @@ final class CommitmentTargetDisableTests {
             title: "Draw",
             cycle: Cycle(kind: .daily, referencePsychDay: anchor),
             slots: [morning, afternoon],
-            target: Target(count: 3, isEnabled: false)
+            target: Target(count: 3, mode: .disabled)
         )
         ctx.insert(c)
         ctx.insert(morning)
@@ -149,7 +149,7 @@ final class CommitmentTargetDisableTests {
             title: "Draw",
             cycle: Cycle(kind: .daily, referencePsychDay: anchor),
             slots: [slot],
-            target: Target(count: 3, isEnabled: false)
+            target: Target(count: 3, mode: .disabled)
         )
         ctx.insert(c)
         ctx.insert(slot)

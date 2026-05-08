@@ -241,12 +241,13 @@ extension Commitment {
     func stageStatus(
         now: Date = Time.now()
     ) -> StageStatus {
-        if !target.isEnabled {
+        let nowPsychDay = Time.startOfDay(for: now)
+
+        if (try? target.effectiveMode(on: nowPsychDay)) == .disabled {
             return targetDisabledStatus(now: now)
         }
 
         let target = self.target
-        let nowPsychDay = Time.startOfDay(for: now)
         let startDay = cycle.startDayOfCycle(including: nowPsychDay)
         let endDay = cycle.endDayOfCycle(including: nowPsychDay)
         let checkInsInCycle = checkInsInRange(startPsychDay: startDay, endPsychDay: endDay)
