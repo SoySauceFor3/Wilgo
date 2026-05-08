@@ -35,7 +35,7 @@ final class CommitmentFormDraftTests {
         var draft = CommitmentFormDraft()
         draft.title = "  Workout  "
         draft.cycle = Cycle.makeDefault(.daily)
-        draft.target = Target(count: 2, isEnabled: true)
+        draft.target = Target(count: 2)
         draft.slotWindows = [
             SlotDraft(
                 start: date(hour: 9),
@@ -109,5 +109,42 @@ final class CommitmentFormDraftTests {
         try context.save()
 
         #expect(commitment.target.configuredMode == mode)
+    }
+
+    @Test("draft persists disabled target mode")
+    @MainActor func persistsDisabledTargetMode() throws {
+        let container = try makeContainer()
+        let context = container.mainContext
+        var draft = CommitmentFormDraft()
+        draft.title = "Recover"
+        draft.target = Target(count: 2, mode: .disabled)
+
+        let commitment = draft.insertCommitment(in: context)
+        try context.save()
+
+        #expect(commitment.target.configuredMode == .disabled)
+    }
+
+    @Test("draft reanchors finite inspiration only to selected cycle")
+    @MainActor func reanchorsFiniteInspirationOnlyToSelectedCycle() {
+        let originalStart = date(hour: 0)
+        let originalUntil = Calendar.current.date(byAdding: .day, value: 1, to: originalStart)!
+        let psychDay = Calendar.current.date(byAdding: .day, value: 8, to: originalStart)!
+        let cycle = Cycle.makeDefault(.weekly, on: psychDay)
+        var draft = CommitmentFormDraft(
+            target: Target(
+                count: 2,
+                mode: .inspirationOnly(start: originalStart, until: originalUntil)
+            )
+        )
+
+        draft.reanchorInspirationOnlyTarget(to: cycle, including: psychDay)
+
+        #expect(
+            draft.target.configuredMode == .inspirationOnly(
+                start: cycle.startDayOfCycle(including: psychDay),
+                until: cycle.endDayOfCycle(including: psychDay)
+            )
+        )
     }
 }

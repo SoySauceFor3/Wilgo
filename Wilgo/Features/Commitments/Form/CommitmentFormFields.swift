@@ -13,7 +13,7 @@ struct CommitmentFormFields: View {
     @Binding var isRemindersEnabled: Bool
 
     private var debugExtra: String {
-        "slots=\(slotWindows.count) encouragements=\(encouragements.count) tags=\(selectedTags.count) reminders=\(isRemindersEnabled) target=\(target.count)/\(target.isEnabled)"
+        "slots=\(slotWindows.count) encouragements=\(encouragements.count) tags=\(selectedTags.count) reminders=\(isRemindersEnabled) target=\(target.count)/\(target.configuredMode)"
     }
 
     var body: some View {
@@ -57,8 +57,14 @@ struct CommitmentFormFields: View {
         EncouragementSection(encouragements: $encouragements)
 
         Section("Target") {
-            Toggle("Enable target", isOn: targetEnabledBinding)
-            if target.isEnabled {
+            Picker("Mode", selection: targetModeChoiceBinding) {
+                ForEach(TargetModeChoice.allCases, id: \.self) { choice in
+                    Text(choice.rawValue).tag(choice)
+                }
+            }
+            .pickerStyle(.segmented)
+
+            if target.configuredMode != .disabled {
                 HStack(spacing: 4) {
                     Picker("", selection: targetCountBinding) {
                         ForEach(0..<31, id: \.self) { value in
@@ -69,6 +75,14 @@ struct CommitmentFormFields: View {
 
                     Text("times every \(cycle.kind.rawValue.lowercased())")
                         .foregroundStyle(.secondary)
+                }
+            }
+
+            if case .inspirationOnly = target.configuredMode {
+                Picker("Until", selection: inspirationOnlyUntilBinding) {
+                    ForEach(InspirationOnlyUntilChoice.allCases, id: \.self) { choice in
+                        Text(choice.rawValue).tag(choice)
+                    }
                 }
             }
         }
@@ -112,19 +126,61 @@ struct CommitmentFormFields: View {
                     extra: "from=\(cycle.kind) to=\(newKind) \(debugExtra)"
                 )
                 cycle = Cycle.makeDefault(newKind)
+                reanchorInspirationOnlyTarget()
             }
         )
     }
 
-    private var targetEnabledBinding: Binding<Bool> {
+    private var targetModeChoiceBinding: Binding<TargetModeChoice> {
         Binding(
-            get: { target.isEnabled },
-            set: {
+            get: {
+                switch target.configuredMode {
+                case .on:
+                    return .on
+                case .inspirationOnly:
+                    return .inspirationOnly
+                case .disabled:
+                    return .disabled
+                }
+            },
+            set: { choice in
                 MemoryProbe.log(
-                    "CommitmentForm.targetEnabled.set",
-                    extra: "from=\(target.isEnabled) to=\($0) \(debugExtra)"
+                    "CommitmentForm.targetMode.set",
+                    extra: "from=\(target.configuredMode) to=\(choice) \(debugExtra)"
                 )
-                target.isEnabled = $0
+                switch choice {
+                case .on:
+                    target.setConfiguredMode(.on)
+                case .inspirationOnly:
+                    target.setConfiguredMode(
+                        .inspirationOnly(start: currentCycleStart, until: nextCycleStart)
+                    )
+                case .disabled:
+                    target.setConfiguredMode(.disabled)
+                }
+            }
+        )
+    }
+
+    private var inspirationOnlyUntilBinding: Binding<InspirationOnlyUntilChoice> {
+        Binding(
+            get: {
+                guard case .inspirationOnly(_, let until) = target.configuredMode else {
+                    return .nextCycle
+                }
+                return until == nil ? .forever : .nextCycle
+            },
+            set: { choice in
+                MemoryProbe.log(
+                    "CommitmentForm.inspirationOnlyUntil.set",
+                    extra: "from=\(target.configuredMode) to=\(choice) \(debugExtra)"
+                )
+                target.setConfiguredMode(
+                    .inspirationOnly(
+                        start: currentCycleStart,
+                        until: choice == .forever ? nil : nextCycleStart
+                    )
+                )
             }
         )
     }
@@ -142,6 +198,36 @@ struct CommitmentFormFields: View {
             }
         )
     }
+
+    private var currentCycleStart: Date {
+        let today = Time.startOfDay(for: Time.now())
+        return cycle.startDayOfCycle(including: today)
+    }
+
+    private var nextCycleStart: Date {
+        cycle.endDayOfCycle(including: currentCycleStart)
+    }
+
+    private func reanchorInspirationOnlyTarget() {
+        guard case .inspirationOnly(_, let until) = target.configuredMode else { return }
+        target.setConfiguredMode(
+            .inspirationOnly(
+                start: currentCycleStart,
+                until: until == nil ? nil : nextCycleStart
+            )
+        )
+    }
+}
+
+private enum TargetModeChoice: String, CaseIterable, Hashable {
+    case on = "On"
+    case inspirationOnly = "Inspiration Only"
+    case disabled = "Disabled"
+}
+
+private enum InspirationOnlyUntilChoice: String, CaseIterable, Hashable {
+    case nextCycle = "Next cycle"
+    case forever = "Forever"
 }
 
 // MARK: - Encouragement section (used by commitment form)

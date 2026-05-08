@@ -16,7 +16,7 @@ struct CommitmentFormDraft {
         title: String = "",
         cycle: Cycle = Cycle.makeDefault(.daily),
         slotWindows: [SlotDraft] = [],
-        target: Target = Target(count: 5, isEnabled: true),
+        target: Target = Target(count: 5),
         proofOfWorkType: ProofOfWorkType = .manual,
         punishment: String = "",
         encouragements: [String] = [],
@@ -63,6 +63,16 @@ struct CommitmentFormDraft {
 
     var effectiveRemindersEnabled: Bool {
         isRemindersEnabled && !slotWindows.isEmpty
+    }
+
+    mutating func reanchorInspirationOnlyTarget(
+        to cycle: Cycle,
+        including psychDay: Date = Time.startOfDay(for: Time.now())
+    ) {
+        guard case .inspirationOnly(_, let until) = target.configuredMode else { return }
+        let start = cycle.startDayOfCycle(including: psychDay)
+        let end = cycle.endDayOfCycle(including: psychDay)
+        target.setConfiguredMode(.inspirationOnly(start: start, until: until == nil ? nil : end))
     }
 
     private var normalizedTitle: String {

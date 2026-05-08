@@ -17,7 +17,7 @@ struct EditCommitmentView: View {
     /// Snapshot of rule values at open time, used to detect if any rule changed.
     private let originalTarget: Target
     private let originalCycle: Cycle
-    private let originalTargetWasEnabled: Bool
+    private let originalTargetMode: TargetMode
 
     @State private var graceDialog = GraceDialogState()
 
@@ -31,7 +31,7 @@ struct EditCommitmentView: View {
 
         originalTarget = commitment.target
         originalCycle = commitment.cycle
-        originalTargetWasEnabled = commitment.target.isEnabled
+        originalTargetMode = commitment.target.configuredMode
 
         MemoryProbe.log(
             "EditCommitment.init",
@@ -102,7 +102,7 @@ struct EditCommitmentView: View {
     // MARK: - Derived state
 
     private var debugExtra: String {
-        "view=\(debugID) id=\(commitment.id) slots=\(draft.slotWindows.count) encouragements=\(draft.encouragements.count) tags=\(draft.selectedTags.count) reminders=\(draft.isRemindersEnabled) target=\(draft.target.count)/\(draft.target.isEnabled)"
+        "view=\(debugID) id=\(commitment.id) slots=\(draft.slotWindows.count) encouragements=\(draft.encouragements.count) tags=\(draft.selectedTags.count) reminders=\(draft.isRemindersEnabled) target=\(draft.target.count)/\(draft.target.configuredMode)"
     }
 
     /// True when any rule field (timesPerDay, skipCreditCount, cycle) changed.
@@ -113,13 +113,12 @@ struct EditCommitmentView: View {
 
     /// True only when the target is being re-enabled this save.
     private var targetBeingReEnabled: Bool {
-        !originalTargetWasEnabled && draft.target.isEnabled
+        originalTargetMode == .disabled && draft.target.configuredMode == .on
     }
 
     // MARK: - Save
 
-    /// If rules changed, shows the grace dialog; otherwise saves directly.
-    /// Disabling target skips the dialog — nothing to penalize when target is off.
+    /// If rules changed and Target On is selected, shows the current-cycle dialog.
     private func handleSaveTap() {
         MemoryProbe.log(
             "EditCommitment.save.tap",
@@ -129,7 +128,7 @@ struct EditCommitmentView: View {
             saveChanges(grace: false)
             return
         }
-        guard draft.target.isEnabled else {
+        guard draft.target.configuredMode == .on else {
             saveChanges(grace: false)
             return
         }
@@ -161,6 +160,8 @@ struct EditCommitmentView: View {
                         until: graceDialog.cycleEnd
                     )
                 )
+            } else {
+                draftToSave.reanchorInspirationOnlyTarget(to: draftToSave.cycle)
             }
         }
         draft = draftToSave

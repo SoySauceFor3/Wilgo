@@ -86,13 +86,13 @@ struct AddCommitmentView: View {
     }
 
     private var debugExtra: String {
-        "view=\(debugID) slots=\(draft.slotWindows.count) encouragements=\(draft.encouragements.count) tags=\(draft.selectedTags.count) reminders=\(draft.isRemindersEnabled) target=\(draft.target.count)/\(draft.target.isEnabled)"
+        "view=\(debugID) slots=\(draft.slotWindows.count) encouragements=\(draft.encouragements.count) tags=\(draft.selectedTags.count) reminders=\(draft.isRemindersEnabled) target=\(draft.target.count)/\(draft.target.configuredMode)"
     }
 
-    /// Shows the grace dialog, or saves directly if target is disabled (no goal to penalize against).
+    /// Shows the current-cycle dialog only when Target On is selected.
     private func handleSaveTap() {
         MemoryProbe.log("AddCommitment.save.tap", extra: debugExtra)
-        guard draft.target.isEnabled else {
+        guard draft.target.configuredMode == .on else {
             persistCommitment(grace: false)
             return
         }

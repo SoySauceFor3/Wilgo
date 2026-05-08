@@ -39,11 +39,11 @@ private struct GraceDialogModifier: ViewModifier {
     func body(content: Content) -> some View {
         content
             .confirmationDialog(title, isPresented: $state.isPresented, titleVisibility: .visible) {
-                Button("Yes — I'm committed now") { onConfirm(false) }
-                Button("No — grace period") { onConfirm(true) }
+                Button("Count current cycle") { onConfirm(false) }
+                Button("Inspiration only until next cycle") { onConfirm(true) }
                 Button("Cancel", role: .cancel) {}
             } message: {
-                Text("This only decides whether the current period counts toward penalties.")
+                Text("This only decides whether the current cycle counts toward target results.")
             }
     }
 
@@ -54,9 +54,9 @@ private struct GraceDialogModifier: ViewModifier {
         case .creation:
             return creationTitle
         case .ruleChange(let count):
-            return "Your goal changes to \(count) per \(state.cycle.kind.nounSingle.lowercased()) now. Should \(state.cycle.kind.thisNoun) count toward penalties?"
+            return "Your target changes to \(count) per \(state.cycle.kind.nounSingle.lowercased()) now. Should \(state.cycle.kind.thisNoun) count?"
         case .reEnable(let count):
-            return "Target re-enabled (\(count)× per \(state.cycle.kind.nounSingle.lowercased())). Should \(state.cycle.kind.thisNoun) count toward penalties?"
+            return "Target is on again (\(count)× per \(state.cycle.kind.nounSingle.lowercased())). Should \(state.cycle.kind.thisNoun) count?"
         }
     }
 
@@ -69,15 +69,15 @@ private struct GraceDialogModifier: ViewModifier {
             fmt.dateFormat = "EEEE"
             fmt.calendar = cal
             let weekday = fmt.string(from: today)
-            return "Today is \(weekday) of \(state.cycle.kind.thisNoun). Should \(state.cycle.kind.thisNoun) count toward penalties?"
+            return "Today is \(weekday) of \(state.cycle.kind.thisNoun). Should \(state.cycle.kind.thisNoun) count?"
         case .monthly:
             let day = cal.component(.day, from: today)
             let ordinalFmt = NumberFormatter()
             ordinalFmt.numberStyle = .ordinal
             let ordinal = ordinalFmt.string(from: NSNumber(value: day)) ?? "\(day)"
-            return "Today is the \(ordinal) day of \(state.cycle.kind.thisNoun). Should \(state.cycle.kind.thisNoun) count toward penalties?"
+            return "Today is the \(ordinal) day of \(state.cycle.kind.thisNoun). Should \(state.cycle.kind.thisNoun) count?"
         case .daily:
-            return "Should \(state.cycle.kind.thisNoun) count toward penalties?"
+            return "Should \(state.cycle.kind.thisNoun) count?"
         }
     }
 }
