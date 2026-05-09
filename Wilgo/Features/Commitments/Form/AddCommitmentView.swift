@@ -33,7 +33,15 @@ struct AddCommitmentView: View {
                     Button("Save") { handleSaveTap() }
                         .disabled(!draft.canSave)
                         .currentCycleDialog(state: currentCycleDialog) { makeCurrentCycleInspirationOnly in
-                            persistCommitment(makeCurrentCycleInspirationOnly: makeCurrentCycleInspirationOnly)
+                            if makeCurrentCycleInspirationOnly {
+                                draft.target.setConfiguredMode(
+                                    .inspirationOnly(
+                                        start: currentCycleDialog.cycleStart,
+                                        until: currentCycleDialog.cycleEnd
+                                    )
+                                )
+                            }
+                            persistCommitment()
                         }
                 }
             }
@@ -43,7 +51,7 @@ struct AddCommitmentView: View {
     /// Shows the current-cycle dialog only when Target On is selected.
     private func handleSaveTap() {
         guard draft.target.configuredMode == .on else {
-            persistCommitment(makeCurrentCycleInspirationOnly: false)
+            persistCommitment()
             return
         }
         let today = Time.startOfDay(for: Time.now())
@@ -55,17 +63,8 @@ struct AddCommitmentView: View {
         )
     }
 
-    private func persistCommitment(makeCurrentCycleInspirationOnly: Bool) {
-        var draftToSave = draft
-        if makeCurrentCycleInspirationOnly {
-            draftToSave.target.setConfiguredMode(
-                .inspirationOnly(
-                    start: currentCycleDialog.cycleStart,
-                    until: currentCycleDialog.cycleEnd
-                )
-            )
-        }
-        draftToSave.insertCommitment(in: modelContext)
+    private func persistCommitment() {
+        draft.insertCommitment(in: modelContext)
         try? modelContext.save()
         dismiss()
     }

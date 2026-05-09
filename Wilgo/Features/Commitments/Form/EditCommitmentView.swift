@@ -41,8 +41,17 @@ struct EditCommitmentView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { handleSaveTap() }
                         .disabled(!draft.canSave)
-                        .currentCycleDialog(state: currentCycleDialog) { makeCurrentCycleInspirationOnly in
-                            saveChanges(makeCurrentCycleInspirationOnly: makeCurrentCycleInspirationOnly)
+                        .currentCycleDialog(state: currentCycleDialog) {
+                            makeCurrentCycleInspirationOnly in
+                            if makeCurrentCycleInspirationOnly {
+                                draft.target.setConfiguredMode(
+                                    .inspirationOnly(
+                                        start: currentCycleDialog.cycleStart,
+                                        until: currentCycleDialog.cycleEnd
+                                    )
+                                )
+                            }
+                            saveChanges()
                         }
                 }
             }
@@ -64,17 +73,18 @@ struct EditCommitmentView: View {
 
     // MARK: - Save
 
-    /// If rules changed and Target On is selected, shows the current-cycle dialog.
+    /// Re-anchors the cycle if rules changed, then optionally shows the current-cycle dialog
+    /// (which can mutate the draft) before saving.
     private func handleSaveTap() {
-        guard anyRuleChanged else {
-            saveChanges(makeCurrentCycleInspirationOnly: false)
+        // Rule change: re-anchor to canonical start day via makeDefault.
+        if anyRuleChanged {
+            draft.cycle = Cycle.makeDefault(draft.cycle.kind)  // Cycle's reference date will be updated
+            draft.reanchorInspirationOnlyTarget(to: draft.cycle)  // I don't think this is needed, but just a safety net.
+        }
+        guard anyRuleChanged, draft.target.configuredMode == .on else {
+            saveChanges()
             return
         }
-        guard draft.target.configuredMode == .on else {
-            saveChanges(makeCurrentCycleInspirationOnly: false)
-            return
-        }
-        let newCycle = Cycle.makeDefault(draft.cycle.kind)
         let today = Time.startOfDay(for: Time.now())
         let context: CurrentCycleDialogState.Context =
             targetBeingReEnabled
@@ -82,30 +92,14 @@ struct EditCommitmentView: View {
             : .ruleChange(targetCount: draft.target.count)
         currentCycleDialog.trigger(
             context: context,
-            cycle: newCycle,
-            cycleStart: newCycle.startDayOfCycle(including: today),
-            cycleEnd: newCycle.endDayOfCycle(including: today)
+            cycle: draft.cycle,
+            cycleStart: draft.cycle.startDayOfCycle(including: today),
+            cycleEnd: draft.cycle.endDayOfCycle(including: today)
         )
     }
 
-    private func saveChanges(makeCurrentCycleInspirationOnly: Bool) {
-        var draftToSave = draft
-        // Rule change: re-anchor to canonical start day via makeDefault.
-        if anyRuleChanged {
-            draftToSave.cycle = Cycle.makeDefault(draftToSave.cycle.kind)
-            if makeCurrentCycleInspirationOnly {
-                draftToSave.target.setConfiguredMode(
-                    .inspirationOnly(
-                        start: currentCycleDialog.cycleStart,
-                        until: currentCycleDialog.cycleEnd
-                    )
-                )
-            } else {
-                draftToSave.reanchorInspirationOnlyTarget(to: draftToSave.cycle)
-            }
-        }
-        draft = draftToSave
-        draftToSave.apply(to: commitment, in: modelContext)
+    private func saveChanges() {
+        draft.apply(to: commitment, in: modelContext)
         try? modelContext.save()  //TODO: try? means that if errors, we ignore it. Better to use a do/catch statement to properly handle it.
         WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
         dismiss()
