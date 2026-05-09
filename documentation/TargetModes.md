@@ -1555,3 +1555,29 @@ Commits are sequential because they touch overlapping model/report/form semantic
 - PRD coverage: On, Inspiration Only until date/forever, Disabled, add/edit prompts, expiration, reports, Stage default, and non-goals are mapped to tasks.
 - Red-flag scan: each commit has explicit files, focused tests, commands, and expected results.
 - Type consistency: `TargetMode.inspirationOnly(start:until:)`, `effectiveMode(on:)`, and `normalized(afterReportedThrough:)` are introduced in Phase 1 and reused consistently in later phases.
+
+## Follow-Up: Inspiration Only Until-Date Picker
+
+After the initial target-mode implementation, finite Inspiration Only duration should move from a fixed "next cycle" choice to a native SwiftUI date picker plus validation.
+
+Use the native `DatePicker` for finite Inspiration Only. Do not build a custom calendar UI for this follow-up. The native picker may allow invalid dates; the form should validate after selection, show an inline error, and disable Save until the date is fixed.
+
+Recommended UI shape:
+
+- Target mode picker: `On`, `Inspiration Only`, `Disabled`.
+- When `Inspiration Only` is selected, show a finite `until` date picker and a `Forever` option.
+- Keep the stored `until` date visible when editing, even if the user changes cycle type and the date becomes invalid.
+- Do not add a helper button such as "Use next valid date" in this pass.
+
+Validation rules:
+
+- `until == nil` means forever and is valid.
+- finite `until` must be after `Time.startOfDay(for: Time.now())`.
+- finite `until` must be a valid cycle start date for the currently selected `cycle`.
+- if the user changes cycle type while editing and the stored `until` date is no longer eligible under the new cycle, show an inline warning and disable Save until the user fixes the date or chooses forever.
+
+Example inline copy:
+
+```swift
+Text("Choose a cycle start date after today.")
+```

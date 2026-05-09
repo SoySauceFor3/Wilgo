@@ -41,6 +41,36 @@ struct CommitmentDetailView: View {
         commitment.cycle.label(of: psychToday)
     }
 
+    private var displayedTargetMode: TargetMode {
+        commitment.target.effectiveMode(on: psychToday)
+    }
+
+    private var targetModeDetailText: String {
+        switch displayedTargetMode {
+        case .on:
+            return "On"
+        case .inspirationOnly(_, let until):
+            if let until {
+                return "Inspiration Only until \(formattedShortDate(until))"
+            } else {
+                return "Inspiration Only forever"
+            }
+        case .disabled:
+            return "Disabled"
+        }
+    }
+
+    private var targetModeShortText: String {
+        switch displayedTargetMode {
+        case .on:
+            return "On"
+        case .inspirationOnly:
+            return "Inspiration Only"
+        case .disabled:
+            return "Disabled"
+        }
+    }
+
     private var hasPunishment: Bool {
         if let punishment = commitment.punishment {
             return !punishment.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -129,11 +159,16 @@ struct CommitmentDetailView: View {
                     Text(targetCycleLabel)
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                    Text(targetModeDetailText)
+                        .font(.caption)
+                        .foregroundStyle(
+                            displayedTargetMode == .disabled ? .tertiary : .secondary
+                        )
                     statTile(
-                        value: commitment.target.configuredMode != .disabled
+                        value: displayedTargetMode != .disabled
                             ? "\(checkInsInCurrentTargetCycle.count)/\(commitment.target.count)"
                             : "\(checkInsInCurrentTargetCycle.count)",
-                        label: commitment.target.configuredMode != .disabled
+                        label: displayedTargetMode != .disabled
                             ? "Completed \(commitment.cycle.kind.thisNoun)"
                             : "Check-ins \(commitment.cycle.kind.thisNoun)"
                     )
@@ -171,11 +206,11 @@ struct CommitmentDetailView: View {
                 value: "\(commitment.checkIns.count)",
                 label: "All-time\ncheck-ins"
             )
-            commitment.target.configuredMode != .disabled
+            displayedTargetMode != .disabled
                 ? statTile(
                     value: "\(commitment.target.count)×",
-                    label: "\(commitment.cycle.kind.rawValue)\ngoal")
-                : statTile(value: "—", label: "\(commitment.cycle.kind.rawValue)\ngoal disabled")
+                    label: "\(commitment.cycle.kind.rawValue)\ngoal · \(targetModeShortText)")
+                : statTile(value: "—", label: "\(commitment.cycle.kind.rawValue)\ngoal · Disabled")
             statTile(
                 value: daysTracked,
                 label: "Days tracked\nsince \(formattedShortDate(commitment.createdAt))"

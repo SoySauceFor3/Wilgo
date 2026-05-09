@@ -43,15 +43,9 @@ struct CommitmentRowView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                if commitment.target.configuredMode != .disabled {
-                    Text("\(commitment.target.count)× \(commitment.cycle.kind.adj)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                } else {
-                    Text("Disabled")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                }
+                Text(targetSummaryText)
+                    .font(.caption)
+                    .foregroundStyle(displayedTargetMode == .disabled ? .tertiary : .secondary)
             }
 
             // Fifth line: skip credits + proof-of-work
@@ -96,5 +90,28 @@ struct CommitmentRowView: View {
             $0.label
         }
         .joined(separator: "\n")
+    }
+
+    private var displayedTargetMode: TargetMode {
+        let psychToday = Time.startOfDay(for: Time.now())
+        return commitment.target.effectiveMode(on: psychToday)
+    }
+
+    private var targetSummaryText: String {
+        switch displayedTargetMode {
+        case .on:
+            return "\(commitment.target.count)× \(commitment.cycle.kind.adj)"
+        case .inspirationOnly(_, let until):
+            let suffix = until.map { "until \(formattedShortDate($0))" } ?? "forever"
+            return "\(commitment.target.count)× \(commitment.cycle.kind.adj) · Inspiration Only \(suffix)"
+        case .disabled:
+            return "Disabled"
+        }
+    }
+
+    private func formattedShortDate(_ date: Date) -> String {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "MM/dd/yy"
+        return fmt.string(from: date)
     }
 }
