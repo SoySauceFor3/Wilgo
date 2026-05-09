@@ -2,19 +2,11 @@ import SwiftData
 import SwiftUI
 
 struct CommitmentFormFields: View {
-    @Binding var title: String
-    @Binding var cycle: Cycle
-    @Binding var slotWindows: [SlotDraft]
-    @Binding var target: Target
-    @Binding var proofOfWorkType: ProofOfWorkType
-    @Binding var punishment: String
-    @Binding var encouragements: [String]
-    @Binding var selectedTags: [Tag]
-    @Binding var isRemindersEnabled: Bool
+    @Binding var draft: CommitmentFormDraft
 
     var body: some View {
         Section("Basics") {
-            TextField("Title", text: $title)
+            TextField("Title", text: $draft.title)
         }
 
         Section {
@@ -28,7 +20,7 @@ struct CommitmentFormFields: View {
         } header: {
             Text("Cycle")
         } footer: {
-            switch cycle.kind {
+            switch draft.cycle.kind {
             case .weekly:
                 Text("Starts on Monday.")
             case .monthly:
@@ -39,18 +31,18 @@ struct CommitmentFormFields: View {
         }
 
         Section {
-            Toggle("Reminders", isOn: $isRemindersEnabled)
-            if isRemindersEnabled {
-                ReminderWindowsSection(slotWindows: $slotWindows)
+            Toggle("Reminders", isOn: $draft.isRemindersEnabled)
+            if draft.isRemindersEnabled {
+                ReminderWindowsSection(slotWindows: $draft.slotWindows)
             }
         } header: {
             Text("Reminder Windows")
         } footer: {
-            if !isRemindersEnabled {
+            if !draft.isRemindersEnabled {
                 Text("No reminders. Commitment won't appear in Stage view or send notifications.")
             }
         }
-        EncouragementSection(encouragements: $encouragements)
+        EncouragementSection(encouragements: $draft.encouragements)
 
         Section("Target") {
             Picker("Mode", selection: targetModeChoiceBinding) {
@@ -60,7 +52,7 @@ struct CommitmentFormFields: View {
             }
             .pickerStyle(.segmented)
 
-            if target.configuredMode != .disabled {
+            if draft.target.configuredMode != .disabled {
                 HStack(spacing: 4) {
                     Picker("", selection: targetCountBinding) {
                         ForEach(0..<31, id: \.self) { value in
@@ -69,12 +61,12 @@ struct CommitmentFormFields: View {
                     }
                     .labelsHidden()
 
-                    Text("times every \(cycle.kind.rawValue.lowercased())")
+                    Text("times every \(draft.cycle.kind.rawValue.lowercased())")
                         .foregroundStyle(.secondary)
                 }
             }
 
-            if case .inspirationOnly = target.configuredMode {
+            if case .inspirationOnly = draft.target.configuredMode {
                 Toggle("Forever", isOn: inspirationOnlyForeverBinding)
 
                 if !isInspirationOnlyForever {
@@ -98,7 +90,7 @@ struct CommitmentFormFields: View {
         }
 
         Section {
-            TextField("e.g. Give robaroba 20 RMB", text: $punishment, axis: .vertical)
+            TextField("e.g. Give robaroba 20 RMB", text: $draft.punishment, axis: .vertical)
                 .lineLimit(2...4)
         } header: {
             Text("Punishment if credits run out")
@@ -107,13 +99,13 @@ struct CommitmentFormFields: View {
         }
 
         Section("Proof of work") {
-            Picker("Type", selection: $proofOfWorkType) {
+            Picker("Type", selection: $draft.proofOfWorkType) {
                 Text(ProofOfWorkType.manual.rawValue).tag(ProofOfWorkType.manual)
             }
             .pickerStyle(.segmented)
         }
 
-        TagPickerSection(selectedTags: $selectedTags)
+        TagPickerSection(selectedTags: $draft.selectedTags)
     }
 
     // MARK: - Helpers
@@ -123,9 +115,9 @@ struct CommitmentFormFields: View {
     /// (Monday for weekly, 1st for monthly, today for daily).
     private var targetCycleKindBinding: Binding<CycleKind> {
         Binding(
-            get: { cycle.kind },
+            get: { draft.cycle.kind },
             set: { newKind in
-                cycle = Cycle.makeDefault(newKind)
+                draft.cycle = Cycle.makeDefault(newKind)
             }
         )
     }
@@ -133,7 +125,7 @@ struct CommitmentFormFields: View {
     private var targetModeChoiceBinding: Binding<TargetModeChoice> {
         Binding(
             get: {
-                switch target.configuredMode {
+                switch draft.target.configuredMode {
                 case .on:
                     return .on
                 case .inspirationOnly:
@@ -145,13 +137,13 @@ struct CommitmentFormFields: View {
             set: { choice in
                 switch choice {
                 case .on:
-                    target.setConfiguredMode(.on)
+                    draft.target.setConfiguredMode(.on)
                 case .inspirationOnly:
-                    target.setConfiguredMode(
+                    draft.target.setConfiguredMode(
                         .inspirationOnly(start: currentCycleStart, until: nextCycleStart)
                     )
                 case .disabled:
-                    target.setConfiguredMode(.disabled)
+                    draft.target.setConfiguredMode(.disabled)
                 }
             }
         )
@@ -160,13 +152,13 @@ struct CommitmentFormFields: View {
     private var inspirationOnlyForeverBinding: Binding<Bool> {
         Binding(
             get: {
-                guard case .inspirationOnly(_, let until) = target.configuredMode else {
+                guard case .inspirationOnly(_, let until) = draft.target.configuredMode else {
                     return false
                 }
                 return until == nil
             },
             set: { isForever in
-                target.setConfiguredMode(
+                draft.target.setConfiguredMode(
                     .inspirationOnly(
                         start: currentCycleStart,
                         until: isForever ? nil : finiteInspirationOnlyUntilDate
@@ -183,7 +175,7 @@ struct CommitmentFormFields: View {
             },
             set: { date in
                 let until = Time.startOfDay(for: date)
-                target.setConfiguredMode(
+                draft.target.setConfiguredMode(
                     .inspirationOnly(start: currentCycleStart, until: until)
                 )
             }
@@ -193,51 +185,40 @@ struct CommitmentFormFields: View {
     /// Exposes the target's countPerCycle as a Binding<Int> for the Stepper.
     private var targetCountBinding: Binding<Int> {
         Binding(
-            get: { target.count },
+            get: { draft.target.count },
             set: { newValue in
-                target.count = newValue
+                draft.target.count = newValue
             }
         )
     }
 
     private var currentCycleStart: Date {
         let today = Time.startOfDay(for: Time.now())
-        return cycle.startDayOfCycle(including: today)
+        return draft.cycle.startDayOfCycle(including: today)
     }
 
     private var nextCycleStart: Date {
-        cycle.endDayOfCycle(including: currentCycleStart)
+        draft.cycle.endDayOfCycle(including: currentCycleStart)
     }
 
     private var isInspirationOnlyForever: Bool {
-        guard case .inspirationOnly(_, let until) = target.configuredMode else { return false }
+        guard case .inspirationOnly(_, let until) = draft.target.configuredMode else { return false }
         return until == nil
     }
 
     private var finiteInspirationOnlyUntilDate: Date {
-        guard case .inspirationOnly(_, let until) = target.configuredMode else {
+        guard case .inspirationOnly(_, let until) = draft.target.configuredMode else {
             return nextCycleStart
         }
         return until.map { Time.startOfDay(for: $0) } ?? nextCycleStart
     }
 
     private var inspirationOnlyUntilValidation: String? {
-        let draft = CommitmentFormDraft(
-            title: title,
-            cycle: cycle,
-            slotWindows: slotWindows,
-            target: target,
-            proofOfWorkType: proofOfWorkType,
-            punishment: punishment,
-            encouragements: encouragements,
-            selectedTags: selectedTags,
-            isRemindersEnabled: isRemindersEnabled
-        )
         return draft.inspirationOnlyUntilValidation
     }
 
     private var inspirationOnlyUntilHelpText: String {
-        switch cycle.kind {
+        switch draft.cycle.kind {
         case .daily:
             return "Choose the date when the target turns back on."
         case .weekly:

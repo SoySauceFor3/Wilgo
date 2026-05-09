@@ -30,17 +30,7 @@ struct EditCommitmentView: View {
     var body: some View {
         NavigationStack {
             Form {
-                CommitmentFormFields(
-                    title: $draft.title,
-                    cycle: $draft.cycle,
-                    slotWindows: $draft.slotWindows,
-                    target: $draft.target,
-                    proofOfWorkType: $draft.proofOfWorkType,
-                    punishment: $draft.punishment,
-                    encouragements: $draft.encouragements,
-                    selectedTags: $draft.selectedTags,
-                    isRemindersEnabled: $draft.isRemindersEnabled
-                )
+                CommitmentFormFields(draft: $draft)
             }
             .navigationTitle("Edit Commitment")
             .navigationBarTitleDisplayMode(.inline)
