@@ -52,6 +52,10 @@ struct WilgoApp: App {
         // Observe Darwin notifications posted by widget extension intents (CheckInIntent, SnoozeIntent)
         // so the Live Activity refreshes immediately when the user taps a button.
         NowLiveActivityManager.startObservingIntentNotifications()
+
+        MainActor.assumeIsolated {
+            MemoryProbe.startForegroundSampler()
+        }
     }
 
     var body: some Scene {
