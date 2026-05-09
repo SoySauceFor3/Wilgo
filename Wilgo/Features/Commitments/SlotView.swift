@@ -10,31 +10,15 @@ struct ReminderWindowsSection: View {
             SlotWindowRow(
                 window: $window
             ) {
-                MemoryProbe.log(
-                    "ReminderWindows.delete.tap",
-                    extra: "slot=\(window.id) countBefore=\(slotWindows.count)"
-                )
                 slotWindows.removeAll { $0.id == window.id }
-                MemoryProbe.log(
-                    "ReminderWindows.delete.end",
-                    extra: "slot=\(window.id) countAfter=\(slotWindows.count)"
-                )
             }
         }
 
         Button {
-            MemoryProbe.log("ReminderWindows.add.tap", extra: "countBefore=\(slotWindows.count)")
             let (defaultStart, defaultEnd) = defaultWindowForNewSlot()
             slotWindows.append(SlotDraft(start: defaultStart, end: defaultEnd))
-            MemoryProbe.log("ReminderWindows.add.end", extra: "countAfter=\(slotWindows.count)")
         } label: {
             Label("Add window", systemImage: "plus")
-        }
-        .onAppear {
-            MemoryProbe.log("ReminderWindows.appear", extra: "count=\(slotWindows.count)")
-        }
-        .onDisappear {
-            MemoryProbe.log("ReminderWindows.disappear", extra: "count=\(slotWindows.count)")
         }
     }
 
@@ -212,35 +196,7 @@ struct SlotWindowRow: View {
         }
         .padding(10)
         .sheet(isPresented: $showingRecurrenceEditor) {
-            let _ = MemoryProbe.log("SlotWindowRow.recurrence.sheet", extra: debugExtra)
             RecurrenceEditorSheet(recurrence: $window.recurrence)
-        }
-        .onAppear {
-            MemoryProbe.log("SlotWindowRow.appear", extra: debugExtra)
-        }
-        .onDisappear {
-            MemoryProbe.log("SlotWindowRow.disappear", extra: debugExtra)
-        }
-        .onChange(of: showingRecurrenceEditor) { _, isPresented in
-            MemoryProbe.log(
-                "SlotWindowRow.recurrence.presentation",
-                extra: "presented=\(isPresented) \(debugExtra)"
-            )
-        }
-        .onChange(of: window.isWholeDay) {
-            MemoryProbe.log("SlotWindowRow.wholeDay.change", extra: debugExtra)
-        }
-        .onChange(of: window.start) {
-            MemoryProbe.log("SlotWindowRow.start.change", extra: debugExtra)
-        }
-        .onChange(of: window.end) {
-            MemoryProbe.log("SlotWindowRow.end.change", extra: debugExtra)
-        }
-        .onChange(of: window.recurrence) {
-            MemoryProbe.log("SlotWindowRow.recurrence.change", extra: debugExtra)
-        }
-        .onChange(of: window.maxCheckIns) {
-            MemoryProbe.log("SlotWindowRow.maxCheckIns.change", extra: debugExtra)
         }
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
@@ -248,18 +204,10 @@ struct SlotWindowRow: View {
         )
     }
 
-    private var debugExtra: String {
-        "slot=\(window.id) wholeDay=\(window.isWholeDay) max=\(window.maxCheckIns.map(String.init) ?? "nil") recurrence=\(window.recurrence.summaryText)"
-    }
-
     private var wholeDayBinding: Binding<Bool> {
         Binding(
             get: { window.isWholeDay },
             set: { newValue in
-                MemoryProbe.log(
-                    "SlotWindowRow.wholeDay.set",
-                    extra: "to=\(newValue) \(debugExtra)"
-                )
                 window.isWholeDay = newValue
                 if newValue {
                     // Sync end to start so the saved Slot satisfies the sentinel.
@@ -277,10 +225,6 @@ struct SlotWindowRow: View {
         Binding(
             get: { window.maxCheckIns != nil },
             set: { newValue in
-                MemoryProbe.log(
-                    "SlotWindowRow.limit.set",
-                    extra: "to=\(newValue) \(debugExtra)"
-                )
                 window.maxCheckIns = newValue ? 1 : nil
             }
         )
@@ -290,10 +234,6 @@ struct SlotWindowRow: View {
         Binding(
             get: { window.maxCheckIns ?? 1 },
             set: {
-                MemoryProbe.log(
-                    "SlotWindowRow.maxCheckIns.set",
-                    extra: "to=\($0) \(debugExtra)"
-                )
                 window.maxCheckIns = max(1, $0)
             }
         )

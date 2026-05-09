@@ -28,15 +28,6 @@ struct StageView: View {
         return "\(date) (\(weekday))"
     }
 
-    private func refreshStage(reason: String) {
-        MemoryProbe.log(
-            "Stage.refresh.trigger",
-            extra:
-                "reason=\(reason) vm=\(viewModel.debugID) commitments=\(commitments.count) checkIns=\(checkIns.count) slotSnoozes=\(slotSnoozes.count)"
-        )
-        viewModel.refresh(commitments: commitments)
-    }
-
     var body: some View {
         NavigationStack {
             ScrollView {
@@ -106,28 +97,22 @@ struct StageView: View {
             )
             // Fire immediately on first appearance and on every commitment change.
             .onChange(of: commitments, initial: true) {
-                refreshStage(reason: "commitments")
+                viewModel.refresh(commitments: commitments)
             }
             // Check-ins don't surface through the commitments query; watch separately.
             .onChange(of: checkIns) {
-                refreshStage(reason: "checkIns")
+                viewModel.refresh(commitments: commitments)
             }
             // SlotSnoozes don't surface through the commitments query; watch separately.
             .onChange(of: slotSnoozes) {
-                refreshStage(reason: "slotSnoozes")
+                viewModel.refresh(commitments: commitments)
             }
             // Slots edited in EditCommitmentView don't surface through the commitments query either.
             .onChange(of: commitmentForEdit) { _, newValue in
-                if newValue == nil { refreshStage(reason: "editDismissed") }
+                if newValue == nil { viewModel.refresh(commitments: commitments) }
             }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { refreshStage(reason: "sceneActive") }
-            }
-            .onAppear {
-                MemoryProbe.log("StageView.appear", extra: "vm=\(viewModel.debugID)")
-            }
-            .onDisappear {
-                MemoryProbe.log("StageView.disappear", extra: "vm=\(viewModel.debugID)")
+                if phase == .active { viewModel.refresh(commitments: commitments) }
             }
             .sheet(item: $commitmentForDetail) { commitment in
                 CommitmentDetailView(commitment: commitment) {

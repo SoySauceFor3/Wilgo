@@ -12,16 +12,6 @@ struct MainTabView: View {
     @Environment(PTBadgeState.self) private var badgeState
     @State private var selectedTab: Int = 0
 
-    private func tabName(_ value: Int) -> String {
-        switch value {
-        case 0: return "stage"
-        case 1: return "commitments"
-        case 2: return "positivityTokens"
-        case 3: return "settings"
-        default: return "unknown(\(value))"
-        }
-    }
-
     var body: some View {
         PTBadgeObserver()
 
@@ -50,15 +40,6 @@ struct MainTabView: View {
                     Label("Settings", systemImage: "gearshape")
                 }
                 .tag(3)
-        }
-        .onAppear {
-            MemoryProbe.log("MainTab.appear", extra: "selected=\(tabName(selectedTab))")
-        }
-        .onChange(of: selectedTab) { oldValue, newValue in
-            MemoryProbe.log(
-                "MainTab.selection",
-                extra: "from=\(tabName(oldValue)) to=\(tabName(newValue))"
-            )
         }
     }
 }

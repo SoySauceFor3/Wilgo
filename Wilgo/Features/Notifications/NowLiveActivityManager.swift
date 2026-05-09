@@ -21,13 +21,8 @@ extension ModelContext {
 enum NowLiveActivityManager {
     @MainActor
     private static func apply() async {
-        MemoryProbe.log("LiveActivity.apply.start")
         let context = ModelContext.wilgoMain
         let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
-        MemoryProbe.log(
-            "LiveActivity.apply.afterFetch",
-            extra: "commitments=\(commitments.count)"
-        )
         let now = Time.now()
         let current = CommitmentAndSlot.currentWithBehind(
             commitments: commitments,
@@ -60,7 +55,6 @@ enum NowLiveActivityManager {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
         }
-        MemoryProbe.log("LiveActivity.apply.end")
     }
 
     private static func makeLiveActivityContentState(

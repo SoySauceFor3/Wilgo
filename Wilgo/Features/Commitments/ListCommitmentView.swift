@@ -18,10 +18,6 @@ struct ListCommitmentView: View {
         }
     }
 
-    private var debugCounts: String {
-        "commitments=\(commitments.count) filtered=\(filteredCommitments.count) selectedTags=\(selectedFilterTagIDs.count)"
-    }
-
     var body: some View {
         NavigationStack {
             TagFilterChipsView(selectedTagIDs: $selectedFilterTagIDs)
@@ -30,10 +26,6 @@ struct ListCommitmentView: View {
                     CommitmentRowView(commitment: commitment)
                         .contentShape(Rectangle())
                         .onTapGesture {
-                            MemoryProbe.log(
-                                "CommitmentList.row.tap",
-                                extra: "id=\(commitment.id) \(debugCounts)"
-                            )
                             commitmentForDetail = commitment
                         }
                 }
@@ -44,7 +36,6 @@ struct ListCommitmentView: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
-                        MemoryProbe.log("CommitmentList.add.tap", extra: debugCounts)
                         isPresentingAddCommitment = true
                     } label: {
                         Image(systemName: "plus")
@@ -56,20 +47,11 @@ struct ListCommitmentView: View {
                 }
             }
             .sheet(isPresented: $isPresentingAddCommitment) {
-                let _ = MemoryProbe.log("CommitmentList.add.sheet", extra: debugCounts)
                 AddCommitmentView()
             }
             .sheet(item: $commitmentForDetail) { commitment in
-                let _ = MemoryProbe.log(
-                    "CommitmentList.detail.sheet",
-                    extra: "id=\(commitment.id) \(debugCounts)"
-                )
                 CommitmentDetailView(commitment: commitment) {
                     // Close the detail sheet and present the full-page editor.
-                    MemoryProbe.log(
-                        "CommitmentList.detail.edit",
-                        extra: "id=\(commitment.id) \(debugCounts)"
-                    )
                     commitmentForDetail = nil
                     commitmentForEdit = commitment
                 }
@@ -77,58 +59,19 @@ struct ListCommitmentView: View {
                 .presentationDragIndicator(.visible)
             }
             .fullScreenCover(item: $commitmentForEdit) { commitment in
-                let _ = MemoryProbe.log(
-                    "CommitmentList.edit.cover",
-                    extra: "id=\(commitment.id) \(debugCounts)"
-                )
                 NavigationStack {
                     EditCommitmentView(commitment: commitment)
                 }
-            }
-            .onAppear {
-                MemoryProbe.log("CommitmentList.appear", extra: debugCounts)
-            }
-            .onDisappear {
-                MemoryProbe.log("CommitmentList.disappear", extra: debugCounts)
-            }
-            .onChange(of: commitments) {
-                MemoryProbe.log("CommitmentList.query.commitments", extra: debugCounts)
-            }
-            .onChange(of: selectedFilterTagIDs) {
-                MemoryProbe.log("CommitmentList.filter.change", extra: debugCounts)
-            }
-            .onChange(of: isPresentingAddCommitment) { _, isPresented in
-                MemoryProbe.log(
-                    "CommitmentList.add.presentation",
-                    extra: "presented=\(isPresented) \(debugCounts)"
-                )
-            }
-            .onChange(of: commitmentForDetail) { _, commitment in
-                MemoryProbe.log(
-                    "CommitmentList.detail.presentation",
-                    extra: "id=\(commitment?.id.uuidString ?? "nil") \(debugCounts)"
-                )
-            }
-            .onChange(of: commitmentForEdit) { _, commitment in
-                MemoryProbe.log(
-                    "CommitmentList.edit.presentation",
-                    extra: "id=\(commitment?.id.uuidString ?? "nil") \(debugCounts)"
-                )
             }
         }
     }
 
     private func deleteCommitments(offsets: IndexSet) {
-        MemoryProbe.log(
-            "CommitmentList.delete.start",
-            extra: "offsets=\(Array(offsets)) \(debugCounts)"
-        )
         withAnimation {
             for index in offsets {
                 modelContext.delete(filteredCommitments[index])
             }
         }
-        MemoryProbe.log("CommitmentList.delete.end", extra: debugCounts)
     }
 }
 
