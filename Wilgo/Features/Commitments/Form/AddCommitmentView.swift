@@ -32,10 +32,10 @@ struct AddCommitmentView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { handleSaveTap() }
                         .disabled(!draft.canSave)
+                        .currentCycleDialog(state: currentCycleDialog) { makeCurrentCycleInspirationOnly in
+                            persistCommitment(makeCurrentCycleInspirationOnly: makeCurrentCycleInspirationOnly)
+                        }
                 }
-            }
-            .currentCycleDialog(state: currentCycleDialog) { makeCurrentCycleInspirationOnly in
-                persistCommitment(makeCurrentCycleInspirationOnly: makeCurrentCycleInspirationOnly)
             }
         }
     }

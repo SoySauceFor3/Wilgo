@@ -38,13 +38,55 @@ private struct CurrentCycleDialogModifier: ViewModifier {
 
     func body(content: Content) -> some View {
         content
-            .confirmationDialog(title, isPresented: $state.isPresented, titleVisibility: .visible) {
-                Button("Count current cycle") { onConfirm(false) }
-                Button("Inspiration only until next cycle") { onConfirm(true) }
-                Button("Cancel", role: .cancel) {}
-            } message: {
-                Text("This only decides whether the current cycle counts toward target results.")
+            .popover(
+                isPresented: $state.isPresented,
+                attachmentAnchor: .point(.bottom),
+                arrowEdge: .top
+            ) {
+                CurrentCycleDialogContent(state: state, onConfirm: onConfirm)
+                    .presentationCompactAdaptation(.popover)
             }
+    }
+}
+
+// MARK: - Popover content
+
+private struct CurrentCycleDialogContent: View {
+    let state: CurrentCycleDialogState
+    let onConfirm: (Bool) -> Void
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.headline)
+            Text("This only decides whether the current cycle counts toward target results.")
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            VStack(spacing: 8) {
+                Button {
+                    dismiss()
+                    onConfirm(false)
+                } label: {
+                    Text("Count current cycle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    dismiss()
+                    onConfirm(true)
+                } label: {
+                    Text("Inspiration only until next cycle")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+            }
+            .padding(.top, 4)
+        }
+        .padding()
+        .frame(maxWidth: 320)
     }
 
     // MARK: - Title
@@ -85,7 +127,10 @@ private struct CurrentCycleDialogModifier: ViewModifier {
 // MARK: - View extension
 
 extension View {
-    /// Attaches the shared current-cycle confirmation dialog.
+    /// Attaches the shared current-cycle confirmation popover.
+    ///
+    /// Apply this modifier to the Save button (or whatever element should anchor
+    /// the popover's arrow). The popover's tail will point at that view.
     ///
     /// Create `@State private var currentCycleDialog = CurrentCycleDialogState()` in the parent view,
     /// then call `currentCycleDialog.trigger(context:cycle:cycleStart:cycleEnd:)` to present it.

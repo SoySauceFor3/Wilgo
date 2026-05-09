@@ -41,10 +41,10 @@ struct EditCommitmentView: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Save") { handleSaveTap() }
                         .disabled(!draft.canSave)
+                        .currentCycleDialog(state: currentCycleDialog) { makeCurrentCycleInspirationOnly in
+                            saveChanges(makeCurrentCycleInspirationOnly: makeCurrentCycleInspirationOnly)
+                        }
                 }
-            }
-            .currentCycleDialog(state: currentCycleDialog) { makeCurrentCycleInspirationOnly in
-                saveChanges(makeCurrentCycleInspirationOnly: makeCurrentCycleInspirationOnly)
             }
         }
     }
