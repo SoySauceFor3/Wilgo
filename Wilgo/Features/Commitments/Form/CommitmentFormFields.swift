@@ -79,9 +79,23 @@ struct CommitmentFormFields: View {
             }
 
             if case .inspirationOnly = target.configuredMode {
-                Picker("Until", selection: inspirationOnlyUntilBinding) {
-                    ForEach(InspirationOnlyUntilChoice.allCases, id: \.self) { choice in
-                        Text(choice.rawValue).tag(choice)
+                Toggle("Forever", isOn: inspirationOnlyForeverBinding)
+
+                if !isInspirationOnlyForever {
+                    DatePicker(
+                        "Until",
+                        selection: inspirationOnlyUntilDateBinding,
+                        displayedComponents: .date
+                    )
+
+                    if let error = inspirationOnlyUntilValidation {
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    } else {
+                        Text(inspirationOnlyUntilHelpText)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
@@ -126,7 +140,6 @@ struct CommitmentFormFields: View {
                     extra: "from=\(cycle.kind) to=\(newKind) \(debugExtra)"
                 )
                 cycle = Cycle.makeDefault(newKind)
-                reanchorInspirationOnlyTarget()
             }
         )
     }
@@ -162,24 +175,42 @@ struct CommitmentFormFields: View {
         )
     }
 
-    private var inspirationOnlyUntilBinding: Binding<InspirationOnlyUntilChoice> {
+    private var inspirationOnlyForeverBinding: Binding<Bool> {
         Binding(
             get: {
                 guard case .inspirationOnly(_, let until) = target.configuredMode else {
-                    return .nextCycle
+                    return false
                 }
-                return until == nil ? .forever : .nextCycle
+                return until == nil
             },
-            set: { choice in
+            set: { isForever in
                 MemoryProbe.log(
                     "CommitmentForm.inspirationOnlyUntil.set",
-                    extra: "from=\(target.configuredMode) to=\(choice) \(debugExtra)"
+                    extra: "from=\(target.configuredMode) forever=\(isForever) \(debugExtra)"
                 )
                 target.setConfiguredMode(
                     .inspirationOnly(
                         start: currentCycleStart,
-                        until: choice == .forever ? nil : nextCycleStart
+                        until: isForever ? nil : finiteInspirationOnlyUntilDate
                     )
+                )
+            }
+        )
+    }
+
+    private var inspirationOnlyUntilDateBinding: Binding<Date> {
+        Binding(
+            get: {
+                finiteInspirationOnlyUntilDate
+            },
+            set: { date in
+                let until = Time.startOfDay(for: date)
+                MemoryProbe.log(
+                    "CommitmentForm.inspirationOnlyUntilDate.set",
+                    extra: "from=\(target.configuredMode) until=\(until) \(debugExtra)"
+                )
+                target.setConfiguredMode(
+                    .inspirationOnly(start: currentCycleStart, until: until)
                 )
             }
         )
@@ -208,14 +239,42 @@ struct CommitmentFormFields: View {
         cycle.endDayOfCycle(including: currentCycleStart)
     }
 
-    private func reanchorInspirationOnlyTarget() {
-        guard case .inspirationOnly(_, let until) = target.configuredMode else { return }
-        target.setConfiguredMode(
-            .inspirationOnly(
-                start: currentCycleStart,
-                until: until == nil ? nil : nextCycleStart
-            )
+    private var isInspirationOnlyForever: Bool {
+        guard case .inspirationOnly(_, let until) = target.configuredMode else { return false }
+        return until == nil
+    }
+
+    private var finiteInspirationOnlyUntilDate: Date {
+        guard case .inspirationOnly(_, let until) = target.configuredMode else {
+            return nextCycleStart
+        }
+        return until.map { Time.startOfDay(for: $0) } ?? nextCycleStart
+    }
+
+    private var inspirationOnlyUntilValidation: String? {
+        let draft = CommitmentFormDraft(
+            title: title,
+            cycle: cycle,
+            slotWindows: slotWindows,
+            target: target,
+            proofOfWorkType: proofOfWorkType,
+            punishment: punishment,
+            encouragements: encouragements,
+            selectedTags: selectedTags,
+            isRemindersEnabled: isRemindersEnabled
         )
+        return draft.inspirationOnlyUntilValidation
+    }
+
+    private var inspirationOnlyUntilHelpText: String {
+        switch cycle.kind {
+        case .daily:
+            return "Choose the date when the target turns back on."
+        case .weekly:
+            return "Choose a Monday. The target turns back on at the start of that week."
+        case .monthly:
+            return "Choose the 1st of a month. The target turns back on at the start of that month."
+        }
     }
 }
 
@@ -223,11 +282,6 @@ private enum TargetModeChoice: String, CaseIterable, Hashable {
     case on = "On"
     case inspirationOnly = "Inspiration Only"
     case disabled = "Disabled"
-}
-
-private enum InspirationOnlyUntilChoice: String, CaseIterable, Hashable {
-    case nextCycle = "Next cycle"
-    case forever = "Forever"
 }
 
 // MARK: - Encouragement section (used by commitment form)

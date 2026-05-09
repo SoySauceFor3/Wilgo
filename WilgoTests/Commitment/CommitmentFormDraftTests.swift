@@ -125,8 +125,8 @@ final class CommitmentFormDraftTests {
         #expect(commitment.target.configuredMode == .disabled)
     }
 
-    @Test("draft reanchors finite inspiration only to selected cycle")
-    @MainActor func reanchorsFiniteInspirationOnlyToSelectedCycle() {
+    @Test("draft reanchors inspiration only start but preserves selected until date")
+    @MainActor func reanchorsInspirationOnlyStartAndPreservesUntilDate() {
         let originalStart = date(hour: 0)
         let originalUntil = Calendar.current.date(byAdding: .day, value: 1, to: originalStart)!
         let psychDay = Calendar.current.date(byAdding: .day, value: 8, to: originalStart)!
@@ -143,8 +143,76 @@ final class CommitmentFormDraftTests {
         #expect(
             draft.target.configuredMode == .inspirationOnly(
                 start: cycle.startDayOfCycle(including: psychDay),
-                until: cycle.endDayOfCycle(including: psychDay)
+                until: originalUntil
             )
         )
+    }
+
+    @Test("finite inspiration only is invalid when until is not after today")
+    @MainActor func finiteInspirationOnlyRequiresUntilAfterToday() {
+        let today = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 5))!
+        Time.now = { today }
+        defer { Time.now = { Date() } }
+
+        let draft = CommitmentFormDraft(
+            title: "Recover",
+            cycle: Cycle.makeDefault(.daily, on: today),
+            target: Target(
+                count: 2,
+                mode: .inspirationOnly(start: today, until: today)
+            )
+        )
+
+        #expect(!draft.canSave)
+    }
+
+    @Test("weekly inspiration only requires until to be a cycle start")
+    @MainActor func weeklyInspirationOnlyRequiresCycleStartUntil() {
+        let monday = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 5))!
+        Time.now = { monday }
+        defer { Time.now = { Date() } }
+
+        let tuesday = Calendar.current.date(byAdding: .day, value: 1, to: monday)!
+        let nextMonday = Calendar.current.date(byAdding: .day, value: 7, to: monday)!
+
+        var draft = CommitmentFormDraft(
+            title: "Recover",
+            cycle: Cycle.makeDefault(.weekly, on: monday),
+            target: Target(
+                count: 2,
+                mode: .inspirationOnly(start: monday, until: tuesday)
+            )
+        )
+
+        #expect(!draft.canSave)
+
+        draft.target.setConfiguredMode(.inspirationOnly(start: monday, until: nextMonday))
+
+        #expect(draft.canSave)
+    }
+
+    @Test("monthly inspiration only requires until to be a cycle start")
+    @MainActor func monthlyInspirationOnlyRequiresCycleStartUntil() {
+        let monthStart = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1))!
+        Time.now = { monthStart }
+        defer { Time.now = { Date() } }
+
+        let midMonth = Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 2))!
+        let nextMonthStart = Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 1))!
+
+        var draft = CommitmentFormDraft(
+            title: "Recover",
+            cycle: Cycle.makeDefault(.monthly, on: monthStart),
+            target: Target(
+                count: 2,
+                mode: .inspirationOnly(start: monthStart, until: midMonth)
+            )
+        )
+
+        #expect(!draft.canSave)
+
+        draft.target.setConfiguredMode(.inspirationOnly(start: monthStart, until: nextMonthStart))
+
+        #expect(draft.canSave)
     }
 }
