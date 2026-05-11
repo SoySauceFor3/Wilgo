@@ -164,6 +164,69 @@ extension Commitment {
         var isMet: Bool { leftToDo == 0 }
     }
 
+    /// Where `now` falls relative to the remaining usable slot occurrences.
+    enum SlotStatusKind {
+        /// `now` is inside the window of some remaining slot
+        /// (the first remaining slot's start is at or before `now`).
+        case insideSlot
+        /// `now` is before the first remaining slot, and that slot starts later today.
+        case beforeNextToday
+        /// No remaining slot starts within today's psych-day window.
+        case noSlotToday
+    }
+
+    /// Pure slot mechanics for a given `now`. Mode-agnostic: always builds the
+    /// remaining-slot list over the target cycle, regardless of whether the
+    /// target is enabled or disabled. The cycle window is a superset of
+    /// (and for non-daily cycles, strictly wider than) the psych-day window
+    /// today's `targetDisabledStatus` reads, so disabled-mode consumers
+    /// (which only read `first` and "is there one today") see the same
+    /// observable behavior.
+    struct SlotStatus {
+        /// Classification of where `now` falls relative to `remainingSlots`.
+        let kind: SlotStatusKind
+        /// Unfinished, unsnoozed, unsaturated slot occurrences in the target cycle,
+        /// sorted by start time. Includes the current slot (if any) and any later slots.
+        /// Carries date info, not just time of day.
+        let remainingSlots: [Slot]
+    }
+
+    /// Returns the slot mechanics for `now`. Mode-agnostic — always uses the
+    /// target cycle as the window, regardless of `target.effectiveMode`.
+    ///
+    /// `remainingSlots` matches what `stageStatus` builds today for the enabled
+    /// branch: occurrences whose window has not yet ended, with the current slot
+    /// dropped if it has been snoozed or its capacity is saturated by in-window
+    /// check-ins.
+    ///
+    /// `kind` classifies `now`:
+    /// - `.insideSlot` when the first remaining slot's start is at or before `now`,
+    /// - `.beforeNextToday` when some remaining slot starts within today's psych-day,
+    /// - `.noSlotToday` otherwise.
+    func slotStatus(now: Date = Time.now()) -> SlotStatus {
+        let nowPsychDay = Time.startOfDay(for: now)
+        let startDay = cycle.startDayOfCycle(including: nowPsychDay)
+        let endDay = cycle.endDayOfCycle(including: nowPsychDay)
+        let remainingSlots = remainingUsableOccurrences(
+            in: resolvedSlotPairs(from: startDay, until: endDay),
+            now: now,
+            checkIns: checkIns
+        )
+
+        let todayEnd =
+            Time.calendar.date(byAdding: .day, value: 1, to: nowPsychDay) ?? nowPsychDay
+
+        let kind: SlotStatusKind
+        if let first = remainingSlots.first, first.start <= now {
+            kind = .insideSlot
+        } else if remainingSlots.contains(where: { $0.start < todayEnd }) {
+            kind = .beforeNextToday
+        } else {
+            kind = .noSlotToday
+        }
+        return SlotStatus(kind: kind, remainingSlots: remainingSlots)
+    }
+
     /// Returns the cycle-level goal progress for the cycle containing `now`.
     ///
     /// Mirrors the `leftToDo` arithmetic inside `stageStatus(now:)`. When the target
