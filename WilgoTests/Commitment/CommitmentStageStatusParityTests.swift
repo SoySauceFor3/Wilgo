@@ -201,6 +201,8 @@ final class CommitmentStageStatusParityTests {
         // Wrapper must agree
         #expect(stageSt.category == .current)
         #expect(slotSt.remainingSlots.count == 1)
+        let expectedBehind = max(0, leftToDo - slotSt.remainingSlots.count)
+        #expect(stageSt.behindCount == expectedBehind)
         #expect(stageSt.behindCount == 2)
     }
 
@@ -224,6 +226,8 @@ final class CommitmentStageStatusParityTests {
         // Wrapper must agree
         #expect(stageSt.category == .catchUp)
         #expect(slotSt.remainingSlots.count == 0)
+        let expectedBehind = max(0, leftToDo - slotSt.remainingSlots.count)
+        #expect(stageSt.behindCount == expectedBehind)
         #expect(stageSt.behindCount == 3)
     }
 

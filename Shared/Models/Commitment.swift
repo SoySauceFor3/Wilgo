@@ -205,10 +205,11 @@ extension Commitment {
         let nowPsychDay = Time.startOfDay(for: now)
         let startDay = cycle.startDayOfCycle(including: nowPsychDay)
         let endDay = cycle.endDayOfCycle(including: nowPsychDay)
+        let cycleCheckIns = checkInsInRange(startPsychDay: startDay, endPsychDay: endDay)
         let remainingSlots = remainingUsableOccurrences(
             in: resolvedSlotPairs(from: startDay, until: endDay),
             now: now,
-            checkIns: checkIns
+            checkIns: cycleCheckIns
         )
 
         let todayEnd =
