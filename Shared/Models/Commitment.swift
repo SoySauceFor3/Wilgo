@@ -155,6 +155,33 @@ extension Commitment {
         let behindCount: Int
     }
 
+    /// Cycle-level goal progress, independent of slot mechanics.
+    struct GoalProgress {
+        /// `max(0, target.count - checkInsInCycle.count)`. Nil when target is disabled
+        /// (no meaningful "left to do" exists in that mode).
+        let leftToDo: Int?
+        /// True only when `leftToDo == 0`. False when `leftToDo` is nil (disabled) or > 0.
+        var isMet: Bool { leftToDo == 0 }
+    }
+
+    /// Returns the cycle-level goal progress for the cycle containing `now`.
+    ///
+    /// Mirrors the `leftToDo` arithmetic inside `stageStatus(now:)`. When the target
+    /// is disabled on the psych day of `now`, returns `GoalProgress(leftToDo: nil)`
+    /// — there is no meaningful "left to do" in that mode, and `isMet` will be `false`,
+    /// matching today's behavior where target-disabled commitments are never `.metGoal`.
+    func goalProgress(now: Date = Time.now()) -> GoalProgress {
+        let nowPsychDay = Time.startOfDay(for: now)
+        if case .disabled = target.effectiveMode(on: nowPsychDay) {
+            return GoalProgress(leftToDo: nil)
+        }
+        let startDay = cycle.startDayOfCycle(including: nowPsychDay)
+        let endDay = cycle.endDayOfCycle(including: nowPsychDay)
+        let checkInsInCycle = checkInsInRange(startPsychDay: startDay, endPsychDay: endDay)
+        let leftToDo = max(0, target.count - checkInsInCycle.count)
+        return GoalProgress(leftToDo: leftToDo)
+    }
+
     private func resolvedSlotPairs(
         from startDay: Date,
         until endDay: Date,
