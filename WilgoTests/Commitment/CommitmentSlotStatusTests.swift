@@ -161,9 +161,9 @@ final class CommitmentSlotStatusTests {
     @MainActor func slotStatus_targetDisabled_returnsCycleRemaining_sameAsEnabled() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
-        // Use a weekly cycle so the cycle window is genuinely wider than the
-        // psych-day window today's `targetDisabledStatus` reads. If `slotStatus`
-        // were not mode-agnostic, the disabled-mode list would be a strict subset.
+        // Use a weekly cycle so the cycle window is genuinely wider than today's
+        // psych-day window. If `slotStatus` were not mode-agnostic, the disabled-mode
+        // list would be a strict subset.
         let enabled = makeCommitment(
             slots: [(9, 11, nil)],
             targetMode: .on,

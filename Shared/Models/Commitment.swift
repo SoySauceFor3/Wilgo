@@ -175,13 +175,11 @@ extension Commitment {
         case noSlotToday
     }
 
-    /// Pure slot mechanics for a given `now`. Mode-agnostic: always builds the
-    /// remaining-slot list over the target cycle, regardless of whether the
-    /// target is enabled or disabled. The cycle window is a superset of
-    /// (and for non-daily cycles, strictly wider than) the psych-day window
-    /// today's `targetDisabledStatus` reads, so disabled-mode consumers
-    /// (which only read `first` and "is there one today") see the same
-    /// observable behavior.
+    /// Pure slot mechanics for a given `now`. Mode-agnostic: `remainingSlots` is
+    /// built over the full target cycle regardless of `target.effectiveMode`. The
+    /// `stageStatus(now:)` wrapper consumes the same list in both modes. For daily
+    /// cycles the cycle window equals the psych-day window; for longer cycles it
+    /// is strictly wider, so `remainingSlots` may include slots beyond today.
     struct SlotStatus {
         /// Classification of where `now` falls relative to `remainingSlots`.
         let kind: SlotStatusKind
@@ -297,86 +295,48 @@ extension Commitment {
 
     /// Classifies this commitment for the current psychological day at the given time.
     ///
-    /// Precedence:
-    /// - `metGoal`: if cycle's goal already met.
+    /// Thin wrapper over `slotStatus(now:)` and `goalProgress(now:)`. Precedence:
+    /// - `metGoal`: if cycle's goal already met (target-enabled only).
     /// - `current`: elif there is a slot whose window contains `now`.
-    /// - `future`: elif there are slots within the today (psych day)
-    /// - `catchUp`: elif the count of remaining slots < leftToDo.
+    /// - `future`: elif there are slots within today (psych day).
+    /// - `catchUp`: elif the count of remaining slots < leftToDo (target-enabled only).
     /// - `others`: all other cases.
     func stageStatus(
         now: Date = Time.now()
     ) -> StageStatus {
         let nowPsychDay = Time.startOfDay(for: now)
+        let slot = slotStatus(now: now)
 
         if case .disabled = target.effectiveMode(on: nowPsychDay) {
-            return targetDisabledStatus(now: now)
+            // Target-disabled: no goal progress, no behindCount. Map kind directly.
+            switch slot.kind {
+            case .insideSlot:
+                return StageStatus(category: .current, nextUpSlots: slot.remainingSlots, behindCount: 0)
+            case .beforeNextToday:
+                return StageStatus(category: .future, nextUpSlots: slot.remainingSlots, behindCount: 0)
+            case .noSlotToday:
+                return StageStatus(category: .others, nextUpSlots: slot.remainingSlots, behindCount: 0)
+            }
         }
 
-        let target = self.target
-        let startDay = cycle.startDayOfCycle(including: nowPsychDay)
-        let endDay = cycle.endDayOfCycle(including: nowPsychDay)
-        let checkInsInCycle = checkInsInRange(startPsychDay: startDay, endPsychDay: endDay)
-        let leftToDo = max(0, target.count - checkInsInCycle.count)
-
-        if leftToDo == 0 {
+        let progress = goalProgress(now: now)
+        if progress.isMet {
             return StageStatus(category: .metGoal, nextUpSlots: [], behindCount: 0)
         }
-
-        // Get all slot occurrences in the target cycle (with concrete datetimes), then sort.
-        // Each entry pairs the resolved occurrence with the original Slot model (for snooze checks).
-        let remainingSlots = remainingUsableOccurrences(
-            in: resolvedSlotPairs(from: startDay, until: endDay),
-            now: now,
-            checkIns: checkInsInCycle
-        )
-        let behindCount = max(0, leftToDo - remainingSlots.count)
-
-        // If there is slot overlapping with now, it's current.
-        if let first = remainingSlots.first, first.start <= now {
-            return StageStatus(
-                category: .current,
-                nextUpSlots: remainingSlots,
-                behindCount: behindCount
-            )
+        // Invariant: enabled branch — `leftToDo` is non-nil and > 0.
+        guard let leftToDo = progress.leftToDo else {
+            preconditionFailure("goalProgress.leftToDo must be non-nil when target is not disabled")
         }
+        let behindCount = max(0, leftToDo - slot.remainingSlots.count)
 
-        // Else if there is slot in the rest of the psych-day, it's future.
-        let todayEnd =
-            Time.calendar.date(byAdding: .day, value: 1, to: nowPsychDay) ?? nowPsychDay
-        if remainingSlots.contains(where: { $0.start < todayEnd }) {
-            return StageStatus(
-                category: .future,
-                nextUpSlots: remainingSlots,
-                behindCount: behindCount
-            )
+        switch slot.kind {
+        case .insideSlot:
+            return StageStatus(category: .current, nextUpSlots: slot.remainingSlots, behindCount: behindCount)
+        case .beforeNextToday:
+            return StageStatus(category: .future, nextUpSlots: slot.remainingSlots, behindCount: behindCount)
+        case .noSlotToday:
+            let category: StageCategory = behindCount > 0 ? .catchUp : .others
+            return StageStatus(category: category, nextUpSlots: slot.remainingSlots, behindCount: behindCount)
         }
-
-        // If the count of remaining slots < leftToDo, it's catchUp. Else it's others.
-        let category: StageCategory = behindCount > 0 ? .catchUp : .others
-        return StageStatus(
-            category: category,
-            nextUpSlots: remainingSlots,
-            behindCount: behindCount
-        )
-    }
-
-    private func targetDisabledStatus(now: Date) -> StageStatus {
-        let nowPsychDay = Time.startOfDay(for: now)
-
-        let todayEnd = Time.calendar.date(byAdding: .day, value: 1, to: nowPsychDay) ?? nowPsychDay
-        let remaining = remainingUsableOccurrences(
-            in: resolvedSlotPairs(from: nowPsychDay, until: todayEnd),
-            now: now,
-            checkIns: checkIns
-        )
-
-        guard let first = remaining.first else {
-            return StageStatus(category: .others, nextUpSlots: [], behindCount: 0)
-        }
-
-        if first.start <= now {
-            return StageStatus(category: .current, nextUpSlots: remaining, behindCount: 0)
-        }
-        return StageStatus(category: .future, nextUpSlots: remaining, behindCount: 0)
     }
 }
