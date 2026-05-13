@@ -53,6 +53,9 @@ struct WilgoApp: App {
         // so the Live Activity refreshes immediately when the user taps a button.
         NowLiveActivityManager.startObservingIntentNotifications()
 
+        // Register the per-slot-start notification scheduler. Must come before any submit() call.
+        SlotStartNotificationScheduler.registerBackgroundTask()
+
         MainActor.assumeIsolated {
             MemoryProbe.startForegroundSampler()
         }
@@ -72,6 +75,8 @@ struct WilgoApp: App {
         }
         .modelContainer(Self.sharedModelContainer)
         .onChange(of: scenePhase) { _, newPhase in
+            SlotStartNotificationScheduler.refresh()  // Refresh slot-start notifications
+
             if newPhase == .active {
                 // Watchdog: re-queue in case iOS skipped a BGTask fire.
                 NowLiveActivityManager.workAndScheduleNextBGTask()  // Not really necessary because LiveActivity is only needed when scene != .active, just a safe net.
@@ -81,6 +86,8 @@ struct WilgoApp: App {
                 // Sync the Live Activity immediately so it's accurate the moment it becomes visible,
                 // then queue a BGAppRefreshTask to keep it updated while the app stays inactive.
                 NowLiveActivityManager.workAndScheduleNextBGTask()
+                // Schedule next BGAppRefresh of slot-start notifications
+                SlotStartNotificationScheduler.scheduleBackgroundTask()
             }
         }
     }

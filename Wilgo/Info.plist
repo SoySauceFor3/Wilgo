@@ -24,6 +24,7 @@
 	<array>
 		<string>wilgo.catchup-reminder-scheduler</string>
 		<string>wilgo.live-activity-sync</string>
+		<string>wilgo.slot-start-scheduler</string>
 	</array>
 </dict>
 </plist>
