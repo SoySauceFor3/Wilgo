@@ -1,22 +1,33 @@
 import Foundation
 import SwiftData
 import Testing
+
 @testable import Wilgo
 
-@Suite("Commitment - Upcoming Slot Starts", .serialized)
+@Suite("Commitment - SlotStarts", .serialized)
 final class CommitmentUpcomingSlotStartsTests {
 
     // MARK: - Helpers
 
     private func tod(hour: Int, minute: Int = 0) -> Date {
         var c = DateComponents()
-        c.year = 2000; c.month = 1; c.day = 1; c.hour = hour; c.minute = minute; c.second = 0
+        c.year = 2000
+        c.month = 1
+        c.day = 1
+        c.hour = hour
+        c.minute = minute
+        c.second = 0
         return Calendar.current.date(from: c)!
     }
 
     private func date(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 0) -> Date {
         var c = DateComponents()
-        c.year = year; c.month = month; c.day = day; c.hour = hour; c.minute = minute; c.second = 0
+        c.year = year
+        c.month = month
+        c.day = day
+        c.hour = hour
+        c.minute = minute
+        c.second = 0
         return Calendar.current.date(from: c)!
     }
 
@@ -66,40 +77,40 @@ final class CommitmentUpcomingSlotStartsTests {
 
     // MARK: - Tests
 
-    @Test("future slot start is returned")
-    @MainActor func upcomingSlotStarts_futureSlot_returned() throws {
+    @Test("start after from is returned")
+    @MainActor func futureSlot_returned() throws {
         let container = try makeContainer()
         let c = makeCommitment(slots: [(9, 11, nil)], in: container.mainContext)
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
-        let horizon = date(year: 2026, month: 3, day: 6)
+        let from = date(year: 2026, month: 3, day: 5, hour: 7)
+        let to = date(year: 2026, month: 3, day: 6)
 
-        let starts = c.upcomingSlotStarts(from: now, horizon: horizon)
+        let starts = c.slotStarts(from: from, to: to)
 
         #expect(starts.count == 1)
         #expect(starts.first == date(year: 2026, month: 3, day: 5, hour: 9))
     }
 
-    @Test("slot start in the past is excluded")
-    @MainActor func upcomingSlotStarts_pastSlot_excluded() throws {
+    @Test("slot start before `from` is excluded")
+    @MainActor func pastSlot_excluded() throws {
         let container = try makeContainer()
         let c = makeCommitment(slots: [(9, 11, nil)], in: container.mainContext)
-        let now = date(year: 2026, month: 3, day: 5, hour: 10) // already inside slot
-        let horizon = date(year: 2026, month: 3, day: 6)
+        let from = date(year: 2026, month: 3, day: 5, hour: 10)  // already inside slot
+        let to = date(year: 2026, month: 3, day: 6)
 
-        let starts = c.upcomingSlotStarts(from: now, horizon: horizon)
+        let starts = c.slotStarts(from: from, to: to)
 
-        // start (9am) is before now (10am) → excluded
+        // start (9am) is before from (10am) → excluded
         #expect(starts.isEmpty)
     }
 
     @Test("multiple slots per day both returned")
-    @MainActor func upcomingSlotStarts_multipleSlotsPerDay_allReturned() throws {
+    @MainActor func multipleSlotsPerDay_allReturned() throws {
         let container = try makeContainer()
         let c = makeCommitment(slots: [(9, 11, nil), (18, 20, nil)], in: container.mainContext)
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
-        let horizon = date(year: 2026, month: 3, day: 6)
+        let from = date(year: 2026, month: 3, day: 5, hour: 7)
+        let to = date(year: 2026, month: 3, day: 6)
 
-        let starts = c.upcomingSlotStarts(from: now, horizon: horizon)
+        let starts = c.slotStarts(from: from, to: to)
 
         #expect(starts.count == 2)
         #expect(starts.contains(date(year: 2026, month: 3, day: 5, hour: 9)))
@@ -107,13 +118,13 @@ final class CommitmentUpcomingSlotStartsTests {
     }
 
     @Test("slots across multiple days all returned")
-    @MainActor func upcomingSlotStarts_multiDay_allReturned() throws {
+    @MainActor func multiDay_allReturned() throws {
         let container = try makeContainer()
         let c = makeCommitment(slots: [(9, 11, nil)], in: container.mainContext)
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
-        let horizon = date(year: 2026, month: 3, day: 8)
+        let from = date(year: 2026, month: 3, day: 5, hour: 7)
+        let to = date(year: 2026, month: 3, day: 8)
 
-        let starts = c.upcomingSlotStarts(from: now, horizon: horizon)
+        let starts = c.slotStarts(from: from, to: to)
 
         #expect(starts.count == 3)
         #expect(starts.contains(date(year: 2026, month: 3, day: 5, hour: 9)))
@@ -121,45 +132,45 @@ final class CommitmentUpcomingSlotStartsTests {
         #expect(starts.contains(date(year: 2026, month: 3, day: 7, hour: 9)))
     }
 
-    @Test("slot beyond horizon is excluded")
-    @MainActor func upcomingSlotStarts_beyondHorizon_excluded() throws {
+    @Test("slot after to is excluded")
+    @MainActor func beyondto_excluded() throws {
         let container = try makeContainer()
         let c = makeCommitment(slots: [(9, 11, nil)], in: container.mainContext)
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
-        let horizon = date(year: 2026, month: 3, day: 5, hour: 8) // before slot at 9am
+        let from = date(year: 2026, month: 3, day: 5, hour: 7)
+        let to = date(year: 2026, month: 3, day: 5, hour: 8)  // before slot at 9am
 
-        let starts = c.upcomingSlotStarts(from: now, horizon: horizon)
+        let starts = c.slotStarts(from: from, to: to)
 
         #expect(starts.isEmpty)
     }
 
     @Test("saturated slot is excluded")
-    @MainActor func upcomingSlotStarts_saturatedSlot_excluded() throws {
+    @MainActor func saturatedSlot_excluded() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
-        let c = makeCommitment(slots: [(9, 11, 1)], targetCount: 3, in: ctx) // maxCheckIns: 1
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+        let c = makeCommitment(slots: [(9, 11, 1)], targetCount: 3, in: ctx)  // maxCheckIns: 1
+        let from = date(year: 2026, month: 3, day: 5, hour: 7)
         // Check-in must be within the slot window [9am, 11am) to count as saturating
         addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 9), in: ctx)
-        let horizon = date(year: 2026, month: 3, day: 6)
+        let to = date(year: 2026, month: 3, day: 6)
 
-        let starts = c.upcomingSlotStarts(from: now, horizon: horizon)
+        let starts = c.slotStarts(from: from, to: to)
 
         #expect(starts.isEmpty)
     }
 
     @Test("snoozed slot is excluded")
-    @MainActor func upcomingSlotStarts_snoozedSlot_excluded() throws {
+    @MainActor func snoozedSlot_excluded() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11, nil)], in: ctx)
         let slot = try #require(c.slots.first)
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+        let from = date(year: 2026, month: 3, day: 5, hour: 7)
         // Snooze must be created at a time within the slot window for SlotSnooze.create to succeed
         addSnooze(to: slot, at: date(year: 2026, month: 3, day: 5, hour: 9), in: ctx)
-        let horizon = date(year: 2026, month: 3, day: 6)
+        let to = date(year: 2026, month: 3, day: 6)
 
-        let starts = c.upcomingSlotStarts(from: now, horizon: horizon)
+        let starts = c.slotStarts(from: from, to: to)
 
         #expect(starts.isEmpty)
     }

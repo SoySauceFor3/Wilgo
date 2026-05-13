@@ -244,19 +244,17 @@ extension Commitment {
         return GoalProgress(leftToDo: leftToDo)
     }
 
-    /// Returns the start times of all upcoming, eligible slot occurrences in `(now, horizon)`.
+    /// Returns the start times of all eligible slot occurrences in `[from, to)`.
     ///
-    /// Eligibility is evaluated at each occurrence's own start time (not at `now`), so
-    /// snooze and saturation checks reflect the slot's actual state when it fires.
-    ///
-    /// Used by `SlotStartNotificationScheduler` to enumerate notification fire dates.
-    func upcomingSlotStarts(from now: Date, horizon: Date) -> [Date] {
-        let startDay = Time.startOfDay(for: now)
-        let cycleCheckIns = checkInsInRange(startPsychDay: startDay, endPsychDay: horizon)
-        let pairs = resolvedSlotPairs(from: startDay, until: horizon)
+    /// Eligibility is evaluated at each occurrence's own start time, so snooze and
+    /// saturation checks reflect the slot's actual state when it fires.
+    func slotStarts(from: Date, to: Date) -> [Date] {
+        let startDay = Time.startOfDay(for: from)
+        let cycleCheckIns = checkInsInRange(startPsychDay: startDay, endPsychDay: to)
+        let pairs = resolvedSlotPairs(from: startDay, until: to, includeCarryOver: false)
         return pairs.compactMap { pair -> Date? in
             let start = pair.occurrence.start
-            guard start > now, start < horizon else { return nil }
+            guard start >= from, start < to else { return nil }
             guard !pair.original.isSnoozed(at: start) else { return nil }
             guard !pair.original.isSaturated(at: start, checkIns: cycleCheckIns) else { return nil }
             return start
