@@ -244,10 +244,29 @@ extension Commitment {
         return GoalProgress(leftToDo: leftToDo)
     }
 
+    /// Returns the start times of all upcoming, eligible slot occurrences in `(now, horizon)`.
+    ///
+    /// Eligibility is evaluated at each occurrence's own start time (not at `now`), so
+    /// snooze and saturation checks reflect the slot's actual state when it fires.
+    ///
+    /// Used by `SlotStartNotificationScheduler` to enumerate notification fire dates.
+    func upcomingSlotStarts(from now: Date, horizon: Date) -> [Date] {
+        let startDay = Time.startOfDay(for: now)
+        let cycleCheckIns = checkInsInRange(startPsychDay: startDay, endPsychDay: horizon)
+        let pairs = resolvedSlotPairs(from: startDay, until: horizon)
+        return pairs.compactMap { pair -> Date? in
+            let start = pair.occurrence.start
+            guard start > now, start < horizon else { return nil }
+            guard !pair.original.isSnoozed(at: start) else { return nil }
+            guard !pair.original.isSaturated(at: start, checkIns: cycleCheckIns) else { return nil }
+            return start
+        }
+    }
+
     private func resolvedSlotPairs(
         from startDay: Date,
         until endDay: Date,
-        includeCarryOver: Bool = true,
+        includeCarryOver: Bool = true,  // if we include slots that end on StartDay but start on PreviousDay.
         calendar: Calendar = Time.calendar
     ) -> [ResolvedSlotPair] {
         var pairs: [ResolvedSlotPair] = []
@@ -312,11 +331,14 @@ extension Commitment {
             // Target-disabled: no goal progress, no behindCount. Map kind directly.
             switch slot.kind {
             case .insideSlot:
-                return StageStatus(category: .current, nextUpSlots: slot.remainingSlots, behindCount: 0)
+                return StageStatus(
+                    category: .current, nextUpSlots: slot.remainingSlots, behindCount: 0)
             case .beforeNextToday:
-                return StageStatus(category: .future, nextUpSlots: slot.remainingSlots, behindCount: 0)
+                return StageStatus(
+                    category: .future, nextUpSlots: slot.remainingSlots, behindCount: 0)
             case .noSlotToday:
-                return StageStatus(category: .others, nextUpSlots: slot.remainingSlots, behindCount: 0)
+                return StageStatus(
+                    category: .others, nextUpSlots: slot.remainingSlots, behindCount: 0)
             }
         }
 
@@ -332,12 +354,15 @@ extension Commitment {
 
         switch slot.kind {
         case .insideSlot:
-            return StageStatus(category: .current, nextUpSlots: slot.remainingSlots, behindCount: behindCount)
+            return StageStatus(
+                category: .current, nextUpSlots: slot.remainingSlots, behindCount: behindCount)
         case .beforeNextToday:
-            return StageStatus(category: .future, nextUpSlots: slot.remainingSlots, behindCount: behindCount)
+            return StageStatus(
+                category: .future, nextUpSlots: slot.remainingSlots, behindCount: behindCount)
         case .noSlotToday:
             let category: StageCategory = behindCount > 0 ? .catchUp : .others
-            return StageStatus(category: category, nextUpSlots: slot.remainingSlots, behindCount: behindCount)
+            return StageStatus(
+                category: category, nextUpSlots: slot.remainingSlots, behindCount: behindCount)
         }
     }
 }
