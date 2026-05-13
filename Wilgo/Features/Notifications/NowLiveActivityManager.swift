@@ -85,6 +85,7 @@ enum NowLiveActivityManager {
             { _, _, _, _, _ in
                 Task { @MainActor in
                     NowLiveActivityManager.workAndScheduleNextBGTask()
+                    SlotStartNotificationScheduler.refresh()
                 }
             },
             WilgoConstants.liveActivitySyncNotification as CFString,

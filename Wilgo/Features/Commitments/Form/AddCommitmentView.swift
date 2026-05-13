@@ -66,6 +66,7 @@ struct AddCommitmentView: View {
     private func persistCommitment() {
         draft.insertCommitment(in: modelContext)
         try? modelContext.save()
+        SlotStartNotificationScheduler.refresh()
         dismiss()
     }
 }
