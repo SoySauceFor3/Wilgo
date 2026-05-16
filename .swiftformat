@@ -1,0 +1,51 @@
+# SwiftFormat config for Wilgo
+# Preserves the existing code style — do not reformat lines that aren't part of your change.
+
+--swiftversion 6.0
+
+# Indentation: 4 spaces (no tabs)
+--indent 4
+--tabwidth 4
+--smarttabs disabled
+--indentcase false
+
+# Line length: allow up to 110 chars before wrapping
+--maxwidth 110
+--wraparguments preserve
+--wrapparameters preserve
+--wrapcollections preserve
+--wrapreturntype preserve
+--wrapconditions preserve
+
+# Trailing whitespace
+--trimwhitespace always
+
+# Blank lines
+--emptybraces no-space
+
+# Misc style — preserve existing patterns
+--semicolons never
+--commas always
+--decimalgrouping ignore
+--hexliteralcase uppercase
+--exponentcase lowercase
+--operatorfunc spaced
+--nospaceoperators ...,..<
+
+# Rules to disable (prevent cosmetic reformats on untouched lines)
+--disable braces
+--disable indent
+--disable blankLineAfterSwitchCase
+--disable blankLinesAroundMark
+--disable blankLinesBetweenScopes
+--disable blankLinesAtEndOfScope
+--disable conditionalAssignment
+--disable consecutiveSpaces
+--disable docComments
+--disable redundantSelf
+--disable trailingCommas
+--disable wrap
+--disable wrapArguments
+--disable wrapMultilineStatementBraces
+--disable wrapSingleLineComments
+--disable wrapPropertyBodies
