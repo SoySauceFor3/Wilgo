@@ -1,8 +1,7 @@
 import Testing
-
 @testable import Wilgo
 
-@Suite("StageViewModel lifetime", .serialized)
+@Suite(.serialized)
 final class StageViewModelLifetimeTests {
     @Test("scheduled timer does not retain the view model")
     @MainActor

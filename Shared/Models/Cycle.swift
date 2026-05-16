@@ -60,7 +60,7 @@ struct Cycle: Codable, Equatable, Hashable {
     private var referencePsychDay: Date  // psych-day; hour/minute ignored; it is one of the start day of the Cycle.
     var multiplier: Int
 
-    init(kind: CycleKind, referencePsychDay: Date, multiplier: Int = 1, ) {
+    init(kind: CycleKind, referencePsychDay: Date, multiplier: Int = 1,) {
         self.kind = kind
         self.referencePsychDay = referencePsychDay
         self.multiplier = max(1, multiplier)
@@ -84,7 +84,7 @@ struct Cycle: Codable, Equatable, Hashable {
         let start = self.startDayOfCycle(including: date)
 
         // Single-day period → use compact single-date label.
-        if kind == .daily && multiplier == 1 {
+        if kind == .daily, multiplier == 1 {
             return fmt.string(from: start)
         }
 

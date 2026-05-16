@@ -1,7 +1,6 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
 // MARK: - Helpers
@@ -33,10 +32,9 @@ private func makeCommitment(title: String = "Test") -> Commitment {
 
 // MARK: - Tests
 
-@Suite("CommitmentRowTagDisplay", .serialized)
+@Suite(.serialized)
 @MainActor
 struct CommitmentRowTagDisplayTests {
-
     @Test("Commitment with no tags has empty tags array")
     func commitmentWithNoTagsIsEmpty() throws {
         let container = try makeContainer()

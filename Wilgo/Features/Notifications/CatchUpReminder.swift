@@ -43,7 +43,7 @@ enum CatchUpReminder {
         let now = now ?? Time.now()
         let context = ModelContext(WilgoApp.sharedModelContainer)
         let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
-        let remindersOn = commitments.filter { $0.isRemindersEnabled }
+        let remindersOn = commitments.filter(\.isRemindersEnabled)
         let catchUp = CommitmentAndSlot.catchUpWithBehind(commitments: remindersOn)
 
         updateCatchUpCommitmentsStorage(catchUp: catchUp, now: now)
@@ -53,7 +53,7 @@ enum CatchUpReminder {
 
     /// Queue the next catch-up reminder.
     static func scheduleBackgroundTask(
-        now: Date
+        now _: Date
     ) {
         let request = BGAppRefreshTaskRequest(identifier: backgroundTaskIdentifier)
 
@@ -73,7 +73,7 @@ enum CatchUpReminder {
     ) {
         // 1. Get the currently stored catch-up commitments from UserDefaults.
         let defaults = UserDefaults.standard
-        let currentIDs = Set(catchUp.map { $0.0.id })
+        let currentIDs = Set(catchUp.map(\.0.id))
 
         let prevIDs: Set<UUID>
         let prevRawIDs = defaults.stringArray(forKey: lastCatchUpCommitmentsKey) ?? []
@@ -88,12 +88,12 @@ enum CatchUpReminder {
         }
 
         // 4. Update the stored catch-up commitments.
-        defaults.set(currentIDs.map { $0.uuidString }, forKey: lastCatchUpCommitmentsKey)
+        defaults.set(currentIDs.map(\.uuidString), forKey: lastCatchUpCommitmentsKey)
 
     }
 
     private static func nextNotificationDate(
-        lastNewCatchUpCommitmentDate: Date,
+        lastNewCatchUpCommitmentDate _: Date,
         now: Date = Time.now()
     ) -> Date {
         let defaults = UserDefaults.standard
@@ -129,7 +129,7 @@ enum CatchUpReminder {
             return content
         }
 
-        let commitments = catchUp.map { $0.0 }
+        let commitments = catchUp.map(\.0)
         let count = commitments.count
 
         if count == 1, let commitment = commitments.first {
@@ -156,7 +156,7 @@ enum CatchUpReminder {
     private static func scheduleNotificationPost(
         for catchUp: [CommitmentAndSlot.WithBehind], now: Date
     ) {
-        let center: UNUserNotificationCenter = UNUserNotificationCenter.current()
+        let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
             guard granted else { return }
 

@@ -152,7 +152,7 @@ struct CommitmentFormFields: View {
     private var inspirationOnlyForeverBinding: Binding<Bool> {
         Binding(
             get: {
-                guard case .inspirationOnly(_, let until) = draft.target.configuredMode else {
+                guard case let .inspirationOnly(_, until) = draft.target.configuredMode else {
                     return false
                 }
                 return until == nil
@@ -202,19 +202,19 @@ struct CommitmentFormFields: View {
     }
 
     private var isInspirationOnlyForever: Bool {
-        guard case .inspirationOnly(_, let until) = draft.target.configuredMode else { return false }
+        guard case let .inspirationOnly(_, until) = draft.target.configuredMode else { return false }
         return until == nil
     }
 
     private var finiteInspirationOnlyUntilDate: Date {
-        guard case .inspirationOnly(_, let until) = draft.target.configuredMode else {
+        guard case let .inspirationOnly(_, until) = draft.target.configuredMode else {
             return nextCycleStart
         }
         return until.map { Time.startOfDay(for: $0) } ?? nextCycleStart
     }
 
     private var inspirationOnlyUntilValidation: String? {
-        return draft.inspirationOnlyUntilValidation
+        draft.inspirationOnlyUntilValidation
     }
 
     private var inspirationOnlyUntilHelpText: String {

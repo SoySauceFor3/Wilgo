@@ -8,8 +8,8 @@ import SwiftData
 /// Reads use `mainContext` so schedule / Live Activity logic sees the same object graph as `@Query`
 /// and `EditCommitmentView`. A fresh `ModelContext(container)` can observe stale store state until
 /// merge/save completes.
-extension ModelContext {
-    fileprivate static var wilgoMain: ModelContext {
+private extension ModelContext {
+    static var wilgoMain: ModelContext {
         WilgoApp.sharedModelContainer.mainContext
     }
 }

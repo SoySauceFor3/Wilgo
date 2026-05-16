@@ -13,9 +13,9 @@ enum SlotRecurrence: Codable, Hashable {
         switch self {
         case .everyDay:
             return true
-        case .specificWeekdays(let weekdays):
+        case let .specificWeekdays(weekdays):
             return !weekdays.isEmpty
-        case .specificMonthDays(let days):
+        case let .specificMonthDays(days):
             return !days.isEmpty
         }
     }
@@ -26,10 +26,10 @@ enum SlotRecurrence: Codable, Hashable {
         switch self {
         case .everyDay:
             return true
-        case .specificWeekdays(let weekdays):
+        case let .specificWeekdays(weekdays):
             let weekday = calendar.component(.weekday, from: date)
             return weekdays.contains(weekday)
-        case .specificMonthDays(let days):
+        case let .specificMonthDays(days):
             let day = calendar.component(.day, from: date)
             return days.contains(day)
         }
@@ -40,14 +40,14 @@ enum SlotRecurrence: Codable, Hashable {
         switch self {
         case .everyDay:
             return "Every day"
-        case .specificWeekdays(let weekdays):
+        case let .specificWeekdays(weekdays):
             let symbols = calendar.shortWeekdaySymbols  // Sunday-first (localized)
             let ordered = (1...7).filter { weekdays.contains($0) }
             if ordered.count == 7 { return "Every day" }
             if ordered.isEmpty { return "" }
             let parts = ordered.map { String(symbols[$0 - 1].prefix(3)) }
             return parts.joined(separator: ", ")
-        case .specificMonthDays(let days):
+        case let .specificMonthDays(days):
             let ordered = days.sorted()
             if ordered.isEmpty { return "" }
             let joined = ordered.map(String.init).joined(separator: ", ")
@@ -74,7 +74,7 @@ final class Slot {
     /// Forward-compat: a future `SlotCapacityGroup` entity (Path 2) will hold its
     /// own `maxCheckIns` for cross-slot capacity. The two fields will coexist;
     /// when a slot has a group, the group's cap supersedes this one.
-    var maxCheckIns: Int? = nil
+    var maxCheckIns: Int?
 
     // MARK: - Recurrence backing storage (SwiftData-friendly)
 
@@ -132,12 +132,12 @@ extension Slot {
                 activeWeekdays = []
                 activeMonthDays = []
 
-            case .specificWeekdays(let weekdays):
+            case let .specificWeekdays(weekdays):
                 recurrenceKindRaw = RecurrenceKind.specificWeekdays.rawValue
                 activeWeekdays = Array(weekdays).sorted()
                 activeMonthDays = []
 
-            case .specificMonthDays(let days):
+            case let .specificMonthDays(days):
                 recurrenceKindRaw = RecurrenceKind.specificMonthDays.rawValue
                 activeMonthDays = Array(days).sorted()
                 activeWeekdays = []

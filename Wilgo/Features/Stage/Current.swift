@@ -30,7 +30,7 @@ struct CurrentCommitmentRow: View {
                 .font(.caption2)
                 .foregroundStyle(.secondary)
 
-                if commitment.target.effectiveMode(on: Time.now()) != .disabled && behindCount > 0 {
+                if commitment.target.effectiveMode(on: Time.now()) != .disabled, behindCount > 0 {
                     Text(
                         behindCount == 1
                             ? "Behind"

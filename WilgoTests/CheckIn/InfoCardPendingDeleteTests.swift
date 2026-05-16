@@ -1,7 +1,6 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
 // MARK: - Helpers
@@ -42,8 +41,8 @@ private func makeCheckIn(ctx: ModelContext) -> CheckIn {
 /// unit-tested without SwiftUI.
 @MainActor
 final class PendingDeleteStateMachine {
-    private(set) var pendingDeleteID: UUID? = nil
-    private(set) var deletedCheckIn: CheckIn? = nil
+    private(set) var pendingDeleteID: UUID?
+    private(set) var deletedCheckIn: CheckIn?
 
     /// Simulates tapping the − button for a given check-in.
     func handleDeleteTap(_ checkIn: CheckIn) {
@@ -60,10 +59,8 @@ final class PendingDeleteStateMachine {
 
 // MARK: - Tests
 
-@Suite("InfoCardPendingDelete")
 @MainActor
 struct InfoCardPendingDeleteTests {
-
     /// Tapping minus once sets pendingDeleteID to the check-in's id.
     @Test func firstTapSetsPendingID() throws {
         let container = try makeContainer()

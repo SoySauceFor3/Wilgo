@@ -1,12 +1,10 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
-@Suite("Slot capacity — isSaturated", .serialized)
+@Suite(.serialized)
 final class SlotCapacityTests {
-
     // MARK: - Helpers
 
     @MainActor

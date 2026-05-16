@@ -1,10 +1,9 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
-@Suite("Commitment form draft", .serialized)
+@Suite(.serialized)
 final class CommitmentFormDraftTests {
     @MainActor
     private func makeContainer() throws -> ModelContainer {
@@ -55,7 +54,7 @@ final class CommitmentFormDraftTests {
         #expect(commitment.title == "Workout")
         #expect(commitment.punishment == "Pay 20 RMB")
         #expect(commitment.encouragements == ["show up", "one rep"])
-        #expect(commitment.tags.map { $0.id } == [tag.id])
+        #expect(commitment.tags.map(\.id) == [tag.id])
         #expect(commitment.isRemindersEnabled)
         #expect(commitment.slots.count == 1)
         #expect(commitment.slots.first?.maxCheckIns == 3)
@@ -99,7 +98,7 @@ final class CommitmentFormDraftTests {
         let container = try makeContainer()
         let context = container.mainContext
         let start = date(hour: 0)
-        let until = Calendar.current.date(byAdding: .day, value: 1, to: start)!
+        let until = try #require(Calendar.current.date(byAdding: .day, value: 1, to: start))
         let mode = TargetMode.inspirationOnly(start: start, until: until)
         var draft = CommitmentFormDraft()
         draft.title = "Recover"
@@ -126,10 +125,10 @@ final class CommitmentFormDraftTests {
     }
 
     @Test("draft reanchors inspiration only start but preserves selected until date")
-    @MainActor func reanchorsInspirationOnlyStartAndPreservesUntilDate() {
+    @MainActor func reanchorsInspirationOnlyStartAndPreservesUntilDate() throws {
         let originalStart = date(hour: 0)
-        let originalUntil = Calendar.current.date(byAdding: .day, value: 1, to: originalStart)!
-        let psychDay = Calendar.current.date(byAdding: .day, value: 8, to: originalStart)!
+        let originalUntil = try #require(Calendar.current.date(byAdding: .day, value: 1, to: originalStart))
+        let psychDay = try #require(Calendar.current.date(byAdding: .day, value: 8, to: originalStart))
         let cycle = Cycle.makeDefault(.weekly, on: psychDay)
         var draft = CommitmentFormDraft(
             target: Target(
@@ -149,8 +148,8 @@ final class CommitmentFormDraftTests {
     }
 
     @Test("finite inspiration only is invalid when until is not after today")
-    @MainActor func finiteInspirationOnlyRequiresUntilAfterToday() {
-        let today = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 5))!
+    @MainActor func finiteInspirationOnlyRequiresUntilAfterToday() throws {
+        let today = try #require(Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 5)))
         Time.now = { today }
         defer { Time.now = { Date() } }
 
@@ -167,13 +166,13 @@ final class CommitmentFormDraftTests {
     }
 
     @Test("weekly inspiration only requires until to be a cycle start")
-    @MainActor func weeklyInspirationOnlyRequiresCycleStartUntil() {
-        let monday = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 5))!
+    @MainActor func weeklyInspirationOnlyRequiresCycleStartUntil() throws {
+        let monday = try #require(Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 5)))
         Time.now = { monday }
         defer { Time.now = { Date() } }
 
-        let tuesday = Calendar.current.date(byAdding: .day, value: 1, to: monday)!
-        let nextMonday = Calendar.current.date(byAdding: .day, value: 7, to: monday)!
+        let tuesday = try #require(Calendar.current.date(byAdding: .day, value: 1, to: monday))
+        let nextMonday = try #require(Calendar.current.date(byAdding: .day, value: 7, to: monday))
 
         var draft = CommitmentFormDraft(
             title: "Recover",
@@ -192,13 +191,13 @@ final class CommitmentFormDraftTests {
     }
 
     @Test("monthly inspiration only requires until to be a cycle start")
-    @MainActor func monthlyInspirationOnlyRequiresCycleStartUntil() {
-        let monthStart = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1))!
+    @MainActor func monthlyInspirationOnlyRequiresCycleStartUntil() throws {
+        let monthStart = try #require(Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1)))
         Time.now = { monthStart }
         defer { Time.now = { Date() } }
 
-        let midMonth = Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 2))!
-        let nextMonthStart = Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 1))!
+        let midMonth = try #require(Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 2)))
+        let nextMonthStart = try #require(Calendar.current.date(from: DateComponents(year: 2026, month: 2, day: 1)))
 
         var draft = CommitmentFormDraft(
             title: "Recover",

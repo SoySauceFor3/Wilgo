@@ -3,20 +3,29 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
-@Suite("Commitment - StageStatus Parity", .serialized)
+@Suite(.serialized)
 final class CommitmentStageStatusParityTests {
-
     // MARK: - Helpers
 
     private func tod(hour: Int, minute: Int = 0) -> Date {
         var c = DateComponents()
-        c.year = 2000; c.month = 1; c.day = 1; c.hour = hour; c.minute = minute; c.second = 0
+        c.year = 2000
+        c.month = 1
+        c.day = 1
+        c.hour = hour
+        c.minute = minute
+        c.second = 0
         return Calendar.current.date(from: c)!
     }
 
     private func date(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 0) -> Date {
         var c = DateComponents()
-        c.year = year; c.month = month; c.day = day; c.hour = hour; c.minute = minute; c.second = 0
+        c.year = year
+        c.month = month
+        c.day = day
+        c.hour = hour
+        c.minute = minute
+        c.second = 0
         return Calendar.current.date(from: c)!
     }
 

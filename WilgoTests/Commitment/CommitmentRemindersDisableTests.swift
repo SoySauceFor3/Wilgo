@@ -3,18 +3,27 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
-@Suite("Commitment — isRemindersEnabled", .serialized)
+@Suite(.serialized)
 final class CommitmentRemindersDisableTests {
-
     private func tod(hour: Int) -> Date {
         var c = DateComponents()
-        c.year = 2000; c.month = 1; c.day = 1; c.hour = hour; c.minute = 0; c.second = 0
+        c.year = 2000
+        c.month = 1
+        c.day = 1
+        c.hour = hour
+        c.minute = 0
+        c.second = 0
         return Calendar.current.date(from: c)!
     }
 
     private func date(year: Int, month: Int, day: Int, hour: Int = 0) -> Date {
         var c = DateComponents()
-        c.year = year; c.month = month; c.day = day; c.hour = hour; c.minute = 0; c.second = 0
+        c.year = year
+        c.month = month
+        c.day = day
+        c.hour = hour
+        c.minute = 0
+        c.second = 0
         return Calendar.current.date(from: c)!
     }
 
@@ -35,7 +44,8 @@ final class CommitmentRemindersDisableTests {
             target: Target(count: 1),
             isRemindersEnabled: remindersEnabled
         )
-        ctx.insert(c); ctx.insert(slot)
+        ctx.insert(c)
+        ctx.insert(slot)
         return c
     }
 
@@ -54,7 +64,7 @@ final class CommitmentRemindersDisableTests {
         let container = try makeContainer()
         let c = makeCommitment(remindersEnabled: false, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        let remindersOn = [c].filter { $0.isRemindersEnabled }
+        let remindersOn = [c].filter(\.isRemindersEnabled)
         #expect(CommitmentAndSlot.currentWithBehind(commitments: remindersOn, now: now).isEmpty)
     }
 
@@ -63,7 +73,7 @@ final class CommitmentRemindersDisableTests {
         let container = try makeContainer()
         let c = makeCommitment(remindersEnabled: true, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        let remindersOn = [c].filter { $0.isRemindersEnabled }
+        let remindersOn = [c].filter(\.isRemindersEnabled)
         #expect(CommitmentAndSlot.currentWithBehind(commitments: remindersOn, now: now).count == 1)
     }
 

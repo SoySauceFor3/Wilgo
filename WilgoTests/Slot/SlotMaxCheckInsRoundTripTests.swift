@@ -1,12 +1,10 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
-@Suite("Slot.maxCheckIns - SwiftData round-trip", .serialized)
+@Suite(.serialized)
 final class SlotMaxCheckInsRoundTripTests {
-
     @MainActor
     private func makeContainer() throws -> ModelContainer {
         let schema = Schema([
@@ -19,7 +17,10 @@ final class SlotMaxCheckInsRoundTripTests {
 
     private func tod(hour: Int) -> Date {
         var c = DateComponents()
-        c.year = 2000; c.month = 1; c.day = 1; c.hour = hour
+        c.year = 2000
+        c.month = 1
+        c.day = 1
+        c.hour = hour
         return Calendar.current.date(from: c)!
     }
 
@@ -31,7 +32,7 @@ final class SlotMaxCheckInsRoundTripTests {
         ctx.insert(slot)
         try ctx.save()
 
-        let fetched = try ctx.fetch(FetchDescriptor<Slot>()).first!
+        let fetched = try #require(ctx.fetch(FetchDescriptor<Slot>()).first)
         #expect(fetched.maxCheckIns == nil)
     }
 
@@ -44,7 +45,7 @@ final class SlotMaxCheckInsRoundTripTests {
         ctx.insert(slot)
         try ctx.save()
 
-        let fetched = try ctx.fetch(FetchDescriptor<Slot>()).first!
+        let fetched = try #require(ctx.fetch(FetchDescriptor<Slot>()).first)
         #expect(fetched.maxCheckIns == 1)
     }
 }

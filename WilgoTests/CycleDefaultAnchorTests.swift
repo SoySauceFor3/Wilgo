@@ -1,6 +1,5 @@
 import Foundation
 import Testing
-
 @testable import Wilgo
 
 // MARK: - Helpers
@@ -22,9 +21,7 @@ private func weekday(of date: Date) -> Int {
 
 // MARK: - Tests
 
-@Suite("Cycle.makeDefault")
 struct CycleDefaultAnchorTests {
-
     // MARK: Daily
 
     @Test("daily: anchor is the given psych-day")

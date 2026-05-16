@@ -1,6 +1,5 @@
 import Foundation
 import Testing
-
 @testable import Wilgo
 
 // MARK: - Helpers
@@ -23,9 +22,7 @@ private func timeOfDay(hour: Int, minute: Int = 0) -> Date {
     date(year: 2000, month: 1, day: 1, hour: hour, minute: minute)
 }
 
-@Suite("Time.resolve(timeOfDay:on:)")
 struct TimeResolveTests {
-
     @Test("morning time lands on the same calendar day")
     func morningLandsSameday() {
         let day = date(year: 2026, month: 1, day: 1)

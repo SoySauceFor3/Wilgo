@@ -2,12 +2,10 @@ import Foundation
 import SwiftData
 import Testing
 import UserNotifications
-
 @testable import Wilgo
 
-@Suite("SlotStartNotificationScheduler", .serialized)
+@Suite(.serialized)
 final class SlotStartNotificationSchedulerTests {
-
     // MARK: - Helpers
 
     private func tod(hour: Int, minute: Int = 0) -> Date {

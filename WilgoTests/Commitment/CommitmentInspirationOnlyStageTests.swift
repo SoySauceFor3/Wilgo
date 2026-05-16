@@ -1,10 +1,9 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
-@Suite("Commitment.stageStatus - Inspiration Only", .serialized)
+@Suite(.serialized)
 final class CommitmentInspirationOnlyStageTests {
     private func tod(hour: Int) -> Date {
         var comps = DateComponents()

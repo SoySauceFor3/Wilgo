@@ -1,7 +1,6 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
 @MainActor
@@ -31,10 +30,8 @@ private func createTestCommitment(ctx: ModelContext) -> Commitment {
     return commitment
 }
 
-@Suite("CheckInModel")
 @MainActor
 struct CheckInModelTests {
-
     /// A CheckIn inserted without specifying a source defaults to .app.
     @Test func defaultSourceIsApp() throws {
         let container = try makeContainer()
@@ -116,9 +113,7 @@ struct CheckInModelTests {
 // CheckInIntent (WidgetExtension target) is not importable from WilgoTests, so we verify
 // the source-decoding contract it relies on: `CheckInSource(rawValue: sourceRaw) ?? .widget`.
 
-@Suite("CheckInIntentSourceDecoding")
 struct CheckInIntentSourceDecodingTests {
-
     /// sourceRaw "widget" decodes to .widget (normal widget button path).
     @Test func widgetRawValueDecodesToWidget() {
         let source = CheckInSource(rawValue: "widget") ?? .widget

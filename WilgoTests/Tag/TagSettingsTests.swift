@@ -2,7 +2,6 @@ import Foundation
 import SwiftData
 import SwiftUI
 import Testing
-
 @testable import Wilgo
 
 // MARK: - Helpers
@@ -46,10 +45,9 @@ private func applyMove(
 
 // MARK: - Tests
 
-@Suite("TagSettingsTests", .serialized)
+@Suite(.serialized)
 @MainActor
 struct TagSettingsTests {
-
     // MARK: Reorder: move last to first
 
     @Test("Reorder: moving last tag to first renumbers all displayOrders sequentially")

@@ -1,7 +1,6 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
 // MARK: - Helpers
@@ -61,9 +60,8 @@ private func makeSlotAndInsert(
 
 // MARK: - Tests
 
-@Suite("SlotSnooze.create", .serialized)
+@Suite(.serialized)
 struct SlotSnoozeCreateTests: ~Copyable {
-
     // MARK: Happy path
 
     @Test("create for an active slot → returns a SlotSnooze with correct psychDay")
@@ -79,7 +77,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
         #expect(slot.snoozes.count == 1)
 
         let expectedPsychDay = Time.startOfDay(for: time)
-        #expect(Calendar.current.isDate(snooze!.psychDay, inSameDayAs: expectedPsychDay))
+        #expect(try Calendar.current.isDate(#require(snooze?.psychDay), inSameDayAs: expectedPsychDay))
     }
 
     // MARK: psychDay recording
@@ -99,7 +97,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
         // psychDay should be Dec 31, not Jan 1, because the slot started at 11pm Dec 31
         let dec31 = date(year: 2025, month: 12, day: 31)
-        #expect(Calendar.current.isDate(snooze!.psychDay, inSameDayAs: dec31))
+        #expect(try Calendar.current.isDate(#require(snooze?.psychDay), inSameDayAs: dec31))
     }
 
     @Test("normal slot: snooze records psychDay of time")
@@ -113,7 +111,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
         #expect(snooze != nil)
         let expectedPsychDay = date(year: 2026, month: 6, day: 15)
-        #expect(Calendar.current.isDate(snooze!.psychDay, inSameDayAs: expectedPsychDay))
+        #expect(try Calendar.current.isDate(#require(snooze?.psychDay), inSameDayAs: expectedPsychDay))
     }
 
     // MARK: Returns nil when outside window

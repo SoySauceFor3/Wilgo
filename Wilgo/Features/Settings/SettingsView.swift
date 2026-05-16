@@ -13,7 +13,7 @@ struct SettingsView: View {
 
     #if DEBUG
         @Environment(\.triggerCycleReport) private var triggerCycleReport
-        @State private var debugWatermarkDate: Date = Date()
+        @State private var debugWatermarkDate: Date = .init()
     #endif
 
     var body: some View {

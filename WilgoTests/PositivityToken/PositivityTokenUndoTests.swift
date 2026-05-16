@@ -1,7 +1,6 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
 @MainActor
@@ -17,10 +16,8 @@ private func makeContainer() throws -> ModelContainer {
     return try ModelContainer(for: schema, configurations: [config])
 }
 
-@Suite("PositivityTokenUndo")
 @MainActor
 struct PositivityTokenUndoTests {
-
     // Verifies the NEW behavior: production undo closures only delete the check-in.
     // PTs are freestanding (no FK back to CheckIn since Commit 1), so SwiftData
     // will not cascade-delete them. Explicit context.delete(token) was removed in Commit 3.

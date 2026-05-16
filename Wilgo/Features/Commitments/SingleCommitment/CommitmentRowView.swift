@@ -86,9 +86,7 @@ struct CommitmentRowView: View {
     }
 
     private func slotWindowsSummary(_ commitment: Commitment) -> String {
-        return commitment.slots.map {
-            $0.label
-        }
+        commitment.slots.map(\.label)
         .joined(separator: "\n")
     }
 
@@ -101,7 +99,7 @@ struct CommitmentRowView: View {
         switch displayedTargetMode {
         case .on:
             return "\(commitment.target.count)× \(commitment.cycle.kind.adj)"
-        case .inspirationOnly(_, let until):
+        case let .inspirationOnly(_, until):
             let suffix = until.map { "until \(formattedShortDate($0))" } ?? "forever"
             return "\(commitment.target.count)× \(commitment.cycle.kind.adj) · Inspiration Only \(suffix)"
         case .disabled:

@@ -40,7 +40,6 @@ struct CurrentCommitmentEntry: TimelineEntry {
 // MARK: - Timeline provider
 
 struct CurrentCommitmentProvider: TimelineProvider {
-
     private func makeContainer() throws -> ModelContainer {
         guard
             let groupContainer = FileManager.default
@@ -122,7 +121,7 @@ struct CurrentCommitmentProvider: TimelineProvider {
             date: date, snapshots: buildSnapshots(commitments: all, now: date))
     }
 
-    func placeholder(in context: Context) -> CurrentCommitmentEntry {
+    func placeholder(in _: Context) -> CurrentCommitmentEntry {
         CurrentCommitmentEntry(
             date: .now,
             snapshots: [
@@ -146,7 +145,7 @@ struct CurrentCommitmentProvider: TimelineProvider {
     }
 
     func getTimeline(
-        in context: Context,
+        in _: Context,
         completion: @escaping (Timeline<CurrentCommitmentEntry>) -> Void
     ) {
         print("CurrentCommitmentWidget getTimeline")

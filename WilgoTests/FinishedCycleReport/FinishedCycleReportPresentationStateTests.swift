@@ -1,9 +1,7 @@
 import Foundation
 import Testing
-
 @testable import Wilgo
 
-@Suite("FinishedCycleReportPresentationState")
 struct FinishedCycleReportPresentationStateTests {
     @Test("prepare stores report request without presenting or advancing watermark")
     func prepareStoresRequestWithoutPresentingOrAdvancingWatermark() {

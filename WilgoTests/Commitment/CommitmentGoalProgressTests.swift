@@ -3,18 +3,27 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
-@Suite("Commitment - Goal Progress", .serialized)
+@Suite(.serialized)
 final class CommitmentGoalProgressTests {
-
     private func tod(hour: Int) -> Date {
         var c = DateComponents()
-        c.year = 2000; c.month = 1; c.day = 1; c.hour = hour; c.minute = 0; c.second = 0
+        c.year = 2000
+        c.month = 1
+        c.day = 1
+        c.hour = hour
+        c.minute = 0
+        c.second = 0
         return Calendar.current.date(from: c)!
     }
 
     private func date(year: Int, month: Int, day: Int, hour: Int = 0) -> Date {
         var c = DateComponents()
-        c.year = year; c.month = month; c.day = day; c.hour = hour; c.minute = 0; c.second = 0
+        c.year = year
+        c.month = month
+        c.day = day
+        c.hour = hour
+        c.minute = 0
+        c.second = 0
         return Calendar.current.date(from: c)!
     }
 
@@ -41,7 +50,8 @@ final class CommitmentGoalProgressTests {
             slots: [slot],
             target: Target(count: targetCount, mode: targetMode)
         )
-        ctx.insert(c); ctx.insert(slot)
+        ctx.insert(c)
+        ctx.insert(slot)
         return c
     }
 

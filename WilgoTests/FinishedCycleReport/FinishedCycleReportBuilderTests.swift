@@ -1,7 +1,6 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
 private func date(
@@ -34,7 +33,7 @@ private func makeContainer() throws -> ModelContainer {
     return try ModelContainer(for: schema, configurations: [config])
 }
 
-@Suite("FinishedCycleReportBuilder", .serialized)
+@Suite(.serialized)
 struct FinishedCycleReportBuilderTests: ~Copyable {
     @Test("build uses multiple tokens to compensate one cycle")
     @MainActor

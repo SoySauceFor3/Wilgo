@@ -67,6 +67,10 @@ To help you better understand what i want, please refer to the template at ./doc
 
 Please make each bug at least a seperate commit. Do not commit the fix to multiple bugs in one commit. 
 
+# Code Style & Formatting
+
+1. (Author: Claude, 2026-05-16) **SwiftFormat is configured at `.swiftformat` in the repo root.** A pre-commit git hook runs `swiftformat .` automatically before every commit. Do not manually reformat lines that are not part of your change — the hook will handle normalization. Key rules in `.swiftformat`: all line-wrapping and cosmetic whitespace rules are disabled to preserve the existing style; only correctness-oriented rules (unused args, redundant modifiers, etc.) are active.
+
 # Repo specific rules
 
 1. When you create/update SwiftData Model definitions:

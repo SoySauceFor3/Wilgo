@@ -36,7 +36,7 @@ enum PreTokenReportBuilder {
         let commitmentByID = Dictionary(
             uniqueKeysWithValues: commitments.map { ($0.id, $0) }
         )
-        let commitmentReports: [CommitmentReport] = Dictionary(
+        return Dictionary(
             grouping: cycleDrafts, by: \.commitmentID
         )
         .compactMap { commitmentID, drafts -> CommitmentReport? in
@@ -61,7 +61,6 @@ enum PreTokenReportBuilder {
             )
         }
         .sorted { $0.commitment.title < $1.commitment.title }
-        return commitmentReports
     }
 
     private static func cyclesForCommitment(

@@ -82,8 +82,8 @@ enum CommitmentAndSlot {
             }
 
             guard let lhsSlot = lhs.slots.first, let rhsSlot = rhs.slots.first else {
-                if lhs.slots.isEmpty && !rhs.slots.isEmpty { return false }
-                if !lhs.slots.isEmpty && rhs.slots.isEmpty { return true }
+                if lhs.slots.isEmpty, !rhs.slots.isEmpty { return false }
+                if !lhs.slots.isEmpty, rhs.slots.isEmpty { return true }
                 return false
             }
 

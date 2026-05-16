@@ -1,7 +1,6 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
 @MainActor
@@ -17,10 +16,8 @@ private func makeContainer() throws -> ModelContainer {
     return try ModelContainer(for: schema, configurations: [config])
 }
 
-@Suite("PositivityTokenModel")
 @MainActor
 struct PositivityTokenModelTests {
-
     /// A PositivityToken can be inserted into a SwiftData container without any linked check-in.
     @Test func insertTokenWithoutCheckIn() throws {
         let container = try makeContainer()
@@ -77,7 +74,7 @@ struct PositivityTokenModelTests {
         comps.year = 2026
         comps.month = 1
         comps.day = 15
-        let customDate = Calendar.current.date(from: comps)!
+        let customDate = try #require(Calendar.current.date(from: comps))
 
         let token = PositivityToken(reason: "retrospective token", createdAt: customDate)
         ctx.insert(token)

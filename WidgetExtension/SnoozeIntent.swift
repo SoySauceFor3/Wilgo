@@ -9,7 +9,9 @@ struct SnoozeIntent: AppIntent {
     @Parameter(title: "Slot ID")
     var slotId: String  // UUID isn't directly supported as an AppIntent parameter type.
 
-    init() { self.slotId = "" }
+    init() {
+        self.slotId = ""
+    }
 
     init(slotId: UUID) {
         self.slotId = slotId.uuidString

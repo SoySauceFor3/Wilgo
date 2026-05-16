@@ -1,7 +1,6 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
 // MARK: - Helpers
@@ -38,10 +37,8 @@ private func makeCommitmentWithCheckIn(ctx: ModelContext) -> (Commitment, CheckI
 
 // MARK: - Tests
 
-@Suite("HeatmapViewDelete")
 @MainActor
 struct HeatmapViewDeleteTests {
-
     /// Deleting a CheckIn via modelContext.delete removes it from the store.
     /// This mirrors the onDelete closure wired in CommitmentHeatmapView.
     @Test func deleteCheckInFromContext() throws {

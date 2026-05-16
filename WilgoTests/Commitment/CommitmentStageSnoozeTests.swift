@@ -1,13 +1,11 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
 /// Tests that Commitment.stageStatus correctly hides snoozed slot occurrences.
-@Suite("Commitment.stageStatus — snooze filtering", .serialized)
+@Suite(.serialized)
 final class CommitmentStageSnoozeTests {
-
     // MARK: - Helpers
 
     @MainActor
@@ -81,7 +79,7 @@ final class CommitmentStageSnoozeTests {
         commitment.target = Target(count: 2)
 
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        let slot = commitment.slots.first(where: { _ in true })!
+        let slot = try #require(commitment.slots.first(where: { _ in true }))
 
         // Snooze the 9–11am slot
         let psychDay = date(year: 2026, month: 3, day: 5)
@@ -101,7 +99,7 @@ final class CommitmentStageSnoozeTests {
         let commitment = makeCommitment(slots: [(9, 11)], in: ctx)
 
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        let slot = commitment.slots.first!
+        let slot = try #require(commitment.slots.first)
 
         // Snooze the only slot
         let psychDay = date(year: 2026, month: 3, day: 5)

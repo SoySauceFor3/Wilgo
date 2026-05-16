@@ -1,12 +1,10 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
-@Suite("Commitment.stageStatus - slot capacity", .serialized)
+@Suite(.serialized)
 final class CommitmentSlotCapacityStageTests {
-
     @MainActor
     private func makeContainer() throws -> ModelContainer {
         let schema = Schema([

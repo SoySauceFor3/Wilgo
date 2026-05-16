@@ -25,7 +25,6 @@ extension Heatmap {
         case (.daily, .monthly):
             // Approximate month length; we only need a stable mapping.
             return baseCount * 30
-
         case (.weekly, .daily):
             return ceilDiv(Double(baseCount), 7.0)
         case (.weekly, .weekly):
@@ -33,7 +32,6 @@ extension Heatmap {
         case (.weekly, .monthly):
             // Roughly 4 weeks per month.
             return baseCount * 4
-
         case (.monthly, .daily):
             return ceilDiv(Double(baseCount), 30.0)
         case (.monthly, .weekly):
@@ -81,7 +79,9 @@ extension Heatmap {
                 let key = cal.startOfDay(for: ci.psychDay)
                 d[key, default: []].append(ci.createdAt)
             }
-            for k in d.keys { d[k]?.sort() }
+            for k in d.keys {
+                d[k]?.sort()
+            }
             return d
         }
     }

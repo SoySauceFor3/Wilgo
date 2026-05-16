@@ -19,7 +19,7 @@ final class StageViewModel {
 
     private var lastCommitments: [Commitment] = []
     @ObservationIgnored
-    nonisolated(unsafe) private var timerTask: Task<Void, Never>?
+    private nonisolated(unsafe) var timerTask: Task<Void, Never>?
 
     /// Recomputes all three lists from `commitments` and reschedules the
     /// internal timer to fire at the next slot-boundary transition.
@@ -33,7 +33,7 @@ final class StageViewModel {
 
     private func recompute() {
         let now = Date()
-        let remindersOn = lastCommitments.filter { $0.isRemindersEnabled }
+        let remindersOn = lastCommitments.filter(\.isRemindersEnabled)
         current = CommitmentAndSlot.currentWithBehind(commitments: remindersOn, now: now)
         upcoming = CommitmentAndSlot.upcomingWithBehind(commitments: remindersOn, after: now)
         catchUp = CommitmentAndSlot.catchUpWithBehind(commitments: remindersOn, now: now)

@@ -1,6 +1,5 @@
 import Foundation
 import Testing
-
 @testable import Wilgo
 
 // MARK: - Helpers
@@ -32,12 +31,9 @@ private func date(
     return Calendar.current.date(from: comps)!
 }
 
-@Suite("Slot tests")
-struct SlotTests {
-
+enum SlotTests {
     // MARK: - SlotRecurrence.matches
 
-    @Suite("SlotRecurrence — matches")
     struct SlotRecurrenceMatchesTests {
         private let calendar = Calendar.current
 
@@ -88,18 +84,14 @@ struct SlotTests {
 
     // MARK: - Slot.isScheduled
 
-    @Suite("Slot — isScheduled")
     struct SlotIsScheduledTests {
-
         private let calendar = Calendar.current
 
         // MARK: everyDay recurrence
 
-        @Suite("everyDay recurrence")
         struct EveryDayTests {
-
             @Test("same-day window includes boundaries and interior")
-            @MainActor func sameDay_includesBoundariesAndInterior() throws {
+            @MainActor func sameDay_includesBoundariesAndInterior() {
                 let slot = Slot(
                     start: timeOfDay(hour: 9, minute: 0),
                     end: timeOfDay(hour: 11, minute: 0)
@@ -111,7 +103,7 @@ struct SlotTests {
             }
 
             @Test("same-day window excludes outside times")
-            @MainActor func sameDay_excludesOutside() throws {
+            @MainActor func sameDay_excludesOutside() {
                 let slot = Slot(
                     start: timeOfDay(hour: 9, minute: 0),
                     end: timeOfDay(hour: 11, minute: 0)
@@ -122,7 +114,7 @@ struct SlotTests {
             }
 
             @Test("cross-midnight window includes boundaries and interior")
-            @MainActor func crossMidnight_includesBoundariesAndInterior() throws {
+            @MainActor func crossMidnight_includesBoundariesAndInterior() {
                 let slot = Slot(
                     start: timeOfDay(hour: 23, minute: 0),
                     end: timeOfDay(hour: 1, minute: 0)
@@ -134,7 +126,7 @@ struct SlotTests {
             }
 
             @Test("cross-midnight window excludes outside times")
-            @MainActor func crossMidnight_excludesOutside() throws {
+            @MainActor func crossMidnight_excludesOutside() {
                 let slot = Slot(
                     start: timeOfDay(hour: 23, minute: 0),
                     end: timeOfDay(hour: 1, minute: 0)
@@ -147,9 +139,7 @@ struct SlotTests {
 
         // MARK: specificWeekdays recurrence
 
-        @Suite("specificWeekdays recurrence")
         struct SpecificWeekdaysTests {
-
             private let calendar = Calendar.current
 
             // 2026-04-25 is a Saturday (weekday 7).
@@ -230,9 +220,7 @@ struct SlotTests {
 
         // MARK: specificMonthDays recurrence
 
-        @Suite("specificMonthDays recurrence")
         struct SpecificMonthDaysTests {
-
             private let calendar = Calendar.current
 
             @Test("same-day window — matching month day is scheduled")
@@ -300,9 +288,7 @@ struct SlotTests {
 
     // MARK: - Slot.isScheduled (whole-day slots)
 
-    @Suite("Slot — isScheduled (whole-day)")
     struct SlotWholeDayIsScheduledTests {
-
         private let calendar = Calendar.current
 
         // Whole-day sentinel: start == end (same minutes-since-midnight).
@@ -472,10 +458,9 @@ struct SlotTests {
         }
     }
 
-    @Suite("Slot — remainingFraction")
     struct SlotRemainingFractionTests {
         @Test("remainingFraction — same-day window fractions")
-        @MainActor func remainingFraction_sameDay() throws {
+        @MainActor func remainingFraction_sameDay() {
             let slot = Slot(
                 start: timeOfDay(hour: 10, minute: 0),
                 end: timeOfDay(hour: 11, minute: 0),
@@ -491,7 +476,7 @@ struct SlotTests {
         }
 
         @Test("remainingFraction — cross-midnight window fractions")
-        @MainActor func remainingFraction_crossMidnight() throws {
+        @MainActor func remainingFraction_crossMidnight() {
             let slot = Slot(
                 start: timeOfDay(hour: 23, minute: 0),
                 end: timeOfDay(hour: 1, minute: 0)

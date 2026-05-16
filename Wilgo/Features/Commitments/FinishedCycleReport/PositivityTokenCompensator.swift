@@ -49,7 +49,7 @@ enum PositivityTokenCompensator {
             }
 
             var compensated = 0
-            while compensated < need.missingCheckIns && !activeTokens.isEmpty {
+            while compensated < need.missingCheckIns, !activeTokens.isEmpty {
                 if usageCountByMonth[monthKey, default: 0] >= monthlyCap {
                     break
                 }
@@ -112,7 +112,7 @@ enum AfterPositivityTokenReportBuilder {
         let totalTokensUsed = finalReport
             .flatMap(\.cycles)
             .reduce(0) { $0 + $1.aidedByPositivityTokenCount }
-        let activeTokensAfter = allTokens.filter { $0.status == .active }.count
+        let activeTokensAfter = allTokens.count(where: { $0.status == .active })
         let availableBudgetAfter = reportBudgetAvailable(
             for: preReport,
             allTokens: allTokens,
@@ -154,7 +154,7 @@ enum AfterPositivityTokenReportBuilder {
             tokens: allTokens,
             monthlyCap: cap,
         )
-        let updatedCommitments = report.map { commitmentReport in
+        return report.map { commitmentReport in
             CommitmentReport(
                 id: commitmentReport.id,
                 commitment: commitmentReport.commitment,
@@ -173,7 +173,6 @@ enum AfterPositivityTokenReportBuilder {
                 }
             )
         }
-        return updatedCommitments
     }
 
     private static func reportBudgetAvailable(

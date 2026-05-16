@@ -9,7 +9,7 @@ enum TargetMode: Codable, Hashable {
         switch self {
         case .on, .disabled:
             return self
-        case .inspirationOnly(let start, let until):
+        case let .inspirationOnly(start, until):
             if psychDay < start {
                 throw TargetModeError.effectiveModeBeforeInspirationStart(
                     psychDay: psychDay,
@@ -36,14 +36,14 @@ enum TargetMode: Codable, Hashable {
         switch self {
         case .on, .disabled:
             return self
-        case .inspirationOnly(let start, let until):
+        case let .inspirationOnly(start, until):
             let end = until ?? Date.distantFuture
             return start < endPsychDay && end > startPsychDay ? self : .on
         }
     }
 
     func overlapsInspirationOnlyInterval(cycleStart: Date, cycleEnd: Date) -> Bool {
-        guard case .inspirationOnly(let start, let until) = self else { return false }
+        guard case let .inspirationOnly(start, until) = self else { return false }
         let end = until ?? Date.distantFuture
         return start < cycleEnd && end > cycleStart
     }
@@ -52,7 +52,7 @@ enum TargetMode: Codable, Hashable {
         switch self {
         case .on, .disabled:
             return self
-        case .inspirationOnly(_, let until):
+        case let .inspirationOnly(_, until):
             if let until, until <= reportedEndPsychDay {
                 return .on
             } else {

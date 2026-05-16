@@ -1,7 +1,6 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
 // MARK: - Helpers
@@ -35,10 +34,9 @@ private func makeCommitment(title: String = "Test") -> Commitment {
 
 // MARK: - Tests
 
-@Suite("TagModel", .serialized)
+@Suite(.serialized)
 @MainActor
 struct TagModelTests {
-
     // MARK: Tag persistence
 
     @Test("Tag persists with correct name and displayOrder")

@@ -1,7 +1,6 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
 // MARK: - Helpers
@@ -23,10 +22,9 @@ private func makeContainer() throws -> ModelContainer {
 
 // MARK: - Tests
 
-@Suite("TagPickerLogic", .serialized)
+@Suite(.serialized)
 @MainActor
 struct TagPickerLogicTests {
-
     // MARK: displayOrder for first tag
 
     @Test("First tag in empty store gets displayOrder 0")

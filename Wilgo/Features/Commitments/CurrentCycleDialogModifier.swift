@@ -16,7 +16,7 @@ final class CurrentCycleDialogState {
     }
 
     var isPresented = false
-    var cycle: Cycle = Cycle.makeDefault(.daily)
+    var cycle: Cycle = .makeDefault(.daily)
     var cycleStart: Date = .distantPast
     var cycleEnd: Date = .distantPast
     var context: Context = .creation
@@ -95,9 +95,9 @@ private struct CurrentCycleDialogContent: View {
         switch state.context {
         case .creation:
             return creationTitle
-        case .ruleChange(let count):
+        case let .ruleChange(count):
             return "Your target changes to \(count) per \(state.cycle.kind.nounSingle.lowercased()) now. Should \(state.cycle.kind.thisNoun) count?"
-        case .reEnable(let count):
+        case let .reEnable(count):
             return "Target is on again (\(count)× per \(state.cycle.kind.nounSingle.lowercased())). Should \(state.cycle.kind.thisNoun) count?"
         }
     }

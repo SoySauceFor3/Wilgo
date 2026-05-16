@@ -42,8 +42,7 @@ final class CheckInUndoManager: ObservableObject {
 
     private let autoDismissDuration: TimeInterval = 5
 
-    init() {
-    }
+    init() {}
 
     /// Enqueue an undo notice for a newly created check-in.
     ///
@@ -79,7 +78,7 @@ final class CheckInUndoManager: ObservableObject {
     }
 
     private func postCheckInRevoked(checkInID: UUID) {
-        NotificationCenter.default.post(  //UIs can listen for it without the manager needing direct references to those views.
+        NotificationCenter.default.post(  // UIs can listen for it without the manager needing direct references to those views.
             name: .CheckInRevoked,
             object: nil,
             userInfo: [
@@ -118,7 +117,7 @@ final class CheckInUndoManager: ObservableObject {
         kind: NoticeKind,
         undoClosure: (() -> Void)?
     ) {
-        let noticeID = checkIn.id ?? UUID()  //TODO: Later remove the optional check
+        let noticeID = checkIn.id ?? UUID()  // TODO: Later remove the optional check
 
         // Replace any in-flight notice with the same identifier; avoids duplicate entries
         // if a call site accidentally enqueues twice for the same check-in.

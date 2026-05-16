@@ -1,6 +1,5 @@
 import Foundation
 import Testing
-
 @testable import Wilgo
 
 // MARK: - Helpers
@@ -16,71 +15,68 @@ private func date(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 
     return Calendar.current.date(from: comps)!
 }
 
-@Suite("Cycle")
-struct CyclePeriodMathTests {
+enum CyclePeriodMathTests {
     // MARK: - Cycle.clampedMonthDay
 
-    @Suite("Cycle.clampedMonthDay")
     struct ClampedMonthDayTests {
-
         let cal = Time.calendar
 
         @Test("target day within month returns that exact date")
-        func withinMonth() {
+        func withinMonth() throws {
             let ref = date(year: 2026, month: 3, day: 1)
-            let result = Cycle.clampedMonthDay(15, inMonthOf: ref, cal: cal)!
+            let result = try #require(Cycle.clampedMonthDay(15, inMonthOf: ref, cal: cal))
             #expect(result == date(year: 2026, month: 3, day: 15))
         }
 
         @Test("target day 1 always returns the first of the month")
-        func firstOfMonth() {
+        func firstOfMonth() throws {
             let ref = date(year: 2026, month: 2, day: 14)
-            let result = Cycle.clampedMonthDay(1, inMonthOf: ref, cal: cal)!
+            let result = try #require(Cycle.clampedMonthDay(1, inMonthOf: ref, cal: cal))
             #expect(result == date(year: 2026, month: 2, day: 1))
         }
 
         @Test("target day equals month length returns the last day exactly (no clamping)")
-        func exactLastDay() {
+        func exactLastDay() throws {
             // Feb 2026 has 28 days; requesting day 28 should not clamp.
             let ref = date(year: 2026, month: 2, day: 1)
-            let result = Cycle.clampedMonthDay(28, inMonthOf: ref, cal: cal)!
+            let result = try #require(Cycle.clampedMonthDay(28, inMonthOf: ref, cal: cal))
             #expect(result == date(year: 2026, month: 2, day: 28))
         }
 
         @Test("target day 31 in February (28 days) clamps to Feb 28")
-        func clampDay31ToFeb28() {
+        func clampDay31ToFeb28() throws {
             let ref = date(year: 2026, month: 2, day: 1)
-            let result = Cycle.clampedMonthDay(31, inMonthOf: ref, cal: cal)!
+            let result = try #require(Cycle.clampedMonthDay(31, inMonthOf: ref, cal: cal))
             #expect(result == date(year: 2026, month: 2, day: 28))
         }
 
         @Test("target day 29 in non-leap-year February clamps to Feb 28")
-        func clampDay29ToFeb28NonLeap() {
+        func clampDay29ToFeb28NonLeap() throws {
             // 2026 is not a leap year.
             let ref = date(year: 2026, month: 2, day: 1)
-            let result = Cycle.clampedMonthDay(29, inMonthOf: ref, cal: cal)!
+            let result = try #require(Cycle.clampedMonthDay(29, inMonthOf: ref, cal: cal))
             #expect(result == date(year: 2026, month: 2, day: 28))
         }
 
         @Test("target day 29 in leap-year February returns Feb 29")
-        func day29InLeapYearFeb() {
+        func day29InLeapYearFeb() throws {
             // 2028 is a leap year.
             let ref = date(year: 2028, month: 2, day: 1)
-            let result = Cycle.clampedMonthDay(29, inMonthOf: ref, cal: cal)!
+            let result = try #require(Cycle.clampedMonthDay(29, inMonthOf: ref, cal: cal))
             #expect(result == date(year: 2028, month: 2, day: 29))
         }
 
         @Test("target day 31 in a 31-day month returns the 31st")
-        func day31InMarch() {
+        func day31InMarch() throws {
             let ref = date(year: 2026, month: 3, day: 1)
-            let result = Cycle.clampedMonthDay(31, inMonthOf: ref, cal: cal)!
+            let result = try #require(Cycle.clampedMonthDay(31, inMonthOf: ref, cal: cal))
             #expect(result == date(year: 2026, month: 3, day: 31))
         }
 
         @Test("result is always midnight regardless of the reference date's time")
-        func resultIsMidnight() {
+        func resultIsMidnight() throws {
             let ref = date(year: 2026, month: 5, day: 10, hour: 15, minute: 30)
-            let result = Cycle.clampedMonthDay(20, inMonthOf: ref, cal: cal)!
+            let result = try #require(Cycle.clampedMonthDay(20, inMonthOf: ref, cal: cal))
             let comps = cal.dateComponents([.hour, .minute, .second], from: result)
             #expect(comps.hour == 0)
             #expect(comps.minute == 0)
@@ -95,9 +91,7 @@ struct CyclePeriodMathTests {
     //
     // Cycle(kind: .weekly, referencePsychDay: anchor) anchors the period to the anchor's weekday.
 
-    @Suite("Cycle — weekly startDayOfCycle")
     final class WeeklyPeriodStartTests {
-
         @Test("date is the anchor weekday → period starts today")
         func anchorWeekdayIsToday() {
             // anchor = Thu Mar 5, date = Thu Mar 5 → period starts Mar 5
@@ -125,14 +119,14 @@ struct CyclePeriodMathTests {
         }
 
         @Test("period end is always exactly 7 days after period start")
-        func periodSpanIsSevenDays() {
+        func periodSpanIsSevenDays() throws {
             let cal = Time.calendar
             let anchor = date(year: 2026, month: 3, day: 4)  // Wed
             let cycle = Cycle(kind: .weekly, referencePsychDay: anchor)
             let saturday = date(year: 2026, month: 3, day: 7)
             let start = cycle.startDayOfCycle(including: saturday)
             let end = cycle.endDayOfCycle(including: saturday)
-            let diff = cal.dateComponents([.day], from: start, to: end).day!
+            let diff = try #require(cal.dateComponents([.day], from: start, to: end).day)
             #expect(diff == 7)
         }
 
@@ -148,9 +142,7 @@ struct CyclePeriodMathTests {
 
     // MARK: - Monthly cycle period start
 
-    @Suite("Cycle — monthly startDayOfCycle")
     final class MonthlyPeriodStartTests {
-
         @Test("today matches the anchor day → period starts today")
         func anchorDayIsToday() {
             let march5 = date(year: 2026, month: 3, day: 5)
@@ -203,9 +195,7 @@ struct CyclePeriodMathTests {
 
     // MARK: - Monthly cycle next period start (end)
 
-    @Suite("Cycle — monthly endDayOfCycle")
     final class MonthlyEndDayTests {
-
         @Test("normal month: next period starts on same day-of-month one month later")
         func normalMonthAdvancesOneMonth() {
             // anchor = Mar 15, today = Mar 20 → period started Mar 15 → end = Apr 15
@@ -246,9 +236,7 @@ struct CyclePeriodMathTests {
 
     // MARK: - Daily cycle
 
-    @Suite("Cycle — daily startDayOfCycle")
     struct DailyPeriodTests {
-
         @Test("daily cycle: start is always the same day as the input")
         func dailyStartIsInputDay() {
             let anchor = date(year: 2026, month: 1, day: 1)
@@ -258,13 +246,13 @@ struct CyclePeriodMathTests {
         }
 
         @Test("daily cycle: end is exactly 1 day after start")
-        func dailyEndIsNextDay() {
+        func dailyEndIsNextDay() throws {
             let anchor = date(year: 2026, month: 1, day: 1)
             let cycle = Cycle(kind: .daily, referencePsychDay: anchor)
             let target = date(year: 2026, month: 3, day: 15)
             let start = cycle.startDayOfCycle(including: target)
             let end = cycle.endDayOfCycle(including: target)
-            let diff = Time.calendar.dateComponents([.day], from: start, to: end).day!
+            let diff = try #require(Time.calendar.dateComponents([.day], from: start, to: end).day)
             #expect(diff == 1)
         }
     }

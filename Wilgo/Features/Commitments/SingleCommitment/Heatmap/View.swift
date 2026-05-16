@@ -231,11 +231,11 @@ struct CommitmentHeatmapView: View {
 
     /// Shared helper for simple "header row + N rows of cells" heatmap layouts.
     /// Callers provide how to render each header column and each cell.
-    private func headerGrid<Header: View, Cell: View>(
+    private func headerGrid(
         columns: Int,
         rows: Int,
-        @ViewBuilder header: @escaping (Int) -> Header,
-        @ViewBuilder cell: @escaping (Int, Int) -> Cell
+        @ViewBuilder header: @escaping (Int) -> some View,
+        @ViewBuilder cell: @escaping (Int, Int) -> some View
     ) -> some View {
         Grid(
             alignment: .topLeading,
@@ -492,12 +492,12 @@ struct CommitmentHeatmapView: View {
         var monthStartWeeks: [(weekIdx: Int, date: Date)] = []
         for (weekIdx, column) in columns.enumerated() {
             // First non-nil day in that week.
-            guard let first = column.compactMap({ $0 }).first else { continue }
+            guard let first = column.compactMap(\.self).first else { continue }
             if weekIdx == 0 {
                 monthStartWeeks.append((weekIdx, first.periodStartPsychDay))
                 continue
             }
-            guard let prevFirst = columns[weekIdx - 1].compactMap({ $0 }).first else {
+            guard let prevFirst = columns[weekIdx - 1].compactMap(\.self).first else {
                 continue
             }
             if cal.component(.month, from: first.periodStartPsychDay)
@@ -678,7 +678,7 @@ struct MiniCommitmentHeatmapRow: View {
             let start = cal.startOfDay(for: date)
             let end = cal.date(byAdding: .day, value: 1, to: start) ?? start
 
-            let period = Heatmap.PeriodData(
+            return Heatmap.PeriodData(
                 id: start,
                 periodStartPsychDay: start,
                 periodEndPsychDay: end,
@@ -687,7 +687,6 @@ struct MiniCommitmentHeatmapRow: View {
                     startPsychDay: start, endPsychDay: end),
                 isBeforeCreation: date < createdPsychDay,
             )
-            return period
         }
     }
 

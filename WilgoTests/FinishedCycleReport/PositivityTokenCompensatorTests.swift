@@ -1,6 +1,5 @@
 import Foundation
 import Testing
-
 @testable import Wilgo
 
 private func date(year: Int, month: Int, day: Int) -> Date {
@@ -14,7 +13,6 @@ private func date(year: Int, month: Int, day: Int) -> Date {
     return Calendar.current.date(from: comps)!
 }
 
-@Suite("PositivityTokenCompensator")
 struct PositivityTokenCompensatorTests {
     @Test("compensates one token per missed check-in")
     func compensatesPerMissedCheckIn() {

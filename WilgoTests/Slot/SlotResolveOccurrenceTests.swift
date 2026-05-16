@@ -1,12 +1,9 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
-@Suite("Slot — resolveOccurrence")
 struct SlotResolveOccurrenceTests {
-
     private func tod(hour: Int, minute: Int = 0) -> Date {
         var c = DateComponents()
         c.year = 2000

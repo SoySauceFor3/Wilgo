@@ -1,12 +1,10 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
-@Suite("SlotSnooze.slotPsychDay", .serialized)
+@Suite(.serialized)
 final class SlotPsychDayTests {
-
     // MARK: - Helpers
 
     @MainActor

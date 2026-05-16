@@ -1,7 +1,6 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
 @MainActor
@@ -17,10 +16,8 @@ private func makeContainer() throws -> ModelContainer {
     return try ModelContainer(for: schema, configurations: [config])
 }
 
-@Suite("PositivityTokenMinting")
 @MainActor
 struct PositivityTokenMintingTests {
-
     // MARK: - mintCapacity
 
     @Test func mintCapacity_zeroCheckIns_returnsZero() {

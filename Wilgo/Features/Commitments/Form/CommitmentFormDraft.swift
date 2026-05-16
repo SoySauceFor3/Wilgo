@@ -58,7 +58,7 @@ struct CommitmentFormDraft {
 
     var canSave: Bool {
         !normalizedTitle.isEmpty
-            && (!isRemindersEnabled || slotWindows.allSatisfy { $0.recurrence.isValidSelection })
+            && (!isRemindersEnabled || slotWindows.allSatisfy(\.recurrence.isValidSelection))
             && inspirationOnlyUntilValidation == nil
     }
 
@@ -71,7 +71,7 @@ struct CommitmentFormDraft {
     }
 
     func inspirationOnlyUntilValidation(on psychToday: Date) -> String? {
-        guard case .inspirationOnly(_, let until) = target.configuredMode else { return nil }
+        guard case let .inspirationOnly(_, until) = target.configuredMode else { return nil }
         guard let until else { return nil }
 
         let untilDay = Time.startOfDay(for: until)
@@ -99,7 +99,7 @@ struct CommitmentFormDraft {
         to cycle: Cycle,
         including psychDay: Date = Time.startOfDay(for: Time.now())
     ) {
-        guard case .inspirationOnly(_, let until) = target.configuredMode else { return }
+        guard case let .inspirationOnly(_, until) = target.configuredMode else { return }
         let start = cycle.startDayOfCycle(including: psychDay)
         target.setConfiguredMode(
             .inspirationOnly(start: start, until: until.map { Time.startOfDay(for: $0) })

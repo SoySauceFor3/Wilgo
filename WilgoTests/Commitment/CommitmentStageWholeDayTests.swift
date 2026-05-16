@@ -1,12 +1,10 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
-@Suite("Commitment.stageStatus - whole-day carry-over", .serialized)
+@Suite(.serialized)
 final class CommitmentStageWholeDayTests {
-
     @MainActor
     private func makeContainer() throws -> ModelContainer {
         let schema = Schema([Commitment.self, Slot.self, CheckIn.self, SlotSnooze.self, Tag.self])

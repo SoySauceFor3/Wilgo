@@ -1,12 +1,10 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
-@Suite("Commitment - SlotStarts", .serialized)
+@Suite(.serialized)
 final class CommitmentUpcomingSlotStartsTests {
-
     // MARK: - Helpers
 
     private func tod(hour: Int, minute: Int = 0) -> Date {

@@ -51,7 +51,7 @@ struct SlotDraft: Identifiable {
     /// happens to pick identical start/end times in normal mode.
     var isWholeDay: Bool = false
     /// Optional cap on check-ins inside one occurrence's window. nil = unlimited.
-    var maxCheckIns: Int? = nil
+    var maxCheckIns: Int?
 }
 
 // MARK: - SlotWindowRow (per-slot UI, including recurrence)
@@ -79,7 +79,7 @@ struct SlotWindowRow: View {
 
     private var recurrenceSummaryText: String {
         let summary = window.recurrence.summaryText
-        if summary.isEmpty && !(window.recurrence == .everyDay) {
+        if summary.isEmpty, !(window.recurrence == .everyDay) {
             return "Select days"
         }
         return summary
@@ -87,9 +87,7 @@ struct SlotWindowRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-
             VStack(alignment: .leading, spacing: 6) {
-
                 Toggle("Whole day", isOn: wholeDayBinding)
                     .font(.footnote)
 
@@ -367,16 +365,16 @@ private struct RecurrenceEditorSheet: View {
     }
 }
 
-extension SlotRecurrence {
-    fileprivate var weekdaysSet: Set<Int> {
+private extension SlotRecurrence {
+    var weekdaysSet: Set<Int> {
         switch self {
-        case .specificWeekdays(let set): return set
+        case let .specificWeekdays(set): return set
         default: return []
         }
     }
-    fileprivate var monthDaysSet: Set<Int> {
+    var monthDaysSet: Set<Int> {
         switch self {
-        case .specificMonthDays(let set): return set
+        case let .specificMonthDays(set): return set
         default: return []
         }
     }

@@ -100,7 +100,7 @@ struct EditCommitmentView: View {
 
     private func saveChanges() {
         draft.apply(to: commitment, in: modelContext)
-        try? modelContext.save()  //TODO: try? means that if errors, we ignore it. Better to use a do/catch statement to properly handle it.
+        try? modelContext.save()  // TODO: try? means that if errors, we ignore it. Better to use a do/catch statement to properly handle it.
         WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
         SlotStartNotificationScheduler.refresh()
         dismiss()

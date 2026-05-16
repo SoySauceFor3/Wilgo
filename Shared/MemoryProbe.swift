@@ -10,7 +10,6 @@ import Foundation
 /// All output is `print(...)` prefixed with `[MEM]` so it's easy to filter
 /// in the Xcode console. Compiled out of release builds via `#if DEBUG`.
 enum MemoryProbe {
-
     #if DEBUG
 
         /// Resident memory in MB, or `nil` if the kernel call failed.
@@ -64,7 +63,7 @@ enum MemoryProbe {
         // MARK: - Internals
 
         private static var samplerStarted = false
-        nonisolated(unsafe) private static var samplerTask: Task<Void, Never>?
+        private nonisolated(unsafe) static var samplerTask: Task<Void, Never>?
         @MainActor private static var isForeground: Bool = true
 
         @MainActor
@@ -172,10 +171,10 @@ enum MemoryProbe {
     #else
 
         @MainActor
-        static func startForegroundSampler(interval: Duration = .seconds(30)) {}
+        static func startForegroundSampler(interval _: Duration = .seconds(30)) {}
 
         @MainActor
-        static func log(_ tag: String, extra: String = "") {}
+        static func log(_: String, extra _: String = "") {}
 
     #endif
 }

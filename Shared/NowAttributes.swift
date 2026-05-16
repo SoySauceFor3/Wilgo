@@ -9,7 +9,7 @@ import ActivityKit
 import Foundation
 
 struct NowAttributes: ActivityAttributes {
-    public struct ContentState: Codable, Hashable {
+    struct ContentState: Codable, Hashable {
         /// Primary (first) current commitment's title (empty when no commitment in window).
         var commitmentTitle: String
         /// Current slot time range, e.g. "9:00 AM – 11:00 AM".
@@ -28,7 +28,7 @@ struct NowAttributes: ActivityAttributes {
         var encouragementText: String?
 
         /// Only start or update the Live Activity when this is true (primary commitment + slot set).
-        public var hasCurrentCommitment: Bool {
+        var hasCurrentCommitment: Bool {
             !commitmentTitle.isEmpty && !slotTimeText.isEmpty
         }
     }

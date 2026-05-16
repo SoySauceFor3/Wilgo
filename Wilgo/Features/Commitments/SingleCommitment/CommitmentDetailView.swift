@@ -45,7 +45,7 @@ struct CommitmentDetailView: View {
         switch displayedTargetMode {
         case .on:
             return "On"
-        case .inspirationOnly(_, let until):
+        case let .inspirationOnly(_, until):
             if let until {
                 return "Inspiration Only until \(formattedShortDate(until))"
             } else {

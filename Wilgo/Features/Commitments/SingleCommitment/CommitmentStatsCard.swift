@@ -8,7 +8,7 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
     @EnvironmentObject private var checkInUndoManager: CheckInUndoManager
     let slots: [Slot]
     let topRightTitle: String
-    var onSnooze: (() -> Void)? = nil
+    var onSnooze: (() -> Void)?
     @ViewBuilder var topRightContent: () -> TopRightContent
 
     // MARK: - Derived data
@@ -32,11 +32,11 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
 
     // MARK: - Tile helper
 
-    private func statTile<Content: View>(
+    private func statTile(
         title: String,
         background: Color,
         cornerRadius: CGFloat,
-        @ViewBuilder content: () -> Content
+        @ViewBuilder content: () -> some View
     ) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             if !title.isEmpty {
@@ -217,7 +217,7 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
     }
 }
 
-private struct DisplayInfo {
+private enum DisplayInfo {
     private static var windowScene: UIWindowScene? {
         UIApplication.shared.connectedScenes
             .compactMap { $0 as? UIWindowScene }

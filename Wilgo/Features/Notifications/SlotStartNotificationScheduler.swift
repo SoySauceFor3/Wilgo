@@ -33,7 +33,9 @@ enum SlotStartNotificationScheduler {
                 let oldIDs = pending.map(\.identifier)
                     .filter { $0.hasPrefix(notificationIdentifierPrefix) }
                 center.removePendingNotificationRequests(withIdentifiers: oldIDs)  // remove old ones
-                for request in requests { center.add(request) }  // add new ones
+                for request in requests {
+                    center.add(request)
+                }  // add new ones
             }
         }
     }
@@ -79,7 +81,7 @@ enum SlotStartNotificationScheduler {
         var result: [Date: [Commitment]] = [:]
         for commitment in commitments {
             guard commitment.isRemindersEnabled else { continue }
-            guard !commitment.goalProgress(now: now).isMet else { continue }  //TODO: later this will be user configurable
+            guard !commitment.goalProgress(now: now).isMet else { continue }  // TODO: later this will be user configurable
             for fireDate in commitment.slotStarts(from: now, to: horizon) {
                 result[fireDate, default: []].append(commitment)
             }
@@ -137,7 +139,7 @@ enum SlotStartNotificationScheduler {
         let titles = commitments.map(\.title)
         let primary = titles.prefix(3).joined(separator: " · ")
         content.body = titles.count > 3 ? "\(primary) · +\(titles.count - 3) more" : primary
-        content.userInfo = ["commitmentIds": commitments.map { $0.id.uuidString }]
+        content.userInfo = ["commitmentIds": commitments.map(\.id.uuidString)]
         return content
     }
 }

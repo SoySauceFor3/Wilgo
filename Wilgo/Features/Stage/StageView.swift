@@ -83,8 +83,8 @@ struct StageView: View {
                         }
                     }
 
-                    if viewModel.current.isEmpty && viewModel.upcoming.isEmpty
-                        && viewModel.catchUp.isEmpty
+                    if viewModel.current.isEmpty, viewModel.upcoming.isEmpty,
+                        viewModel.catchUp.isEmpty
                     {
                         EmptyStageCard()
                     }
@@ -195,17 +195,17 @@ private enum StagePreviewFactory {
             target: Target(count: 1),
             proofOfWorkType: .manual,
         )
-        commitment1.slots.forEach {
-            $0.commitment = commitment1
-            ctx.insert($0)
+        for slot in commitment1.slots {
+            slot.commitment = commitment1
+            ctx.insert(slot)
         }
-        commitment2.slots.forEach {
-            $0.commitment = commitment2
-            ctx.insert($0)
+        for slot in commitment2.slots {
+            slot.commitment = commitment2
+            ctx.insert(slot)
         }
-        commitment3.slots.forEach {
-            $0.commitment = commitment3
-            ctx.insert($0)
+        for slot in commitment3.slots {
+            slot.commitment = commitment3
+            ctx.insert(slot)
         }
         ctx.insert(commitment1)
         ctx.insert(commitment2)

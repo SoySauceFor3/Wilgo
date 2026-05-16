@@ -53,17 +53,15 @@ struct ListPositivityTokenView: View {
 
     // MARK: - Sections
 
-    @ViewBuilder
     private var summarySection: some View {
         Section("Summary") {
             SummaryRow(label: "Created", value: tokens.count)
-            SummaryRow(label: "Used", value: tokens.filter { $0.status == .used }.count)
-            SummaryRow(label: "Active", value: tokens.filter { $0.status == .active }.count)
+            SummaryRow(label: "Used", value: tokens.count(where: { $0.status == .used }))
+            SummaryRow(label: "Active", value: tokens.count(where: { $0.status == .active }))
             SummaryRow(label: "Monthly budget remaining", value: monthlyBudgetRemaining())
         }
     }
 
-    @ViewBuilder
     private var capacityRow: some View {
         Section {
             if capacity > 0 {
@@ -87,10 +85,10 @@ struct ListPositivityTokenView: View {
 
     private func monthlyBudgetRemaining() -> Int {
         let cap = AfterPositivityTokenReportBuilder.positivityTokenMonthlyCap()
-        let usedThisMonth = tokens.filter { token in
+        let usedThisMonth = tokens.count(where: { token in
             token.status == .used &&
             Calendar.current.isDate(token.dayOfStatus ?? .distantPast, equalTo: .now, toGranularity: .month)
-        }.count
+        })
         return max(0, cap - usedThisMonth)
     }
 

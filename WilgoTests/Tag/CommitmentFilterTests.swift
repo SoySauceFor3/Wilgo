@@ -1,7 +1,6 @@
 import Foundation
 import SwiftData
 import Testing
-
 @testable import Wilgo
 
 // MARK: - Filter predicate (mirrors ListCommitmentView.filteredCommitments logic)
@@ -47,10 +46,9 @@ private func makeCommitment(title: String = "Test") -> Commitment {
 
 // MARK: - Tests
 
-@Suite("CommitmentFilter", .serialized)
+@Suite(.serialized)
 @MainActor
 struct CommitmentFilterTests {
-
     // MARK: OR logic — single tag filter
 
     @Test(

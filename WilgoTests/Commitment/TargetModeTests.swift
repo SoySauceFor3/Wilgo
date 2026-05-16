@@ -1,9 +1,8 @@
 import Foundation
 import Testing
-
 @testable import Wilgo
 
-@Suite("TargetMode", .serialized)
+@Suite(.serialized)
 struct TargetModeTests {
     @Test("on is effective on")
     func onIsEffectiveOn() throws {
@@ -39,7 +38,7 @@ struct TargetModeTests {
             Issue.record("Expected before-start inspiration only to throw")
         } catch let error as TargetModeError {
             switch error {
-            case .effectiveModeBeforeInspirationStart(let psychDay, let start):
+            case let .effectiveModeBeforeInspirationStart(psychDay, start):
                 #expect(psychDay == date(2025, 11, 30))
                 #expect(start == date(2025, 12, 1))
             default:
@@ -106,7 +105,7 @@ struct TargetModeTests {
             Issue.record("Expected invalid range to throw")
         } catch let error as TargetModeError {
             switch error {
-            case .invalidEffectiveModeRange(let startPsychDay, let endPsychDay):
+            case let .invalidEffectiveModeRange(startPsychDay, endPsychDay):
                 #expect(startPsychDay == date(2026, 1, 1))
                 #expect(endPsychDay == date(2026, 1, 1))
             default:

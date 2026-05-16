@@ -248,8 +248,8 @@ struct NowLiveActivity: Widget {
 
 }
 
-extension NowAttributes.ContentState {
-    fileprivate static var withCommitment: NowAttributes.ContentState {
+private extension NowAttributes.ContentState {
+    static var withCommitment: NowAttributes.ContentState {
         NowAttributes.ContentState(
             commitmentTitle: "Morning reading",
             slotTimeText: "9:00 AM – 11:00 AM",
