@@ -1,6 +1,10 @@
 import Foundation
 import SwiftData
 
+protocol CheckInEnqueuing {
+    func enqueue(checkIn: CheckIn, title: String, context: ModelContext)
+}
+
 enum CheckInStatus: String, Codable {
     case completed
 }
@@ -42,5 +46,19 @@ final class CheckIn {
         self.source = source
 
         self.psychDay = Time.startOfDay(for: createdAt)
+    }
+
+    static func insert(
+        commitment: Commitment,
+        createdAt: Date = .now,
+        source: CheckInSource = .app,
+        title: String = "Check-in saved",
+        into context: ModelContext,
+        undoManager: (any CheckInEnqueuing)? = nil
+    ) {
+        let checkIn = CheckIn(commitment: commitment, createdAt: createdAt, source: source)
+        context.insert(checkIn)
+        commitment.checkIns.append(checkIn)
+        undoManager?.enqueue(checkIn: checkIn, title: title, context: context)
     }
 }

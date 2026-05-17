@@ -52,12 +52,15 @@ struct BackfillSheet: View {
     }
 
     private func addBackfill() {
-        let checkIn = CheckIn(commitment: commitment, createdAt: selectedDate, source: .backfill)
-        modelContext.insert(checkIn)
-        commitment.checkIns.append(checkIn)
-
         let bannerTitle = "Backfill of \(commitment.title) saved for \(formattedDate(selectedDate))"
-        checkInUndoManager.enqueue(checkIn: checkIn, title: bannerTitle, context: modelContext)
+        CheckIn.insert(
+            commitment: commitment,
+            createdAt: selectedDate,
+            source: .backfill,
+            title: bannerTitle,
+            into: modelContext,
+            undoManager: checkInUndoManager
+        )
 
         dismiss()
     }

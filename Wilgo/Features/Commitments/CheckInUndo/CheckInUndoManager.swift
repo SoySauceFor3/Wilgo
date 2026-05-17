@@ -124,3 +124,5 @@ final class CheckInUndoManager: ObservableObject {
         notices.removeAll(where: { $0.id == noticeID })
     }
 }
+
+extension CheckInUndoManager: CheckInEnqueuing {}

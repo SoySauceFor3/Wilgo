@@ -176,15 +176,11 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
                 // Right: Done column (2×1)
                 Button {
                     withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                        let checkIn = CheckIn(
-                            commitment: commitment
-                        )
-                        modelContext.insert(checkIn)
-                        commitment.checkIns.append(checkIn)  // keep inverse in sync immediately, as inverse relationship propagation takes time.
-                        checkInUndoManager.enqueue(
-                            checkIn: checkIn,
+                        CheckIn.insert(
+                            commitment: commitment,
                             title: "A check-in made for \(commitment.title)",
-                            context: modelContext
+                            into: modelContext,
+                            undoManager: checkInUndoManager
                         )
                     }
                 } label: {
