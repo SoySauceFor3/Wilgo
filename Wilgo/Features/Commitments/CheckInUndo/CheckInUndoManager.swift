@@ -4,16 +4,6 @@ import SwiftData
 import SwiftUI
 import WidgetKit
 
-extension Notification.Name {
-    /// Posted when a check-in is undone/revoked.
-    static let CheckInRevoked = Notification.Name("CheckInRevoked")
-}
-
-enum CheckInRevokedUserInfoKeys {
-    /// Value is the `UUID` of the revoked `CheckIn`.
-    static let checkInID = "checkInID"
-}
-
 /// Manages bottom undo notices for newly created `CheckIn`s.
 ///
 /// Call sites should enqueue after inserting the `CheckIn` into a SwiftData `ModelContext`,
@@ -22,7 +12,7 @@ enum CheckInRevokedUserInfoKeys {
 final class CheckInUndoManager: ObservableObject {
     enum NoticeKind {
         case undo
-        case info
+        case info  // For future use.
     }
 
     struct Notice: Identifiable {
@@ -32,7 +22,7 @@ final class CheckInUndoManager: ObservableObject {
         let kind: NoticeKind
     }
 
-    @Published private(set) var notices: [Notice] = []
+    @Published private(set) var notices: [Notice] = []  // What UI sees.
 
     private struct NoticeState {
         let checkIn: CheckIn
@@ -42,7 +32,7 @@ final class CheckInUndoManager: ObservableObject {
         let autoDismissTask: Task<Void, Never>
     }
 
-    private var stateByNoticeID: [UUID: NoticeState] = [:]
+    private var stateByNoticeID: [UUID: NoticeState] = [:]  // What the manager needs to act.
 
     private let autoDismissDuration: TimeInterval = 5
 
@@ -110,17 +100,6 @@ final class CheckInUndoManager: ObservableObject {
             state.context.delete(state.checkIn)
         }
         WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
-        postCheckInRevoked(checkInID: notice.id)
-    }
-
-    private func postCheckInRevoked(checkInID: UUID) {
-        NotificationCenter.default.post(  // UIs can listen for it without the manager needing direct references to those views.
-            name: .CheckInRevoked,
-            object: nil,
-            userInfo: [
-                CheckInRevokedUserInfoKeys.checkInID: checkInID
-            ]
-        )
     }
 
     /// Immediately dismisses all pending notices (e.g. when a competing sheet opens).
