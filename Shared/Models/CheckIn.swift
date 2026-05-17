@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import WidgetKit
 
 protocol CheckInEnqueuing {
     func enqueue(checkIn: CheckIn, title: String, context: ModelContext)
@@ -59,6 +60,7 @@ final class CheckIn {
         let checkIn = CheckIn(commitment: commitment, createdAt: createdAt, source: source)
         context.insert(checkIn)
         commitment.checkIns.append(checkIn)
+        WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
         undoManager?.enqueue(checkIn: checkIn, title: title, context: context)
     }
 }

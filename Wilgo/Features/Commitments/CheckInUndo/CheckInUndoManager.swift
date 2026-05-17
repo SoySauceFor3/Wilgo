@@ -48,7 +48,7 @@ final class CheckInUndoManager: ObservableObject {
     ///     check-in if the user taps Undo.
     func enqueue(
         checkIn: CheckIn,
-        title: String = "Check-in saved",
+        title: String,
         context: ModelContext
     ) {
         let noticeID = checkIn.id
@@ -67,7 +67,6 @@ final class CheckInUndoManager: ObservableObject {
         )
         notices.append(notice)
         print("Enqueued notice: \(notice.title)")
-        WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
         let duration = autoDismissDuration
         let task = Task { [weak self] in  // runs immediately
             try? await Task.sleep(
