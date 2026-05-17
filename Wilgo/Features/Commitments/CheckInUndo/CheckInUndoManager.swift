@@ -36,6 +36,8 @@ final class CheckInUndoManager: ObservableObject {
 
     private struct NoticeState {
         let checkIn: CheckIn
+        // Must be the app-lifetime main context from @Environment(\.modelContext).
+        // Do not pass a short-lived or background context — it will be held for up to autoDismissDuration seconds.
         let context: ModelContext
         let autoDismissTask: Task<Void, Never>
     }
@@ -101,6 +103,9 @@ final class CheckInUndoManager: ObservableObject {
 
         // Ensure idempotency: prevent double-undo if the user taps quickly.
         removeNotice(noticeID: notice.id)
+        // withAnimation here propagates the transaction through SwiftData's change tracking
+        // to @Query-observing views. This relies on SwiftUI's implicit transaction propagation
+        // from a @MainActor context — if this ever stops animating, move withAnimation to the call site.
         withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
             state.context.delete(state.checkIn)
         }
