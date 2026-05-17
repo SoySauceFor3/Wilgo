@@ -1,6 +1,7 @@
 import Combine
 import Foundation
 import SwiftData
+import SwiftUI
 import WidgetKit
 
 extension Notification.Name {
@@ -34,7 +35,8 @@ final class CheckInUndoManager: ObservableObject {
     @Published private(set) var notices: [Notice] = []
 
     private struct NoticeState {
-        let undoClosure: (() -> Void)?
+        let checkIn: CheckIn
+        let context: ModelContext
         let autoDismissTask: Task<Void, Never>
     }
 
@@ -47,32 +49,61 @@ final class CheckInUndoManager: ObservableObject {
     /// Enqueue an undo notice for a newly created check-in.
     ///
     /// - Parameters:
-    ///   - checkIn: The newly created check-in.
+    ///   - checkIn: The newly created check-in. **Must already be inserted into `context`**
+    ///     before calling this method — `checkIn.id` must be a stable, persistent identifier.
     ///   - title: Title shown in the notice UI.
-    ///   - undo: Closure invoked if the user taps `Undo` before the notice auto-dismisses.
+    ///   - context: The `ModelContext` that owns `checkIn`. Used internally to delete the
+    ///     check-in if the user taps Undo.
     func enqueue(
         checkIn: CheckIn,
         title: String = "Check-in saved",
-        undo: @escaping () -> Void
+        context: ModelContext
     ) {
-        enqueueInternal(
-            checkIn: checkIn,
+        let noticeID = checkIn.id
+
+        // Replace any in-flight notice with the same identifier; avoids duplicate entries
+        // if a call site accidentally enqueues twice for the same check-in.
+        if let repeated = notices.first(where: { $0.id == noticeID }) {
+            removeNotice(noticeID: repeated.id)
+        }
+
+        let notice = Notice(
+            id: noticeID,
+            createdAt: Date(),
             title: title,
-            kind: .undo,
-            undoClosure: undo
+            kind: .undo
         )
+        notices.append(notice)
+        print("Enqueued notice: \(notice.title)")
+        WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
+        let duration = autoDismissDuration
+        let task = Task { [weak self] in  // runs immediately
+            try? await Task.sleep(
+                nanoseconds: UInt64(duration * 1_000_000_000)
+            )
+            await MainActor.run {
+                self?.autoDismiss(noticeID: noticeID)
+            }
+        }
+        stateByNoticeID[noticeID] = NoticeState(
+            checkIn: checkIn,
+            context: context,
+            autoDismissTask: task
+        )
+
+        // Note: `task` is stored so we can cancel it on user-initiated Undo.
     }
 
-    /// Executes the stored undo closure for the provided notice and removes the notice immediately.
+    /// Deletes the check-in associated with the provided notice and removes the notice immediately.
     func undo(_ notice: Notice) {
         guard notice.kind == .undo else { return }
-        guard let state = stateByNoticeID[notice.id], let undoClosure = state.undoClosure else {
-            return
-        }
+        guard let state = stateByNoticeID[notice.id] else { return }
 
         // Ensure idempotency: prevent double-undo if the user taps quickly.
         removeNotice(noticeID: notice.id)
-        undoClosure()
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+            state.context.delete(state.checkIn)
+        }
         WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
         postCheckInRevoked(checkInID: notice.id)
     }
@@ -94,7 +125,7 @@ final class CheckInUndoManager: ObservableObject {
         }
     }
 
-    // Removes the notice and its undo closure, and cancels the auto-dismiss task.
+    // Removes the notice and its associated state, and cancels the auto-dismiss task.
     private func autoDismiss(noticeID: UUID) {
         guard stateByNoticeID[noticeID] != nil else { return }
         stateByNoticeID[noticeID] = nil
@@ -107,47 +138,5 @@ final class CheckInUndoManager: ObservableObject {
         }
         stateByNoticeID[noticeID] = nil
         notices.removeAll(where: { $0.id == noticeID })
-    }
-
-    // MARK: Internals
-
-    private func enqueueInternal(
-        checkIn: CheckIn,
-        title: String,
-        kind: NoticeKind,
-        undoClosure: (() -> Void)?
-    ) {
-        let noticeID = checkIn.id ?? UUID()  // TODO: Later remove the optional check
-
-        // Replace any in-flight notice with the same identifier; avoids duplicate entries
-        // if a call site accidentally enqueues twice for the same check-in.
-        if let repeated = notices.first(where: { $0.id == noticeID }) {
-            removeNotice(noticeID: repeated.id)
-        }
-
-        let notice = Notice(
-            id: noticeID,
-            createdAt: Date(),
-            title: title,
-            kind: kind
-        )
-        notices.append(notice)
-        print("Enqueued notice: \(notice.title)")
-        WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
-        let duration = autoDismissDuration
-        let task = Task { [weak self] in  // runs immediately
-            try? await Task.sleep(
-                nanoseconds: UInt64(duration * 1_000_000_000)
-            )
-            await MainActor.run {
-                self?.autoDismiss(noticeID: noticeID)
-            }
-        }
-        stateByNoticeID[noticeID] = NoticeState(
-            undoClosure: undoClosure,
-            autoDismissTask: task
-        )
-
-        // Note: `task` is stored so we can cancel it on user-initiated Undo.
     }
 }
