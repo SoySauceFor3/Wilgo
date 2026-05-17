@@ -2,8 +2,6 @@ import Combine
 import Foundation
 import SwiftData
 
-// import SwiftUI
-
 /// Manages bottom undo notices for newly created `CheckIn`s.
 ///
 /// Call sites should enqueue after inserting the `CheckIn` into a SwiftData `ModelContext`,
@@ -92,12 +90,8 @@ final class CheckInUndoManager: ObservableObject {
 
         // Ensure idempotency: prevent double-undo if the user taps quickly.
         removeNotice(noticeID: notice.id)
-        // withAnimation here propagates the transaction through SwiftData's change tracking
-        // to @Query-observing views. This relies on SwiftUI's implicit transaction propagation
-        // from a @MainActor context — if this ever stops animating, move withAnimation to the call site.
-        // withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+
         CheckIn.delete(state.checkIn, from: state.context)
-        // }
     }
 
     /// Immediately dismisses all pending notices (e.g. when a competing sheet opens).
