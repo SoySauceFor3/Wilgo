@@ -4,6 +4,32 @@ import SwiftData
 import UserNotifications
 
 enum CatchUpReminder {
+    // MARK: - Notification IDs
+
+    private static let notificationIDPrefix = "wilgo.catchup."
+    static let maxPendingCount = 10
+
+    // All IDs we own — used for bulk cancel.
+    private static var allNotificationIDs: [String] {
+        (0..<maxPendingCount).map { "\(notificationIDPrefix)\($0)" }
+    }
+
+    // MARK: - Backoff offsets
+
+    // Offsets in hours from lastNewCatchUpCommitmentDate.
+    // internal so tests can verify the sequence without duplicating it.
+    static let catchUpOffsetHours: [Double] = [
+        1, 3, 7, 15,
+        24,  // 1 day
+        48,  // 2 days
+        96,  // 4 days
+        168,  // 1 week
+        336,  // 2 weeks
+        672,  // 4 weeks
+    ]
+
+    // MARK: - In-app scheduler
+
     // scheduler to make the "real work" run once a hour as long as the app is active.
     // if the app get's inactive/background, if during the hour-long gap, nothing changes.
     // if the app get's inactive/background when the timer fires, that time's handler exeuction will be missed.
@@ -17,6 +43,8 @@ enum CatchUpReminder {
         }
         scheduler?.start()
     }
+
+    // MARK: - Background task
 
     private static let backgroundTaskIdentifier = "wilgo.catchup-reminder-scheduler"
     static func registerBackgroundTask() {
@@ -35,7 +63,8 @@ enum CatchUpReminder {
         }
     }
 
-    // The real work that we should do once in a while (hour)
+    // MARK: - Main entry point
+
     @MainActor
     static func updateAndScheduleNotificationAndBackgroundTask(
         now: Date? = nil
@@ -51,71 +80,58 @@ enum CatchUpReminder {
         scheduleBackgroundTask(now: now)
     }
 
+    // MARK: - Background task scheduling
+
     /// Queue the next catch-up reminder.
     static func scheduleBackgroundTask(
         now _: Date
     ) {
         let request = BGAppRefreshTaskRequest(identifier: backgroundTaskIdentifier)
-
         request.earliestBeginDate = Date().addingTimeInterval(1 * 60 * 60)
         try? BGTaskScheduler.shared.submit(request)
     }
+
+    // MARK: - UserDefaults storage
 
     private static let lastNewCatchUpCommitmentDateKey =
         "CatchUpReminderService.lastNewCatchUpCommitmentDate"
     private static let lastCatchUpCommitmentsKey: String =
         "CatchUpReminderService.lastCatchUpCommitments"
 
+    // compares current catch-up IDs against what was stored last time.
+    // If any are new, stamps lastNewCatchUpCommitmentDate = now. This is the anchor date for the chain
     // NOTE: because this function runs roughly 1/hour when the app is not active, so the date might be slightly outdated.
     private static func updateCatchUpCommitmentsStorage(
         catchUp: [CommitmentAndSlot.WithBehind],
         now: Date = Time.now()
     ) {
-        // 1. Get the currently stored catch-up commitments from UserDefaults.
         let defaults = UserDefaults.standard
         let currentIDs = Set(catchUp.map(\.0.id))
 
-        let prevIDs: Set<UUID>
         let prevRawIDs = defaults.stringArray(forKey: lastCatchUpCommitmentsKey) ?? []
-        prevIDs = Set(prevRawIDs.compactMap { UUID(uuidString: $0) })
+        let prevIDs = Set(prevRawIDs.compactMap { UUID(uuidString: $0) })
 
-        // 2. Compute new catch-up commitments not previously present.
         let newIDs = currentIDs.subtracting(prevIDs)
-
-        // 3. If there are any new catch-up commitments (at least one ID not in prevIDs), update addition date.
         if !newIDs.isEmpty {
             defaults.set(now, forKey: lastNewCatchUpCommitmentDateKey)
         }
 
-        // 4. Update the stored catch-up commitments.
         defaults.set(currentIDs.map(\.uuidString), forKey: lastCatchUpCommitmentsKey)
-
     }
 
-    private static func nextNotificationDate(
-        lastNewCatchUpCommitmentDate _: Date,
-        now: Date = Time.now()
-    ) -> Date {
-        let defaults = UserDefaults.standard
-        guard
-            let lastNewCatchUpCommitmentDate = defaults.object(
-                forKey: lastNewCatchUpCommitmentDateKey) as? Date
-        else {
-            return now  // If there is no last new catch-up commitment date, return the current time.
-        }
+    // MARK: - Fire date computation
 
-        // Calculate the smallest power of 2 (n) such that fireDate = lastNewCatchUpCommitmentDate + (2^n - 1) * 1 hour is >= now
-        // We start from the moment of noticing the new catch-up commitment, which can possibly be a little bit late.
-        var n = 0
-        var nextNotificationDate: Date
-        repeat {
-            let intervalHours = pow(2.0, Double(n)) - 1.0
-            nextNotificationDate = lastNewCatchUpCommitmentDate.addingTimeInterval(
-                intervalHours * 3600)
-            n += 1
-        } while nextNotificationDate < now
-        return nextNotificationDate
+    /// Returns up to `maxPendingCount` future fire dates anchored at `anchorDate`.
+    /// Dates in the past (< now) are skipped; the chain starts from the first future offset.
+    static func fireDates(from anchorDate: Date, now: Date) -> [Date] {
+        catchUpOffsetHours
+            .map { anchorDate.addingTimeInterval($0 * 3600) }
+            .filter { $0 > now }
+            .prefix(maxPendingCount)
+            .map(\.self)
     }
+
+    // MARK: - Notification content
 
     private static func makeNotificationContent(
         for catchUp: [CommitmentAndSlot.WithBehind]
@@ -139,20 +155,18 @@ enum CatchUpReminder {
         }
 
         content.title = "Catch up on \(count) commitments"
-
         let titles = commitments.map(\.title)
         let primary = titles.prefix(3).joined(separator: " · ")
         if titles.count > 3 {
-            let remaining = titles.count - 3
-            content.body = "\(primary) · +\(remaining) more"
+            content.body = "\(primary) · +\(titles.count - 3) more"
         } else {
             content.body = primary
         }
-
         return content
     }
 
-    private static let notificationID: String = "wilgo.catchup"
+    // MARK: - Notification scheduling
+
     private static func scheduleNotificationPost(
         for catchUp: [CommitmentAndSlot.WithBehind], now: Date
     ) {
@@ -160,23 +174,33 @@ enum CatchUpReminder {
         center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
             guard granted else { return }
 
-            guard !catchUp.isEmpty else { return }  // if catchUp is empty, don't post a notification
-            center.removePendingNotificationRequests(withIdentifiers: [notificationID])
+            // Cancel the entire chain (including legacy single-ID).
+            center.removePendingNotificationRequests(withIdentifiers: allNotificationIDs)
 
+            guard !catchUp.isEmpty else { return }
+
+            guard
+                let anchorDate = UserDefaults.standard.object(
+                    forKey: lastNewCatchUpCommitmentDateKey) as? Date
+            else { return }
+
+            let dates = fireDates(from: anchorDate, now: now)
             let content = makeNotificationContent(for: catchUp)
-            let nextNotificationDate = nextNotificationDate(lastNewCatchUpCommitmentDate: now)
-            let calendar = Calendar.current
-            let components = calendar.dateComponents(
-                [.year, .month, .day, .hour, .minute, .second],
-                from: nextNotificationDate
-            )
-            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-            let request = UNNotificationRequest(
-                identifier: notificationID,
-                content: content,
-                trigger: trigger
-            )
-            center.add(request)
+
+            for (index, fireDate) in dates.enumerated() {
+                let components = Calendar.current.dateComponents(
+                    [.year, .month, .day, .hour, .minute, .second],
+                    from: fireDate
+                )
+                let trigger = UNCalendarNotificationTrigger(
+                    dateMatching: components, repeats: false)
+                let request = UNNotificationRequest(
+                    identifier: "\(notificationIDPrefix)\(index)",
+                    content: content,
+                    trigger: trigger
+                )
+                center.add(request)
+            }
         }
     }
 }
