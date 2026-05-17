@@ -1,8 +1,8 @@
 import Combine
 import Foundation
 import SwiftData
-import SwiftUI
-import WidgetKit
+
+// import SwiftUI
 
 /// Manages bottom undo notices for newly created `CheckIn`s.
 ///
@@ -95,10 +95,9 @@ final class CheckInUndoManager: ObservableObject {
         // withAnimation here propagates the transaction through SwiftData's change tracking
         // to @Query-observing views. This relies on SwiftUI's implicit transaction propagation
         // from a @MainActor context — if this ever stops animating, move withAnimation to the call site.
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-            state.context.delete(state.checkIn)
-        }
-        WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
+        // withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+        CheckIn.delete(state.checkIn, from: state.context)
+        // }
     }
 
     /// Immediately dismisses all pending notices (e.g. when a competing sheet opens).

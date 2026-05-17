@@ -63,4 +63,9 @@ final class CheckIn {
         WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
         undoManager?.enqueue(checkIn: checkIn, title: title, context: context)
     }
+
+    static func delete(_ checkIn: CheckIn, from context: ModelContext) {
+        context.delete(checkIn)
+        WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
+    }
 }

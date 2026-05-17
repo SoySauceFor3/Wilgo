@@ -1,6 +1,5 @@
 import SwiftData
 import SwiftUI
-import WidgetKit
 
 // Shared heatmap layout constants so smaller views (e.g. stage row) stay aligned.
 private let cellSize: CGFloat = 11
@@ -31,7 +30,8 @@ struct CommitmentHeatmapLegendView: View {
     }
 
     private var expectedGoal: Int? {
-        Heatmap.expectedGoalPerPeriod(target: commitment.target, cycleKind: commitment.cycle.kind, periodKind: heatmapKind)
+        Heatmap.expectedGoalPerPeriod(
+            target: commitment.target, cycleKind: commitment.cycle.kind, periodKind: heatmapKind)
     }
 
     private var samples: [LegendSample] {
@@ -182,13 +182,12 @@ struct CommitmentHeatmapView: View {
                     targetKind: context.target.kind,
                     selectedPeriod: $selectedPeriod,
                     onDelete: { checkIn in
-                        modelContext.delete(checkIn)
+                        CheckIn.delete(checkIn, from: modelContext)
                         // Dismiss the info card immediately — its PeriodData still holds
                         // a reference to the now-deleted CheckIn, and accessing any property
                         // on a SwiftData tombstone crashes.
+                        // And without this line, the info card does not refresh --- so the deleted line will still show there.
                         selectedPeriod = nil
-                        WidgetCenter.shared.reloadTimelines(
-                            ofKind: WilgoConstants.currentCommitmentWidgetKind)
                     },
                     onAddCheckIn: { backfillPeriod = selectedPeriod }
                 )
@@ -200,8 +199,9 @@ struct CommitmentHeatmapView: View {
         .sheet(item: $backfillPeriod) { period in
             BackfillSheet(
                 commitment: commitment,
-                dateRange: period.periodStartPsychDay...min(
-                    period.periodEndPsychDay.addingTimeInterval(-1), Date.now)
+                dateRange: period
+                    .periodStartPsychDay...min(
+                        period.periodEndPsychDay.addingTimeInterval(-1), Date.now)
             )
             .presentationDetents([.medium])
             .presentationDragIndicator(.visible)
