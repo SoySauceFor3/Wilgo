@@ -80,6 +80,8 @@ struct WilgoApp: App {
             if newPhase == .active {
                 // Watchdog: re-queue in case iOS skipped a BGTask fire.
                 NowLiveActivityManager.workAndScheduleNextBGTask()  // Not really necessary because LiveActivity is only needed when scene != .active, just a safe net.
+                // Rebuild catch-up chain to reflect any check-ins made via widget/LA while app was inactive.
+                CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()  // This is not necessary, just quality-of-life improvement.
             } else {
                 // the app is not active (inactive, or background), use this "last chance" to update and schedule the catch-up reminders.
                 CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()
