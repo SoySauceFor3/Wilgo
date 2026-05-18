@@ -4,12 +4,11 @@ import Testing
 @testable import Wilgo
 
 @Suite(.serialized)
-final class CommitmentStageWholeDayTests {
+final class CommitmentSlotStatusWholeDayTests {
     @MainActor
     private func makeContainer() throws -> ModelContainer {
         let schema = Schema([Commitment.self, Slot.self, CheckIn.self, SlotSnooze.self, Tag.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        return try ModelContainer(for: schema, configurations: [config])
+        return try ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
     }
 
     private func tod(hour: Int, minute: Int = 0) -> Date {
@@ -34,8 +33,10 @@ final class CommitmentStageWholeDayTests {
         return Calendar.current.date(from: c)!
     }
 
-    @Test("5am whole-day daily slot is current at 1am after creation day")
-    @MainActor func fiveAMWholeDaySlot_isCurrentAtOneAM() throws {
+    // MARK: - 5am whole-day slot
+
+    @Test("5am whole-day daily slot is .insideSlot at 1am")
+    @MainActor func fiveAMWholeDaySlot_isInsideSlotAtOneAM() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 5), end: tod(hour: 5), recurrence: .everyDay)
@@ -49,16 +50,15 @@ final class CommitmentStageWholeDayTests {
         ctx.insert(commitment)
         ctx.insert(slot)
 
-        let now = date(year: 2026, month: 3, day: 5, hour: 1)
-        let status = commitment.stageStatus(now: now)
+        let slotSt = commitment.slotStatus(now: date(year: 2026, month: 3, day: 5, hour: 1))
 
-        #expect(status.category == .current)
-        #expect(status.nextUpSlots.first?.start == date(year: 2026, month: 3, day: 4, hour: 5))
-        #expect(status.nextUpSlots.first?.end == date(year: 2026, month: 3, day: 5, hour: 5))
+        #expect(slotSt.kind == .insideSlot)
+        #expect(slotSt.remainingSlots.first?.start == date(year: 2026, month: 3, day: 4, hour: 5))
+        #expect(slotSt.remainingSlots.first?.end == date(year: 2026, month: 3, day: 5, hour: 5))
     }
 
-    @Test("target-disabled 5am whole-day daily slot is current at 1am")
-    @MainActor func targetDisabledFiveAMWholeDaySlot_isCurrentAtOneAM() throws {
+    @Test("target-disabled 5am whole-day daily slot is .insideSlot at 1am")
+    @MainActor func targetDisabledFiveAMWholeDaySlot_isInsideSlotAtOneAM() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 5), end: tod(hour: 5), recurrence: .everyDay)
@@ -72,16 +72,17 @@ final class CommitmentStageWholeDayTests {
         ctx.insert(commitment)
         ctx.insert(slot)
 
-        let now = date(year: 2026, month: 3, day: 5, hour: 1)
-        let status = commitment.stageStatus(now: now)
+        let slotSt = commitment.slotStatus(now: date(year: 2026, month: 3, day: 5, hour: 1))
 
-        #expect(status.category == .current)
-        #expect(status.nextUpSlots.first?.start == date(year: 2026, month: 3, day: 4, hour: 5))
-        #expect(status.nextUpSlots.first?.end == date(year: 2026, month: 3, day: 5, hour: 5))
+        #expect(slotSt.kind == .insideSlot)
+        #expect(slotSt.remainingSlots.first?.start == date(year: 2026, month: 3, day: 4, hour: 5))
+        #expect(slotSt.remainingSlots.first?.end == date(year: 2026, month: 3, day: 5, hour: 5))
     }
 
-    @Test("23-to-2 cross-midnight daily slot is current at 1am")
-    @MainActor func crossMidnightSlot_isCurrentAtOneAM() throws {
+    // MARK: - cross-midnight slot
+
+    @Test("23-to-2 cross-midnight daily slot is .insideSlot at 1am")
+    @MainActor func crossMidnightSlot_isInsideSlotAtOneAM() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 23), end: tod(hour: 2), recurrence: .everyDay)
@@ -95,16 +96,15 @@ final class CommitmentStageWholeDayTests {
         ctx.insert(commitment)
         ctx.insert(slot)
 
-        let now = date(year: 2026, month: 3, day: 5, hour: 1)
-        let status = commitment.stageStatus(now: now)
+        let slotSt = commitment.slotStatus(now: date(year: 2026, month: 3, day: 5, hour: 1))
 
-        #expect(status.category == .current)
-        #expect(status.nextUpSlots.first?.start == date(year: 2026, month: 3, day: 4, hour: 23))
-        #expect(status.nextUpSlots.first?.end == date(year: 2026, month: 3, day: 5, hour: 2))
+        #expect(slotSt.kind == .insideSlot)
+        #expect(slotSt.remainingSlots.first?.start == date(year: 2026, month: 3, day: 4, hour: 23))
+        #expect(slotSt.remainingSlots.first?.end == date(year: 2026, month: 3, day: 5, hour: 2))
     }
 
-    @Test("target-disabled 23-to-2 cross-midnight daily slot is current at 1am")
-    @MainActor func targetDisabledCrossMidnightSlot_isCurrentAtOneAM() throws {
+    @Test("target-disabled 23-to-2 cross-midnight daily slot is .insideSlot at 1am")
+    @MainActor func targetDisabledCrossMidnightSlot_isInsideSlotAtOneAM() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 23), end: tod(hour: 2), recurrence: .everyDay)
@@ -118,11 +118,10 @@ final class CommitmentStageWholeDayTests {
         ctx.insert(commitment)
         ctx.insert(slot)
 
-        let now = date(year: 2026, month: 3, day: 5, hour: 1)
-        let status = commitment.stageStatus(now: now)
+        let slotSt = commitment.slotStatus(now: date(year: 2026, month: 3, day: 5, hour: 1))
 
-        #expect(status.category == .current)
-        #expect(status.nextUpSlots.first?.start == date(year: 2026, month: 3, day: 4, hour: 23))
-        #expect(status.nextUpSlots.first?.end == date(year: 2026, month: 3, day: 5, hour: 2))
+        #expect(slotSt.kind == .insideSlot)
+        #expect(slotSt.remainingSlots.first?.start == date(year: 2026, month: 3, day: 4, hour: 23))
+        #expect(slotSt.remainingSlots.first?.end == date(year: 2026, month: 3, day: 5, hour: 2))
     }
 }

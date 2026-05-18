@@ -133,28 +133,6 @@ extension Commitment {
         }
     }
 
-    // MARK: - Stage categorization
-
-    enum StageCategory {
-        case metGoal
-        case current
-        case future
-        case catchUp
-        case others
-    }
-
-    struct StageStatus {
-        let category: StageCategory
-        /// All unfinished slots whose windows have not yet ended in the target cycle, sorted.
-        /// Includes the current slot (if any) and any later slots.
-        /// IMPORTANT: it contains date info, not just time of day.
-        let nextUpSlots: [Slot]
-        /// Minimal number of extra check-ins that must be done
-        /// outside the remaining scheduled slots in this cycle
-        /// in order to still hit the target.
-        let behindCount: Int
-    }
-
     /// Cycle-level goal progress, independent of slot mechanics.
     struct GoalProgress {
         /// `max(0, target.count - checkInsInCycle.count)`. Nil when target is disabled
@@ -177,8 +155,7 @@ extension Commitment {
     }
 
     /// Pure slot mechanics for a given `now`. Mode-agnostic: `remainingSlots` is
-    /// built over the full target cycle regardless of `target.effectiveMode`. The
-    /// `stageStatus(now:)` wrapper consumes the same list in both modes. For daily
+    /// built over the full target cycle regardless of `target.effectiveMode`. For daily
     /// cycles the cycle window equals the psych-day window; for longer cycles it
     /// is strictly wider, so `remainingSlots` may include slots beyond today.
     struct SlotStatus {
@@ -193,8 +170,7 @@ extension Commitment {
     /// Returns the slot mechanics for `now`. Mode-agnostic — always uses the
     /// target cycle as the window, regardless of `target.effectiveMode`.
     ///
-    /// `remainingSlots` matches what `stageStatus` builds today for the enabled
-    /// branch: occurrences whose window has not yet ended, with the current slot
+    /// `remainingSlots`: occurrences whose window has not yet ended, with the current slot
     /// dropped if it has been snoozed or its capacity is saturated by in-window
     /// check-ins.
     ///
@@ -238,10 +214,7 @@ extension Commitment {
 
     /// Returns the cycle-level goal progress for the cycle containing `now`.
     ///
-    /// Mirrors the `leftToDo` arithmetic inside `stageStatus(now:)`. When the target
-    /// is disabled on the psych day of `now`, returns `GoalProgress(leftToDo: nil)`
-    /// — there is no meaningful "left to do" in that mode, and `isMet` will be `false`,
-    /// matching today's behavior where target-disabled commitments are never `.metGoal`.
+    /// When the target is disabled, returns `GoalProgress(leftToDo: nil)` — `isMet` is always `false`.
     func goalProgress(now: Date = Time.now()) -> GoalProgress {
         let nowPsychDay = Time.startOfDay(for: now)
         if case .disabled = target.effectiveMode(on: nowPsychDay) {
@@ -344,63 +317,6 @@ extension Commitment {
             guard !pair.original.isSnoozed(at: now) else { return nil }
             guard !pair.original.isSaturated(at: now, checkIns: checkIns) else { return nil }
             return pair.occurrence
-        }
-    }
-
-    /// Classifies this commitment for the current psychological day at the given time.
-    ///
-    /// Thin wrapper over `slotStatus(now:)` and `goalProgress(now:)`. Precedence:
-    /// - `metGoal`: if cycle's goal already met (target-enabled only).
-    /// - `current`: elif there is a slot whose window contains `now`.
-    /// - `future`: elif there are slots within today (psych day).
-    /// - `catchUp`: elif the count of remaining slots < leftToDo (target-enabled only).
-    /// - `others`: all other cases.
-    func stageStatus(
-        now: Date = Time.now()
-    ) -> StageStatus {
-        let nowPsychDay = Time.startOfDay(for: now)
-        let slot = slotStatus(now: now)
-
-        if case .disabled = target.effectiveMode(on: nowPsychDay) {
-            // Target-disabled: no goal progress, no behindCount. Map kind directly.
-            switch slot.kind {
-            case .disabled:
-                return StageStatus(category: .others, nextUpSlots: [], behindCount: 0)
-            case .insideSlot:
-                return StageStatus(
-                    category: .current, nextUpSlots: slot.remainingSlots, behindCount: 0)
-            case .beforeNextToday:
-                return StageStatus(
-                    category: .future, nextUpSlots: slot.remainingSlots, behindCount: 0)
-            case .noSlotToday:
-                return StageStatus(
-                    category: .others, nextUpSlots: slot.remainingSlots, behindCount: 0)
-            }
-        }
-
-        let progress = goalProgress(now: now)
-        if progress.isMet {
-            return StageStatus(category: .metGoal, nextUpSlots: [], behindCount: 0)
-        }
-        // Invariant: enabled branch — `leftToDo` is non-nil and > 0.
-        guard let leftToDo = progress.leftToDo else {
-            preconditionFailure("goalProgress.leftToDo must be non-nil when target is not disabled")
-        }
-        let behindCount = max(0, leftToDo - slot.remainingSlots.count)
-
-        switch slot.kind {
-        case .disabled:
-            return StageStatus(category: .others, nextUpSlots: [], behindCount: 0)
-        case .insideSlot:
-            return StageStatus(
-                category: .current, nextUpSlots: slot.remainingSlots, behindCount: behindCount)
-        case .beforeNextToday:
-            return StageStatus(
-                category: .future, nextUpSlots: slot.remainingSlots, behindCount: behindCount)
-        case .noSlotToday:
-            let category: StageCategory = behindCount > 0 ? .catchUp : .others
-            return StageStatus(
-                category: category, nextUpSlots: slot.remainingSlots, behindCount: behindCount)
         }
     }
 }

@@ -4,7 +4,7 @@ import Testing
 @testable import Wilgo
 
 @Suite(.serialized)
-final class CommitmentInspirationOnlyStageTests {
+final class CommitmentSlotStatusInspirationOnlyTests {
     private func tod(hour: Int) -> Date {
         var comps = DateComponents()
         comps.year = 2000
@@ -33,9 +33,8 @@ final class CommitmentInspirationOnlyStageTests {
         return try ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
     }
 
-    @Test("inspiration only active slot follows Target On current behavior")
-    @MainActor
-    func inspirationOnlyActiveSlotIsCurrent() throws {
+    @Test("inspirationOnly active period → slotStatus .insideSlot; behindCount matches leftToDo")
+    @MainActor func inspirationOnlyActive_insideSlot_behindCountCorrect() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 9), end: tod(hour: 11))
@@ -54,15 +53,17 @@ final class CommitmentInspirationOnlyStageTests {
         ctx.insert(commitment)
         ctx.insert(slot)
 
-        let status = commitment.stageStatus(now: date(year: 2026, month: 5, day: 7, hour: 10))
+        let now = date(year: 2026, month: 5, day: 7, hour: 10)
+        let slotSt = commitment.slotStatus(now: now)
+        let progress = commitment.goalProgress(now: now)
+        let behindCount = progress.leftToDo.map { max(0, $0 - slotSt.remainingSlots.count) }
 
-        #expect(status.category == .current)
-        #expect(status.behindCount == 1)
+        #expect(slotSt.kind == .insideSlot)
+        #expect(behindCount == 1)
     }
 
-    @Test("expired inspiration only follows On and can become metGoal")
-    @MainActor
-    func expiredInspirationOnlyBehavesAsOn() throws {
+    @Test("inspirationOnly expired → behaves as .on; goalProgress.isMet when check-ins meet target")
+    @MainActor func inspirationOnlyExpired_behavesAsOn_goalIsMet() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 15), end: tod(hour: 17))
@@ -84,8 +85,6 @@ final class CommitmentInspirationOnlyStageTests {
         ctx.insert(checkIn)
         commitment.checkIns = [checkIn]
 
-        let status = commitment.stageStatus(now: date(year: 2026, month: 5, day: 7, hour: 12))
-
-        #expect(status.category == .metGoal)
+        #expect(commitment.goalProgress(now: date(year: 2026, month: 5, day: 7, hour: 12)).isMet)
     }
 }

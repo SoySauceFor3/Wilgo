@@ -5,7 +5,7 @@ struct CatchUpCommitmentRow: View {
     @Bindable var commitment: Commitment
     /// For catch-up, these are the "next up" slots for this commitment.
     let slots: [Slot]
-    /// Pre-computed by `StageViewModel`; avoids re-running `stageStatus` per row.
+    /// Pre-computed by `StageViewModel`; avoids re-running `status` per row.
     let behindCount: Int
     var onTap: () -> Void
 

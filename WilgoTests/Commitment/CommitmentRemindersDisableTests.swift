@@ -49,39 +49,29 @@ final class CommitmentRemindersDisableTests {
         return c
     }
 
-    @Test("reminders disabled → helper still includes it (helpers are pure, no internal filter)")
-    @MainActor func remindersDisabled_helperStillIncludes() throws {
+    @Test("reminders disabled → currentWithBehind excludes it (.disabled slotKind filtered by helper)")
+    @MainActor func remindersDisabled_excludedByHelper() throws {
         let container = try makeContainer()
         let c = makeCommitment(remindersEnabled: false, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        // The helper classifies by slot timing, not by isRemindersEnabled.
-        // Filtering is the caller's responsibility.
-        #expect(CommitmentAndSlot.currentWithBehind(commitments: [c], now: now).count == 1)
+        // status(now:) returns .disabled slotKind when isRemindersEnabled==false,
+        // so currentWithBehind filters it out without any call-site pre-filtering.
+        #expect(CommitmentAndSlot.currentWithBehind(commitments: [c], now: now).isEmpty)
     }
 
-    @Test("reminders disabled → excluded after call-site filter (StageViewModel pattern)")
-    @MainActor func remindersDisabled_excludedAfterCallSiteFilter() throws {
-        let container = try makeContainer()
-        let c = makeCommitment(remindersEnabled: false, in: container.mainContext)
-        let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        let remindersOn = [c].filter(\.isRemindersEnabled)
-        #expect(CommitmentAndSlot.currentWithBehind(commitments: remindersOn, now: now).isEmpty)
-    }
-
-    @Test("reminders enabled → included after call-site filter")
-    @MainActor func remindersEnabled_includedAfterCallSiteFilter() throws {
+    @Test("reminders enabled → currentWithBehind includes it")
+    @MainActor func remindersEnabled_includedByHelper() throws {
         let container = try makeContainer()
         let c = makeCommitment(remindersEnabled: true, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        let remindersOn = [c].filter(\.isRemindersEnabled)
-        #expect(CommitmentAndSlot.currentWithBehind(commitments: remindersOn, now: now).count == 1)
+        #expect(CommitmentAndSlot.currentWithBehind(commitments: [c], now: now).count == 1)
     }
 
-    @Test("reminders disabled → stageStatus itself is unaffected (filtering is upstream)")
-    @MainActor func remindersDisabled_stageStatusUnchanged() throws {
+    @Test("reminders disabled → status.slotKind is .disabled (reminders off encoded in model)")
+    @MainActor func remindersDisabled_statusSlotKindIsDisabled() throws {
         let container = try makeContainer()
         let c = makeCommitment(remindersEnabled: false, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        #expect(c.stageStatus(now: now).category == .current)
+        #expect(c.status(now: now).slotKind == .disabled)
     }
 }

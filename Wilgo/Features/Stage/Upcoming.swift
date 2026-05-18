@@ -4,7 +4,7 @@ import SwiftUI
 struct UpcomingCommitmentRow: View {
     let commitment: Commitment
     let slots: [Slot]
-    /// Pre-computed by `StageViewModel`; avoids re-running `stageStatus` per row.
+    /// Pre-computed by `StageViewModel`; avoids re-running `status` per row.
     let behindCount: Int
     var onTap: () -> Void
 
