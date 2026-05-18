@@ -11,6 +11,7 @@ struct CommitmentFormDraft {
     var encouragements: [String]
     var selectedTags: [Tag]
     var isRemindersEnabled: Bool
+    var continueRemindersAfterGoalMet: Bool
 
     init(
         title: String = "",
@@ -21,7 +22,8 @@ struct CommitmentFormDraft {
         punishment: String = "",
         encouragements: [String] = [],
         selectedTags: [Tag] = [],
-        isRemindersEnabled: Bool = true
+        isRemindersEnabled: Bool = true,
+        continueRemindersAfterGoalMet: Bool = false
     ) {
         self.title = title
         self.cycle = cycle
@@ -32,6 +34,7 @@ struct CommitmentFormDraft {
         self.encouragements = encouragements
         self.selectedTags = selectedTags
         self.isRemindersEnabled = isRemindersEnabled
+        self.continueRemindersAfterGoalMet = continueRemindersAfterGoalMet
     }
 
     init(commitment: Commitment) {
@@ -52,7 +55,8 @@ struct CommitmentFormDraft {
             punishment: commitment.punishment ?? "",
             encouragements: commitment.encouragements,
             selectedTags: commitment.tags,
-            isRemindersEnabled: commitment.isRemindersEnabled
+            isRemindersEnabled: commitment.isRemindersEnabled,
+            continueRemindersAfterGoalMet: commitment.continueRemindersAfterGoalMet
         )
     }
 
@@ -131,7 +135,8 @@ struct CommitmentFormDraft {
             target: target,
             proofOfWorkType: proofOfWorkType,
             punishment: normalizedPunishment,
-            isRemindersEnabled: effectiveRemindersEnabled
+            isRemindersEnabled: effectiveRemindersEnabled,
+            continueRemindersAfterGoalMet: continueRemindersAfterGoalMet
         )
         modelContext.insert(commitment)
         commitment.encouragements = normalizedEncouragements
@@ -149,6 +154,7 @@ struct CommitmentFormDraft {
         commitment.target = target
         commitment.tags = selectedTags
         commitment.isRemindersEnabled = effectiveRemindersEnabled
+        commitment.continueRemindersAfterGoalMet = continueRemindersAfterGoalMet
 
         guard effectiveRemindersEnabled else { return }
 

@@ -86,6 +86,9 @@ final class Commitment {
     /// When false, this commitment is excluded from Stage reminders and CatchUpReminder notifications.
     var isRemindersEnabled: Bool = true
 
+    /// When true, reminders keep firing even after the daily goal has been met.
+    var continueRemindersAfterGoalMet: Bool = false
+
     init(
         title: String,
         createdAt: Date = .now,
@@ -95,6 +98,7 @@ final class Commitment {
         proofOfWorkType: ProofOfWorkType = .manual,
         punishment: String? = nil,
         isRemindersEnabled: Bool = true,
+        continueRemindersAfterGoalMet: Bool = false,
     ) {
         self.id = UUID()
         self.title = title
@@ -105,6 +109,7 @@ final class Commitment {
         self.proofOfWorkType = proofOfWorkType
         self.punishment = punishment
         self.isRemindersEnabled = isRemindersEnabled
+        self.continueRemindersAfterGoalMet = continueRemindersAfterGoalMet
     }
 
     // checkins of a commitment in a given psych-day range [startPsychDay, endPsychDay)
