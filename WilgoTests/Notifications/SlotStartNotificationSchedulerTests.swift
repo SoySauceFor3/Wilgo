@@ -228,6 +228,7 @@ final class SlotStartNotificationSchedulerTests {
 
         let expected = date(year: 2026, month: 3, day: 5, hour: 9)
         #expect(result[expected] != nil)
+        #expect(result[expected]?.count == 1)
     }
 
     @Test("commitment with goal met and continueRemindersAfterGoalMet=false is excluded (default)")
