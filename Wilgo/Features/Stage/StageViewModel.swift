@@ -33,10 +33,10 @@ final class StageViewModel {
 
     private func recompute() {
         let now = Date()
-        let remindersOn = lastCommitments.filter(\.isRemindersEnabled)
-        current = CommitmentAndSlot.currentWithBehind(commitments: remindersOn, now: now)
-        upcoming = CommitmentAndSlot.upcomingWithBehind(commitments: remindersOn, after: now)
-        catchUp = CommitmentAndSlot.catchUpWithBehind(commitments: remindersOn, now: now)
+        let active = lastCommitments.filter { !$0.goalProgress(now: now).isMet }
+        current = CommitmentAndSlot.currentWithBehind(commitments: active, now: now)
+        upcoming = CommitmentAndSlot.upcomingWithBehind(commitments: active, after: now)
+        catchUp = CommitmentAndSlot.catchUpWithBehind(commitments: active, now: now)
     }
 
     private func scheduleTimer() {

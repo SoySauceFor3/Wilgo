@@ -8,18 +8,16 @@ enum CommitmentAndSlot {
         commitments: [Commitment],
         now: Date = Time.now()
     ) -> [WithBehind] {
-        let currentCommitmentAndSlots: [WithBehind] = commitments.compactMap { commitment in
-            let stageStatus = commitment.stageStatus(now: now)
-            guard stageStatus.category == .current else { return nil }
+        let result: [WithBehind] = commitments.compactMap { commitment in
+            let status = commitment.status(now: now)
+            guard status.slotKind == .insideSlot else { return nil }
             return (
-                commitment: commitment,
-                slots: stageStatus.nextUpSlots,
-                behindCount: stageStatus.behindCount
+                commitment: commitment, slots: status.remainingSlots ?? [],
+                behindCount: status.behindCount ?? 0
             )
         }
-
         // Sort by remaining fraction of the current slot window (sooner-to-end first).
-        return currentCommitmentAndSlots.sorted {
+        return result.sorted {
             $0.slots[0].remainingFraction(at: now) < $1.slots[0].remainingFraction(at: now)
         }
     }
@@ -28,24 +26,19 @@ enum CommitmentAndSlot {
         commitments: [Commitment],
         after time: Date
     ) -> [WithBehind] {
-        let upcomingCommitmentAndSlots: [WithBehind] = commitments.compactMap { commitment in
-            let stageStatus = commitment.stageStatus(now: time)
-            guard stageStatus.category == .future else { return nil }
+        let result: [WithBehind] = commitments.compactMap { commitment in
+            let status = commitment.status(now: time)
+            guard status.slotKind == .beforeNextToday else { return nil }
             return (
-                commitment: commitment,
-                slots: stageStatus.nextUpSlots,
-                behindCount: stageStatus.behindCount
+                commitment: commitment, slots: status.remainingSlots ?? [],
+                behindCount: status.behindCount ?? 0
             )
         }
-
         // Sort by first upcoming slot start, then end.
-        return upcomingCommitmentAndSlots.sorted {
+        return result.sorted {
             guard let lhs = $0.slots.first, let rhs = $1.slots.first else { return false }
-            if lhs.start == rhs.start {
-                return lhs.end < rhs.end
-            } else {
-                return lhs.start < rhs.start
-            }
+            if lhs.start == rhs.start { return lhs.end < rhs.end }
+            return lhs.start < rhs.start
         }
     }
 
@@ -53,45 +46,33 @@ enum CommitmentAndSlot {
         commitments: [Commitment],
         now: Date = Time.now()
     ) -> [WithBehind] {
-        let catchUpCommitmentAndSlots: [WithBehind] = commitments.compactMap { commitment in
-            let stageStatus = commitment.stageStatus(now: now)
-            guard stageStatus.category == .catchUp else { return nil }
+        let result: [WithBehind] = commitments.compactMap { commitment in
+            let status = commitment.status(now: now)
+            guard status.slotKind == .noSlotToday else { return nil }
+            guard let behindCount = status.behindCount, behindCount > 0 else { return nil }
             return (
-                commitment: commitment,
-                slots: stageStatus.nextUpSlots,
-                behindCount: stageStatus.behindCount
+                commitment: commitment, slots: status.remainingSlots ?? [], behindCount: behindCount
             )
         }
-
-        // Sort primarily by behindCount/targetCount (higher is better),
+        // Sort primarily by behindCount/targetCount (higher is more urgent),
         // then by larger target count,
         // then by earliest next slot (if any).
-        return catchUpCommitmentAndSlots.sorted { lhs, rhs in
-            // Compute "urgency" as the ratio, larger is more urgent
+        return result.sorted { lhs, rhs in
             let lhsTargetCount = max(lhs.commitment.target.count, 1)
             let rhsTargetCount = max(rhs.commitment.target.count, 1)
             let lhsUrgency = Double(lhs.behindCount) / Double(lhsTargetCount)
             let rhsUrgency = Double(rhs.behindCount) / Double(rhsTargetCount)
-
-            if lhsUrgency != rhsUrgency {
-                return lhsUrgency > rhsUrgency
-            }
-
+            if lhsUrgency != rhsUrgency { return lhsUrgency > rhsUrgency }
             if lhs.commitment.target.count != rhs.commitment.target.count {
                 return lhs.commitment.target.count > rhs.commitment.target.count
             }
-
             guard let lhsSlot = lhs.slots.first, let rhsSlot = rhs.slots.first else {
                 if lhs.slots.isEmpty, !rhs.slots.isEmpty { return false }
                 if !lhs.slots.isEmpty, rhs.slots.isEmpty { return true }
                 return false
             }
-
-            if lhsSlot.start == rhsSlot.start {
-                return lhsSlot.end < rhsSlot.end
-            } else {
-                return lhsSlot.start < rhsSlot.start
-            }
+            if lhsSlot.start == rhsSlot.start { return lhsSlot.end < rhsSlot.end }
+            return lhsSlot.start < rhsSlot.start
         }
     }
 
@@ -114,9 +95,9 @@ enum CommitmentAndSlot {
         if let nextPsychDayBase = Time.calendar.date(
             byAdding: .day, value: 1, to: currentPsychDayBase)
         {
-            let nextPsychDayStart = nextPsychDayBase
-            if nextPsychDayStart > now { candidates.append(nextPsychDayStart) }
+            if nextPsychDayBase > now { candidates.append(nextPsychDayBase) }
         }
         return candidates.min()
     }
+
 }

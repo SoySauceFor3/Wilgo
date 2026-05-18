@@ -166,6 +166,7 @@ extension Commitment {
 
     /// Where `now` falls relative to the remaining usable slot occurrences.
     enum SlotStatusKind {
+        case disabled  // if isRemindersEnabled == False
         /// `now` is inside the window of some remaining slot
         /// (the first remaining slot's start is at or before `now`).
         case insideSlot
@@ -226,6 +227,15 @@ extension Commitment {
         return SlotStatus(kind: kind, remainingSlots: remainingSlots)
     }
 
+    struct CommitmentStatus: Equatable {
+        let slotKind: SlotStatusKind
+        let remainingSlots: [Slot]?
+        /// Nil when target is disabled or reminders are off.
+        let leftToDo: Int?
+        /// `max(0, leftToDo - remainingSlots.count)`. Nil when target is disabled or reminders are off.
+        let behindCount: Int?
+    }
+
     /// Returns the cycle-level goal progress for the cycle containing `now`.
     ///
     /// Mirrors the `leftToDo` arithmetic inside `stageStatus(now:)`. When the target
@@ -242,6 +252,32 @@ extension Commitment {
         let checkInsInCycle = checkInsInRange(startPsychDay: startDay, endPsychDay: endDay)
         let leftToDo = max(0, target.count - checkInsInCycle.count)
         return GoalProgress(leftToDo: leftToDo)
+    }
+
+    /// Returns the combined slot + goal status for `now`. Prefer this over calling
+    /// `slotStatus` and `goalProgress` separately when both are needed, as it avoids
+    /// computing cycle check-ins twice.
+    ///
+    /// When `isRemindersEnabled` is false, treats the commitment as having no slots:
+    /// `slotKind` is `.noSlotToday` and `remainingSlots` is empty.
+    func status(now: Date = Time.now()) -> CommitmentStatus {
+        if !isRemindersEnabled {
+            return CommitmentStatus(
+                slotKind: .disabled,
+                remainingSlots: nil,
+                leftToDo: nil,
+                behindCount: nil
+            )
+        }
+        let slot: SlotStatus = slotStatus(now: now)
+        let progress = goalProgress(now: now)
+        let behind: Int? = progress.leftToDo.map { max(0, $0 - slot.remainingSlots.count) }
+        return CommitmentStatus(
+            slotKind: slot.kind,
+            remainingSlots: slot.remainingSlots,
+            leftToDo: progress.leftToDo,
+            behindCount: behind
+        )
     }
 
     /// Returns the start times of all eligible slot occurrences in `[from, to)`.
@@ -328,6 +364,8 @@ extension Commitment {
         if case .disabled = target.effectiveMode(on: nowPsychDay) {
             // Target-disabled: no goal progress, no behindCount. Map kind directly.
             switch slot.kind {
+            case .disabled:
+                return StageStatus(category: .others, nextUpSlots: [], behindCount: 0)
             case .insideSlot:
                 return StageStatus(
                     category: .current, nextUpSlots: slot.remainingSlots, behindCount: 0)
@@ -351,6 +389,8 @@ extension Commitment {
         let behindCount = max(0, leftToDo - slot.remainingSlots.count)
 
         switch slot.kind {
+        case .disabled:
+            return StageStatus(category: .others, nextUpSlots: [], behindCount: 0)
         case .insideSlot:
             return StageStatus(
                 category: .current, nextUpSlots: slot.remainingSlots, behindCount: behindCount)
