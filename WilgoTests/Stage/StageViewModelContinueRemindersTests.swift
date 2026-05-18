@@ -14,32 +14,25 @@ final class StageViewModelContinueRemindersTests {
         )
     }
 
-    private func date(year: Int, month: Int, day: Int, hour: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = year
-        c.month = month
-        c.day = day
-        c.hour = hour
-        return Calendar.current.date(from: c)!
-    }
-
-    private func tod(hour: Int) -> Date {
+    // Whole-day slot (start == end == midnight) is always active regardless of wall-clock time.
+    private func makeWholeDaySlot() -> Slot {
         var c = DateComponents()
         c.year = 2000
         c.month = 1
         c.day = 1
-        c.hour = hour
-        return Calendar.current.date(from: c)!
+        c.hour = 0
+        let midnight = Calendar.current.date(from: c)!
+        return Slot(start: midnight, end: midnight)
     }
 
-    @Test("goal-met commitment with continueRemindersAfterGoalMet=true appears as current in Stage")
-    @MainActor func goalMet_continueEnabled_appearsAsCurrent() throws {
+    @Test("goal-met commitment with continueRemindersAfterGoalMet=true appears in StageViewModel.current")
+    @MainActor func goalMet_continueEnabled_appearsInStage() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
 
-        let slot = Slot(start: tod(hour: 9), end: tod(hour: 11))
+        let slot = makeWholeDaySlot()
         ctx.insert(slot)
-        let anchor = date(year: 2026, month: 1, day: 1)
+        let anchor = Calendar.current.startOfDay(for: Date())
         let c = Commitment(
             title: "Meditate",
             cycle: Cycle(kind: .daily, referencePsychDay: anchor),
@@ -50,27 +43,26 @@ final class StageViewModelContinueRemindersTests {
         )
         ctx.insert(c)
 
-        let checkIn = CheckIn(commitment: c, createdAt: date(year: 2026, month: 3, day: 5, hour: 8))
+        // Check-in from today satisfies the daily target of 1
+        let checkIn = CheckIn(commitment: c, createdAt: Date())
         ctx.insert(checkIn)
         c.checkIns.append(checkIn)
 
-        let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        let result = CommitmentAndSlot.currentWithBehind(
-            commitments: [c].filter { $0.continueRemindersAfterGoalMet || !$0.goalProgress(now: now).isMet },
-            now: now
-        )
-        #expect(result.count == 1)
-        #expect(result.first?.commitment.title == "Meditate")
+        let svm = StageViewModel()
+        svm.refresh(commitments: [c])
+
+        #expect(svm.current.count == 1)
+        #expect(svm.current.first?.commitment.title == "Meditate")
     }
 
-    @Test("goal-met commitment with continueRemindersAfterGoalMet=false is excluded from Stage")
+    @Test("goal-met commitment with continueRemindersAfterGoalMet=false is excluded from StageViewModel")
     @MainActor func goalMet_continueDisabled_excludedFromStage() throws {
         let container = try makeContainer()
         let ctx = container.mainContext
 
-        let slot = Slot(start: tod(hour: 9), end: tod(hour: 11))
+        let slot = makeWholeDaySlot()
         ctx.insert(slot)
-        let anchor = date(year: 2026, month: 1, day: 1)
+        let anchor = Calendar.current.startOfDay(for: Date())
         let c = Commitment(
             title: "Meditate",
             cycle: Cycle(kind: .daily, referencePsychDay: anchor),
@@ -81,15 +73,15 @@ final class StageViewModelContinueRemindersTests {
         )
         ctx.insert(c)
 
-        let checkIn = CheckIn(commitment: c, createdAt: date(year: 2026, month: 3, day: 5, hour: 8))
+        let checkIn = CheckIn(commitment: c, createdAt: Date())
         ctx.insert(checkIn)
         c.checkIns.append(checkIn)
 
-        let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        let result = CommitmentAndSlot.currentWithBehind(
-            commitments: [c].filter { $0.continueRemindersAfterGoalMet || !$0.goalProgress(now: now).isMet },
-            now: now
-        )
-        #expect(result.isEmpty)
+        let svm = StageViewModel()
+        svm.refresh(commitments: [c])
+
+        #expect(svm.current.isEmpty)
+        #expect(svm.upcoming.isEmpty)
+        #expect(svm.catchUp.isEmpty)
     }
 }
