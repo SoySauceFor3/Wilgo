@@ -40,6 +40,7 @@ final class ContinueRemindersAfterGoalMetModelTests {
         let c = makeCommitment(continueReminders: true, in: container.mainContext)
         try container.mainContext.save()
         let fetched = try container.mainContext.fetch(FetchDescriptor<Commitment>())
-        #expect(fetched.first?.continueRemindersAfterGoalMet == true)
+        let saved = try #require(fetched.first)
+        #expect(saved.continueRemindersAfterGoalMet == true)
     }
 }
