@@ -34,12 +34,15 @@ struct CommitmentFormFields: View {
             Toggle("Reminders", isOn: $draft.isRemindersEnabled)
             if draft.isRemindersEnabled {
                 ReminderWindowsSection(slotWindows: $draft.slotWindows)
+                Toggle("Continue after goal met", isOn: $draft.continueRemindersAfterGoalMet)
             }
         } header: {
             Text("Reminder Windows")
         } footer: {
             if !draft.isRemindersEnabled {
                 Text("No reminders. Commitment won't appear in Stage view or send notifications.")
+            } else if draft.continueRemindersAfterGoalMet {
+                Text("Slots will still appear in Stage and send notifications even after you've hit your target for this cycle.")
             }
         }
         EncouragementSection(encouragements: $draft.encouragements)
