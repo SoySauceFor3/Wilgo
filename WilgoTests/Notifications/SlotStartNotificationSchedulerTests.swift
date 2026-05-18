@@ -213,4 +213,35 @@ final class SlotStartNotificationSchedulerTests {
             request.identifier.hasPrefix(
                 SlotStartNotificationScheduler.notificationIdentifierPrefix))
     }
+
+    @Test("commitment with goal met and continueRemindersAfterGoalMet=true is included")
+    @MainActor func startTimeInRangeToCommitments_goalMet_continueEnabled_included() throws {
+        let container = try makeContainer()
+        let ctx = container.mainContext
+        let c = makeCommitment(slots: [(9, 11)], targetCount: 1, in: ctx)
+        c.continueRemindersAfterGoalMet = true
+        addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 8), in: ctx)
+        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+
+        let result = SlotStartNotificationScheduler.startTimeInRangeToCommitments(
+            for: [c], from: now)
+
+        let expected = date(year: 2026, month: 3, day: 5, hour: 9)
+        #expect(result[expected] != nil)
+    }
+
+    @Test("commitment with goal met and continueRemindersAfterGoalMet=false is excluded (default)")
+    @MainActor func startTimeInRangeToCommitments_goalMet_continueDisabled_excluded() throws {
+        let container = try makeContainer()
+        let ctx = container.mainContext
+        let c = makeCommitment(slots: [(9, 11)], targetCount: 1, in: ctx)
+        c.continueRemindersAfterGoalMet = false
+        addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 8), in: ctx)
+        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+
+        let result = SlotStartNotificationScheduler.startTimeInRangeToCommitments(
+            for: [c], from: now)
+
+        #expect(result.isEmpty)
+    }
 }

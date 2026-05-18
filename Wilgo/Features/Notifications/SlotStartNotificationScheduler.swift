@@ -81,7 +81,8 @@ enum SlotStartNotificationScheduler {
         var result: [Date: [Commitment]] = [:]
         for commitment in commitments {
             guard commitment.isRemindersEnabled else { continue }
-            guard !commitment.goalProgress(now: now).isMet else { continue }  // TODO: later this will be user configurable
+            let goalMet = commitment.goalProgress(now: now).isMet
+            if goalMet, !commitment.continueRemindersAfterGoalMet { continue }
             for fireDate in commitment.slotStarts(from: now, to: horizon) {
                 result[fireDate, default: []].append(commitment)
             }
