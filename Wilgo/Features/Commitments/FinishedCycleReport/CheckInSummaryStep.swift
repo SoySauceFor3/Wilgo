@@ -28,15 +28,25 @@ struct CheckInSummaryStep: View {
                 }
             }
             .onAppear {
-                print("[FCR] CheckInSummaryStep appeared — commitments=\(commitments.count) preTokenReport=\(preTokenReport.count) time=\(Date())")
-                if preTokenReport.isEmpty { onEmptyReport() }
+                print("[FCR] CheckInSummaryStep appeared — commitments=\(commitments.count) preTokenReport=\(preTokenReport.count) request=[\(request.startPsychDay), \(request.endPsychDay)) time=\(Date())")
+                if preTokenReport.isEmpty {
+                    print("[FCR] CheckInSummaryStep: onEmptyReport fired on appear")
+                    onEmptyReport()
+                }
             }
             .onChange(of: commitments.count) { old, new in
-                print("[FCR] @Query commitments changed: \(old) → \(new) time=\(Date())")
+                print("[FCR] @Query commitments changed: \(old) → \(new) preTokenReport=\(preTokenReport.count) time=\(Date())")
+                if preTokenReport.isEmpty, new > 0 {
+                    // commitments loaded but report still empty — log why
+                    print("[FCR] @Query: commitments loaded but preTokenReport still empty for window [\(request.startPsychDay), \(request.endPsychDay))")
+                }
             }
             .onChange(of: preTokenReport.isEmpty) { _, isEmpty in
                 print("[FCR] preTokenReport.isEmpty → \(isEmpty) time=\(Date())")
-                if isEmpty { onEmptyReport() }
+                if isEmpty {
+                    print("[FCR] CheckInSummaryStep: onEmptyReport fired on preTokenReport change")
+                    onEmptyReport()
+                }
             }
     }
 }

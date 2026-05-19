@@ -19,7 +19,10 @@ struct FinishedCycleReportModifier: ViewModifier {
                 if let request = presentationState.reportRequest {
                     FinishedCycleReportView(
                         request: request,
-                        onFinished: { finalizeReport(request) }
+                        onFinished: {
+                            print("[FCR] onFinished called (user completed report) time=\(Date())")
+                            finalizeReport(request)
+                        }
                     )
                 } else {
                     // reportRequest was nil when cover opened — should never happen
@@ -42,11 +45,18 @@ struct FinishedCycleReportModifier: ViewModifier {
         guard let request = peekReportRange() else { return }
         presentationState.prepare(request)
         print("[FCR] checkAndShow: fetch start — thread=\(Thread.isMainThread ? "main" : "bg") time=\(Date())")
-        let result = anyFinishedCycles(in: request)
-        print("[FCR] checkAndShow: fetch end — hasFinishedCycles=\(result) time=\(Date())")
-        if result {
+        let hasFinishedCycles: Bool
+        do {
+            hasFinishedCycles = try anyFinishedCycles(in: request)
+        } catch {
+            print("[FCR] checkAndShow: fetch THREW \(error) — aborting without advancing watermark, will retry on next activation")
+            return
+        }
+        print("[FCR] checkAndShow: fetch end — hasFinishedCycles=\(hasFinishedCycles) time=\(Date())")
+        if hasFinishedCycles {
             presentationState.show()
         } else {
+            print("[FCR] checkAndShow: no finished cycles found — silently advancing watermark from \(request.startPsychDay) to \(request.endPsychDay)")
             finalizeReport(request)
         }
     }
@@ -65,13 +75,18 @@ struct FinishedCycleReportModifier: ViewModifier {
         }
     }
 
-    private func anyFinishedCycles(in request: FinishedCycleReportRequest) -> Bool {
+    private func anyFinishedCycles(in request: FinishedCycleReportRequest) throws -> Bool {
         // This fetch is intentionally synchronous on the main actor.
         // The data set is small (O(tens) of commitments) and this is a one-time
         // check on scene activation — not worth the complexity of actor hopping.
         // If commitment data ever grows large, move to a background ModelContext.
-        let commitments = (try? modelContext.fetch(FetchDescriptor<Commitment>())) ?? []
-        print("[FCR] anyFinishedCycles: fetched \(commitments.count) commitments")
+        let commitments = try modelContext.fetch(FetchDescriptor<Commitment>())
+        print("[FCR] anyFinishedCycles: fetched \(commitments.count) commitments, window=[\(request.startPsychDay), \(request.endPsychDay))")
+        for commitment in commitments {
+            let cycleEnd = commitment.cycle.endDayOfCycle(including: request.startPsychDay)
+            let matches = cycleEnd > request.startPsychDay && cycleEnd <= request.endPsychDay
+            print("[FCR]   commitment=\(commitment.title) cycleKind=\(commitment.cycle.kind) cycleEnd=\(cycleEnd) matches=\(matches)")
+        }
         return commitments.contains { commitment in
             let cycleEnd = commitment.cycle.endDayOfCycle(including: request.startPsychDay)
             // The cycle must end strictly after the window start (not already reported)
