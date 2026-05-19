@@ -728,7 +728,7 @@ enum HeatmapPreviewFactory {
         let commitment = Commitment(
             title: "Morning Run",
             createdAt: createdAt,
-            cycle: Cycle.anchored(.daily, at: .now),
+            cycle: Cycle.makeDefault(.daily),
             slots: [],
             target: Target(count: 2),
         )
@@ -778,7 +778,7 @@ enum HeatmapPreviewFactory {
         )
         let commitment = Commitment(
             title: "Meditate",
-            cycle: Cycle.anchored(.daily, at: .now),
+            cycle: Cycle.makeDefault(.daily),
             slots: [],
             target: Target(count: 2),
         )

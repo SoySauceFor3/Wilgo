@@ -67,7 +67,7 @@ struct CurrentCommitmentRow: View {
     let slot = Slot(start: start, end: end)
     let commitment = Commitment(
         title: "Morning reading",
-        cycle: Cycle.anchored(.daily, at: .now),
+        cycle: Cycle.makeDefault(.daily),
         slots: [slot],
         target: Target(count: 1),
     )

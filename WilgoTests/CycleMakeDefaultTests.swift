@@ -21,7 +21,7 @@ private func weekday(of date: Date) -> Int {
 
 // MARK: - Tests
 
-struct CycleDefaultAnchorTests {
+struct CycleMakeDefaultTests {
     // MARK: Daily
 
     @Test("daily: anchor is the given psych-day")
@@ -43,15 +43,15 @@ struct CycleDefaultAnchorTests {
 
     @Test("weekly: Wednesday input returns prior Monday")
     func weeklyOnWednesdayReturnsPriorMonday() {
-        let wednesday = date(year: 2026, month: 4, day: 1)   // Wed
-        let monday    = date(year: 2026, month: 3, day: 30)  // Mon 2 days prior
+        let wednesday = date(year: 2026, month: 4, day: 1)  // Wed
+        let monday = date(year: 2026, month: 3, day: 30)  // Mon 2 days prior
         let cycle = Cycle.makeDefault(.weekly, on: wednesday)
         #expect(cycle.startDayOfCycle(including: wednesday) == monday)
     }
 
     @Test("weekly: Sunday input returns prior Monday (6 days back)")
     func weeklyOnSundayReturnsPriorMonday() {
-        let sunday = date(year: 2026, month: 4, day: 5)   // Sun
+        let sunday = date(year: 2026, month: 4, day: 5)  // Sun
         let monday = date(year: 2026, month: 3, day: 30)  // Mon 6 days prior
         let cycle = Cycle.makeDefault(.weekly, on: sunday)
         #expect(cycle.startDayOfCycle(including: sunday) == monday)
@@ -61,7 +61,7 @@ struct CycleDefaultAnchorTests {
     func weeklyCycleSpansMonToSun() {
         let thursday = date(year: 2026, month: 4, day: 2)
         let expectedStart = date(year: 2026, month: 3, day: 30)  // Mon
-        let expectedEnd   = date(year: 2026, month: 4, day: 6)   // following Mon (exclusive)
+        let expectedEnd = date(year: 2026, month: 4, day: 6)  // following Mon (exclusive)
         let cycle = Cycle.makeDefault(.weekly, on: thursday)
         #expect(cycle.startDayOfCycle(including: thursday) == expectedStart)
         #expect(cycle.endDayOfCycle(including: thursday) == expectedEnd)
@@ -96,7 +96,7 @@ struct CycleDefaultAnchorTests {
     func monthlyCycleEndIsFirstOfNextMonth() {
         let midApril = date(year: 2026, month: 4, day: 10)
         let firstOfApril = date(year: 2026, month: 4, day: 1)
-        let firstOfMay   = date(year: 2026, month: 5, day: 1)
+        let firstOfMay = date(year: 2026, month: 5, day: 1)
         let cycle = Cycle.makeDefault(.monthly, on: midApril)
         #expect(cycle.startDayOfCycle(including: midApril) == firstOfApril)
         #expect(cycle.endDayOfCycle(including: midApril) == firstOfMay)

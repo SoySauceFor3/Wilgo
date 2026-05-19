@@ -98,21 +98,10 @@ struct Cycle: Codable, Equatable, Hashable {
 // MARK: - Cycle period boundaries
 
 extension Cycle {
-    // TODO: remove this function.
-    /// Returns a cycle who start on `time`'s psych-day.
-    static func anchored(_ kind: CycleKind, at time: Date, multiplier: Int = 1) -> Cycle {
-        let psychDay = Time.startOfDay(for: time)
-        return Cycle(kind: kind, referencePsychDay: psychDay, multiplier: multiplier)
-    }
-
     /// Creates a `Cycle` anchored to the canonical start day for the given kind:
     /// - `.daily`   → today's psych-day (same as `anchored`)
     /// - `.weekly`  → most recent Monday on or before `date`
     /// - `.monthly` → 1st of the month containing `date`
-    ///
-    /// Use this as the intercepting factory for new commitments and rule edits
-    /// so that weekly cycles always start on Monday and monthly cycles on the 1st.
-    /// Existing `Cycle` instances and `anchored(_:at:)` are unaffected.
     static func makeDefault(_ kind: CycleKind, on date: Date = Time.now()) -> Cycle {
         let psychDay = Time.startOfDay(for: date)
         let anchor: Date

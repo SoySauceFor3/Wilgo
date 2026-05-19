@@ -176,21 +176,21 @@ private enum StagePreviewFactory {
 
         let commitment1 = Commitment(
             title: "commitment 1",
-            cycle: Cycle.anchored(.daily, at: .now),
+            cycle: Cycle.makeDefault(.daily),
             slots: [slot(23, 0, 23, 10)],
             target: Target(count: 1),
             proofOfWorkType: .manual,
         )
         let commitment2 = Commitment(
             title: "commitment 2",
-            cycle: Cycle.anchored(.daily, at: .now),
+            cycle: Cycle.makeDefault(.daily),
             slots: [slot(23, 1, 23, 59)],
             target: Target(count: 1),
             proofOfWorkType: .manual,
         )
         let commitment3 = Commitment(
             title: "commitment 3",
-            cycle: Cycle.anchored(.daily, at: .now),
+            cycle: Cycle.makeDefault(.daily),
             slots: [slot(23, 0, 23, 30)],
             target: Target(count: 1),
             proofOfWorkType: .manual,
@@ -228,7 +228,7 @@ private enum StagePreviewFactory {
         )
         let commitment = Commitment(
             title: "Workout",
-            cycle: Cycle.anchored(.daily, at: .now),
+            cycle: Cycle.makeDefault(.daily),
             slots: [slot],
             target: Target(count: 1),
             proofOfWorkType: .manual,

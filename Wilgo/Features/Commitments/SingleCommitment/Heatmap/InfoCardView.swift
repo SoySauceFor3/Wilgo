@@ -281,7 +281,7 @@ private enum CommitmentHeatmapInfoCardPreviewData {
 
         let commitment = Commitment(
             title: "Preview Commitment",
-            cycle: Cycle.anchored(.daily, at: .now),
+            cycle: Cycle.makeDefault(.daily),
             slots: [],
             target: Target(count: 2)
         )
