@@ -44,19 +44,26 @@ struct FinishedCycleReportModifier: ViewModifier {
     private func checkAndShow() {
         guard let request = peekReportRange() else { return }
         presentationState.prepare(request)
-        print("[FCR] checkAndShow: fetch start — thread=\(Thread.isMainThread ? "main" : "bg") time=\(Date())")
+        print(
+            "[FCR] checkAndShow: fetch start — thread=\(Thread.isMainThread ? "main" : "bg") time=\(Date())"
+        )
         let hasFinishedCycles: Bool
         do {
             hasFinishedCycles = try anyFinishedCycles(in: request)
         } catch {
-            print("[FCR] checkAndShow: fetch THREW \(error) — aborting without advancing watermark, will retry on next activation")
+            print(
+                "[FCR] checkAndShow: fetch THREW \(error) — aborting without advancing watermark, will retry on next activation"
+            )
             return
         }
-        print("[FCR] checkAndShow: fetch end — hasFinishedCycles=\(hasFinishedCycles) time=\(Date())")
+        print(
+            "[FCR] checkAndShow: fetch end — hasFinishedCycles=\(hasFinishedCycles) time=\(Date())")
         if hasFinishedCycles {
             presentationState.show()
         } else {
-            print("[FCR] checkAndShow: no finished cycles found — silently advancing watermark from \(request.startPsychDay) to \(request.endPsychDay)")
+            print(
+                "[FCR] checkAndShow: no finished cycles found — silently advancing watermark from \(request.startPsychDay) to \(request.endPsychDay)"
+            )
             finalizeReport(request)
         }
     }
@@ -81,11 +88,15 @@ struct FinishedCycleReportModifier: ViewModifier {
         // check on scene activation — not worth the complexity of actor hopping.
         // If commitment data ever grows large, move to a background ModelContext.
         let commitments = try modelContext.fetch(FetchDescriptor<Commitment>())
-        print("[FCR] anyFinishedCycles: fetched \(commitments.count) commitments, window=[\(request.startPsychDay), \(request.endPsychDay))")
+        print(
+            "[FCR] anyFinishedCycles: fetched \(commitments.count) commitments, window=[\(request.startPsychDay), \(request.endPsychDay))"
+        )
         for commitment in commitments {
             let cycleEnd = commitment.cycle.endDayOfCycle(including: request.startPsychDay)
             let matches = cycleEnd > request.startPsychDay && cycleEnd <= request.endPsychDay
-            print("[FCR]   commitment=\(commitment.title) cycleKind=\(commitment.cycle.kind) cycleEnd=\(cycleEnd) matches=\(matches)")
+            print(
+                "[FCR]   commitment=\(commitment.title) cycleKind=\(commitment.cycle.kind) cycleEnd=\(cycleEnd) matches=\(matches)"
+            )
         }
         return commitments.contains { commitment in
             let cycleEnd = commitment.cycle.endDayOfCycle(including: request.startPsychDay)
@@ -109,8 +120,16 @@ private func peekReportRange() -> FinishedCycleReportRequest? {
         forKey: AppSettings.finishedCycleReportLastShownPsychDayKey
     )
     let nowPsychDay = Time.startOfDay(for: Time.now())
-    // First bootstrap: establish baseline and do not show historical cycles.
-    guard previousRef != 0 else { return nil }
+    print(
+        "[FCR] peekReportRange: storedRef=\(previousRef) storedDate=\(Date(timeIntervalSinceReferenceDate: previousRef)) nowPsychDay=\(nowPsychDay)"
+    )
+    // First bootstrap: establish baseline so the report fires from tomorrow onward.
+    // Do NOT show historical cycles — only cycles completed after this point are reported.
+    guard previousRef != 0 else {
+        print("[FCR] peekReportRange: first-launch bootstrap — writing today as watermark")
+        advanceWatermark(to: nowPsychDay)
+        return nil
+    }
 
     let startPsychDay = fromPsychDayRef(previousRef)
     // No completed cycle is possible if the window has zero width.
