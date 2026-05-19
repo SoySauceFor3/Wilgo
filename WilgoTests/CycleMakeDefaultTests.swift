@@ -101,18 +101,4 @@ struct CycleMakeDefaultTests {
         #expect(cycle.startDayOfCycle(including: midApril) == firstOfApril)
         #expect(cycle.endDayOfCycle(including: midApril) == firstOfMay)
     }
-
-    // MARK: Backward compatibility — makeDefault does not affect anchored()
-
-    @Test("makeDefault does not modify Cycle.anchored behaviour")
-    func anchoredIsUnchanged() {
-        let wednesday = date(year: 2026, month: 4, day: 1)
-        let via_anchored = Cycle.anchored(.weekly, at: wednesday)
-        // anchored() still starts on Wednesday, not Monday
-        #expect(via_anchored.startDayOfCycle(including: wednesday) == wednesday)
-
-        let via_makeDefault = Cycle.makeDefault(.weekly, on: wednesday)
-        let monday = date(year: 2026, month: 3, day: 30)
-        #expect(via_makeDefault.startDayOfCycle(including: wednesday) == monday)
-    }
 }

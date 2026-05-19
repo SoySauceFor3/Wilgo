@@ -85,6 +85,8 @@ struct WilgoApp: App {
             } else {
                 // the app is not active (inactive, or background), use this "last chance" to update and schedule the catch-up reminders.
                 CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()
+                // Re-schedule cycle-end notifications with the latest commitment kinds before going inactive.
+                CycleEndNotificationScheduler.refresh()
                 // Sync the Live Activity immediately so it's accurate the moment it becomes visible,
                 // then queue a BGAppRefreshTask to keep it updated while the app stays inactive.
                 NowLiveActivityManager.workAndScheduleNextBGTask()

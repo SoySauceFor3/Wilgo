@@ -89,7 +89,7 @@ struct PositivityTokenMintingTests {
 
         let commitment = Commitment(
             title: "Test Commitment",
-            cycle: Cycle.anchored(.daily, at: .now),
+            cycle: Cycle.makeDefault(.daily),
             slots: [],
             target: Target(count: 1)
         )
@@ -111,7 +111,7 @@ struct PositivityTokenMintingTests {
 
         let commitment = Commitment(
             title: "Integration Commitment",
-            cycle: Cycle.anchored(.daily, at: .now),
+            cycle: Cycle.makeDefault(.daily),
             slots: [],
             target: Target(count: 1)
         )
@@ -126,11 +126,14 @@ struct PositivityTokenMintingTests {
 
         let tokenCount = try PositivityTokenMinting.fetchTotalTokenCount(context: ctx)
         let checkInCount = try PositivityTokenMinting.fetchTotalCheckInCount(context: ctx)
-        let capacity = PositivityTokenMinting.mintCapacity(tokenCount: tokenCount, checkInCount: checkInCount)
+        let capacity = PositivityTokenMinting.mintCapacity(
+            tokenCount: tokenCount, checkInCount: checkInCount)
 
         #expect(tokenCount == 1)
         #expect(checkInCount == 4)
         #expect(capacity == 3)
-        #expect(PositivityTokenMinting.canMint(tokenCount: tokenCount, checkInCount: checkInCount) == true)
+        #expect(
+            PositivityTokenMinting.canMint(tokenCount: tokenCount, checkInCount: checkInCount)
+                == true)
     }
 }
