@@ -28,12 +28,12 @@ Always
 2. summarize the overall solution/architecture,
 3. record major model changes
 4. document major alternatives, their pros and cons and why choose the direction we choose
-5. commitment plan (i.e. step by step plan), note:
+5. commit plan (i.e. step by step plan), note:
   1. declare the dependency between commits, so parallel sub-agent can work.
   2. You can make branches and commitment chains as needed.
   3. make each individual commit
     1. logically complete and self-contained. At least (unless huge exception), the app should still build and do not cause new failing tests.
-    2. include Unit Test of the actual code change. Make sure testing coverage is as much as possible.
+    2. include Unit Test of the actual code change. Make sure testing coverage is as much as possible. Unit test should always be with the actual source code change. 
     3. Make it clear when you need manual verification/interception, e.g. if you need me to manually verify a migration works in testing iphone.
 
 To help you better understand what i want, please refer to the template at ./documentation/TEMPLATE.md
@@ -76,3 +76,4 @@ Please make each bug at least a seperate commit. Do not commit the fix to multip
 1. When you create/update SwiftData Model definitions:
   1. When dealing with relationships: prefer direct reference to the other types, instead of using UUID, and remember to include good deletion rule.
 2. (Author: Cursor) SwiftData tests: keep a strong reference to `ModelContainer` for the whole test (e.g. `let container = try makeContainer(); let ctx = container.mainContext`). Do not use `makeContainer().mainContext` alone — the context only weakly references the container, and insert/save will crash after the container is released.
+
