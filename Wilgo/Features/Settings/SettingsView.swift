@@ -98,6 +98,9 @@ struct SettingsView: View {
                     }
                 #endif
             }
+            .onChange(of: weekStartsOnMonday) { _, _ in
+                CycleEndNotificationScheduler.refresh()
+            }
             .navigationTitle("Settings")
             #if DEBUG
                 .onAppear {

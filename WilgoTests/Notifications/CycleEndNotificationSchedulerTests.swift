@@ -16,6 +16,9 @@ struct CycleEndNotificationSchedulerTests {
     }
 
     @Test func trigger_weekly_firesMondayMidnight() {
+        UserDefaults.standard.set(true, forKey: AppSettings.weekStartsOnMondayKey)
+        defer { UserDefaults.standard.removeObject(forKey: AppSettings.weekStartsOnMondayKey) }
+
         let trigger = CycleEndNotificationScheduler.trigger(for: .weekly)
         #expect(trigger.repeats == true)
         #expect(trigger.dateComponents.hour == 0)
