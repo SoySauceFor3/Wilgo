@@ -17,6 +17,9 @@ struct SettingsView: View {
 
     @Environment(\.modelContext) private var modelContext
 
+    @State private var pendingWeekStart: Bool? = nil
+    @State private var showWeekStartSheet = false
+
     #if DEBUG
         @Environment(\.triggerCycleReport) private var triggerCycleReport
         @State private var debugWatermarkDate: Date = .init()
@@ -54,7 +57,21 @@ struct SettingsView: View {
                 }
 
                 Section {
-                    Picker("Week starts on", selection: $weekStartsOnMonday) {
+                    Picker("Week starts on", selection: Binding(
+                        get: { weekStartsOnMonday },
+                        set: { newValue in
+                            guard newValue != weekStartsOnMonday else { return }
+                            let all = (try? modelContext.fetch(FetchDescriptor<Commitment>())) ?? []
+                            let affected = WeekStartChangeHandler.affectedCommitments(all, newStartsOnMonday: newValue)
+                            if affected.isEmpty {
+                                weekStartsOnMonday = newValue
+                                CycleEndNotificationScheduler.refresh()
+                            } else {
+                                pendingWeekStart = newValue
+                                showWeekStartSheet = true
+                            }
+                        }
+                    )) {
                         Text("Monday").tag(true)
                         Text("Sunday").tag(false)
                     }
@@ -98,8 +115,8 @@ struct SettingsView: View {
                     }
                 #endif
             }
-            .onChange(of: weekStartsOnMonday) { _, _ in
-                CycleEndNotificationScheduler.refresh()
+            .sheet(isPresented: $showWeekStartSheet) {
+                weekStartSheet
             }
             .navigationTitle("Settings")
             #if DEBUG
@@ -113,6 +130,96 @@ struct SettingsView: View {
                 }
             #endif
         }
+    }
+
+    private var pendingCycleStart: Date {
+        guard let pending = pendingWeekStart else { return Time.now() }
+        return WeekStartChangeHandler.newCurrentCycleStart(newStartsOnMonday: pending)
+    }
+
+    private var pendingCycleEnd: Date {
+        guard let pending = pendingWeekStart else { return Time.now() }
+        return WeekStartChangeHandler.newCurrentCycleEnd(newStartsOnMonday: pending)
+    }
+
+    private func dateRangeLabel(start: Date, end: Date) -> String {
+        let fmt = DateFormatter()
+        fmt.dateFormat = "MMM d"
+        let cal = Time.calendar
+        let inclusiveEnd = cal.date(byAdding: .day, value: -1, to: end) ?? end
+        return "\(fmt.string(from: start)) – \(fmt.string(from: inclusiveEnd))"
+    }
+
+    @ViewBuilder
+    private var weekStartSheet: some View {
+        let pending = pendingWeekStart!
+        let affected = WeekStartChangeHandler.affectedCommitments(
+            (try? modelContext.fetch(FetchDescriptor<Commitment>())) ?? [],
+            newStartsOnMonday: pending
+        )
+        let start = pendingCycleStart
+        let end = pendingCycleEnd
+
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 20) {
+                Text(
+                    "Make the current cycle (\(dateRangeLabel(start: start, end: end))) inspiration only?"
+                )
+                .font(.body)
+
+                if !affected.isEmpty {
+                    Text("Affected commitments:")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                    ForEach(affected) { c in
+                        Text("• \(c.title)")
+                            .font(.subheadline)
+                    }
+                }
+
+                Spacer()
+
+                VStack(spacing: 12) {
+                    Button("Yes — make it inspiration only") {
+                        applyWeekStartChange(inspirationOnly: true)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .frame(maxWidth: .infinity)
+
+                    Button("No — just switch") {
+                        applyWeekStartChange(inspirationOnly: false)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+            }
+            .padding()
+            .navigationTitle("Week Start Change")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        pendingWeekStart = nil
+                        showWeekStartSheet = false
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    private func applyWeekStartChange(inspirationOnly: Bool) {
+        guard let newValue = pendingWeekStart else { return }
+        let all = (try? modelContext.fetch(FetchDescriptor<Commitment>())) ?? []
+        let affected = WeekStartChangeHandler.affectedCommitments(all, newStartsOnMonday: newValue)
+        WeekStartChangeHandler.apply(
+            to: affected,
+            newStartsOnMonday: newValue,
+            makeCurrentCycleInspirationOnly: inspirationOnly
+        )
+        weekStartsOnMonday = newValue
+        pendingWeekStart = nil
+        showWeekStartSheet = false
+        CycleEndNotificationScheduler.refresh()
     }
 
     private func hourLabel(_ hour: Int) -> String {
