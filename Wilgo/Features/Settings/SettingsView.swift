@@ -5,6 +5,7 @@
 //  App-wide settings. Currently: day-start hour configuration.
 //
 
+import SwiftData
 import SwiftUI
 
 struct SettingsView: View {
