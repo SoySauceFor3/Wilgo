@@ -262,7 +262,11 @@ struct CommitmentHeatmapView: View {
 
     // MARK: Daily grid (7 rows × x columns) – pinned weekday column + scrollable Grid
 
-    private static let dailyDowLabels: [String] = ["M", "T", "W", "T", "F", "S", "S"]
+    private static let dailyDowLabelsMondayFirst: [String] = ["M", "T", "W", "T", "F", "S", "S"]
+    private static let dailyDowLabelsSundayFirst: [String] = ["S", "M", "T", "W", "T", "F", "S"]
+    private static var dailyDowLabels: [String] {
+        AppSettings.weekStartsOnMonday ? dailyDowLabelsMondayFirst : dailyDowLabelsSundayFirst
+    }
     private static let dailyLabelRowHeight: CGFloat = 14
 
     private var dailyHeatmapGrid: some View {
@@ -458,7 +462,9 @@ struct CommitmentHeatmapView: View {
         }
 
         let firstWeekday = cal.component(.weekday, from: firstPeriod.periodStartPsychDay)  // 1=Sun…7=Sat
-        let firstOffset = (firstWeekday + 5) % 7  // 0=Mon, 6=Sun
+        // Mon-start: Sun(1)→6, Mon(2)→0, …, Sat(7)→5  ⟹ (weekday+5)%7
+        // Sun-start: Sun(1)→0, Mon(2)→1, …, Sat(7)→6  ⟹ (weekday+6)%7
+        let firstOffset = AppSettings.weekStartsOnMonday ? (firstWeekday + 5) % 7 : (firstWeekday + 6) % 7
         let weeksToShow = (firstOffset + periods.count + 6) / 7
 
         // Fill the first and last week with nil if they are not full.
