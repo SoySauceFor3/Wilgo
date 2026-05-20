@@ -17,22 +17,20 @@ enum WeekStartChangeHandler {
         }
     }
 
-    /// Temporarily applies `newStartsOnMonday` to UserDefaults so `Cycle.makeDefault` uses the new
-    /// setting, computes both cycle boundaries, then restores the prior value.
+    private static func cycleBoundaries(weekday: Int, today: Date) -> (start: Date, end: Date) {
+        let cal = Time.calendar
+        let currWeekday = cal.component(.weekday, from: cal.startOfDay(for: today))
+        let daysBack = (currWeekday - weekday + 7) % 7
+        let start = cal.date(byAdding: .day, value: -daysBack, to: cal.startOfDay(for: today))
+            ?? cal.startOfDay(for: today)
+        let end = cal.date(byAdding: .day, value: 7, to: start) ?? start
+        return (start, end)
+    }
+
     private static func newCurrentCycleBoundaries(
         newStartsOnMonday: Bool, today: Date
     ) -> (start: Date, end: Date) {
-        let previous = UserDefaults.standard.object(forKey: AppSettings.weekStartsOnMondayKey)
-        UserDefaults.standard.set(newStartsOnMonday, forKey: AppSettings.weekStartsOnMondayKey)
-        defer {
-            if let previous {
-                UserDefaults.standard.set(previous, forKey: AppSettings.weekStartsOnMondayKey)
-            } else {
-                UserDefaults.standard.removeObject(forKey: AppSettings.weekStartsOnMondayKey)
-            }
-        }
-        let cycle = Cycle.makeDefault(.weekly, on: today)
-        return (cycle.startDayOfCycle(including: today), cycle.endDayOfCycle(including: today))
+        cycleBoundaries(weekday: newStartsOnMonday ? 2 : 1, today: today)
     }
 
     /// The start of the current cycle under the *new* week-start boundary (on or before today).

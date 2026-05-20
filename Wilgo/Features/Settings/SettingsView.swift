@@ -18,6 +18,7 @@ struct SettingsView: View {
     @Environment(\.modelContext) private var modelContext
 
     @State private var pendingWeekStart: Bool? = nil
+    @State private var pendingAffectedCommitments: [Commitment] = []
     @State private var showWeekStartSheet = false
 
     #if DEBUG
@@ -68,6 +69,7 @@ struct SettingsView: View {
                                 CycleEndNotificationScheduler.refresh()
                             } else {
                                 pendingWeekStart = newValue
+                                pendingAffectedCommitments = affected
                                 showWeekStartSheet = true
                             }
                         }
@@ -142,82 +144,84 @@ struct SettingsView: View {
         return WeekStartChangeHandler.newCurrentCycleEnd(newStartsOnMonday: pending)
     }
 
-    private func dateRangeLabel(start: Date, end: Date) -> String {
+    private static let cycleRangeDateFormatter: DateFormatter = {
         let fmt = DateFormatter()
         fmt.dateFormat = "MMM d"
+        return fmt
+    }()
+
+    private func dateRangeLabel(start: Date, end: Date) -> String {
         let cal = Time.calendar
         let inclusiveEnd = cal.date(byAdding: .day, value: -1, to: end) ?? end
-        return "\(fmt.string(from: start)) – \(fmt.string(from: inclusiveEnd))"
+        return "\(Self.cycleRangeDateFormatter.string(from: start)) – \(Self.cycleRangeDateFormatter.string(from: inclusiveEnd))"
     }
 
     @ViewBuilder
     private var weekStartSheet: some View {
-        let pending = pendingWeekStart!
-        let affected = WeekStartChangeHandler.affectedCommitments(
-            (try? modelContext.fetch(FetchDescriptor<Commitment>())) ?? [],
-            newStartsOnMonday: pending
-        )
-        let start = pendingCycleStart
-        let end = pendingCycleEnd
+        if pendingWeekStart != nil {
+            let affected = pendingAffectedCommitments
+            let start = pendingCycleStart
+            let end = pendingCycleEnd
 
-        NavigationStack {
-            VStack(alignment: .leading, spacing: 20) {
-                Text(
-                    "Make the current cycle (\(dateRangeLabel(start: start, end: end))) inspiration only?"
-                )
-                .font(.body)
+            NavigationStack {
+                VStack(alignment: .leading, spacing: 20) {
+                    Text(
+                        "Make the current cycle (\(dateRangeLabel(start: start, end: end))) inspiration only?"
+                    )
+                    .font(.body)
 
-                if !affected.isEmpty {
-                    Text("Affected commitments:")
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                    ForEach(affected) { c in
-                        Text("• \(c.title)")
+                    if !affected.isEmpty {
+                        Text("Affected commitments:")
                             .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        ForEach(affected) { c in
+                            Text("• \(c.title)")
+                                .font(.subheadline)
+                        }
+                    }
+
+                    Spacer()
+
+                    VStack(spacing: 12) {
+                        Button("Yes — make it inspiration only") {
+                            applyWeekStartChange(inspirationOnly: true)
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .frame(maxWidth: .infinity)
+
+                        Button("No — just switch") {
+                            applyWeekStartChange(inspirationOnly: false)
+                        }
+                        .frame(maxWidth: .infinity)
                     }
                 }
-
-                Spacer()
-
-                VStack(spacing: 12) {
-                    Button("Yes — make it inspiration only") {
-                        applyWeekStartChange(inspirationOnly: true)
+                .padding()
+                .navigationTitle("Week Start Change")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button("Cancel") {
+                            pendingWeekStart = nil
+                            pendingAffectedCommitments = []
+                            showWeekStartSheet = false
+                        }
                     }
-                    .buttonStyle(.borderedProminent)
-                    .frame(maxWidth: .infinity)
-
-                    Button("No — just switch") {
-                        applyWeekStartChange(inspirationOnly: false)
-                    }
-                    .frame(maxWidth: .infinity)
                 }
             }
-            .padding()
-            .navigationTitle("Week Start Change")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        pendingWeekStart = nil
-                        showWeekStartSheet = false
-                    }
-                }
-            }
+            .presentationDetents([.medium])
         }
-        .presentationDetents([.medium])
     }
 
     private func applyWeekStartChange(inspirationOnly: Bool) {
         guard let newValue = pendingWeekStart else { return }
-        let all = (try? modelContext.fetch(FetchDescriptor<Commitment>())) ?? []
-        let affected = WeekStartChangeHandler.affectedCommitments(all, newStartsOnMonday: newValue)
         WeekStartChangeHandler.apply(
-            to: affected,
+            to: pendingAffectedCommitments,
             newStartsOnMonday: newValue,
             makeCurrentCycleInspirationOnly: inspirationOnly
         )
         weekStartsOnMonday = newValue
         pendingWeekStart = nil
+        pendingAffectedCommitments = []
         showWeekStartSheet = false
         CycleEndNotificationScheduler.refresh()
     }
