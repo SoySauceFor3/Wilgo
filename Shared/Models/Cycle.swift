@@ -58,6 +58,9 @@ enum CycleKind: String, CaseIterable, Codable {
 struct Cycle: Codable, Equatable, Hashable {
     var kind: CycleKind
     private var referencePsychDay: Date  // psych-day; hour/minute ignored; it is one of the start day of the Cycle.
+    // NOTE: multiplier > 1 is unused. Bi-weekly+ cycles conflict with the global
+    // weekStartsOnMonday setting — changing week-start cannot unambiguously re-anchor
+    // a multi-week block. Do not use multiplier > 1 until this is resolved.
     var multiplier: Int
 
     init(kind: CycleKind, referencePsychDay: Date, multiplier: Int = 1,) {
@@ -109,8 +112,7 @@ extension Cycle {
         case .daily:
             anchor = psychDay
         case .weekly:
-            // weeklyPeriodStart(matches: 2, ...) → most recent Monday (1=Sun, 2=Mon …)
-            anchor = weeklyPeriodStart(matches: 2, of: psychDay)
+            anchor = weeklyPeriodStart(matches: AppSettings.weekStartWeekday, of: psychDay)
         case .monthly:
             // monthlyPeriodStart(matches: 1, ...) → 1st of the containing month
             anchor = monthlyPeriodStart(matches: 1, of: psychDay)

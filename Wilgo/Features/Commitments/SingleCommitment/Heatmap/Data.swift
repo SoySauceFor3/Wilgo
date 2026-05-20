@@ -154,10 +154,13 @@ extension Heatmap {
         func weeklyPeriods() -> [PeriodData] {
             let cycle: Cycle = {
                 if target.kind == .weekly { return target }
+                // weekStartWeekday: 2=Mon → anchor 2026-03-02 (Monday); 1=Sun → anchor 2026-03-01 (Sunday)
+                let anchorComponents = AppSettings.weekStartWeekday == 2
+                    ? DateComponents(year: 2026, month: 3, day: 2)
+                    : DateComponents(year: 2026, month: 3, day: 1)
                 return Cycle(
                     kind: .weekly,
-                    referencePsychDay: Time.calendar.date(
-                        from: DateComponents(year: 2026, month: 3, day: 2))!)  // 03/02/2026 is a Monday
+                    referencePsychDay: Time.calendar.date(from: anchorComponents)!)
             }()
             let currentStart = cycle.startDayOfCycle(including: today)
             guard

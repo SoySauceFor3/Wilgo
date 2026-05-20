@@ -29,11 +29,12 @@ Always
 3. record major model changes
 4. document major alternatives, their pros and cons and why choose the direction we choose
 5. commit plan (i.e. step by step plan), note:
-  1. declare the dependency between commits, so parallel sub-agent can work.
-  2. You can make branches and commitment chains as needed.
-  3. make each individual commit
+  1. If there is UI change, make it happen as early as possible, so I can manually verify the other changes that depend on the data change only accessible from the UI (from a user perspective). 
+  2. declare the dependency between commits, so parallel sub-agent can work.
+  3. You can make branches and commitment chains as needed.
+  4. make each individual commit
     1. logically complete and self-contained. At least (unless huge exception), the app should still build and do not cause new failing tests.
-    2. include Unit Test of the actual code change. Make sure testing coverage is as much as possible. Unit test should always be with the actual source code change. 
+    2. include Unit Test of the actual code change. Make sure testing coverage is as much as possible. Unit test should always be with the actual source code change.
     3. Make it clear when you need manual verification/interception, e.g. if you need me to manually verify a migration works in testing iphone.
 
 To help you better understand what i want, please refer to the template at ./documentation/TEMPLATE.md

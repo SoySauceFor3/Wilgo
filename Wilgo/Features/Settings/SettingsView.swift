@@ -11,6 +11,11 @@ struct SettingsView: View {
     @AppStorage(AppSettings.positivityTokenMonthlyCapKey)
     private var positivityTokenMonthlyCap: Int = 0
 
+    @AppStorage(AppSettings.weekStartsOnMondayKey)
+    private var weekStartsOnMonday: Bool = true
+
+    @Environment(\.modelContext) private var modelContext
+
     #if DEBUG
         @Environment(\.triggerCycleReport) private var triggerCycleReport
         @State private var debugWatermarkDate: Date = .init()
@@ -45,6 +50,18 @@ struct SettingsView: View {
                     Text(
                         "Maximum number of positivity tokens you can use per month. Default is 5."
                     )
+                }
+
+                Section {
+                    Picker("Week starts on", selection: $weekStartsOnMonday) {
+                        Text("Monday").tag(true)
+                        Text("Sunday").tag(false)
+                    }
+                    .pickerStyle(.segmented)
+                } header: {
+                    Text("Calendar")
+                } footer: {
+                    Text("Sets the first day of the week for new weekly commitments and the weekly heatmap view.")
                 }
 
                 Section("Tags") {

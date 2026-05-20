@@ -36,7 +36,7 @@ enum CycleEndNotificationScheduler {
         case .daily:
             break // no day component → repeats every day
         case .weekly:
-            components.weekday = 2 // Monday
+            components.weekday = AppSettings.weekStartWeekday
         case .monthly:
             components.day = 1 // 1st of month = exclusive end of previous month's cycle
         }
