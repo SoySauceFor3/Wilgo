@@ -17,10 +17,11 @@ enum WeekStartChangeHandler {
         }
     }
 
-    /// The start of the current cycle under the *new* week-start boundary (on or before today).
-    /// Temporarily sets the UserDefaults key to `newStartsOnMonday` so Cycle.makeDefault picks it up,
-    /// then restores the original value.
-    static func newCurrentCycleStart(newStartsOnMonday: Bool, today: Date = Time.now()) -> Date {
+    /// Temporarily applies `newStartsOnMonday` to UserDefaults so `Cycle.makeDefault` uses the new
+    /// setting, computes both cycle boundaries, then restores the prior value.
+    private static func newCurrentCycleBoundaries(
+        newStartsOnMonday: Bool, today: Date
+    ) -> (start: Date, end: Date) {
         let previous = UserDefaults.standard.object(forKey: AppSettings.weekStartsOnMondayKey)
         UserDefaults.standard.set(newStartsOnMonday, forKey: AppSettings.weekStartsOnMondayKey)
         defer {
@@ -31,22 +32,17 @@ enum WeekStartChangeHandler {
             }
         }
         let cycle = Cycle.makeDefault(.weekly, on: today)
-        return cycle.startDayOfCycle(including: today)
+        return (cycle.startDayOfCycle(including: today), cycle.endDayOfCycle(including: today))
+    }
+
+    /// The start of the current cycle under the *new* week-start boundary (on or before today).
+    static func newCurrentCycleStart(newStartsOnMonday: Bool, today: Date = Time.now()) -> Date {
+        newCurrentCycleBoundaries(newStartsOnMonday: newStartsOnMonday, today: today).start
     }
 
     /// The exclusive end of the current cycle under the new week-start boundary.
     static func newCurrentCycleEnd(newStartsOnMonday: Bool, today: Date = Time.now()) -> Date {
-        let previous = UserDefaults.standard.object(forKey: AppSettings.weekStartsOnMondayKey)
-        UserDefaults.standard.set(newStartsOnMonday, forKey: AppSettings.weekStartsOnMondayKey)
-        defer {
-            if let previous {
-                UserDefaults.standard.set(previous, forKey: AppSettings.weekStartsOnMondayKey)
-            } else {
-                UserDefaults.standard.removeObject(forKey: AppSettings.weekStartsOnMondayKey)
-            }
-        }
-        let cycle = Cycle.makeDefault(.weekly, on: today)
-        return cycle.endDayOfCycle(including: today)
+        newCurrentCycleBoundaries(newStartsOnMonday: newStartsOnMonday, today: today).end
     }
 
     /// Applies the week-start change to `commitments`:
@@ -58,8 +54,7 @@ enum WeekStartChangeHandler {
         makeCurrentCycleInspirationOnly: Bool,
         today: Date = Time.now()
     ) {
-        let cycleStart = newCurrentCycleStart(newStartsOnMonday: newStartsOnMonday, today: today)
-        let cycleEnd = newCurrentCycleEnd(newStartsOnMonday: newStartsOnMonday, today: today)
+        let (cycleStart, cycleEnd) = newCurrentCycleBoundaries(newStartsOnMonday: newStartsOnMonday, today: today)
 
         for commitment in commitments {
             // Re-anchor to the new week-start. Preserves multiplier, but note:

@@ -75,9 +75,19 @@ struct WeekStartChangeHandlerTests {
             newStartsOnMonday: false, today: thursday)
         let diff = try #require(Calendar.current.dateComponents([.day], from: start, to: end).day)
         #expect(diff == 7)
+        let expectedEnd = date(year: 2026, month: 4, day: 5)
+        #expect(end == expectedEnd)
     }
 
     // MARK: apply
+
+    @Test("newCurrentCycleStart: on Sunday itself returns that same Sunday when switching to Sunday-start")
+    func cycleStartOnBoundaryDay() {
+        let sunday = date(year: 2026, month: 3, day: 29)
+        let start = WeekStartChangeHandler.newCurrentCycleStart(
+            newStartsOnMonday: false, today: sunday)
+        #expect(start == sunday)
+    }
 
     @Test("apply: re-anchors commitment to new cycle start")
     func applyReanchorsCommitment() {

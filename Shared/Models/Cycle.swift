@@ -69,8 +69,8 @@ struct Cycle: Codable, Equatable, Hashable {
         self.multiplier = max(1, multiplier)
     }
 
-    /// Public read-only accessor for the cycle's anchor psych-day.
-    /// Used by WeekStartChangeHandler to detect which commitments need re-anchoring.
+    /// The psych-day this cycle is anchored to. Prefer `startDayOfCycle` / `endDayOfCycle` for
+    /// period boundary calculations; use this only to inspect the raw anchor weekday.
     var anchorPsychDay: Date { referencePsychDay }
 
     func periodicRepresentation() -> String {
