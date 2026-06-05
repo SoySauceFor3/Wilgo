@@ -85,17 +85,7 @@ enum PreTokenReportBuilder {
                 endPsychDay: cycleEnd
             )
 
-            let effectiveTargetMode: TargetMode
-            do {
-                effectiveTargetMode = commitment.target.effectiveMode(
-                    from: cycleStart,
-                    to: cycleEnd
-                )
-            } catch {
-                print("[FCR] failed to classify target mode for \(commitment.title): \(error)")
-                cycleCursorDay = cycleEnd
-                continue
-            }
+            let effectiveTargetMode = commitment.target.configuredMode
 
             let cycleID = "\(commitmentID)::\(cycleEnd.timeIntervalSinceReferenceDate)"
             cycles.append(

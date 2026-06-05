@@ -17,33 +17,13 @@ struct Target: Codable, Hashable {
     }
 }
 
+// Legacy code, can be removed and replaced with just `var mode: TargetMode` if needed later
 extension Target {
-    var configuredMode: TargetMode {
-        mode
-    }
-
-    func effectiveMode(on psychDay: Date) -> TargetMode {
-        do {
-            return try mode.effectiveMode(on: psychDay)
-        } catch {
-            return .on
-        }
-
-    }
-
-    func effectiveMode(from startPsychDay: Date, to endPsychDay: Date) -> TargetMode {
-        do {
-            return try mode.effectiveMode(from: startPsychDay, to: endPsychDay)
-        } catch {
-            return .on
-        }
-
-    }
+    var configuredMode: TargetMode { mode }
 
     mutating func setConfiguredMode(_ mode: TargetMode) {
         self.mode = mode
     }
-
 }
 
 // MARK: - Commitment
@@ -218,7 +198,7 @@ extension Commitment {
     /// When the target is disabled, returns `GoalProgress(leftToDo: nil)` — `isMet` is always `false`.
     func goalProgress(now: Date = Time.now()) -> GoalProgress {
         let nowPsychDay = Time.startOfDay(for: now)
-        if case .disabled = target.effectiveMode(on: nowPsychDay) {
+        if case .disabled = target.configuredMode {
             return GoalProgress(leftToDo: nil)
         }
         let startDay = cycle.startDayOfCycle(including: nowPsychDay)
