@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FCR Redesign Mockup v5</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: #1a1a1a;
+    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+    gap: 56px;
+    color: #fff;
+  }
+
+  h1 {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: #555;
+  }
+
+  .row-label {
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: #444;
+    text-align: center;
+    margin-bottom: 4px;
+  }
+
+  .screen-row {
+    display: flex;
+    gap: 24px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  .screen-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .caption {
+    font-size: 11px;
+    color: #555;
+    text-align: center;
+    max-width: 280px;
+    line-height: 1.6;
+  }
+
+  .arrow {
+    font-size: 24px; color: #333;
+    align-self: center; padding-top: 60px;
+  }
+
+  /* iPhone */
+  .iphone {
+    width: 300px;
+    background: #000;
+    border-radius: 46px;
+    padding: 10px;
+    box-shadow: 0 0 0 1px #2a2a2a, 0 24px 64px rgba(0,0,0,0.7);
+  }
+  .iphone-screen {
+    background: #0c0c0e;
+    border-radius: 38px;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    min-height: 620px;
+    position: relative;
+  }
+  .dynamic-island {
+    width: 90px; height: 26px;
+    background: #000; border-radius: 16px;
+    margin: 10px auto 0; flex-shrink: 0;
+  }
+  .nav-bar {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px 6px; flex-shrink: 0;
+  }
+  .nav-title { font-size: 15px; font-weight: 600; color: #fff; }
+  .nav-btn { font-size: 14px; color: #4a7fff; }
+  .nav-btn.disabled { color: #333; }
+  .nav-btn.active { font-weight: 700; }
+
+  .screen-content {
+    flex: 1; overflow-y: auto;
+    padding: 4px 10px 16px;
+    display: flex; flex-direction: column; gap: 8px;
+  }
+
+  /* ── COLLAPSED CARD ── */
+  .card-collapsed {
+    background: #1a1a1c;
+    border: 1.5px solid #252525;
+    border-radius: 14px;
+    padding: 11px 13px;
+    display: flex; align-items: center;
+    justify-content: space-between; gap: 10px;
+  }
+  .card-collapsed-left {
+    display: flex; align-items: center;
+    gap: 9px; flex: 1; min-width: 0;
+  }
+  .status-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%; flex-shrink: 0;
+  }
+  .status-dot.pass { background: #4cd97b; }
+  .status-dot.fail-done { background: #c084fc; }
+  .status-dot.fail-open { background: #e09030; }
+
+  .collapsed-title {
+    font-size: 13px; font-weight: 500; color: #ccc;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .collapsed-meta { font-size: 11px; color: #555; margin-top: 1px; }
+  .collapsed-right {
+    display: flex; align-items: center; gap: 6px; flex-shrink: 0;
+  }
+  .mini-badge {
+    font-size: 11px; font-weight: 700;
+    padding: 2px 8px; border-radius: 10px;
+  }
+  .mini-badge.fail { background: #2a1515; color: #ff6b6b; }
+  .mini-badge.pass { background: #153a25; color: #4cd97b; }
+  .chevron { font-size: 12px; color: #444; }
+
+  /* ── EXPANDED CARD ── */
+  .card-expanded {
+    background: #1a1a1c;
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .card-expanded.failed {
+    border: 1.5px solid #ff6b6b33;
+    box-shadow: 0 0 0 3px #ff6b6b0a;
+  }
+  .card-expanded.passed {
+    border: 1.5px solid #252525;
+  }
+
+  /* Card header with icon buttons */
+  .card-header {
+    padding: 12px 13px 10px;
+    display: flex; align-items: flex-start;
+    justify-content: space-between; gap: 8px;
+  }
+  .card-title { font-size: 15px; font-weight: 600; color: #fff; }
+  .card-date { font-size: 11px; color: #555; margin-top: 2px; }
+
+  .card-header-right {
+    display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  }
+
+  .badge {
+    font-size: 11px; font-weight: 700;
+    padding: 3px 9px; border-radius: 10px;
+  }
+  .badge.fail { background: #3a1515; color: #ff6b6b; }
+  .badge.pass { background: #153a25; color: #4cd97b; }
+
+  /* History icon button */
+  .history-icon-btn {
+    width: 28px; height: 28px;
+    background: #252528;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px;
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+  .history-icon-btn.active {
+    background: #0e1c2e;
+    border: 1px solid #4a7fff44;
+  }
+
+  /* Minimize icon */
+  .minimize-btn {
+    width: 28px; height: 28px;
+    background: #252528;
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; color: #555;
+    cursor: pointer; flex-shrink: 0;
+  }
+
+  /* ── INFOCARD (reused from heatmap) ── */
+  .info-card {
+    margin: 0 13px 10px;
+    background: #252528;
+    border-radius: 9px;
+    padding: 10px;
+  }
+  .info-card-header {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 8px;
+  }
+  .info-card-period { font-size: 12px; font-weight: 600; color: #ccc; }
+  .info-card-count { font-size: 12px; font-weight: 500; color: #888; }
+
+  .info-card-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 5px 4px;
+    border-top: 1px solid #1e1e1e;
+  }
+  .info-card-time { font-size: 11px; color: #777; }
+  .info-card-source { font-size: 10px; color: #555; }
+  .info-card-del { font-size: 14px; color: #555; }
+  .info-card-del.confirm { font-size: 10px; font-weight: 600; color: #ff6b6b; background: #3a1515; padding: 2px 6px; border-radius: 6px; }
+
+  .info-card-add {
+    display: flex; align-items: center; gap: 4px;
+    padding: 6px 4px 2px;
+    font-size: 11px; color: #888;
+    border-top: 1px solid #1e1e1e;
+  }
+  .info-card-add-icon { font-size: 13px; color: #888; }
+
+  /* Streak */
+  .streak-bar {
+    margin: 0 13px 10px;
+    background: #1e1500; border: 1px solid #3a2800;
+    border-radius: 8px; padding: 6px 10px;
+    font-size: 11px; color: #c07820;
+    display: flex; align-items: center; gap: 5px;
+  }
+
+  .divider { height: 1px; background: #1e1e1e; margin: 0 13px; }
+
+  /* Outcome */
+  .outcome-section { padding: 8px 13px 4px; }
+  .section-label {
+    font-size: 10px; font-weight: 700;
+    color: #444; text-transform: uppercase;
+    letter-spacing: 0.08em; margin-bottom: 8px;
+  }
+  .pills { display: flex; gap: 5px; flex-wrap: wrap; }
+  .pill {
+    padding: 5px 11px; border-radius: 20px;
+    font-size: 12px; font-weight: 500;
+    border: 1.5px solid #2a2a2a; color: #555; background: #1a1a1a;
+  }
+  .pill.sel-excused { background: #0e1c2e; color: #4a7fff; border-color: #4a7fff; }
+  .pill.sel-punished { background: #2a1010; color: #ff6b6b; border-color: #ff6b6b; }
+  .pill.sel-letgo { background: #221d08; color: #c8a030; border-color: #c8a030; }
+
+  .textbox {
+    background: #111; border: 1.5px solid #252525;
+    border-radius: 10px; padding: 9px 11px;
+    font-size: 12px; color: #888; min-height: 46px; line-height: 1.5;
+  }
+  .textbox.filled { color: #bbb; border-color: #333; }
+  .textbox.required { border-color: #ff6b6b22; }
+
+  .pt-row {
+    padding: 8px 13px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .pt-left { font-size: 12px; color: #555; display: flex; align-items: center; gap: 4px; }
+  .pt-covered { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 10px; background: #153a25; color: #4cd97b; }
+  .pt-needed { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 10px; background: #3a1515; color: #ff6b6b; }
+  .pt-mint { font-size: 11px; font-weight: 600; padding: 3px 9px; border-radius: 10px; background: #0e1c2e; color: #4a7fff; border: 1px solid #4a7fff33; }
+
+  .emoji-row { display: flex; gap: 5px; flex-wrap: wrap; padding: 8px 13px 12px; }
+  .emoji-btn {
+    background: #1a1a1a; border: 1.5px solid #252525;
+    border-radius: 16px; padding: 4px 9px;
+    font-size: 15px; display: flex; align-items: center; gap: 3px;
+  }
+  .emoji-btn .cnt { font-size: 11px; color: #555; font-weight: 600; }
+  .emoji-btn.tapped { background: #0e1a2e; border-color: #4a7fff55; }
+  .emoji-btn.tapped .cnt { color: #4a7fff; }
+
+  /* Flip banner */
+  .flip-banner {
+    margin: 0 13px 10px;
+    background: #0e2a1a; border: 1px solid #1a5a30;
+    border-radius: 8px; padding: 7px 10px;
+    font-size: 11px; color: #4cd97b;
+  }
+
+  /* Undo banner — matches CheckInUndoBannerOverlay (ultraThinMaterial, bottom overlay) */
+  .undo-overlay {
+    position: absolute;
+    bottom: 70px; left: 16px; right: 16px;
+    display: flex; flex-direction: column; gap: 8px;
+    z-index: 10;
+  }
+  .undo-toast {
+    display: flex; align-items: center;
+    justify-content: space-between; gap: 12px;
+    padding: 10px 12px;
+    background: rgba(40,40,50,0.85);
+    backdrop-filter: blur(20px);
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+    font-size: 13px; color: #ddd;
+  }
+  .undo-btn {
+    font-size: 13px; font-weight: 600;
+    color: #fff; background: #4a7fff;
+    padding: 6px 12px; border-radius: 8px;
+    flex-shrink: 0;
+  }
+
+  /* Bottom sheet */
+  .bottom-sheet-overlay {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    background: rgba(0,0,0,0.55);
+    border-radius: 0 0 38px 38px;
+    display: flex; flex-direction: column;
+    justify-content: flex-end;
+  }
+  .bottom-sheet {
+    background: #1c1c1e;
+    border-radius: 20px 20px 0 0;
+    padding: 0 0 20px;
+  }
+  .sheet-handle {
+    width: 36px; height: 4px;
+    background: #444; border-radius: 2px;
+    margin: 10px auto 14px;
+  }
+  .sheet-title-row {
+    padding: 0 16px 10px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .sheet-title { font-size: 15px; font-weight: 600; color: #fff; }
+  .sheet-cancel { font-size: 14px; color: #4a7fff; }
+  .sheet-body { padding: 0 16px; }
+  .sheet-desc { font-size: 13px; color: #888; margin-bottom: 16px; line-height: 1.5; }
+  .sheet-confirm {
+    width: 100%; padding: 13px;
+    background: #4a7fff; border-radius: 13px;
+    font-size: 15px; font-weight: 600;
+    text-align: center; color: #fff;
+  }
+  .sheet-note { font-size: 11px; color: #555; text-align: center; margin-top: 8px; }
+
+  .bottom-bar { display: none; }
+</style>
+</head>
+<body>
+
+<h1>FCR Redesign — v5 (reusing InfoCardView)</h1>
+
+<!-- ══════════════════════════════════════
+     ROW 1: Card header with icon buttons
+     ══════════════════════════════════════ -->
+<div class="row-label">Card header — 📅 icon toggles InfoCardView, ↑ minimizes card</div>
+<div class="screen-row">
+
+  <!-- History hidden (default) -->
+  <div class="screen-group">
+    <div class="iphone">
+      <div class="iphone-screen">
+        <div class="dynamic-island"></div>
+        <div class="nav-bar">
+          <span class="nav-btn">Cancel</span>
+          <span class="nav-title">Cycle Report</span>
+          <span class="nav-btn disabled">Done</span>
+        </div>
+        <div class="screen-content">
+
+          <div class="card-collapsed">
+            <div class="card-collapsed-left">
+              <div class="status-dot pass"></div>
+              <div>
+                <div class="collapsed-title">Morning Run</div>
+                <div class="collapsed-meta">passed</div>
+              </div>
+            </div>
+            <div class="collapsed-right">
+              <div class="mini-badge pass">4/3</div>
+              <div class="chevron">›</div>
+            </div>
+          </div>
+
+          <div class="card-expanded failed">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Leetcode</div>
+                <div class="card-date">May 26 – Jun 1</div>
+              </div>
+              <div class="card-header-right">
+                <div class="badge fail">1 / 3</div>
+                <!-- Calendar icon — history hidden -->
+                <div class="history-icon-btn">📅</div>
+                <!-- Minimize -->
+                <div class="minimize-btn">↑</div>
+              </div>
+            </div>
+
+            <div class="streak-bar">⚠️ 4 consecutive failed weeks</div>
+            <div class="divider"></div>
+
+            <div class="outcome-section">
+              <div class="section-label">How are you closing this?</div>
+              <div class="pills">
+                <div class="pill">Excused</div>
+                <div class="pill">Punished</div>
+                <div class="pill">Let go</div>
+                <div class="pill">Other</div>
+              </div>
+            </div>
+            <div class="outcome-section">
+              <div class="section-label">Write something</div>
+              <div class="textbox required">Tap to write... (required)</div>
+            </div>
+            <div class="divider"></div>
+            <div class="pt-row">
+              <div class="pt-left">✨ Positivity Token</div>
+              <div class="pt-needed">Needed</div>
+            </div>
+          </div>
+
+        </div>
+        <div class="bottom-bar">
+          <div class="cta off">Done — 1 cycle incomplete</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Default state. Header has badge + 📅 icon (history) + ↑ icon (minimize). History hidden by default — card is clean.</div>
+  </div>
+
+  <div class="arrow">→</div>
+
+  <!-- History shown (InfoCardView reused) -->
+  <div class="screen-group">
+    <div class="iphone">
+      <div class="iphone-screen">
+        <div class="dynamic-island"></div>
+        <div class="nav-bar">
+          <span class="nav-btn">Cancel</span>
+          <span class="nav-title">Cycle Report</span>
+          <span class="nav-btn disabled">Done</span>
+        </div>
+        <div class="screen-content">
+
+          <div class="card-collapsed">
+            <div class="card-collapsed-left">
+              <div class="status-dot pass"></div>
+              <div>
+                <div class="collapsed-title">Morning Run</div>
+                <div class="collapsed-meta">passed</div>
+              </div>
+            </div>
+            <div class="collapsed-right">
+              <div class="mini-badge pass">4/3</div>
+              <div class="chevron">›</div>
+            </div>
+          </div>
+
+          <div class="card-expanded failed">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Leetcode</div>
+                <div class="card-date">May 26 – Jun 1</div>
+              </div>
+              <div class="card-header-right">
+                <div class="badge fail">1 / 3</div>
+                <!-- Calendar icon — active/highlighted -->
+                <div class="history-icon-btn active">📅</div>
+                <div class="minimize-btn">↑</div>
+              </div>
+            </div>
+
+            <!-- InfoCardView reused from heatmap -->
+            <div class="info-card">
+              <div class="info-card-header">
+                <span class="info-card-period">May 26 – Jun 1</span>
+                <span class="info-card-count">1 / 3 · Partial</span>
+              </div>
+              <div class="info-card-row">
+                <span class="info-card-time">Mon May 26, 9:03 AM</span>
+                <span class="info-card-del">−</span>
+              </div>
+              <div class="info-card-add">
+                <span class="info-card-add-icon">⊕</span>
+                <span>Add check-in</span>
+              </div>
+            </div>
+
+            <div class="streak-bar">⚠️ 4 consecutive failed weeks</div>
+            <div class="divider"></div>
+
+            <div class="outcome-section">
+              <div class="section-label">How are you closing this?</div>
+              <div class="pills">
+                <div class="pill">Excused</div>
+                <div class="pill">Punished</div>
+                <div class="pill">Let go</div>
+                <div class="pill">Other</div>
+              </div>
+            </div>
+            <div class="outcome-section">
+              <div class="section-label">Write something</div>
+              <div class="textbox required">Tap to write... (required)</div>
+            </div>
+            <div class="divider"></div>
+            <div class="pt-row">
+              <div class="pt-left">✨ Positivity Token</div>
+              <div class="pt-needed">Needed</div>
+            </div>
+          </div>
+
+        </div>
+        <div class="bottom-bar">
+          <div class="cta off">Done — 1 cycle incomplete</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Tapping 📅 expands the InfoCardView inline — same component as the heatmap. Shows check-ins with timestamps, delete (−), and "Add check-in". Icon highlighted when open.</div>
+  </div>
+
+  <div class="arrow">→</div>
+
+  <!-- Tapping "Add check-in" → bottom sheet -->
+  <div class="screen-group">
+    <div class="iphone">
+      <div class="iphone-screen">
+        <div class="dynamic-island"></div>
+        <div class="nav-bar">
+          <span class="nav-btn">Cancel</span>
+          <span class="nav-title">Cycle Report</span>
+          <span class="nav-btn disabled">Done</span>
+        </div>
+        <div class="screen-content">
+
+          <div class="card-collapsed">
+            <div class="card-collapsed-left">
+              <div class="status-dot pass"></div>
+              <div>
+                <div class="collapsed-title">Morning Run</div>
+                <div class="collapsed-meta">passed</div>
+              </div>
+            </div>
+            <div class="collapsed-right">
+              <div class="mini-badge pass">4/3</div>
+              <div class="chevron">›</div>
+            </div>
+          </div>
+
+          <div class="card-expanded failed">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Leetcode</div>
+                <div class="card-date">May 26 – Jun 1</div>
+              </div>
+              <div class="card-header-right">
+                <div class="badge fail">1 / 3</div>
+                <div class="history-icon-btn active">📅</div>
+                <div class="minimize-btn">↑</div>
+              </div>
+            </div>
+            <div class="info-card">
+              <div class="info-card-header">
+                <span class="info-card-period">May 26 – Jun 1</span>
+                <span class="info-card-count">1 / 3 · Partial</span>
+              </div>
+              <div class="info-card-row">
+                <span class="info-card-time">Mon May 26, 9:03 AM</span>
+                <span class="info-card-del">−</span>
+              </div>
+              <div class="info-card-add" style="color:#4a7fff;">
+                <span class="info-card-add-icon" style="color:#4a7fff;">⊕</span>
+                <span>Add check-in</span>
+              </div>
+            </div>
+            <div class="streak-bar">⚠️ 4 consecutive failed weeks</div>
+            <div class="divider"></div>
+            <div class="outcome-section">
+              <div class="section-label">How are you closing this?</div>
+              <div class="pills">
+                <div class="pill">Excused</div>
+                <div class="pill">Punished</div>
+                <div class="pill">Let go</div>
+                <div class="pill">Other</div>
+              </div>
+            </div>
+            <div class="outcome-section">
+              <div class="section-label">Write something</div>
+              <div class="textbox required">Tap to write...</div>
+            </div>
+            <div class="divider"></div>
+            <div class="pt-row">
+              <div class="pt-left">✨ Positivity Token</div>
+              <div class="pt-needed">Needed</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- BackfillSheet (reused existing component) -->
+        <div class="bottom-sheet-overlay">
+          <div class="bottom-sheet">
+            <div class="sheet-handle"></div>
+            <div class="sheet-title-row">
+              <span class="sheet-cancel">Cancel</span>
+              <span class="sheet-title" style="font-size:13px;color:#888;font-weight:500;">Backfill Check-in</span>
+              <span class="sheet-cancel" style="font-weight:700;">Add</span>
+            </div>
+            <div class="sheet-body">
+              <!-- iOS Form style DatePicker row -->
+              <div style="background:#1c1c1e;border-radius:12px;overflow:hidden;margin-bottom:16px;">
+                <div style="padding:11px 14px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #2a2a2a;">
+                  <span style="font-size:14px;color:#fff;">Date & Time</span>
+                  <span style="font-size:14px;color:#4a7fff;">Tue May 27, 9:00 AM</span>
+                </div>
+                <!-- Inline date picker wheel hint -->
+                <div style="padding:10px 14px;display:flex;justify-content:center;gap:12px;font-size:13px;color:#555;">
+                  <span style="color:#fff;">May</span>
+                  <span style="color:#fff;">27</span>
+                  <span style="color:#fff;">2026</span>
+                  <span style="color:#fff;">9</span>
+                  <span style="color:#fff;">00</span>
+                  <span style="color:#fff;">AM</span>
+                </div>
+              </div>
+              <div style="font-size:11px;color:#555;margin-bottom:16px;">A check-in will be recorded at the selected date and time. Clamped to May 26 – Jun 1.</div>
+              <div class="sheet-note">This can be undone after confirming.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="bottom-bar" style="visibility:hidden;">
+          <div class="cta off">Done</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Tapping "Add check-in" in the InfoCardView opens a bottom sheet to pick which day to backfill. Selected day highlighted. Confirm adds it and updates count live.</div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════
+     ROW 2: After backfill — count updates, flip
+     ══════════════════════════════════════ -->
+<div class="row-label">After backfill — live count update + cycle flip to passed</div>
+<div class="screen-row">
+
+  <!-- After backfill, still failed -->
+  <div class="screen-group">
+    <div class="iphone">
+      <div class="iphone-screen">
+        <div class="dynamic-island"></div>
+        <div class="nav-bar">
+          <span class="nav-btn">Cancel</span>
+          <span class="nav-title">Cycle Report</span>
+          <span class="nav-btn disabled">Done</span>
+        </div>
+        <div class="screen-content">
+
+          <div class="card-collapsed">
+            <div class="card-collapsed-left">
+              <div class="status-dot pass"></div>
+              <div>
+                <div class="collapsed-title">Morning Run</div>
+                <div class="collapsed-meta">passed</div>
+              </div>
+            </div>
+            <div class="collapsed-right">
+              <div class="mini-badge pass">4/3</div>
+              <div class="chevron">›</div>
+            </div>
+          </div>
+
+          <div class="card-expanded failed">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Leetcode</div>
+                <div class="card-date">May 26 – Jun 1</div>
+              </div>
+              <div class="card-header-right">
+                <div class="badge fail">2 / 3</div>
+                <div class="history-icon-btn active">📅</div>
+                <div class="minimize-btn">↑</div>
+              </div>
+            </div>
+            <div class="info-card">
+              <div class="info-card-header">
+                <span class="info-card-period">May 26 – Jun 1</span>
+                <span class="info-card-count">2 / 3 · Partial</span>
+              </div>
+              <div class="info-card-row">
+                <span class="info-card-time">Mon May 26, 9:03 AM</span>
+                <span class="info-card-del">−</span>
+              </div>
+              <div class="info-card-row">
+                <span class="info-card-time">Tue May 27 · backfilled</span>
+                <span class="info-card-del">−</span>
+              </div>
+              <div class="info-card-add">
+                <span class="info-card-add-icon">⊕</span>
+                <span>Add check-in</span>
+              </div>
+            </div>
+            <div class="streak-bar">⚠️ 4 consecutive failed weeks</div>
+            <div class="divider"></div>
+            <div class="outcome-section">
+              <div class="section-label">How are you closing this?</div>
+              <div class="pills">
+                <div class="pill sel-excused">Excused</div>
+              </div>
+            </div>
+            <div class="outcome-section">
+              <div class="section-label">Write something</div>
+              <div class="textbox filled">Was travelling, only had laptop Mon–Tue.</div>
+            </div>
+            <div class="divider"></div>
+            <div class="pt-row">
+              <div class="pt-left">✨ Positivity Token</div>
+              <div class="pt-mint">+ Mint one now</div>
+            </div>
+          </div>
+
+        </div>
+        <!-- Undo overlay — matches CheckInUndoBannerOverlay -->
+        <div class="undo-overlay">
+          <div class="undo-toast">
+            <span>Backfill of Leetcode saved for Tue May 27</span>
+            <div class="undo-btn">Undo</div>
+          </div>
+        </div>
+
+        <div class="bottom-bar">
+          <div class="cta off">Done — 1 cycle incomplete</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Count updates live (1→2/3). InfoCardView shows new backfilled entry with "backfilled" label. Undo toast at bottom of screen (reusing CheckInUndoBannerOverlay). Still failed — purposeful stop stays.</div>
+  </div>
+
+  <div class="arrow">→</div>
+
+  <!-- Flipped to passed -->
+  <div class="screen-group">
+    <div class="iphone">
+      <div class="iphone-screen">
+        <div class="dynamic-island"></div>
+        <div class="nav-bar">
+          <span class="nav-btn">Cancel</span>
+          <span class="nav-title">Cycle Report</span>
+          <span class="nav-btn active">Done</span>
+        </div>
+        <div class="screen-content">
+
+          <div class="card-collapsed">
+            <div class="card-collapsed-left">
+              <div class="status-dot pass"></div>
+              <div>
+                <div class="collapsed-title">Morning Run</div>
+                <div class="collapsed-meta">passed</div>
+              </div>
+            </div>
+            <div class="collapsed-right">
+              <div class="mini-badge pass">4/3</div>
+              <div class="chevron">›</div>
+            </div>
+          </div>
+
+          <!-- Flipped to passed -->
+          <div class="card-expanded passed">
+            <div class="card-header">
+              <div>
+                <div class="card-title">Leetcode</div>
+                <div class="card-date">May 26 – Jun 1</div>
+              </div>
+              <div class="card-header-right">
+                <div class="badge pass">3 / 3 ✓</div>
+                <div class="history-icon-btn active">📅</div>
+                <div class="minimize-btn">↑</div>
+              </div>
+            </div>
+
+            <div class="info-card">
+              <div class="info-card-header">
+                <span class="info-card-period">May 26 – Jun 1</span>
+                <span class="info-card-count">3 / 3 · Goal met ✓</span>
+              </div>
+              <div class="info-card-row">
+                <span class="info-card-time">Mon May 26, 9:03 AM</span>
+                <span class="info-card-del">−</span>
+              </div>
+              <div class="info-card-row">
+                <span class="info-card-time">Tue May 27 · backfilled</span>
+                <span class="info-card-del">−</span>
+              </div>
+              <div class="info-card-row">
+                <span class="info-card-time">Wed May 28 · backfilled</span>
+                <span class="info-card-del">−</span>
+              </div>
+              <div class="info-card-add">
+                <span class="info-card-add-icon">⊕</span>
+                <span>Add check-in</span>
+              </div>
+            </div>
+
+            <div class="flip-banner">🎉 Flipped to passed! Reflection fields cleared.</div>
+            <div class="divider"></div>
+
+            <div class="outcome-section">
+              <div class="section-label">Celebrate (optional)</div>
+            </div>
+            <div class="emoji-row">
+              <div class="emoji-btn tapped">🔥 <span class="cnt">1</span></div>
+              <div class="emoji-btn">💪</div>
+              <div class="emoji-btn">🎉</div>
+              <div class="emoji-btn">⭐</div>
+              <div class="emoji-btn">😤</div>
+            </div>
+          </div>
+
+        </div>
+        <!-- Undo overlay -->
+        <div class="undo-overlay">
+          <div class="undo-toast">
+            <span>Backfill of Leetcode saved for Wed May 28</span>
+            <div class="undo-btn">Undo</div>
+          </div>
+        </div>
+
+        <div class="bottom-bar">
+          <div class="cta">Done</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">Third backfill hits target — card flips to passed instantly. InfoCardView dot turns green, shows "Goal met ✓". Purposeful stop cleared. Celebration row appears. Done unlocks.</div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════
+     ROW 3: Minimize behavior
+     ══════════════════════════════════════ -->
+<div class="row-label">Minimize — tap ↑ to collapse any card at any time</div>
+<div class="screen-row">
+
+  <div class="screen-group">
+    <div class="iphone">
+      <div class="iphone-screen">
+        <div class="dynamic-island"></div>
+        <div class="nav-bar">
+          <span class="nav-btn">Cancel</span>
+          <span class="nav-title">Cycle Report</span>
+          <span class="nav-btn disabled">Done</span>
+        </div>
+        <div class="screen-content">
+
+          <!-- All collapsed — one still incomplete (amber dot) -->
+          <div class="card-collapsed">
+            <div class="card-collapsed-left">
+              <div class="status-dot pass"></div>
+              <div>
+                <div class="collapsed-title">Morning Run</div>
+                <div class="collapsed-meta">passed</div>
+              </div>
+            </div>
+            <div class="collapsed-right">
+              <div class="mini-badge pass">4/3</div>
+              <div class="chevron">›</div>
+            </div>
+          </div>
+
+          <div class="card-collapsed">
+            <div class="card-collapsed-left">
+              <div class="status-dot fail-open"></div>
+              <div>
+                <div class="collapsed-title">Leetcode</div>
+                <div class="collapsed-meta" style="color:#e09030;">Incomplete — tap to finish</div>
+              </div>
+            </div>
+            <div class="collapsed-right">
+              <div class="mini-badge fail">1/3</div>
+              <div class="chevron">›</div>
+            </div>
+          </div>
+
+          <div class="card-collapsed">
+            <div class="card-collapsed-left">
+              <div class="status-dot fail-done"></div>
+              <div>
+                <div class="collapsed-title">Read 20 pages</div>
+                <div class="collapsed-meta">Punished · ✨ covered</div>
+              </div>
+            </div>
+            <div class="collapsed-right">
+              <div class="mini-badge fail">2/4</div>
+              <div class="chevron">›</div>
+            </div>
+          </div>
+
+        </div>
+        <div class="bottom-bar">
+          <div class="cta off">Done — 1 cycle incomplete</div>
+        </div>
+      </div>
+    </div>
+    <div class="caption">All cards minimized. Amber dot = incomplete failed cycle. Purple dot = completed failed cycle. Green dot = passed. Tap any card to re-expand. Done stays locked until Leetcode is resolved.</div>
+  </div>
+
+</div>
+
+</body>
+</html>
