@@ -6,31 +6,19 @@ struct FinishedCycleReportView: View {
     let onFinished: () -> Void
     @Environment(\.dismiss) private var dismiss
 
-    @State private var preTokenReportForTokenStep: [CommitmentReport] = []
-    @State private var showTokenStep = false
-
     var body: some View {
         NavigationStack {
             CheckInSummaryStep(
                 request: request,
-                onNext: { preTokenReport in
-                    preTokenReportForTokenStep = preTokenReport
-                    showTokenStep = true
+                onNext: { _ in
+                    onFinished()
+                    dismiss()
                 },
                 onEmptyReport: {
                     onFinished()
                     dismiss()
                 }
             )
-                .navigationDestination(isPresented: $showTokenStep) {
-                    PositivityTokenStep(
-                        preTokenReport: preTokenReportForTokenStep,
-                        onDone: {
-                            onFinished()
-                            dismiss()
-                        }
-                    )
-                }
         }
     }
 }

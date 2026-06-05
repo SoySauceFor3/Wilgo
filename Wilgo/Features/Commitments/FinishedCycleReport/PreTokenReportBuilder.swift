@@ -16,9 +16,7 @@ enum PreTokenReportBuilder {
         var actualCheckIns: Int { checkIns.count }
     }
 
-    /// Phase 1: builds raw cycles from committed check-in data, with no positivity
-    /// token compensation applied (`consumedPTReasons` is `[]` for every cycle).
-    /// Feed the result into `applyPositivityTokens` for the final PT-compensated report.
+    /// Builds raw cycles from committed check-in data.
     static func build(
         commitments: [Commitment],
         startPsychDay: Date,  // inclusive
@@ -53,7 +51,6 @@ enum PreTokenReportBuilder {
                         cycleLabel: draft.cycleLabel,
                         cycleStartPsychDay: draft.cycleStartPsychDay,
                         cycleEndPsychDay: draft.cycleEndPsychDay,
-                        consumedPTReasons: [],
                         checkIns: draft.checkIns,
                         effectiveTargetMode: draft.effectiveTargetMode
                     )

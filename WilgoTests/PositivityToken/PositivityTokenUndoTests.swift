@@ -43,10 +43,10 @@ struct PositivityTokenUndoTests {
         let checkIns = try ctx.fetch(FetchDescriptor<CheckIn>())
         #expect(checkIns.isEmpty)
 
-        // PT must still exist and remain active
+        // PT must still exist and be free (not consumed)
         let tokens = try ctx.fetch(FetchDescriptor<PositivityToken>())
         #expect(tokens.count == 1)
-        #expect(tokens.first?.status == .active)
+        #expect(tokens.first?.consumedByCycleRecord == nil)
         #expect(tokens.first?.reason == "Great job staying consistent!")
     }
 
