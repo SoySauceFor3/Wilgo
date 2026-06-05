@@ -43,30 +43,20 @@ enum WeekStartChangeHandler {
         newCurrentCycleBoundaries(newStartsOnMonday: newStartsOnMonday, today: today).end
     }
 
-    /// Applies the week-start change to `commitments`:
-    /// 1. Re-anchors each commitment's cycle to the new week-start boundary.
-    /// 2. If `makeCurrentCycleInspirationOnly` is true, marks the current cycle inspiration-only.
+    /// Re-anchors each commitment's cycle to the new week-start boundary.
     static func apply(
         to commitments: [Commitment],
         newStartsOnMonday: Bool,
-        makeCurrentCycleInspirationOnly: Bool,
         today: Date = Time.now()
     ) {
-        let (cycleStart, cycleEnd) = newCurrentCycleBoundaries(newStartsOnMonday: newStartsOnMonday, today: today)
+        let (cycleStart, _) = newCurrentCycleBoundaries(newStartsOnMonday: newStartsOnMonday, today: today)
 
         for commitment in commitments {
-            // Re-anchor to the new week-start. Preserves multiplier, but note:
-            // multiplier > 1 is unused — re-anchoring a multi-week block is ambiguous.
             commitment.cycle = Cycle(
                 kind: .weekly,
                 referencePsychDay: cycleStart,
                 multiplier: commitment.cycle.multiplier
             )
-            if makeCurrentCycleInspirationOnly {
-                commitment.target.setConfiguredMode(
-                    .inspirationOnly(start: cycleStart, until: cycleEnd)
-                )
-            }
         }
     }
 }

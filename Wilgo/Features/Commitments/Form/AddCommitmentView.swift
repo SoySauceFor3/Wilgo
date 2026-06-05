@@ -7,8 +7,6 @@ struct AddCommitmentView: View {
 
     @State private var draft: CommitmentFormDraft
 
-    @State private var currentCycleDialog = CurrentCycleDialogState()
-
     init() {
         let (start, end) = ReminderWindowsSection.defaultFirstWindow()
         _draft = State(
@@ -30,37 +28,11 @@ struct AddCommitmentView: View {
                     Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") { handleSaveTap() }
+                    Button("Save") { persistCommitment() }
                         .disabled(!draft.canSave)
-                        .currentCycleDialog(state: currentCycleDialog) { makeCurrentCycleInspirationOnly in
-                            if makeCurrentCycleInspirationOnly {
-                                draft.target.setConfiguredMode(
-                                    .inspirationOnly(
-                                        start: currentCycleDialog.cycleStart,
-                                        until: currentCycleDialog.cycleEnd
-                                    )
-                                )
-                            }
-                            persistCommitment()
-                        }
                 }
             }
         }
-    }
-
-    /// Shows the current-cycle dialog only when Target On is selected.
-    private func handleSaveTap() {
-        guard draft.target.configuredMode == .on else {
-            persistCommitment()
-            return
-        }
-        let today = Time.startOfDay(for: Time.now())
-        currentCycleDialog.trigger(
-            context: .creation,
-            cycle: draft.cycle,
-            cycleStart: draft.cycle.startDayOfCycle(including: today),
-            cycleEnd: draft.cycle.endDayOfCycle(including: today)
-        )
     }
 
     private func persistCommitment() {

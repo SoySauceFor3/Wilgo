@@ -68,28 +68,6 @@ struct CommitmentFormFields: View {
                         .foregroundStyle(.secondary)
                 }
             }
-
-            if case .inspirationOnly = draft.target.configuredMode {
-                Toggle("Forever", isOn: inspirationOnlyForeverBinding)
-
-                if !isInspirationOnlyForever {
-                    DatePicker(
-                        "Until",
-                        selection: inspirationOnlyUntilDateBinding,
-                        displayedComponents: .date
-                    )
-
-                    if let error = inspirationOnlyUntilValidation {
-                        Text(error)
-                            .font(.caption)
-                            .foregroundStyle(.red)
-                    } else {
-                        Text(inspirationOnlyUntilHelpText)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-            }
         }
 
         Section {
@@ -129,112 +107,29 @@ struct CommitmentFormFields: View {
         Binding(
             get: {
                 switch draft.target.configuredMode {
-                case .on:
-                    return .on
-                case .inspirationOnly:
-                    return .inspirationOnly
-                case .disabled:
-                    return .disabled
+                case .on: return .on
+                case .disabled: return .disabled
                 }
             },
             set: { choice in
                 switch choice {
-                case .on:
-                    draft.target.setConfiguredMode(.on)
-                case .inspirationOnly:
-                    draft.target.setConfiguredMode(
-                        .inspirationOnly(start: currentCycleStart, until: nextCycleStart)
-                    )
-                case .disabled:
-                    draft.target.setConfiguredMode(.disabled)
+                case .on: draft.target.setConfiguredMode(.on)
+                case .disabled: draft.target.setConfiguredMode(.disabled)
                 }
             }
         )
     }
 
-    private var inspirationOnlyForeverBinding: Binding<Bool> {
-        Binding(
-            get: {
-                guard case let .inspirationOnly(_, until) = draft.target.configuredMode else {
-                    return false
-                }
-                return until == nil
-            },
-            set: { isForever in
-                draft.target.setConfiguredMode(
-                    .inspirationOnly(
-                        start: currentCycleStart,
-                        until: isForever ? nil : finiteInspirationOnlyUntilDate
-                    )
-                )
-            }
-        )
-    }
-
-    private var inspirationOnlyUntilDateBinding: Binding<Date> {
-        Binding(
-            get: {
-                finiteInspirationOnlyUntilDate
-            },
-            set: { date in
-                let until = Time.startOfDay(for: date)
-                draft.target.setConfiguredMode(
-                    .inspirationOnly(start: currentCycleStart, until: until)
-                )
-            }
-        )
-    }
-
-    /// Exposes the target's countPerCycle as a Binding<Int> for the Stepper.
     private var targetCountBinding: Binding<Int> {
         Binding(
             get: { draft.target.count },
-            set: { newValue in
-                draft.target.count = newValue
-            }
+            set: { draft.target.count = $0 }
         )
-    }
-
-    private var currentCycleStart: Date {
-        let today = Time.startOfDay(for: Time.now())
-        return draft.cycle.startDayOfCycle(including: today)
-    }
-
-    private var nextCycleStart: Date {
-        draft.cycle.endDayOfCycle(including: currentCycleStart)
-    }
-
-    private var isInspirationOnlyForever: Bool {
-        guard case let .inspirationOnly(_, until) = draft.target.configuredMode else { return false }
-        return until == nil
-    }
-
-    private var finiteInspirationOnlyUntilDate: Date {
-        guard case let .inspirationOnly(_, until) = draft.target.configuredMode else {
-            return nextCycleStart
-        }
-        return until.map { Time.startOfDay(for: $0) } ?? nextCycleStart
-    }
-
-    private var inspirationOnlyUntilValidation: String? {
-        draft.inspirationOnlyUntilValidation
-    }
-
-    private var inspirationOnlyUntilHelpText: String {
-        switch draft.cycle.kind {
-        case .daily:
-            return "Choose the date when the target turns back on."
-        case .weekly:
-            return "Choose a Monday. The target turns back on at the start of that week."
-        case .monthly:
-            return "Choose the 1st of a month. The target turns back on at the start of that month."
-        }
     }
 }
 
 private enum TargetModeChoice: String, CaseIterable, Hashable {
     case on = "On"
-    case inspirationOnly = "Inspiration Only"
     case disabled = "Disabled"
 }
 

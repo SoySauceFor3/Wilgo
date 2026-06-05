@@ -97,19 +97,8 @@ struct CommitmentRowView: View {
 
     private var targetSummaryText: String {
         switch displayedTargetMode {
-        case .on:
-            return "\(commitment.target.count)× \(commitment.cycle.kind.adj)"
-        case let .inspirationOnly(_, until):
-            let suffix = until.map { "until \(formattedShortDate($0))" } ?? "forever"
-            return "\(commitment.target.count)× \(commitment.cycle.kind.adj) · Inspiration Only \(suffix)"
-        case .disabled:
-            return "Disabled"
+        case .on: return "\(commitment.target.count)× \(commitment.cycle.kind.adj)"
+        case .disabled: return "Disabled"
         }
-    }
-
-    private func formattedShortDate(_ date: Date) -> String {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "MM/dd/yy"
-        return fmt.string(from: date)
     }
 }

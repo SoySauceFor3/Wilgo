@@ -97,41 +97,19 @@ struct WeekStartChangeHandlerTests {
         let expectedSunday = date(year: 2026, month: 3, day: 29)
 
         WeekStartChangeHandler.apply(
-            to: [c], newStartsOnMonday: false,
-            makeCurrentCycleInspirationOnly: false, today: thursday)
+            to: [c], newStartsOnMonday: false, today: thursday)
 
         #expect(c.cycle.anchorPsychDay == expectedSunday)
     }
 
-    @Test("apply: sets inspiration-only when requested")
-    func applySetInspirationOnly() {
-        let monday = date(year: 2026, month: 3, day: 30)
-        let c = makeWeeklyCommitment(anchoredOn: monday)
-        let thursday = date(year: 2026, month: 4, day: 2)
-        let expectedStart = date(year: 2026, month: 3, day: 29)
-        let expectedEnd = date(year: 2026, month: 4, day: 5)
-
-        WeekStartChangeHandler.apply(
-            to: [c], newStartsOnMonday: false,
-            makeCurrentCycleInspirationOnly: true, today: thursday)
-
-        if case let .inspirationOnly(start, until) = c.target.configuredMode {
-            #expect(start == expectedStart)
-            #expect(until == expectedEnd)
-        } else {
-            Issue.record("Expected inspirationOnly, got \(c.target.configuredMode)")
-        }
-    }
-
-    @Test("apply: does not set inspiration-only when not requested")
-    func applyNoInspirationOnly() {
+    @Test("apply: target mode remains unchanged")
+    func applyDoesNotChangeTargetMode() {
         let monday = date(year: 2026, month: 3, day: 30)
         let c = makeWeeklyCommitment(anchoredOn: monday)
         let thursday = date(year: 2026, month: 4, day: 2)
 
         WeekStartChangeHandler.apply(
-            to: [c], newStartsOnMonday: false,
-            makeCurrentCycleInspirationOnly: false, today: thursday)
+            to: [c], newStartsOnMonday: false, today: thursday)
 
         #expect(c.target.configuredMode == .on)
     }

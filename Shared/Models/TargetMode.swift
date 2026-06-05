@@ -2,67 +2,35 @@ import Foundation
 
 enum TargetMode: Codable, Hashable {
     case on
-    case inspirationOnly(start: Date, until: Date?)
     case disabled
+}
 
-    func effectiveMode(on psychDay: Date) throws -> TargetMode {
-        switch self {
-        case .on, .disabled:
-            return self
-        case let .inspirationOnly(start, until):
-            if psychDay < start {
-                throw TargetModeError.effectiveModeBeforeInspirationStart(
-                    psychDay: psychDay,
-                    start: start
-                )
-            }
+// MARK: - Queries
 
-            if let until, psychDay >= until {
-                return .on
-            } else {
-                return self
-            }
-        }
+extension TargetMode {
+    func effectiveMode(on _: Date) throws -> TargetMode {
+        self
     }
 
-    func effectiveMode(from startPsychDay: Date, to endPsychDay: Date) throws -> TargetMode {
-        if startPsychDay >= endPsychDay {
+    func effectiveMode(from queryStartDay: Date, to queryEndDay: Date) throws -> TargetMode {
+        if queryStartDay >= queryEndDay {
             throw TargetModeError.invalidEffectiveModeRange(
-                startPsychDay: startPsychDay,
-                endPsychDay: endPsychDay
+                startPsychDay: queryStartDay,
+                endPsychDay: queryEndDay
             )
         }
-
-        switch self {
-        case .on, .disabled:
-            return self
-        case let .inspirationOnly(start, until):
-            let end = until ?? Date.distantFuture
-            return start < endPsychDay && end > startPsychDay ? self : .on
-        }
+        return self
     }
 
-    func overlapsInspirationOnlyInterval(cycleStart: Date, cycleEnd: Date) -> Bool {
-        guard case let .inspirationOnly(start, until) = self else { return false }
-        let end = until ?? Date.distantFuture
-        return start < cycleEnd && end > cycleStart
+    func overlapsInspirationOnlyInterval(cycleStart _: Date, cycleEnd _: Date) -> Bool {
+        false
     }
 
-    func normalized(afterReportedThrough reportedEndPsychDay: Date) -> TargetMode {
-        switch self {
-        case .on, .disabled:
-            return self
-        case let .inspirationOnly(_, until):
-            if let until, until <= reportedEndPsychDay {
-                return .on
-            } else {
-                return self
-            }
-        }
+    func normalized(afterReportedThrough _: Date) -> TargetMode {
+        self
     }
 }
 
 enum TargetModeError: Error, Equatable {
-    case effectiveModeBeforeInspirationStart(psychDay: Date, start: Date)
     case invalidEffectiveModeRange(startPsychDay: Date, endPsychDay: Date)
 }

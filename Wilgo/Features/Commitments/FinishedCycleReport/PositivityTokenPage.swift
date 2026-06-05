@@ -89,11 +89,6 @@ private struct CycleResultRow: View {
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             switch cycle.effectiveTargetMode {
-            case .inspirationOnly:
-                Image(systemName: "shield.lefthalf.filled")
-                    .foregroundStyle(.secondary)
-                    .font(.title3)
-                    .frame(width: 24)
             case .disabled:
                 Image(systemName: "minus.circle")
                     .foregroundStyle(.tertiary)
@@ -115,10 +110,6 @@ private struct CycleResultRow: View {
                     .foregroundStyle(.secondary)
 
                 switch cycle.effectiveTargetMode {
-                case .inspirationOnly:
-                    Text("\(cycle.actualCheckIns)/\(cycle.targetCheckIns) check-ins · inspiration only")
-                        .font(.body)
-                        .foregroundStyle(.secondary)
                 case .disabled:
                     Text("\(cycle.actualCheckIns) check-ins · no target")
                         .font(.body)

@@ -44,10 +44,6 @@ extension Target {
         self.mode = mode
     }
 
-    mutating func normalizeMode(afterReportedThrough reportedEndPsychDay: Date) {
-        mode = mode.normalized(afterReportedThrough: reportedEndPsychDay)
-    }
-
 }
 
 // MARK: - Commitment

@@ -228,172 +228,6 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         #expect(cycle.metTarget == false)
     }
 
-    @Test("inspiration only until Jan 1: delayed report marks Dec only")
-    @MainActor
-    func inspirationOnlyDelayedReportMarksOnlyOverlappingCycles() throws {
-        let container = try makeContainer()
-        let ctx = container.mainContext
-        let anchor = date(year: 2025, month: 12, day: 1)
-        let commitment = Commitment(
-            title: "Run",
-            cycle: Cycle(kind: .monthly, referencePsychDay: anchor),
-            slots: [],
-            target: Target(
-                count: 3,
-                mode: .inspirationOnly(
-                    start: date(year: 2025, month: 12, day: 1),
-                    until: date(year: 2026, month: 1, day: 1)
-                )
-            )
-        )
-        ctx.insert(commitment)
-
-        let report = PreTokenReportBuilder.build(
-            commitments: [commitment],
-            startPsychDay: date(year: 2025, month: 12, day: 1),
-            endPsychDay: date(year: 2026, month: 3, day: 1)
-        )
-
-        let cycles = try #require(report.first?.cycles)
-        #expect(cycles.count == 3)
-        #expect(
-            cycles[0].effectiveTargetMode
-                == .inspirationOnly(
-                    start: date(year: 2025, month: 12, day: 1),
-                    until: date(year: 2026, month: 1, day: 1)
-                )
-        )
-        #expect(cycles[1].effectiveTargetMode == .on)
-        #expect(cycles[2].effectiveTargetMode == .on)
-    }
-
-    @Test("inspiration-only cycle: effectiveTargetMode is inspiration only")
-    @MainActor
-    func inspirationOnlyCycleIsMarked() throws {
-        let container = try makeContainer()
-        let ctx = container.mainContext
-
-        let anchor = date(year: 2026, month: 3, day: 30)  // Monday
-        let targetCycle = Cycle(kind: .weekly, referencePsychDay: anchor)
-        let commitment = Commitment(
-            title: "Run",
-            cycle: targetCycle,
-            slots: [],
-            target: Target(
-                count: 3,
-                mode: .inspirationOnly(
-                    start: date(year: 2026, month: 3, day: 30),
-                    until: date(year: 2026, month: 4, day: 6)
-                )
-            ),
-        )
-        ctx.insert(commitment)
-
-        let preReport = PreTokenReportBuilder.build(
-            commitments: [commitment],
-            startPsychDay: date(year: 2026, month: 3, day: 30),
-            endPsychDay: date(year: 2026, month: 4, day: 6)
-        )
-
-        #expect(preReport.count == 1)
-        let cycle = try #require(preReport.first?.cycles.first)
-        #expect(
-            cycle.effectiveTargetMode
-                == .inspirationOnly(
-                    start: date(year: 2026, month: 3, day: 30),
-                    until: date(year: 2026, month: 4, day: 6)
-                )
-        )
-    }
-
-    @Test("non-overlapping inspiration-only cycle reports as on")
-    @MainActor
-    func nonOverlappingInspirationOnlyCycleReportsAsOn() throws {
-        let container = try makeContainer()
-        let ctx = container.mainContext
-
-        let anchor = date(year: 2026, month: 3, day: 30)
-        let targetCycle = Cycle(kind: .weekly, referencePsychDay: anchor)
-        let commitment = Commitment(
-            title: "Run",
-            cycle: targetCycle,
-            slots: [],
-            target: Target(
-                count: 3,
-                mode: .inspirationOnly(
-                    start: date(year: 2026, month: 3, day: 23),
-                    until: date(year: 2026, month: 3, day: 30)
-                )
-            ),
-        )
-        ctx.insert(commitment)
-
-        let preReport = PreTokenReportBuilder.build(
-            commitments: [commitment],
-            startPsychDay: date(year: 2026, month: 3, day: 30),
-            endPsychDay: date(year: 2026, month: 4, day: 6)
-        )
-
-        #expect(preReport.count == 1)
-        let cycle = try #require(preReport.first?.cycles.first)
-        #expect(cycle.effectiveTargetMode == .on)
-    }
-
-    @Test("inspiration-only cycle: appears in report but receives no PT compensation")
-    @MainActor
-    func inspirationOnlyCycleReceivesNoPTCompensation() throws {
-        let container = try makeContainer()
-        let ctx = container.mainContext
-
-        let anchor = date(year: 2026, month: 3, day: 30)  // Monday
-        let targetCycle = Cycle(kind: .weekly, referencePsychDay: anchor)
-        let commitment = Commitment(
-            title: "Run",
-            cycle: targetCycle,
-            slots: [],
-            target: Target(
-                count: 3,
-                mode: .inspirationOnly(
-                    start: date(year: 2026, month: 3, day: 30),
-                    until: date(year: 2026, month: 4, day: 6)
-                )
-            ),
-        )
-        ctx.insert(commitment)
-
-        let t1 = PositivityToken(reason: "a", createdAt: date(year: 2026, month: 1, day: 1))
-        let t2 = PositivityToken(reason: "b", createdAt: date(year: 2026, month: 1, day: 2))
-        ctx.insert(t1)
-        ctx.insert(t2)
-
-        let preReport = PreTokenReportBuilder.build(
-            commitments: [commitment],
-            startPsychDay: date(year: 2026, month: 3, day: 30),
-            endPsychDay: date(year: 2026, month: 4, day: 6)
-        )
-        let report = AfterPositivityTokenReportBuilder.apply(
-            to: preReport,
-            allTokens: [t1, t2],
-            monthlyCap: 10
-        )
-
-        #expect(report.count == 1)
-        let cycle = try #require(report.first?.cycles.first)
-        // Inspiration-only cycle must appear in the report.
-        #expect(
-            cycle.effectiveTargetMode
-                == .inspirationOnly(
-                    start: date(year: 2026, month: 3, day: 30),
-                    until: date(year: 2026, month: 4, day: 6)
-                )
-        )
-        // No PT tokens consumed
-        #expect(cycle.aidedByPositivityTokenCount == 0)
-        // Tokens remain active
-        #expect(t1.status == .active)
-        #expect(t2.status == .active)
-    }
-
     @Test(
         "target disabled: effectiveTargetMode disabled, targetCheckIns preserves real count, no PT")
     @MainActor func targetDisabled_reportPreservesCount() throws {
@@ -420,7 +254,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         #expect(preReport.count == 1)
         let cycle = try #require(preReport.first?.cycles.first)
         #expect(cycle.actualCheckIns == 1)
-        #expect(cycle.targetCheckIns == 3)  // preserved, not zeroed out
+        #expect(cycle.targetCheckIns == 3)
         #expect(cycle.effectiveTargetMode == .disabled)
         #expect(cycle.consumedPTReasons.isEmpty)
     }
@@ -437,7 +271,6 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             target: Target(count: 3, mode: .disabled)
         )
         ctx.insert(c)
-        // 0 check-ins, target disabled — PT should not be consumed
         let t1 = PositivityToken(reason: "a", createdAt: date(year: 2026, month: 1, day: 1))
         let t2 = PositivityToken(reason: "b", createdAt: date(year: 2026, month: 1, day: 2))
         ctx.insert(t1)
@@ -456,11 +289,8 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
 
         #expect(report.count == 1)
         let cycle = try #require(report.first?.cycles.first)
-        // Target-disabled cycle must appear in the report
         #expect(cycle.effectiveTargetMode == .disabled)
-        // No PT tokens consumed
         #expect(cycle.aidedByPositivityTokenCount == 0)
-        // Tokens remain active
         #expect(t1.status == .active)
         #expect(t2.status == .active)
     }

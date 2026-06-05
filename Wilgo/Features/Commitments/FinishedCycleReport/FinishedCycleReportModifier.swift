@@ -149,12 +149,10 @@ private func advanceWatermark(to psychDay: Date) {
 }
 
 func normalizeExpiredTargetModes(
-    in commitments: [Commitment],
-    afterReportedThrough reportedEndPsychDay: Date
+    in _: [Commitment],
+    afterReportedThrough _: Date
 ) {
-    for commitment in commitments {
-        commitment.target.normalizeMode(afterReportedThrough: reportedEndPsychDay)
-    }
+    // no-op: InsOnly removed, target modes no longer auto-expire
 }
 
 private func toPsychDayRef(_ date: Date) -> Double {

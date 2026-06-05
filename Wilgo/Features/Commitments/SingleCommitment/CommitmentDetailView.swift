@@ -43,27 +43,15 @@ struct CommitmentDetailView: View {
 
     private var targetModeDetailText: String {
         switch displayedTargetMode {
-        case .on:
-            return "On"
-        case let .inspirationOnly(_, until):
-            if let until {
-                return "Inspiration Only until \(formattedShortDate(until))"
-            } else {
-                return "Inspiration Only forever"
-            }
-        case .disabled:
-            return "Disabled"
+        case .on: return "On"
+        case .disabled: return "Disabled"
         }
     }
 
     private var targetModeShortText: String {
         switch displayedTargetMode {
-        case .on:
-            return "On"
-        case .inspirationOnly:
-            return "Inspiration Only"
-        case .disabled:
-            return "Disabled"
+        case .on: return "On"
+        case .disabled: return "Disabled"
         }
     }
 
