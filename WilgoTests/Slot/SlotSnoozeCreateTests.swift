@@ -9,12 +9,6 @@ import Testing
 ///
 /// IMPORTANT: callers must keep the returned container alive for the entire test.
 /// ModelContext only weakly references its container; releasing it will crash.
-@MainActor
-private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([Commitment.self, Slot.self, CheckIn.self, SlotSnooze.self, Tag.self])
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    return try ModelContainer(for: schema, configurations: [config])
-}
 
 private func timeOfDay(hour: Int, minute: Int = 0) -> Date {
     var comps = DateComponents()
@@ -66,7 +60,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
     @Test("create for an active slot → returns a SlotSnooze with correct psychDay")
     @MainActor func create_activeSlot_returnsSnooze() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = makeSlotAndInsert(startHour: 9, endHour: 11, in: ctx)
 
@@ -84,7 +78,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
     @Test("cross-midnight slot: snooze tapped at 12am Jan 1 records psychDay = Dec 31")
     @MainActor func create_crossMidnight_psychDayIsStartDay() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // Slot: 11pm–1am (crosses midnight)
         let slot = makeSlotAndInsert(startHour: 23, endHour: 1, in: ctx)
@@ -102,7 +96,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
     @Test("normal slot: snooze records psychDay of time")
     @MainActor func create_normalSlot_psychDayIsToday() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = makeSlotAndInsert(startHour: 9, endHour: 11, in: ctx)
 
@@ -118,7 +112,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
     @Test("create when time is after slot window → returns nil")
     @MainActor func create_afterSlotWindow_returnsNil() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // Slot: 1–3am; time is 5am (slot has ended)
         let slot = makeSlotAndInsert(startHour: 1, endHour: 3, in: ctx)
@@ -132,7 +126,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
     @Test("create when time is before slot window → returns nil")
     @MainActor func create_beforeSlotWindow_returnsNil() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // Slot: 9–11am; time is 7am
         let slot = makeSlotAndInsert(startHour: 9, endHour: 11, in: ctx)
@@ -146,7 +140,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
     @Test("create on wrong recurrence day → returns nil")
     @MainActor func create_wrongRecurrenceDay_returnsNil() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // Monday-only slot (weekday 2 in 1=Sun…7=Sat calendar)
         let slot = makeSlotAndInsert(
@@ -164,7 +158,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
     @Test("create on correct recurrence day → returns snooze")
     @MainActor func create_correctRecurrenceDay_returnsSnooze() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // Monday-only slot
         let slot = makeSlotAndInsert(
@@ -181,7 +175,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
     @Test("stale snooze (resolvedSlotEnd in past) is deleted on next create call")
     @MainActor func create_deletesStaleSnooze() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // Slot: 9–11am
         let slot = makeSlotAndInsert(startHour: 9, endHour: 11, in: ctx)
@@ -205,7 +199,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
     @Test("cross-midnight stale cleanup: snooze NOT deleted while slot still active at 12:30am")
     @MainActor func create_crossMidnight_snoozeKeptWhileSlotActive() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // Slot: 11pm–1am (crosses midnight)
         let slot = makeSlotAndInsert(startHour: 23, endHour: 1, in: ctx)
@@ -231,7 +225,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
     @Test("cross-midnight stale cleanup: snooze IS deleted after slot ends at 1:30am")
     @MainActor func create_crossMidnight_snoozeDeletedAfterSlotEnds() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // Slot: 11pm–1am (crosses midnight). We need a different active slot to trigger create.
         let nightSlot = makeSlotAndInsert(startHour: 23, endHour: 1, in: ctx)

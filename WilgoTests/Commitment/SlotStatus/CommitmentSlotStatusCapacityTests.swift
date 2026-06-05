@@ -5,15 +5,6 @@ import Testing
 
 @Suite(.serialized)
 final class CommitmentSlotStatusCapacityTests {
-    @MainActor
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([
-            Commitment.self, Slot.self, CheckIn.self,
-            SlotSnooze.self, Tag.self, PositivityToken.self,
-        ])
-        return try ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
-    }
-
     private func tod(hour: Int, minute: Int = 0) -> Date {
         var c = DateComponents()
         c.year = 2000
@@ -63,7 +54,7 @@ final class CommitmentSlotStatusCapacityTests {
 
     @Test("active slot cap=1 saturated → kind .noSlotToday, remainingSlots empty")
     @MainActor func saturatedSoleSlot_noSlotToday() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let commitment = makeCommitment(slotsWithCap: [(9, 11, 1)], targetCount: 2, in: ctx)
 
@@ -78,7 +69,7 @@ final class CommitmentSlotStatusCapacityTests {
 
     @Test("two slots, first cap=1 saturated → kind .beforeNextToday on second")
     @MainActor func saturatedFirstSlot_secondSlotIsBeforeNextToday() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let commitment = makeCommitment(slotsWithCap: [(9, 11, 1), (15, 17, nil)], targetCount: 2, in: ctx)
 
@@ -96,7 +87,7 @@ final class CommitmentSlotStatusCapacityTests {
 
     @Test("cap=1 saturated AND target met → goalProgress.isMet")
     @MainActor func saturatedAndTargetMet_goalIsMet() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let commitment = makeCommitment(slotsWithCap: [(9, 11, 1)], targetCount: 1, in: ctx)
 
@@ -111,7 +102,7 @@ final class CommitmentSlotStatusCapacityTests {
 
     @Test("cap=1 with only out-of-window check-in → slot remains .insideSlot")
     @MainActor func outOfWindowCheckIn_doesNotSaturate() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let commitment = makeCommitment(slotsWithCap: [(17, 20, 1)], targetCount: 2, in: ctx)
 
@@ -127,7 +118,7 @@ final class CommitmentSlotStatusCapacityTests {
 
     @Test("cap=nil with two in-window check-ins → slot still .insideSlot")
     @MainActor func nilCap_inWindowCheckIns_stillInsideSlot() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let commitment = makeCommitment(slotsWithCap: [(9, 11, nil)], targetCount: 5, in: ctx)
 
@@ -145,7 +136,7 @@ final class CommitmentSlotStatusCapacityTests {
 
     @Test("whole-day slot cap=1, morning check-in → goalProgress.isMet at evening")
     @MainActor func wholeDayCap1_morningCheckIn_goalMetAtEvening() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 0), end: tod(hour: 0))
         slot.maxCheckIns = 1

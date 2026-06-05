@@ -28,12 +28,6 @@ final class CommitmentGoalProgressTests {
     }
 
     @MainActor
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([Commitment.self, Slot.self, CheckIn.self, SlotSnooze.self, Tag.self])
-        return try ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
-    }
-
-    @MainActor
     private func makeCommitment(
         targetCount: Int,
         targetMode: TargetMode = .on,
@@ -64,7 +58,7 @@ final class CommitmentGoalProgressTests {
 
     @Test("empty check-ins → leftToDo equals target.count; isMet false")
     @MainActor func emptyCheckIns_leftToDoEqualsTarget() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(targetCount: 3, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
 
@@ -76,7 +70,7 @@ final class CommitmentGoalProgressTests {
 
     @Test("some check-ins fewer than target → leftToDo is difference; isMet false")
     @MainActor func someCheckIns_leftToDoIsDifference() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(targetCount: 4, in: ctx)
         let now = date(year: 2026, month: 3, day: 5, hour: 12)
@@ -91,7 +85,7 @@ final class CommitmentGoalProgressTests {
 
     @Test("check-ins meet target exactly → leftToDo is 0; isMet true")
     @MainActor func exactlyMet_isMetTrue() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(targetCount: 3, in: ctx)
         let now = date(year: 2026, month: 3, day: 5, hour: 18)
@@ -107,7 +101,7 @@ final class CommitmentGoalProgressTests {
 
     @Test("check-ins exceed target → leftToDo is 0; isMet true")
     @MainActor func overTarget_leftToDoIsZero() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(targetCount: 2, in: ctx)
         let now = date(year: 2026, month: 3, day: 5, hour: 18)
@@ -123,7 +117,7 @@ final class CommitmentGoalProgressTests {
 
     @Test("target disabled → leftToDo is nil; isMet false even with sufficient check-ins")
     @MainActor func targetDisabled_leftToDoIsNil_isMetFalse() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(targetCount: 3, targetMode: .disabled, in: ctx)
         addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 8), in: ctx)
@@ -140,7 +134,7 @@ final class CommitmentGoalProgressTests {
 
     @Test("check-ins outside the daily cycle are not counted")
     @MainActor func checkInsOutsideDailyCycle_notCounted() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(targetCount: 3, in: ctx)
         addCheckIn(to: c, at: date(year: 2026, month: 3, day: 4, hour: 10), in: ctx) // day before
@@ -156,7 +150,7 @@ final class CommitmentGoalProgressTests {
 
     @Test("different `now` values resolve to their own daily cycles independently")
     @MainActor func differentNow_recomputesForCorrectCycle() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(targetCount: 3, in: ctx)
         addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 10), in: ctx)
@@ -172,7 +166,7 @@ final class CommitmentGoalProgressTests {
 
     @Test("weekly cycle: check-ins inside the week count, outside do not")
     @MainActor func weeklyCycle_checkInsInWeekCounted_outsideNot() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(targetCount: 3, cycleKind: .weekly, in: ctx)
 

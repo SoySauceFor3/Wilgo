@@ -26,18 +26,11 @@ struct SlotResolveOccurrenceTests {
         return Calendar.current.date(from: c)!
     }
 
-    @MainActor
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([Commitment.self, Slot.self, CheckIn.self, SlotSnooze.self, Tag.self])
-        return try ModelContainer(
-            for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
-    }
-
     // MARK: - Basic resolution
 
     @Test("resolves time-of-day onto given psychDay")
     @MainActor func resolves_timeOfDay_ontoPsychDay() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 9), end: tod(hour: 11))
         ctx.insert(slot)
@@ -55,7 +48,7 @@ struct SlotResolveOccurrenceTests {
 
     @Test("preserves original slot id")
     @MainActor func preserves_originalSlotId() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 9), end: tod(hour: 11))
         ctx.insert(slot)
@@ -69,7 +62,7 @@ struct SlotResolveOccurrenceTests {
 
     @Test("cross-midnight slot: end is pushed to next day")
     @MainActor func crossMidnight_endPushedToNextDay() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 23), end: tod(hour: 1))
         ctx.insert(slot)
@@ -88,7 +81,7 @@ struct SlotResolveOccurrenceTests {
 
     @Test("specificWeekdays")
     @MainActor func specificWeekdays_excludedDay_returnsNil() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // 2026-04-24 is a Friday (weekday = 6)
         let slot = Slot(
@@ -103,7 +96,7 @@ struct SlotResolveOccurrenceTests {
 
     @Test("specificWeekdays: returns occurrence on included day")
     @MainActor func specificWeekdays_includedDay_returnsOccurrence() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // 2026-04-24 is a Friday (weekday = 6)
         let slot = Slot(
@@ -118,7 +111,7 @@ struct SlotResolveOccurrenceTests {
 
     @Test("everyDay: always returns occurrence")
     @MainActor func everyDay_alwaysReturns() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 9), end: tod(hour: 11), recurrence: .everyDay)
         ctx.insert(slot)
@@ -129,7 +122,7 @@ struct SlotResolveOccurrenceTests {
 
     @Test("specificMonthDays: returns nil on excluded day")
     @MainActor func specificMonthDays_excludedDay_returnsNil() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(
             start: tod(hour: 9), end: tod(hour: 11),
@@ -143,7 +136,7 @@ struct SlotResolveOccurrenceTests {
 
     @Test("specificMonthDays: returns occurrence on included day")
     @MainActor func specificMonthDays_includedDay_returnsOccurrence() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(
             start: tod(hour: 9), end: tod(hour: 11),
@@ -159,7 +152,7 @@ struct SlotResolveOccurrenceTests {
 
     @Test("whole-day slot: resolves to non-nil occurrence")
     @MainActor func wholeDay_returnsOccurrence() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // isWholeDay = start time == end time
         let slot = Slot(start: tod(hour: 9), end: tod(hour: 9))
@@ -171,7 +164,7 @@ struct SlotResolveOccurrenceTests {
 
     @Test("whole-day slot: end is pushed to next calendar day")
     @MainActor func wholeDay_endPushedToNextDay() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 9), end: tod(hour: 9))
         ctx.insert(slot)
@@ -186,7 +179,7 @@ struct SlotResolveOccurrenceTests {
 
     @Test("whole-day slot: start and end share the same correct time-of-day")
     @MainActor func wholeDay_startAndEndSameTimeOfDay() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 9), end: tod(hour: 9))
         ctx.insert(slot)
@@ -201,7 +194,7 @@ struct SlotResolveOccurrenceTests {
 
     @Test("whole-day slot: respects recurrence exclusion")
     @MainActor func wholeDay_recurrenceExclusion_returnsNil() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // 2026-04-24 is a Friday (weekday = 6)
         let slot = Slot(

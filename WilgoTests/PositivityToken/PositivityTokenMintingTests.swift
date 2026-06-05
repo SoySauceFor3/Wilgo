@@ -4,19 +4,6 @@ import Testing
 @testable import Wilgo
 
 @MainActor
-private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([
-        Commitment.self,
-        Slot.self,
-        CheckIn.self,
-        PositivityToken.self,
-        Tag.self,
-    ])
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    return try ModelContainer(for: schema, configurations: [config])
-}
-
-@MainActor
 struct PositivityTokenMintingTests {
     // MARK: - mintCapacity
 
@@ -53,7 +40,7 @@ struct PositivityTokenMintingTests {
     // MARK: - fetchTotalTokenCount
 
     @Test func fetchTotalTokenCount_emptyStore_returnsZero() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let count = try PositivityTokenMinting.fetchTotalTokenCount(context: ctx)
@@ -61,7 +48,7 @@ struct PositivityTokenMintingTests {
     }
 
     @Test func fetchTotalTokenCount_afterInserts_returnsCorrectCount() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         ctx.insert(PositivityToken(reason: "reason A"))
@@ -76,7 +63,7 @@ struct PositivityTokenMintingTests {
     // MARK: - fetchTotalCheckInCount
 
     @Test func fetchTotalCheckInCount_emptyStore_returnsZero() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let count = try PositivityTokenMinting.fetchTotalCheckInCount(context: ctx)
@@ -84,7 +71,7 @@ struct PositivityTokenMintingTests {
     }
 
     @Test func fetchTotalCheckInCount_afterInserts_returnsCorrectCount() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let commitment = Commitment(
@@ -106,7 +93,7 @@ struct PositivityTokenMintingTests {
     // MARK: - Integration: capacity derived from store counts
 
     @Test func capacityIntegration_tokensAndCheckInsInStore() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let commitment = Commitment(

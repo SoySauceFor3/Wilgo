@@ -5,16 +5,6 @@ import Testing
 
 @Suite(.serialized)
 final class CommitmentFormDraftTests {
-    @MainActor
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([
-            Commitment.self, Slot.self, CheckIn.self,
-            SlotSnooze.self, Tag.self, PositivityToken.self,
-        ])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        return try ModelContainer(for: schema, configurations: [config])
-    }
-
     private func date(hour: Int) -> Date {
         var components = DateComponents()
         components.year = 2000
@@ -26,7 +16,7 @@ final class CommitmentFormDraftTests {
 
     @Test("draft creates normalized commitment and slots")
     @MainActor func createsNormalizedCommitment() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let context = container.mainContext
         let tag = Tag(name: "Health", displayOrder: 0)
         context.insert(tag)
@@ -63,7 +53,7 @@ final class CommitmentFormDraftTests {
 
     @Test("draft applies scalar edits but preserves slots when reminders are disabled")
     @MainActor func appliesEditAndPreservesSlotsWhenRemindersDisabled() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let context = container.mainContext
         let originalSlot = Slot(start: date(hour: 8), end: date(hour: 9), maxCheckIns: 1)
         let commitment = Commitment(
@@ -95,7 +85,7 @@ final class CommitmentFormDraftTests {
 
     @Test("draft persists disabled target mode")
     @MainActor func persistsDisabledTargetMode() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let context = container.mainContext
         var draft = CommitmentFormDraft()
         draft.title = "Recover"

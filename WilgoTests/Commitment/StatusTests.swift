@@ -28,15 +28,6 @@ final class StatusTests {
     }
 
     @MainActor
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([Commitment.self, Slot.self, CheckIn.self, SlotSnooze.self, Tag.self])
-        return try ModelContainer(
-            for: schema,
-            configurations: [ModelConfiguration(isStoredInMemoryOnly: true)]
-        )
-    }
-
-    @MainActor
     private func makeCommitment(
         slots slotDefs: [(start: Int, end: Int)],
         targetCount: Int = 3,
@@ -69,7 +60,7 @@ final class StatusTests {
 
     @Test("slot active → slotKind is insideSlot")
     @MainActor func slotActive_kindIsInsideSlot() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(slots: [(9, 11)], in: container.mainContext)
         let status = c.status(now: date(year: 2026, month: 3, day: 5, hour: 10))
         #expect(status.slotKind == .insideSlot)
@@ -77,7 +68,7 @@ final class StatusTests {
 
     @Test("slot later today → slotKind is beforeNextToday")
     @MainActor func slotLaterToday_kindIsBeforeNextToday() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(slots: [(14, 16)], in: container.mainContext)
         let status = c.status(now: date(year: 2026, month: 3, day: 5, hour: 10))
         #expect(status.slotKind == .beforeNextToday)
@@ -85,7 +76,7 @@ final class StatusTests {
 
     @Test("slot already passed → slotKind is noSlotToday")
     @MainActor func slotPassed_kindIsNoSlotToday() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(slots: [(9, 11)], in: container.mainContext)
         let status = c.status(now: date(year: 2026, month: 3, day: 5, hour: 18))
         #expect(status.slotKind == .noSlotToday)
@@ -95,7 +86,7 @@ final class StatusTests {
 
     @Test("target enabled, no check-ins → leftToDo equals target count")
     @MainActor func enabled_noCheckIns_leftToDoEqualsTarget() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(slots: [(9, 11)], targetCount: 3, in: container.mainContext)
         let status = c.status(now: date(year: 2026, month: 3, day: 5, hour: 10))
         #expect(status.leftToDo == 3)
@@ -103,7 +94,7 @@ final class StatusTests {
 
     @Test("target enabled, goal met → leftToDo is 0")
     @MainActor func enabled_goalMet_leftToDoIsZero() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], targetCount: 1, in: ctx)
         addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 9), in: ctx)
@@ -113,7 +104,7 @@ final class StatusTests {
 
     @Test("target disabled → leftToDo is nil")
     @MainActor func disabled_leftToDoIsNil() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(slots: [(9, 11)], targetMode: .disabled, in: container.mainContext)
         let status = c.status(now: date(year: 2026, month: 3, day: 5, hour: 10))
         #expect(status.leftToDo == nil)
@@ -123,7 +114,7 @@ final class StatusTests {
 
     @Test("slot active, leftToDo > 1 remaining slot → behindCount > 0")
     @MainActor func slotActive_leftToDoExceedsSlots_behindCountPositive() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         // 1 slot today, target=3, no check-ins → leftToDo=3, remainingSlots=1 → behind=2
         let c = makeCommitment(slots: [(9, 11)], targetCount: 3, in: container.mainContext)
         let status = c.status(now: date(year: 2026, month: 3, day: 5, hour: 10))
@@ -132,7 +123,7 @@ final class StatusTests {
 
     @Test("goal met → behindCount is 0")
     @MainActor func goalMet_behindCountIsZero() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], targetCount: 1, in: ctx)
         addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 9), in: ctx)
@@ -142,7 +133,7 @@ final class StatusTests {
 
     @Test("target disabled → behindCount is nil")
     @MainActor func disabled_behindCountIsNil() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(slots: [(9, 11)], targetMode: .disabled, in: container.mainContext)
         let status = c.status(now: date(year: 2026, month: 3, day: 5, hour: 10))
         #expect(status.behindCount == nil)
@@ -152,7 +143,7 @@ final class StatusTests {
 
     @Test("slot active → remainingSlots contains the current slot")
     @MainActor func slotActive_remainingSlotsNonEmpty() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(slots: [(9, 11)], in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
         let status = c.status(now: now)
@@ -163,7 +154,7 @@ final class StatusTests {
 
     @Test("slot passed → remainingSlots is empty for daily cycle")
     @MainActor func slotPassed_remainingSlotsEmpty() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(slots: [(9, 11)], in: container.mainContext)
         let status = c.status(now: date(year: 2026, month: 3, day: 5, hour: 18))
         #expect(status.remainingSlots?.isEmpty == true)
@@ -173,7 +164,7 @@ final class StatusTests {
 
     @Test("status is consistent with slotStatus + goalProgress called separately")
     @MainActor func parity_consistentWithSeparateCalls() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], targetCount: 3, in: ctx)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
@@ -193,7 +184,7 @@ final class StatusTests {
 
     @Test("reminders disabled → slotKind is .disabled, all other fields nil")
     @MainActor func remindersDisabled_slotKindIsNoSlotToday() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         // Slot is active at this time, but reminders are off
         let c = makeCommitment(
             slots: [(9, 11)], isRemindersEnabled: false, in: container.mainContext)

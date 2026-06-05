@@ -20,25 +20,12 @@ private func date(
     return Calendar.current.date(from: comps)!
 }
 
-@MainActor
-private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([
-        Commitment.self,
-        Slot.self,
-        CheckIn.self,
-        PositivityToken.self,
-        Tag.self,
-    ])
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    return try ModelContainer(for: schema, configurations: [config])
-}
-
 @Suite(.serialized)
 struct FinishedCycleReportBuilderTests: ~Copyable {
     @Test("build uses multiple tokens to compensate one cycle")
     @MainActor
     func buildCompensatesWithMultipleTokens() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let anchor = date(year: 2026, month: 2, day: 1)
@@ -85,7 +72,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
     @Test("PT usage summary shows before and after availability")
     @MainActor
     func usageSummaryShowsBeforeAndAfterAvailability() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let anchor = date(year: 2026, month: 2, day: 1)
@@ -143,7 +130,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
     @Test("PT step preparation freezes report and summary together")
     @MainActor
     func positivityTokenStepPreparationFreezesReportAndSummaryTogether() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let anchor = date(year: 2026, month: 2, day: 1)
@@ -192,7 +179,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
     @Test("no tokens → no compensation")
     @MainActor
     func noTokensNoCompensation() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let anchor = date(year: 2026, month: 2, day: 1)
@@ -231,7 +218,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
     @Test(
         "target disabled: effectiveTargetMode disabled, targetCheckIns preserves real count, no PT")
     @MainActor func targetDisabled_reportPreservesCount() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let anchor = date(year: 2026, month: 2, day: 1)
         let c = Commitment(
@@ -261,7 +248,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
 
     @Test("target disabled: appears in report but receives no PT compensation")
     @MainActor func targetDisabled_receivesNoPTCompensation() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let anchor = date(year: 2026, month: 2, day: 1)
         let c = Commitment(
@@ -298,7 +285,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
     @Test("start >= end returns empty report")
     @MainActor
     func invalidDateRangeReturnsEmpty() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let anchor = date(year: 2026, month: 2, day: 1)

@@ -28,15 +28,6 @@ final class CommitmentSlotStatusTests {
     }
 
     @MainActor
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([Commitment.self, Slot.self, CheckIn.self, SlotSnooze.self, Tag.self])
-        return try ModelContainer(
-            for: schema,
-            configurations: [ModelConfiguration(isStoredInMemoryOnly: true)]
-        )
-    }
-
-    @MainActor
     private func makeCommitment(
         slots slotDefs: [(start: Int, end: Int, maxCheckIns: Int?)],
         targetCount: Int = 3,
@@ -70,7 +61,7 @@ final class CommitmentSlotStatusTests {
 
     @Test("now inside a slot's window → kind is .insideSlot; remaining includes the current slot")
     @MainActor func nowInsideSlot_kindIsInsideSlot() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11, nil)], in: ctx)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
@@ -86,7 +77,7 @@ final class CommitmentSlotStatusTests {
 
     @Test("now before today's first slot → kind is .beforeNextToday")
     @MainActor func nowBeforeFirstSlotToday_kindIsBeforeNextToday() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(14, 16, nil)], in: ctx)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
@@ -101,7 +92,7 @@ final class CommitmentSlotStatusTests {
 
     @Test("all of today's slots have passed (daily cycle) → kind is .noSlotToday, remainingSlots empty")
     @MainActor func allSlotsTodayPassed_kindIsNoSlotToday() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11, nil)], in: ctx)
         let now = date(year: 2026, month: 3, day: 5, hour: 12)
@@ -116,7 +107,7 @@ final class CommitmentSlotStatusTests {
 
     @Test("target disabled and target enabled produce same remainingSlots and kind")
     @MainActor func targetDisabled_returnsSameAsModeOn() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let enabled = makeCommitment(slots: [(9, 11, nil)], targetMode: .on, cycleKind: .weekly, in: ctx)
         let disabled = makeCommitment(slots: [(9, 11, nil)], targetMode: .disabled, cycleKind: .weekly, in: ctx)
@@ -137,7 +128,7 @@ final class CommitmentSlotStatusTests {
 
     @Test("current slot snoozed → excluded from remainingSlots; future occurrences remain")
     @MainActor func currentSlotSnoozed_excludedFromRemaining() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11, nil)], cycleKind: .weekly, in: ctx)
         let slot = try #require(c.slots.first)
@@ -156,7 +147,7 @@ final class CommitmentSlotStatusTests {
 
     @Test("current slot saturated by in-window check-ins → excluded from remainingSlots")
     @MainActor func currentSlotSaturatedByCheckIns_excludedFromRemaining() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11, 1)], in: ctx)
         addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 9, minute: 30), in: ctx)
@@ -171,7 +162,7 @@ final class CommitmentSlotStatusTests {
 
     @Test("forward projection: future `now` returns deterministic future-time slots/kind")
     @MainActor func forwardProjection_futureNow_returnsFutureSlots() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(14, 16, nil)], in: ctx)
 
@@ -191,7 +182,7 @@ final class CommitmentSlotStatusTests {
 
     @Test("carry-over slot spanning midnight is included when now is in early-morning portion")
     @MainActor func carryOverSlot_includedWhenSpanningMidnight() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(23, 2, nil)], in: ctx)
 

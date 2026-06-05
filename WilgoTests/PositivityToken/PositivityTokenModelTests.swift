@@ -4,23 +4,10 @@ import Testing
 @testable import Wilgo
 
 @MainActor
-private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([
-        Commitment.self,
-        Slot.self,
-        CheckIn.self,
-        PositivityToken.self,
-        Tag.self,
-    ])
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    return try ModelContainer(for: schema, configurations: [config])
-}
-
-@MainActor
 struct PositivityTokenModelTests {
     /// A PositivityToken can be inserted into a SwiftData container without any linked check-in.
     @Test func insertTokenWithoutCheckIn() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let token = PositivityToken(reason: "I stayed consistent this week")
@@ -50,7 +37,7 @@ struct PositivityTokenModelTests {
 
     /// Multiple tokens can coexist in the store without any check-in linkage.
     @Test func multipleTokensInsertedSuccessfully() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let reasons = ["reason A", "reason B", "reason C"]
@@ -67,7 +54,7 @@ struct PositivityTokenModelTests {
 
     /// A token with a custom createdAt date is stored correctly.
     @Test func customCreatedAt() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         var comps = DateComponents()

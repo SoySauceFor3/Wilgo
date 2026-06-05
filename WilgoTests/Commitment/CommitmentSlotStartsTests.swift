@@ -30,15 +30,6 @@ final class CommitmentUpcomingSlotStartsTests {
     }
 
     @MainActor
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([Commitment.self, Slot.self, CheckIn.self, SlotSnooze.self, Tag.self])
-        return try ModelContainer(
-            for: schema,
-            configurations: [ModelConfiguration(isStoredInMemoryOnly: true)]
-        )
-    }
-
-    @MainActor
     private func makeCommitment(
         slots slotDefs: [(start: Int, end: Int, maxCheckIns: Int?)],
         targetCount: Int = 3,
@@ -77,7 +68,7 @@ final class CommitmentUpcomingSlotStartsTests {
 
     @Test("start after from is returned")
     @MainActor func futureSlot_returned() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(slots: [(9, 11, nil)], in: container.mainContext)
         let from = date(year: 2026, month: 3, day: 5, hour: 7)
         let to = date(year: 2026, month: 3, day: 6)
@@ -90,7 +81,7 @@ final class CommitmentUpcomingSlotStartsTests {
 
     @Test("slot start before `from` is excluded")
     @MainActor func pastSlot_excluded() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(slots: [(9, 11, nil)], in: container.mainContext)
         let from = date(year: 2026, month: 3, day: 5, hour: 10)  // already inside slot
         let to = date(year: 2026, month: 3, day: 6)
@@ -103,7 +94,7 @@ final class CommitmentUpcomingSlotStartsTests {
 
     @Test("multiple slots per day both returned")
     @MainActor func multipleSlotsPerDay_allReturned() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(slots: [(9, 11, nil), (18, 20, nil)], in: container.mainContext)
         let from = date(year: 2026, month: 3, day: 5, hour: 7)
         let to = date(year: 2026, month: 3, day: 6)
@@ -117,7 +108,7 @@ final class CommitmentUpcomingSlotStartsTests {
 
     @Test("slots across multiple days all returned")
     @MainActor func multiDay_allReturned() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(slots: [(9, 11, nil)], in: container.mainContext)
         let from = date(year: 2026, month: 3, day: 5, hour: 7)
         let to = date(year: 2026, month: 3, day: 8)
@@ -132,7 +123,7 @@ final class CommitmentUpcomingSlotStartsTests {
 
     @Test("slot after to is excluded")
     @MainActor func beyondto_excluded() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(slots: [(9, 11, nil)], in: container.mainContext)
         let from = date(year: 2026, month: 3, day: 5, hour: 7)
         let to = date(year: 2026, month: 3, day: 5, hour: 8)  // before slot at 9am
@@ -144,7 +135,7 @@ final class CommitmentUpcomingSlotStartsTests {
 
     @Test("saturated slot is excluded")
     @MainActor func saturatedSlot_excluded() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11, 1)], targetCount: 3, in: ctx)  // maxCheckIns: 1
         let from = date(year: 2026, month: 3, day: 5, hour: 7)
@@ -159,7 +150,7 @@ final class CommitmentUpcomingSlotStartsTests {
 
     @Test("snoozed slot is excluded")
     @MainActor func snoozedSlot_excluded() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11, nil)], in: ctx)
         let slot = try #require(c.slots.first)

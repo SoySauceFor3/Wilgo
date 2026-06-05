@@ -6,19 +6,6 @@ import Testing
 // MARK: - Helpers
 
 @MainActor
-private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([
-        Commitment.self,
-        Slot.self,
-        CheckIn.self,
-        PositivityToken.self,
-        Tag.self,
-    ])
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    return try ModelContainer(for: schema, configurations: [config])
-}
-
-@MainActor
 private func makeCheckIn(ctx: ModelContext) -> CheckIn {
     let cycle = Cycle(kind: .daily, referencePsychDay: Date())
     let commitment = Commitment(
@@ -63,7 +50,7 @@ final class PendingDeleteStateMachine {
 struct InfoCardPendingDeleteTests {
     /// Tapping minus once sets pendingDeleteID to the check-in's id.
     @Test func firstTapSetsPendingID() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let checkIn = makeCheckIn(ctx: ctx)
 
@@ -78,7 +65,7 @@ struct InfoCardPendingDeleteTests {
 
     /// Tapping minus twice confirms deletion.
     @Test func secondTapConfirmsDelete() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let checkIn = makeCheckIn(ctx: ctx)
 
@@ -94,7 +81,7 @@ struct InfoCardPendingDeleteTests {
 
     /// Tapping minus for check-in A, then for check-in B, switches pendingDeleteID to B without deleting A.
     @Test func tappingDifferentCheckInSwitchesPending() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let checkInA = makeCheckIn(ctx: ctx)
         let checkInB = makeCheckIn(ctx: ctx)
@@ -111,7 +98,7 @@ struct InfoCardPendingDeleteTests {
 
     /// After a confirmed delete, tapping minus again re-arms rather than immediately deleting.
     @Test func afterDeleteFirstTapRearmsState() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let checkIn = makeCheckIn(ctx: ctx)
 

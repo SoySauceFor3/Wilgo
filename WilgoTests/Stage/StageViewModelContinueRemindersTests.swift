@@ -5,15 +5,6 @@ import Testing
 
 @Suite(.serialized)
 final class StageViewModelContinueRemindersTests {
-    @MainActor
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([Commitment.self, Slot.self, CheckIn.self, SlotSnooze.self, Tag.self])
-        return try ModelContainer(
-            for: schema,
-            configurations: [ModelConfiguration(isStoredInMemoryOnly: true)]
-        )
-    }
-
     // Whole-day slot (start == end == midnight) is always active regardless of wall-clock time.
     private func makeWholeDaySlot() -> Slot {
         var c = DateComponents()
@@ -27,7 +18,7 @@ final class StageViewModelContinueRemindersTests {
 
     @Test("goal-met commitment with continueRemindersAfterGoalMet=true appears in StageViewModel.current")
     @MainActor func goalMet_continueEnabled_appearsInStage() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let slot = makeWholeDaySlot()
@@ -57,7 +48,7 @@ final class StageViewModelContinueRemindersTests {
 
     @Test("goal-met commitment with continueRemindersAfterGoalMet=false is excluded from StageViewModel")
     @MainActor func goalMet_continueDisabled_excludedFromStage() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let slot = makeWholeDaySlot()

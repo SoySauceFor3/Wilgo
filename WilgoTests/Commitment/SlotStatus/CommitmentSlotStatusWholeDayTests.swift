@@ -5,12 +5,6 @@ import Testing
 
 @Suite(.serialized)
 final class CommitmentSlotStatusWholeDayTests {
-    @MainActor
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([Commitment.self, Slot.self, CheckIn.self, SlotSnooze.self, Tag.self])
-        return try ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
-    }
-
     private func tod(hour: Int, minute: Int = 0) -> Date {
         var c = DateComponents()
         c.year = 2000
@@ -37,7 +31,7 @@ final class CommitmentSlotStatusWholeDayTests {
 
     @Test("5am whole-day daily slot is .insideSlot at 1am")
     @MainActor func fiveAMWholeDaySlot_isInsideSlotAtOneAM() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 5), end: tod(hour: 5), recurrence: .everyDay)
         let commitment = Commitment(
@@ -59,7 +53,7 @@ final class CommitmentSlotStatusWholeDayTests {
 
     @Test("target-disabled 5am whole-day daily slot is .insideSlot at 1am")
     @MainActor func targetDisabledFiveAMWholeDaySlot_isInsideSlotAtOneAM() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 5), end: tod(hour: 5), recurrence: .everyDay)
         let commitment = Commitment(
@@ -83,7 +77,7 @@ final class CommitmentSlotStatusWholeDayTests {
 
     @Test("23-to-2 cross-midnight daily slot is .insideSlot at 1am")
     @MainActor func crossMidnightSlot_isInsideSlotAtOneAM() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 23), end: tod(hour: 2), recurrence: .everyDay)
         let commitment = Commitment(
@@ -105,7 +99,7 @@ final class CommitmentSlotStatusWholeDayTests {
 
     @Test("target-disabled 23-to-2 cross-midnight daily slot is .insideSlot at 1am")
     @MainActor func targetDisabledCrossMidnightSlot_isInsideSlotAtOneAM() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 23), end: tod(hour: 2), recurrence: .everyDay)
         let commitment = Commitment(

@@ -6,19 +6,6 @@ import Testing
 // MARK: - Helpers
 
 @MainActor
-private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([
-        Commitment.self,
-        Slot.self,
-        CheckIn.self,
-        PositivityToken.self,
-        Tag.self,
-    ])
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    return try ModelContainer(for: schema, configurations: [config])
-}
-
-@MainActor
 private func makeCommitmentWithCheckIn(ctx: ModelContext) -> (Commitment, CheckIn) {
     let cycle = Cycle(kind: .daily, referencePsychDay: Date())
     let commitment = Commitment(
@@ -42,7 +29,7 @@ struct HeatmapViewDeleteTests {
     /// Deleting a CheckIn via modelContext.delete removes it from the store.
     /// This mirrors the onDelete closure wired in CommitmentHeatmapView.
     @Test func deleteCheckInFromContext() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let (_, checkIn) = makeCommitmentWithCheckIn(ctx: ctx)
@@ -62,7 +49,7 @@ struct HeatmapViewDeleteTests {
 
     /// After deletion the commitment's checkIns relationship no longer contains the deleted item.
     @Test func deleteCheckInUpdatesCommitmentRelationship() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let (commitment, checkIn) = makeCommitmentWithCheckIn(ctx: ctx)
@@ -78,7 +65,7 @@ struct HeatmapViewDeleteTests {
 
     /// A second CheckIn inserted after the first is deleted confirms isolated deletion.
     @Test func onlyTargetedCheckInIsDeleted() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let (commitment, checkInA) = makeCommitmentWithCheckIn(ctx: ctx)
