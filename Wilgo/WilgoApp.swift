@@ -14,6 +14,7 @@ struct WilgoApp: App {
             PositivityToken.self,
             SlotSnooze.self,
             Tag.self,
+            CycleRecord.self,
         ])
 
         // Shared store URL inside the App Group container so the WidgetExtension

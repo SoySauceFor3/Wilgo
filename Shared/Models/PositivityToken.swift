@@ -12,6 +12,10 @@ final class PositivityToken {
     /// Psych day when the token was used or expired; meaningless when `status == .active`.
     var dayOfStatus: Date?
 
+    /// The CycleRecord that consumed this token. Nil = free in the wins journal.
+    @Relationship(deleteRule: .nullify)
+    var consumedByCycleRecord: CycleRecord?
+
     enum Status: String, Codable {
         case active
         case used
@@ -24,5 +28,6 @@ final class PositivityToken {
         self.createdAt = createdAt
         self.status = .active
         self.dayOfStatus = nil
+        self.consumedByCycleRecord = nil
     }
 }

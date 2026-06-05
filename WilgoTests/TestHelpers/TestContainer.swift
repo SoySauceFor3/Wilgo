@@ -13,6 +13,7 @@ func makeTestContainer() throws -> ModelContainer {
         PositivityToken.self,
         SlotSnooze.self,
         Tag.self,
+        CycleRecord.self,
     ])
     let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
     return try ModelContainer(for: schema, configurations: [config])

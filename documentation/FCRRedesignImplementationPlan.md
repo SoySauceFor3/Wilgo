@@ -21,11 +21,12 @@ The mockup is at `documentation/FCRMockup.html`.
 ## Architecture Summary
 
 ### What's Removed
+
 - `TargetMode.inspirationOnly` case and all associated logic
 - `PositivityTokenStep` (the old step 2 of FCR)
 - `PositivityTokenCompensator` and `AfterPositivityTokenReportBuilder`
 - `PositivityTokenUsageSummary`
-- `PositivityToken.status` / `.used` / `.expired` — tokens are now simple journal entries
+- `PositivityToken.status` / `dayOfStatus` — replaced by SwiftData relationship
 - Monthly PT cap
 - PT mint capacity formula (`checkIns - tokensCreated`)
 - `CurrentCycleDialogModifier` and `CurrentCycleDialogContent` (used `until` to set InsOnly for current cycle)
@@ -34,14 +35,16 @@ The mockup is at `documentation/FCRMockup.html`.
 - `CommitmentFormDraft.inspirationOnlyUntilValidation`
 
 ### What's Added
+
 - **`CycleRecord`** — new SwiftData model, append-only, written when FCR closes
 - **`FCRCycleCardView`** — new expandable card per cycle in FCR
 - **`InsOnlyCycleOutcome`** enum — `excused | punished | letGo | other` label on failed cycles
-- **PT as wins journal** — `PositivityToken` loses `status`/`dayOfStatus`; becomes a plain journal entry with `reason` + `createdAt`
+- **PT as wins journal** — `PositivityToken` loses `status`/`dayOfStatus`; gains `consumedByCycleRecord` relationship. "Consumed?" = `consumedByCycleRecord != nil`
 - **Inline PT minting in FCR** — mint sheet inside FCR if not enough active PTs
 - **Streak summary** — computed from check-in data, shown on failed cycle cards
 
 ### Reused Components (do not rebuild)
+
 - `CommitmentHeatmapInfoCard` — history expansion inside each cycle card, toggled by 📅 icon
 - `BackfillSheet` — opened from "Add check-in" in InfoCard, clamped to cycle date range
 - `CheckInUndoBannerOverlay` + `CheckInUndoManager` — undo toast after backfill
@@ -51,35 +54,61 @@ The mockup is at `documentation/FCRMockup.html`.
 ## Design Decisions
 
 ### Remove InsOnly entirely (not just the end date)
+
 The FCR redesign (purposeful stop + excused/let-go labels) absorbs everything InsOnly was trying to do. Keeping the mode adds complexity with no remaining benefit. See InsOnly PRD for original removal rationale.
 
 ### CycleRecord is append-only, no retroactive reconciliation
+
 Cycle changes (weekly → monthly) may create gaps. Accepted. History reflects what was reported at the time.
 
 ### Streak summary uses check-in ground truth, not CycleRecord
+
 `CycleRecord` labels (excused/punished) are not layered onto streak counts — cycle boundary changes make mapping unreliable. Raw check-in counts against cycle boundaries are the source of truth.
 
-### PT becomes a plain journal entry with an optional back-reference to CycleRecord
-Removing `status` / `dayOfStatus` / monthly cap simplifies the model significantly. The only mechanical role PT now plays in FCR is as a required gate: 1 PT consumed per failed cycle.
+### PT: relationship is the single source of truth
 
-The linkage is stored bidirectionally:
-- `CycleRecord.consumedPTID: UUID?` — points from the cycle to the PT used
-- `PositivityToken.consumedByCycleRecord: CycleRecord?` — SwiftData relationship back to the cycle record (nil = free journal entry, non-nil = consumed by a failed cycle)
+`PositivityToken.status` and `dayOfStatus` are removed. The SwiftData relationship is the single source of truth for whether a PT is consumed:
 
-This replaces the old `status` enum — "active vs consumed" is simply `consumedByCycleRecord == nil`. The back-reference is stored for future use but the wins journal UI does not currently display the FCR linkage (decided: keep UI clean, data rich).
+- `PositivityToken.consumedByCycleRecord: CycleRecord?` — nil = free in journal, non-nil = consumed by a failed cycle
+- `CycleRecord.consumedPT: PositivityToken?` — inverse relationship
+
+**Why not keep `status` as belt-and-suspenders:** two sources of truth cause drift bugs. One relationship is sufficient.
+
+**Cascade concern:** if `CycleRecord` is deleted, the PT is freed (nullify rule). Accepted — `CycleRecord` is append-only in practice, so this is theoretical. If we ever allow deleting `CycleRecord`s, freeing the PT is probably the right behavior anyway.
+
+**Wins journal UI** does not display the FCR linkage — but the data is stored for future use. "Free vs consumed" is surfaced as a filter if needed later.
+
+### CycleRecord: cascade delete from Commitment, snapshot title + counts
+
+- `@Relationship(deleteRule: .cascade)` from `Commitment` — deleting a commitment deletes all its `CycleRecord`s. No orphaned history.
+- `snapshotTitle: String` — commitment title at FCR time. Survives title changes on the commitment.
+- `targetCount: Int` + `checkInCount: Int` — snapshot of target and actual check-ins at FCR close time. Survives later backfills or check-in deletions.
+- Full check-in history is NOT snapshotted — `CheckIn` records are the live truth for that.
+
+### CycleRecord: fields grouped by outcome
+
+Failed and passed cycles share the same model but fields are semantically grouped:
+
+- **Always present:** `id`, `commitment`, `snapshotTitle`, `cycleStart`, `cycleEnd`, `targetCount`, `checkInCount`, `recordedAt`
+- **Passed only (nil/empty if failed):** `emojiReactions: [String]`
+- **Failed only (nil if passed):** `outcome: CycleOutcome?`, `reflectionText: String?`, `consumedPT: PositivityToken?`
+
+### Phase order: 2B before 2A
+
+`CycleRecord` is introduced first (2B) so the `PositivityToken` relationship can reference it when PT is simplified (2A).
 
 ---
 
 ## Major Model Changes
 
-| Entity | Change |
-|---|---|
-| `Shared/Models/TargetMode.swift` | Delete `inspirationOnly` case entirely. Custom Codable to handle old stored data gracefully (map to `.on`). Remove all associated methods/errors. |
-| `Shared/Models/Commitment.swift` | Remove `isInsOnlyRemindersEnabled`. No other changes. |
-| `Shared/Models/PositivityToken.swift` | Remove `status: Status`, `dayOfStatus: Date?`. Add `consumedByCycleRecord: CycleRecord?` (nullify delete rule — deleting a CycleRecord frees the PT back to the journal). Token becomes `id + reason + createdAt + consumedByCycleRecord`. |
-| **New:** `Shared/Models/CycleRecord.swift` | New SwiftData `@Model`. Fields: `id`, `commitment` (relationship, nullify), `cycleStart`, `cycleEnd`, `outcome` (enum: passed/excused/punished/letGo/other), `reflectionText` (String?), `emojiReactions` ([String]), `consumedPT: PositivityToken?` (relationship, nullify — inverse of `consumedByCycleRecord`), `recordedAt`. Append-only. |
+| Entity                                                        | Change                                                                                                                                                                                                         |
+| ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Shared/Models/TargetMode.swift`                              | Delete `inspirationOnly` case entirely. Custom Codable to handle old stored data gracefully (map to `.on`). Remove all associated methods/errors.                                                              |
+| `Shared/Models/Commitment.swift`                              | Remove `isInsOnlyRemindersEnabled`. No other changes.                                                                                                                                                          |
+| `Shared/Models/PositivityToken.swift`                         | Remove `status: Status`, `dayOfStatus: Date?`. Add `consumedByCycleRecord: CycleRecord?` (nullify — freeing PT if CycleRecord deleted). "Consumed?" = `consumedByCycleRecord != nil`.                          |
+| **New:** `Shared/Models/CycleRecord.swift`                    | New SwiftData `@Model`. See full definition below.                                                                                                                                                             |
 | `Wilgo/Features/Commitments/FinishedCycleReport/Models.swift` | Remove `PositivityTokenUsageSummary`. Remove `consumedPTReasons` from `CycleReport`. Add `failureOutcome: InsOnlyCycleOutcome?`, `reflectionText: String?`, `consumedPTID: UUID?`, `emojiReactions: [String]`. |
-| `Wilgo/WilgoApp.swift` | Add `CycleRecord.self` to schema. Remove InsOnly background task registration. |
+| `Wilgo/WilgoApp.swift`                                        | Add `CycleRecord.self` to schema. Remove InsOnly background task registration.                                                                                                                                 |
 
 ---
 
@@ -96,39 +125,50 @@ The work naturally splits into 5 phases. Phases 1–2 are foundational and must 
 #### Commit 1A — refactor: remove InsOnly from TargetMode and all call sites `#FCRRedesign`
 
 **Modify:** `Shared/Models/TargetMode.swift`
+
 - Delete `inspirationOnly` case
 - Add custom `Codable` `init(from:)` that maps old stored `inspirationOnly` data → `.on`
 - Simplify/delete: `effectiveMode(on:)`, `effectiveMode(from:to:)`, `overlapsInspirationOnlyInterval`, `normalized`, `partialInspirationOnlyOverlap`
 
 **Modify:** `Shared/Models/Commitment.swift`
+
 - Remove `normalizeMode(afterReportedThrough:)` (no-op without InsOnly)
 
 **Modify:** `Wilgo/Features/Settings/WeekStartChangeHandler.swift`
+
 - Remove `InspirationOnlyCommitmentInfo`, `oldUntil/newUntil/isExpiredAfterSnap`
 - Simplify `previewChanges` and `apply` — no InsOnly snapping
 
 **Modify:** `Wilgo/Features/Settings/SettingsView.swift`
+
 - Remove `inspirationOnlyUntilLabel` helper
 
 **Modify:** `Wilgo/Features/Commitments/SingleCommitment/CommitmentDetailView.swift`
+
 - Collapse InsOnly branch of `targetModeDetailText` — unreachable, delete
 
 **Modify:** `Wilgo/Features/Commitments/SingleCommitment/CommitmentRowView.swift`
+
 - Collapse InsOnly branch of `targetSummaryText` — unreachable, delete
 
 **Delete:** `Wilgo/Features/Commitments/CurrentCycleDialogModifier.swift`
+
 - This entire feature only existed to set `until: cycleEnd` on InsOnly. Gone.
 
 **Modify:** `Wilgo/Features/Commitments/Form/AddCommitmentView.swift`
+
 - Remove `CurrentCycleDialogModifier` usage
 
 **Modify:** `Wilgo/Features/Commitments/Form/EditCommitmentView.swift`
+
 - Remove `CurrentCycleDialogModifier` usage
 
 **Modify:** `Wilgo/Features/Commitments/Form/CommitmentFormFields.swift`
+
 - Remove InsOnly date picker, Forever toggle, related bindings
 
 **Modify:** `Wilgo/Features/Commitments/Form/CommitmentFormDraft.swift`
+
 - Remove `inspirationOnlyUntilValidation`, simplify `canSave`, `reanchorInspirationOnlyTarget`
 
 **Update tests:** Delete all `until`-bearing tests in `TargetModeTests`, `CommitmentFormDraftTests`, `WeekStartChangeHandlerTests`, `CommitmentSlotStatusInspirationOnlyTests`
@@ -137,33 +177,9 @@ The work naturally splits into 5 phases. Phases 1–2 are foundational and must 
 
 ---
 
-### Phase 2 — PT model simplification + CycleRecord introduction
+### Phase 2 — CycleRecord introduction + PT model simplification
 
-**Goal:** Simplify `PositivityToken` to a plain journal entry. Introduce `CycleRecord` SwiftData model. Schema version bump.
-
-#### Commit 2A — refactor: simplify PositivityToken to plain journal entry `#FCRRedesign`
-
-**Modify:** `Shared/Models/PositivityToken.swift`
-- Remove `status: Status` enum and property
-- Remove `dayOfStatus: Date?`
-- Add `consumedByCycleRecord: CycleRecord?` relationship (nullify — deleting a CycleRecord frees the PT)
-- Add custom `Codable` to handle old stored tokens with `status`/`dayOfStatus` (ignore those fields on decode)
-- Note: "active vs consumed" is now simply `consumedByCycleRecord == nil`
-
-**Modify:** `Wilgo/Features/PositivityToken/ListView.swift`
-- Remove used/expired grouping sections — show all tokens as a flat journal list, newest first
-- Remove "monthly budget remaining" summary
-- Remove capacity indicator
-
-**Modify:** `Wilgo/Features/PositivityToken/PositivityTokenMinting.swift`
-- Delete entirely or gut — mint capacity formula (`checkIns - tokensCreated`) no longer applies
-- Minting is now unrestricted
-
-**Delete:** `Wilgo/Features/Commitments/FinishedCycleReport/PositivityTokenCompensator.swift`
-**Delete:** `Wilgo/Features/Commitments/FinishedCycleReport/PositivityTokenStep.swift`
-**Delete:** `Wilgo/Features/Commitments/FinishedCycleReport/PositivityTokenPage.swift`
-
-**Update tests:** Delete `PositivityTokenMintingTests`, `PositivityTokenCompensatorTests`
+**Goal:** Introduce `CycleRecord` first (2B), then simplify `PositivityToken` to reference it (2A). Schema version bump required.
 
 #### Commit 2B — feat: add CycleRecord SwiftData model `#FCRRedesign`
 
@@ -180,28 +196,75 @@ enum CycleOutcome: String, Codable {
 
 @Model final class CycleRecord {
     @Attribute(.unique) var id: UUID
-    @Relationship(deleteRule: .cascade) var commitment: Commitment
+
+    // Cascade — deleting a Commitment deletes all its CycleRecords
+    @Relationship(deleteRule: .cascade, inverse: \Commitment.cycleRecords)
+    var commitment: Commitment
+
+    var snapshotTitle: String       // commitment title at FCR close time
     var cycleStart: Date
     var cycleEnd: Date
-    var outcome: CycleOutcome
-    var reflectionText: String?
-    var emojiReactions: [String]
-    var consumedPTID: UUID?
+    var targetCount: Int            // target at FCR close time
+    var checkInCount: Int         // check-in count at FCR close time
     var recordedAt: Date
+
+    // Passed cycles only (empty if failed)
+    var emojiReactions: [String] = []
+
+    // Failed cycles only (nil if passed)
+    var outcome: CycleOutcome?
+    var reflectionText: String?
+    // Nullify — freeing PT if CycleRecord is ever deleted
+    @Relationship(deleteRule: .nullify, inverse: \PositivityToken.consumedByCycleRecord)
+    var consumedPT: PositivityToken?
 }
 ```
 
+**Modify:** `Shared/Models/Commitment.swift`
+
+- Add `@Relationship(deleteRule: .cascade, inverse: \CycleRecord.commitment) var cycleRecords: [CycleRecord] = []`
+
 **Modify:** `Wilgo/WilgoApp.swift`
+
 - Add `CycleRecord.self` to `Schema([...])`
 
 **Update test schemas:** Add `CycleRecord.self` to all `makeContainer()` functions in test files.
 
 **Create:** `WilgoTests/CycleRecord/CycleRecordModelTests.swift`
-- CycleRecord persists with correct fields
-- Deleting commitment cascades to CycleRecord
+
+- `CycleRecord` persists with correct fields
+- `snapshotTitle` survives after commitment title is changed
+- `checkInCount` / `targetCount` are snapshots — do not change when check-ins are added/removed after FCR
+- Deleting `Commitment` cascades to `CycleRecord`
+- Deleting `CycleRecord` nullifies `PositivityToken.consumedByCycleRecord` (PT freed)
 - `outcome` round-trips Codable
 
 **Manual verification:** App launches, no crash, existing data intact.
+
+#### Commit 2A — refactor: simplify PositivityToken, remove status/dayOfStatus `#FCRRedesign`
+
+**Modify:** `Shared/Models/PositivityToken.swift`
+
+- Remove `status: Status` enum and property
+- Remove `dayOfStatus: Date?`
+- Add `@Relationship(deleteRule: .nullify) var consumedByCycleRecord: CycleRecord?`
+- Add custom `Codable` `init(from:)` to handle old stored tokens with `status`/`dayOfStatus` — ignore those fields on decode, set `consumedByCycleRecord = nil`
+- "Consumed?" = `consumedByCycleRecord != nil`
+
+**Modify:** `Wilgo/Features/PositivityToken/ListView.swift`
+
+- Remove used/expired grouping — flat journal list, newest first
+- Remove "monthly budget remaining" + capacity indicator
+
+**Modify:** `Wilgo/Features/PositivityToken/PositivityTokenMinting.swift`
+
+- Delete or gut — minting is now unrestricted
+
+**Delete:** `Wilgo/Features/Commitments/FinishedCycleReport/PositivityTokenCompensator.swift`
+**Delete:** `Wilgo/Features/Commitments/FinishedCycleReport/PositivityTokenStep.swift`
+**Delete:** `Wilgo/Features/Commitments/FinishedCycleReport/PositivityTokenPage.swift`
+
+**Update tests:** Delete `PositivityTokenMintingTests`, `PositivityTokenCompensatorTests`
 
 ---
 
@@ -214,6 +277,7 @@ enum CycleOutcome: String, Codable {
 **Create:** `Wilgo/Features/Commitments/FinishedCycleReport/FCRCycleCardView.swift`
 
 Stub with:
+
 - Collapsed state: status dot, title, date, badge, chevron
 - Expanded state: card header with badge + 📅 icon + ↑ minimize icon
 - 📅 icon toggles `CommitmentHeatmapInfoCard` inline (pass `onAddCheckIn` → triggers `BackfillSheet`)
@@ -227,6 +291,7 @@ Stub with:
 #### Commit 3B — feat: wire FCRCycleCardView into new FinishedCycleReportView `#FCRRedesign`
 
 **Modify:** `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportView.swift`
+
 - Replace two-step navigation with single scrollable list of `FCRCycleCardView`
 - Title: "Cycle Report" (not date-based)
 - Nav bar: Cancel (left) + Done (right, disabled until all failed cycles complete)
@@ -235,6 +300,7 @@ Stub with:
 - Remove `PositivityTokenStep` navigation destination
 
 **Modify:** `Wilgo/Features/Commitments/FinishedCycleReport/CheckInSummaryStep.swift`
+
 - Remove entirely or gut — replaced by `FCRCycleCardView`
 
 **Delete:** old `CheckInSummaryPage.swift` (UI replaced)
@@ -258,6 +324,7 @@ enum StreakSummary {
 Computed from check-in data against cycle boundaries — no dependency on `CycleRecord`.
 
 **Create:** `WilgoTests/FinishedCycleReport/StreakSummaryTests.swift`
+
 - Each of the 4 cases
 - Nil when first cycle
 - Correct threshold (2+ for consecutive)
@@ -271,21 +338,24 @@ Computed from check-in data against cycle boundaries — no dependency on `Cycle
 #### Commit 4A — feat: PT consumption gate in FCRCycleCardView `#FCRRedesign`
 
 **Modify:** `FCRCycleCardView.swift`
+
 - PT row shows "Covered" (green) if a PT is assigned, "Needed" (red) if not
 - "Needed" row has "+ Mint one now" button
 - Tapping opens inline mint sheet (text field + "Save & use as PT")
-- On save: create new `PositivityToken`, record its `id` as `consumedPTID` in the card's draft state
-- If user already has active PTs with no cycle assigned: auto-assign oldest available
+- On save: create new `PositivityToken`, hold reference in card's draft state
+- If user already has active PTs (`consumedByCycleRecord == nil`): auto-assign oldest available
 
 **Modify:** `Wilgo/Features/PositivityToken/AddView.swift`
+
 - Keep standalone minting flow unchanged — minting from PT tab still works
 
 #### Commit 4B — feat: write CycleRecord on FCR close `#FCRRedesign`
 
 **Modify:** `FinishedCycleReportView.swift`
+
 - On Done tap: for each cycle card, write a `CycleRecord` to SwiftData
-- Passed cycles: `outcome = .passed`, `emojiReactions` from card state, `consumedPTID = nil`
-- Failed cycles: `outcome` from selected label, `reflectionText` from textbox, `consumedPTID` from PT assigned
+- Passed cycles: `outcome = .passed`, `emojiReactions` from card state, `consumedPT = nil`
+- Failed cycles: `outcome` from label, `reflectionText` from textbox, `consumedPT` set to assigned PT (sets `pt.consumedByCycleRecord` inverse automatically via SwiftData)
 - Advance watermark as before
 
 ---
@@ -303,6 +373,7 @@ Computed from check-in data against cycle boundaries — no dependency on `Cycle
 #### Commit 5B — feat: PT wins journal view polish `#FCRRedesign`
 
 **Modify:** `Wilgo/Features/PositivityToken/ListView.swift`
+
 - Clean flat journal list, grouped by month
 - Each entry: reason text + date
 - No status grouping, no budget display
@@ -315,8 +386,9 @@ Computed from check-in data against cycle boundaries — no dependency on `Cycle
 ```
 Phase 1 — Remove InsOnly (1A)
     │
-    ├── Phase 2A — Simplify PT model          [parallel after 1A]
     ├── Phase 2B — Add CycleRecord model      [parallel after 1A]
+    │       │
+    │       └── Phase 2A — Simplify PT model  [after 2B — PT references CycleRecord]
     │
     └── (wait for 2A + 2B)
             │
@@ -336,15 +408,15 @@ Phase 1 — Remove InsOnly (1A)
 
 ## Critical Files
 
-| File | Role |
-|---|---|
-| `Shared/Models/TargetMode.swift` | Phase 1 foundation — everything compiles after this |
-| `Shared/Models/PositivityToken.swift` | Phase 2 simplification |
-| `Shared/Models/CycleRecord.swift` (new) | Phase 2 new model |
-| `FinishedCycleReport/FCRCycleCardView.swift` (new) | Phase 3 core UI |
-| `FinishedCycleReport/FinishedCycleReportView.swift` | Phase 3 orchestration |
-| `FinishedCycleReport/StreakSummary.swift` (new) | Phase 3 computation |
-| `documentation/FCRMockup.html` | UI reference — check before implementing any UI |
+| File                                                | Role                                                |
+| --------------------------------------------------- | --------------------------------------------------- |
+| `Shared/Models/TargetMode.swift`                    | Phase 1 foundation — everything compiles after this |
+| `Shared/Models/PositivityToken.swift`               | Phase 2 simplification                              |
+| `Shared/Models/CycleRecord.swift` (new)             | Phase 2 new model                                   |
+| `FinishedCycleReport/FCRCycleCardView.swift` (new)  | Phase 3 core UI                                     |
+| `FinishedCycleReport/FinishedCycleReportView.swift` | Phase 3 orchestration                               |
+| `FinishedCycleReport/StreakSummary.swift` (new)     | Phase 3 computation                                 |
+| `documentation/FCRMockup.html`                      | UI reference — check before implementing any UI     |
 
 ---
 

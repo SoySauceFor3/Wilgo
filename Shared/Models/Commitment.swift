@@ -59,6 +59,9 @@ final class Commitment {
     @Relationship(deleteRule: .nullify, inverse: \Tag.commitments)
     var tags: [Tag] = []  // nullify: deleting a Tag removes it from this array; Commitment survives
 
+    @Relationship(deleteRule: .cascade, inverse: \CycleRecord.commitment)
+    var cycleRecords: [CycleRecord] = []
+
     /// When false, this commitment is excluded from Stage reminders and CatchUpReminder notifications.
     var isRemindersEnabled: Bool = true
 
