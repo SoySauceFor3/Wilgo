@@ -43,6 +43,10 @@ struct FinishedCycleReportView: View {
                                 cycle: pair.cycle,
                                 commitment: pair.commitment,
                                 state: binding,
+                                streakSummary: StreakSummary.compute(
+                                    for: pair.commitment,
+                                    currentCycleEnd: pair.cycle.cycleEndPsychDay
+                                ),
                                 onMintPT: { reason in mintAndAssign(reason: reason, to: pair.cycle.id) }
                             )
                         }
