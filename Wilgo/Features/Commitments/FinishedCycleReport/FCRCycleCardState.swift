@@ -59,4 +59,21 @@ struct FCRCycleCardState {
         reflectionText = ""
         hasAssignedPT = false
     }
+
+    // MARK: - Emoji reactions
+
+    func reactionCount(_ emoji: String) -> Int {
+        emojiReactions.count(where: { $0 == emoji })
+    }
+
+    mutating func addReaction(_ emoji: String) {
+        emojiReactions.append(emoji)
+    }
+
+    /// Removes a single instance of `emoji` (no-op if none present).
+    mutating func removeReaction(_ emoji: String) {
+        if let idx = emojiReactions.firstIndex(of: emoji) {
+            emojiReactions.remove(at: idx)
+        }
+    }
 }

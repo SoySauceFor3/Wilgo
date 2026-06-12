@@ -287,15 +287,15 @@ struct FCRCycleCardView: View {
     // MARK: - Celebration (passed)
 
     private var celebrationSection: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             Text("CELEBRATE (OPTIONAL)")
                 .font(.caption2.weight(.bold))
                 .foregroundStyle(.secondary)
             HStack(spacing: 6) {
                 ForEach(FCRCycleCardView.celebrationEmojis, id: \.self) { emoji in
-                    let count = state.emojiReactions.count(where: { $0 == emoji })
+                    let count = state.reactionCount(emoji)
                     Button {
-                        state.emojiReactions.append(emoji)
+                        withAnimation(.easeInOut(duration: 0.15)) { state.addReaction(emoji) }
                     } label: {
                         HStack(spacing: 3) {
                             Text(emoji)
@@ -311,8 +311,16 @@ struct FCRCycleCardView: View {
                         .clipShape(Capsule())
                     }
                     .buttonStyle(.plain)
+                    // Long-press removes one — gives an escape from the tap-to-add loop.
+                    .onLongPressGesture {
+                        guard count > 0 else { return }
+                        withAnimation(.easeInOut(duration: 0.15)) { state.removeReaction(emoji) }
+                    }
                 }
             }
+            Text("Tap to add · long-press to remove")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
         }
     }
 

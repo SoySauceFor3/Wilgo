@@ -101,4 +101,38 @@ struct FCRCycleCardStateTests {
         let state = FCRCycleCardState(targetCount: 3, checkInCount: 3)
         #expect(state.emojiReactions.isEmpty)
     }
+
+    @Test func addReactionAppends() {
+        var state = FCRCycleCardState(targetCount: 3, checkInCount: 3)
+        state.addReaction("🔥")
+        state.addReaction("🔥")
+        state.addReaction("💪")
+        #expect(state.reactionCount("🔥") == 2)
+        #expect(state.reactionCount("💪") == 1)
+    }
+
+    @Test func removeReactionDecrementsByOne() {
+        var state = FCRCycleCardState(targetCount: 3, checkInCount: 3)
+        state.addReaction("🔥")
+        state.addReaction("🔥")
+        state.removeReaction("🔥")
+        #expect(state.reactionCount("🔥") == 1)
+    }
+
+    @Test func removeReactionWhenNonePresentIsNoOp() {
+        var state = FCRCycleCardState(targetCount: 3, checkInCount: 3)
+        state.removeReaction("🔥")
+        #expect(state.reactionCount("🔥") == 0)
+        #expect(state.emojiReactions.isEmpty)
+    }
+
+    @Test func removeReactionRemovesOnlyOneInstance() {
+        var state = FCRCycleCardState(targetCount: 3, checkInCount: 3)
+        state.addReaction("🔥")
+        state.addReaction("💪")
+        state.addReaction("🔥")
+        state.removeReaction("🔥")
+        #expect(state.reactionCount("🔥") == 1)
+        #expect(state.reactionCount("💪") == 1)
+    }
 }
