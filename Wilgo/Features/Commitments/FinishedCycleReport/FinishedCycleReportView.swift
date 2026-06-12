@@ -56,13 +56,13 @@ struct FinishedCycleReportView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
-                    Button("Cancel") {
-                        onFinished()
-                        dismiss()
-                    }
+                    // Cancel dismisses without persisting or advancing the
+                    // watermark — the report reappears on next activation.
+                    Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button("Done") {
+                        persistRecords()
                         onFinished()
                         dismiss()
                     }
@@ -173,6 +173,21 @@ struct FinishedCycleReportView: View {
         modelContext.insert(token)
         assignedPTs[cycleID] = token
         syncAssignmentFlags()
+    }
+
+    /// Persist one CycleRecord per cycle when the report is closed via Done.
+    private func persistRecords() {
+        for (commitment, cycle) in allCycles {
+            guard let state = cardStates[cycle.id] else { continue }
+            let record = CycleRecordBuilder.makeRecord(
+                commitment: commitment,
+                cycle: cycle,
+                state: state,
+                consumedPT: assignedPTs[cycle.id]
+            )
+            modelContext.insert(record)
+        }
+        try? modelContext.save()
     }
 }
 
