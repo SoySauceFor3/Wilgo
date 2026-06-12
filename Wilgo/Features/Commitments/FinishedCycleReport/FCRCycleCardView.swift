@@ -293,35 +293,46 @@ struct FCRCycleCardView: View {
                 .foregroundStyle(.secondary)
             HStack(spacing: 6) {
                 ForEach(FCRCycleCardView.celebrationEmojis, id: \.self) { emoji in
-                    let count = state.reactionCount(emoji)
-                    Button {
-                        withAnimation(.easeInOut(duration: 0.15)) { state.addReaction(emoji) }
-                    } label: {
-                        HStack(spacing: 3) {
-                            Text(emoji)
-                            if count > 0 {
-                                Text("\(count)")
-                                    .font(.caption2.weight(.bold))
-                                    .foregroundStyle(.blue)
-                            }
-                        }
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 4)
-                        .background(count > 0 ? Color.blue.opacity(0.15) : Color(.tertiarySystemFill))
-                        .clipShape(Capsule())
-                    }
-                    .buttonStyle(.plain)
-                    // Long-press removes one — gives an escape from the tap-to-add loop.
-                    .onLongPressGesture {
-                        guard count > 0 else { return }
-                        withAnimation(.easeInOut(duration: 0.15)) { state.removeReaction(emoji) }
-                    }
+                    emojiChip(emoji)
                 }
             }
             Text("Tap to add · long-press to remove")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
         }
+    }
+
+    @ViewBuilder
+    private func emojiChip(_ emoji: String) -> some View {
+        let count = state.reactionCount(emoji)
+        HStack(spacing: 3) {
+            Text(emoji)
+            if count > 0 {
+                Text("\(count)")
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.blue)
+            }
+        }
+        .padding(.horizontal, 9)
+        .padding(.vertical, 4)
+        .background(count > 0 ? Color.blue.opacity(0.15) : Color(.tertiarySystemFill))
+        .clipShape(Capsule())
+        .contentShape(Capsule())
+        // Long-press is evaluated first; only if it does NOT fire does the tap
+        // add a reaction. This avoids the Button+longPress conflict where a tap
+        // always fired even on a long press.
+        .gesture(
+            LongPressGesture(minimumDuration: 0.4)
+                .onEnded { _ in
+                    guard count > 0 else { return }
+                    withAnimation(.easeInOut(duration: 0.15)) { state.removeReaction(emoji) }
+                }
+                .exclusively(
+                    before: TapGesture().onEnded {
+                        withAnimation(.easeInOut(duration: 0.15)) { state.addReaction(emoji) }
+                    }
+                )
+        )
     }
 
     static let celebrationEmojis = ["🔥", "💪", "🎉", "⭐", "😤"]
