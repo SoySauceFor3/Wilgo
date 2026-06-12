@@ -6,11 +6,16 @@ struct FinishedCycleReportView: View {
     let onFinished: () -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
+    @Query private var allTokens: [PositivityToken]
 
     /// Per-cycle editable state, keyed by `CycleReport.id`. Persists across
     /// re-renders as backfills mutate the live report.
     @State private var cardStates: [String: FCRCycleCardState] = [:]
+
+    /// PT assigned to each failed cycle, keyed by `CycleReport.id`.
+    @State private var assignedPTs: [String: PositivityToken] = [:]
 
     private var report: [CommitmentReport] {
         PreTokenReportBuilder.build(
@@ -37,7 +42,8 @@ struct FinishedCycleReportView: View {
                             FCRCycleCardView(
                                 cycle: pair.cycle,
                                 commitment: pair.commitment,
-                                state: binding
+                                state: binding,
+                                onMintPT: { reason in mintAndAssign(reason: reason, to: pair.cycle.id) }
                             )
                         }
                     }
@@ -119,6 +125,54 @@ struct FinishedCycleReportView: View {
         for key in cardStates.keys where !liveIDs.contains(key) {
             cardStates[key] = nil
         }
+        // Release PT assignments for cycles that are no longer failed
+        // (e.g. flipped to passed via backfill).
+        for (cycleID, _) in assignedPTs where !failedCycleIDs.contains(cycleID) {
+            assignedPTs[cycleID] = nil
+        }
+        reconcilePTAssignments()
+    }
+
+    private var failedCycleIDs: [String] {
+        allCycles
+            .filter { !(cardStates[$0.cycle.id]?.isPassed ?? true) }
+            .map(\.cycle.id)
+    }
+
+    /// Free tokens = not consumed by any prior CycleRecord and not already
+    /// assigned to a cycle in this session.
+    private var freeTokens: [PositivityToken] {
+        let assignedIDs = Set(assignedPTs.values.map(\.id))
+        return allTokens.filter { $0.consumedByCycleRecord == nil && !assignedIDs.contains($0.id) }
+    }
+
+    /// Auto-assign free tokens to failed cycles, then sync `hasAssignedPT`.
+    private func reconcilePTAssignments() {
+        assignedPTs = FCRPTAssignment.autoAssign(
+            failedCycleIDs: failedCycleIDs,
+            freeTokens: freeTokens,
+            alreadyAssigned: assignedPTs
+        )
+        syncAssignmentFlags()
+    }
+
+    private func syncAssignmentFlags() {
+        for (_, cycle) in allCycles {
+            guard var state = cardStates[cycle.id] else { continue }
+            let assigned = assignedPTs[cycle.id] != nil
+            if state.hasAssignedPT != assigned {
+                state.hasAssignedPT = assigned
+                cardStates[cycle.id] = state
+            }
+        }
+    }
+
+    /// Mint a new PT inline and assign it to the given failed cycle.
+    private func mintAndAssign(reason: String, to cycleID: String) {
+        let token = PositivityToken(reason: reason)
+        modelContext.insert(token)
+        assignedPTs[cycleID] = token
+        syncAssignmentFlags()
     }
 }
 

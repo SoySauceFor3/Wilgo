@@ -18,20 +18,28 @@ struct FCRCycleCardView: View {
     /// Streak summary line (e.g. "4 consecutive failed weeks"), nil if none.
     var streakSummary: String?
 
+    /// Called when the user mints a PT inline to cover this failed cycle.
+    /// The parent creates+inserts the token, links it, and updates assignment.
+    var onMintPT: ((String) -> Void)?
+
     @State private var isExpanded: Bool
     @State private var isHistoryShown = false
     @State private var showingBackfill = false
+    @State private var isMinting = false
+    @State private var mintText = ""
 
     init(
         cycle: CycleReport,
         commitment: Commitment,
         state: Binding<FCRCycleCardState>,
-        streakSummary: String? = nil
+        streakSummary: String? = nil,
+        onMintPT: ((String) -> Void)? = nil
     ) {
         self.cycle = cycle
         self.commitment = commitment
         _state = state
         self.streakSummary = streakSummary
+        self.onMintPT = onMintPT
         // Passed cycles start collapsed (no required action); failed start expanded.
         _isExpanded = State(initialValue: !state.wrappedValue.isPassed)
     }
@@ -209,21 +217,71 @@ struct FCRCycleCardView: View {
 
     static let selectableOutcomes: [CycleOutcome] = [.excused, .punished, .letGo, .other]
 
+    @ViewBuilder
     private var ptRow: some View {
         HStack {
             Label("Positivity Token", systemImage: "sparkles")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Spacer()
-            // Phase 4A wires real PT assignment; stub shows Needed.
-            Text(state.hasAssignedPT ? "Covered" : "Needed")
-                .font(.caption.weight(.semibold))
-                .padding(.horizontal, 9)
-                .padding(.vertical, 3)
-                .background(state.hasAssignedPT ? Color.green.opacity(0.18) : Color.red.opacity(0.18))
-                .foregroundStyle(state.hasAssignedPT ? .green : .red)
-                .clipShape(Capsule())
+            if state.hasAssignedPT {
+                statusChip("Covered", color: .green)
+            } else {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { isMinting.toggle() }
+                } label: {
+                    statusChip(isMinting ? "Needed" : "+ Mint one now", color: isMinting ? .red : .blue)
+                }
+                .buttonStyle(.plain)
+            }
         }
+
+        if isMinting, !state.hasAssignedPT {
+            mintSheet
+        }
+    }
+
+    private func statusChip(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, 9)
+            .padding(.vertical, 3)
+            .background(color.opacity(0.18))
+            .foregroundStyle(color)
+            .clipShape(Capsule())
+    }
+
+    private var mintSheet: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("✨ One good thing")
+                .font(.caption.weight(.semibold))
+            Text("Saved to your wins journal")
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            TextField("Something good happened…", text: $mintText, axis: .vertical)
+                .lineLimit(2...4)
+                .textFieldStyle(.roundedBorder)
+            Button {
+                let trimmed = mintText.trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !trimmed.isEmpty else { return }
+                onMintPT?(trimmed)
+                mintText = ""
+                isMinting = false
+            } label: {
+                Text("Save & use as PT")
+                    .font(.caption.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 8)
+                    .background(Color.blue)
+                    .foregroundStyle(.white)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .buttonStyle(.plain)
+            .disabled(mintText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+        }
+        .padding(10)
+        .background(Color(.tertiarySystemFill))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     // MARK: - Celebration (passed)
@@ -280,7 +338,7 @@ extension CycleOutcome {
         case .excused: return .blue
         case .punished: return .red
         case .letGo: return .yellow
-        case .other: return .gray
+        case .other: return .teal
         }
     }
 }
