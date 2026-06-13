@@ -7,16 +7,29 @@ struct ListPositivityTokenView: View {
     @Environment(PTBadgeState.self) private var badgeState
     @State private var isPresentingAddToken: Bool = false
 
+    private var sections: [PositivityTokenGrouping.MonthSection] {
+        PositivityTokenGrouping.sections(from: tokens)
+    }
+
     var body: some View {
         NavigationStack {
-            List {
-                summarySection
-                ForEach(tokens) { token in
-                    TokenRowView(token: token)
+            Group {
+                if tokens.isEmpty {
+                    emptyState
+                } else {
+                    List {
+                        ForEach(sections) { section in
+                            Section(section.title) {
+                                ForEach(section.tokens) { token in
+                                    TokenRowView(token: token)
+                                }
+                                .onDelete { offsets in deleteTokens(in: section, offsets: offsets) }
+                            }
+                        }
+                    }
+                    .listStyle(.insetGrouped)
                 }
-                .onDelete(perform: deleteTokens)
             }
-            .listStyle(.insetGrouped)
             .navigationTitle("Positivity Tokens")
             .onAppear { badgeState.markAsSeen() }
             .toolbar {
@@ -34,39 +47,23 @@ struct ListPositivityTokenView: View {
         }
     }
 
-    // MARK: - Sections
+    // MARK: - Empty state
 
-    private var summarySection: some View {
-        Section("Summary") {
-            SummaryRow(label: "Total wins", value: tokens.count)
-            SummaryRow(label: "Free", value: tokens.count(where: { $0.consumedByCycleRecord == nil }))
-            SummaryRow(label: "Used in FCR", value: tokens.count(where: { $0.consumedByCycleRecord != nil }))
+    private var emptyState: some View {
+        ContentUnavailableView {
+            Label("No wins yet", systemImage: "sparkles")
+        } description: {
+            Text("Tap + to record something good that happened — big or small.")
         }
     }
 
     // MARK: - Helpers
 
-    private func deleteTokens(offsets: IndexSet) {
+    private func deleteTokens(in section: PositivityTokenGrouping.MonthSection, offsets: IndexSet) {
         withAnimation {
             for index in offsets {
-                modelContext.delete(tokens[index])
+                modelContext.delete(section.tokens[index])
             }
-        }
-    }
-}
-
-// MARK: - Supporting Views
-
-private struct SummaryRow: View {
-    let label: String
-    let value: Int
-
-    var body: some View {
-        HStack {
-            Text(label)
-            Spacer()
-            Text("\(value)")
-                .foregroundStyle(.secondary)
         }
     }
 }
