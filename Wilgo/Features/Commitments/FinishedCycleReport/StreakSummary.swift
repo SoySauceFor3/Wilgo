@@ -24,9 +24,19 @@ enum StreakSummary {
             return "\(leadingFailures) consecutive failed cycles"
         }
 
-        // Case 2: exactly one trailing failure preceded by a win streak.
+        // Exactly one trailing failure (leadingFailures == 1 here).
         let afterFailure = recentOutcomes.dropFirst()
         let winStreak = afterFailure.prefix(while: { $0 == .passed }).count
+        let totalFailures = recentOutcomes.count(where: { $0 == .failed })
+
+        // Case 3: a single-cycle win gap with multiple failures in the window is
+        // a flaky on-off pattern — report the honest ratio rather than understate
+        // it as "first failure after 1 win".
+        if winStreak == 1, totalFailures >= 2 {
+            return "Failed \(totalFailures) of the last \(recentOutcomes.count) cycles"
+        }
+
+        // Case 2: a genuine slip after a real run of wins (or a lone first slip).
         if winStreak >= 1 {
             let unit = winStreak == 1 ? "win" : "wins"
             return "First failure after \(winStreak) consecutive \(unit)"
