@@ -36,9 +36,9 @@ The mockup is at `documentation/FCRMockup.html`.
 
 ### What's Added
 
-- **`CycleRecord`** — new SwiftData model, append-only, written when FCR closes
-- **`FCRCycleCardView`** — new expandable card per cycle in FCR
-- **`InsOnlyCycleOutcome`** enum — `excused | punished | letGo | other` label on failed cycles
+- `**CycleRecord`** — new SwiftData model, append-only, written when FCR closes
+- `**FCRCycleCardView**` — new expandable card per cycle in FCR
+- `**InsOnlyCycleOutcome**` enum — `excused | punished | letGo | other` label on failed cycles
 - **PT as wins journal** — `PositivityToken` loses `status`/`dayOfStatus`; gains `consumedByCycleRecord` relationship. "Consumed?" = `consumedByCycleRecord != nil`
 - **Inline PT minting in FCR** — mint sheet inside FCR if not enough active PTs
 - **Streak summary** — computed from check-in data, shown on failed cycle cards
@@ -101,6 +101,7 @@ Failed and passed cycles share the same model but fields are semantically groupe
 
 ## Major Model Changes
 
+
 | Entity                                                        | Change                                                                                                                                                                                                         |
 | ------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `Shared/Models/TargetMode.swift`                              | Delete `inspirationOnly` case entirely. Custom Codable to handle old stored data gracefully (map to `.on`). Remove all associated methods/errors.                                                              |
@@ -109,6 +110,7 @@ Failed and passed cycles share the same model but fields are semantically groupe
 | **New:** `Shared/Models/CycleRecord.swift`                    | New SwiftData `@Model`. See full definition below.                                                                                                                                                             |
 | `Wilgo/Features/Commitments/FinishedCycleReport/Models.swift` | Remove `PositivityTokenUsageSummary`. Remove `consumedPTReasons` from `CycleReport`. Add `failureOutcome: InsOnlyCycleOutcome?`, `reflectionText: String?`, `consumedPTID: UUID?`, `emojiReactions: [String]`. |
 | `Wilgo/WilgoApp.swift`                                        | Add `CycleRecord.self` to schema. Remove InsOnly background task registration.                                                                                                                                 |
+
 
 ---
 
@@ -311,29 +313,39 @@ Stub with:
 
 ```swift
 enum StreakSummary {
-    static func compute(for commitment: Commitment, beforeCycleEnd: Date) -> String?
-    // Priority:
-    // 1. "X consecutive failed cycles" (if 2+)
-    // 2. "First failure after X consecutive wins" (if streak just broke)
-    // 3. "Failed X of the last Y cycles" (fallback, no clean streak)
-    // 4. "No passed cycles in X months" (2+ month drought)
-    // Returns nil if none apply (e.g. first ever cycle)
+    static func compute(for commitment: Commitment, currentCycleEnd: Date) -> String?
+    // Priority (final — implemented as 3 cases + nil):
+    // 1. "N consecutive failed cycles"      — leading failures >= 2
+    // 2. "First failure after N consecutive wins"
+    //                                        — single trailing failure after a
+    //                                          real win run (streak >= 2), OR a
+    //                                          lone first slip (streak 1, no
+    //                                          earlier failures in window)
+    // 3. "Failed X of the last Y cycles"    — flaky on/off: single-cycle win gap
+    //                                          AND 2+ failures in the window
+    // nil — single failure with no prior context
 }
 ```
 
+**Note (folded cases):** the original 4-case list collapsed during implementation.
+"No passed cycles in X months" (old Case 4) is just a long consecutive-failure run,
+already covered by Case 1. Case 3 was kept but redefined: it only fires for genuinely
+flaky on/off patterns (single-win gap), so a real slip after a win run still gets the
+gentle Case 2 message.
+
 Computed from check-in data against cycle boundaries — no dependency on `CycleRecord`.
+12-cycle lookback, stops at the commitment's anchor.
 
 **Create:** `WilgoTests/FinishedCycleReport/StreakSummaryTests.swift`
 
-- Each of the 4 cases
-- Nil when first cycle
-- Correct threshold (2+ for consecutive)
+- Each of the 3 cases + priority ordering
+- Nil when first cycle / no context
 
 ---
 
 ### Phase 4 — PT gate in FCR + inline minting (after Phase 2 + 3)
 
-**Goal:** Wire the PT requirement into the FCR card. Each failed cycle must consume 1 PT before Done unlocks.
+**Goal:** Wire the PT requirement into the FCR card. Each failed cycle must consume 1 PT before Done unlocks.v
 
 #### Commit 4A — feat: PT consumption gate in FCRCycleCardView `#FCRRedesign`
 
@@ -408,6 +420,7 @@ Phase 1 — Remove InsOnly (1A)
 
 ## Critical Files
 
+
 | File                                                | Role                                                |
 | --------------------------------------------------- | --------------------------------------------------- |
 | `Shared/Models/TargetMode.swift`                    | Phase 1 foundation — everything compiles after this |
@@ -417,6 +430,7 @@ Phase 1 — Remove InsOnly (1A)
 | `FinishedCycleReport/FinishedCycleReportView.swift` | Phase 3 orchestration                               |
 | `FinishedCycleReport/StreakSummary.swift` (new)     | Phase 3 computation                                 |
 | `documentation/FCRMockup.html`                      | UI reference — check before implementing any UI     |
+
 
 ---
 
