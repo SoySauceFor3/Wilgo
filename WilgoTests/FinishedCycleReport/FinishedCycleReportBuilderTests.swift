@@ -46,7 +46,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             commitment.checkIns.append(checkIn)
         }
 
-        let report = PreTokenReportBuilder.build(
+        let report = CycleReportBuilder.build(
             commitments: [commitment],
             startPsychDay: date(year: 2026, month: 2, day: 1),
             endPsychDay: date(year: 2026, month: 2, day: 2)
@@ -83,7 +83,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
             commitment.checkIns.append(checkIn)
         }
 
-        let report = PreTokenReportBuilder.build(
+        let report = CycleReportBuilder.build(
             commitments: [commitment],
             startPsychDay: date(year: 2026, month: 2, day: 1),
             endPsychDay: date(year: 2026, month: 2, day: 2)
@@ -111,7 +111,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         ctx.insert(checkIn)
         c.checkIns.append(checkIn)
 
-        let report = PreTokenReportBuilder.build(
+        let report = CycleReportBuilder.build(
             commitments: [c],
             startPsychDay: date(year: 2026, month: 2, day: 1),
             endPsychDay: date(year: 2026, month: 2, day: 2)
@@ -139,7 +139,7 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         )
         ctx.insert(commitment)
 
-        let report = PreTokenReportBuilder.build(
+        let report = CycleReportBuilder.build(
             commitments: [commitment],
             startPsychDay: date(year: 2026, month: 2, day: 2),
             endPsychDay: date(year: 2026, month: 2, day: 1)

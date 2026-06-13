@@ -1,7 +1,7 @@
 import Foundation
 import SwiftData
 
-enum PreTokenReportBuilder {
+enum CycleReportBuilder {
     private struct CycleDraft {
         let commitmentID: UUID
         let commitmentTitle: String

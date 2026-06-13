@@ -18,7 +18,7 @@ struct FinishedCycleReportView: View {
     @State private var assignedPTs: [String: PositivityToken] = [:]
 
     private var report: [CommitmentReport] {
-        PreTokenReportBuilder.build(
+        CycleReportBuilder.build(
             commitments: commitments,
             startPsychDay: request.startPsychDay,
             endPsychDay: request.endPsychDay
