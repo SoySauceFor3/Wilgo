@@ -7,13 +7,6 @@ import Testing
 final class SlotIsSnoozedTests {
     // MARK: - Helpers
 
-    @MainActor
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([Commitment.self, Slot.self, CheckIn.self, SlotSnooze.self, Tag.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        return try ModelContainer(for: schema, configurations: [config])
-    }
-
     private func tod(hour: Int, minute: Int = 0) -> Date {
         var c = DateComponents()
         c.year = 2000
@@ -55,7 +48,7 @@ final class SlotIsSnoozedTests {
 
     @Test("no snooze → isSnoozed returns false")
     @MainActor func isSnoozed_noSnooze_returnsFalse() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = makeSlot(startHour: 9, endHour: 11, in: ctx)
 
@@ -67,7 +60,7 @@ final class SlotIsSnoozedTests {
 
     @Test("snooze exists for today's psychDay → isSnoozed returns true")
     @MainActor func isSnoozed_snoozeForToday_returnsTrue() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = makeSlot(startHour: 9, endHour: 11, in: ctx)
 
@@ -83,7 +76,7 @@ final class SlotIsSnoozedTests {
 
     @Test("snooze for yesterday → isSnoozed returns false today")
     @MainActor func isSnoozed_snoozeForYesterday_returnsFalseToday() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = makeSlot(startHour: 9, endHour: 11, in: ctx)
 
@@ -99,7 +92,7 @@ final class SlotIsSnoozedTests {
 
     @Test("cross-midnight: snooze for Dec 31 (psychDay) → isSnoozed at 12:30am Jan 1 returns true")
     @MainActor func isSnoozed_crossMidnight_postMidnightMatchesPreviousDay() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // Slot 11pm–1am; occurrence on Dec 31 extends to 1am Jan 1
         let slot = makeSlot(startHour: 23, endHour: 1, in: ctx)
@@ -117,7 +110,7 @@ final class SlotIsSnoozedTests {
     @Test(
         "cross-midnight: snooze for Dec 31 → isSnoozed at 11pm Dec 31 (pre-midnight) returns true")
     @MainActor func isSnoozed_crossMidnight_preMidnightMatchesCurrentDay() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = makeSlot(startHour: 23, endHour: 1, in: ctx)
 
@@ -134,7 +127,7 @@ final class SlotIsSnoozedTests {
     @Test(
         "cross-midnight: Jan 1 snooze → isSnoozed at 12:30am Jan 1 returns false (wrong psychDay)")
     @MainActor func isSnoozed_crossMidnight_jan1SnoozeDoesNotMatchDec31Occurrence() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = makeSlot(startHour: 23, endHour: 1, in: ctx)
 
@@ -154,7 +147,7 @@ final class SlotIsSnoozedTests {
 
     @Test("wrong time of day (slot inactive) → isSnoozed returns false even with a snooze record")
     @MainActor func isSnoozed_wrongTime_returnsFalse() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // Slot 9am–11am; snooze recorded for today's psychDay
         let slot = makeSlot(startHour: 9, endHour: 11, in: ctx)
@@ -172,7 +165,7 @@ final class SlotIsSnoozedTests {
     @Test(
         "wrong recurrence day (slot inactive) → isSnoozed returns false even with a snooze record")
     @MainActor func isSnoozed_wrongDay_returnsFalse() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // Slot only active on Mondays (weekday 2)
         let anchor = date(year: 2026, month: 1, day: 1)

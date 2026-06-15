@@ -7,16 +7,6 @@ import Testing
 final class SlotCapacityTests {
     // MARK: - Helpers
 
-    @MainActor
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([
-            Commitment.self, Slot.self, CheckIn.self,
-            SlotSnooze.self, Tag.self, PositivityToken.self,
-        ])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        return try ModelContainer(for: schema, configurations: [config])
-    }
-
     private func tod(hour: Int, minute: Int = 0) -> Date {
         var c = DateComponents()
         c.year = 2000
@@ -62,7 +52,7 @@ final class SlotCapacityTests {
 
     @Test("maxCheckIns nil → not saturated regardless of check-ins")
     @MainActor func nilCap_neverSaturated() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let (commitment, slot) = makeCommitmentAndSlot(cap: nil, in: ctx)
 
@@ -77,7 +67,7 @@ final class SlotCapacityTests {
 
     @Test("cap=1, one in-window check-in → saturated")
     @MainActor func capOne_oneInWindow_saturated() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let (commitment, slot) = makeCommitmentAndSlot(cap: 1, in: ctx)
 
@@ -90,7 +80,7 @@ final class SlotCapacityTests {
 
     @Test("cap=2, two in-window check-ins → saturated")
     @MainActor func capTwo_twoInWindow_saturated() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let (commitment, slot) = makeCommitmentAndSlot(cap: 2, in: ctx)
 
@@ -108,7 +98,7 @@ final class SlotCapacityTests {
 
     @Test("cap=1, only out-of-window check-in → not saturated")
     @MainActor func capOne_outOfWindow_notSaturated() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let (commitment, slot) = makeCommitmentAndSlot(cap: 1, in: ctx)
 
@@ -124,7 +114,7 @@ final class SlotCapacityTests {
 
     @Test("cap=1, check-in exactly at end → not saturated")
     @MainActor func capOne_atEndBoundary_notSaturated() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let (commitment, slot) = makeCommitmentAndSlot(cap: 1, in: ctx)
 
@@ -137,7 +127,7 @@ final class SlotCapacityTests {
 
     @Test("cap=1, check-in exactly at start → saturated")
     @MainActor func capOne_atStartBoundary_saturated() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let (commitment, slot) = makeCommitmentAndSlot(cap: 1, in: ctx)
 
@@ -152,7 +142,7 @@ final class SlotCapacityTests {
 
     @Test("cap=1, yesterday saturated does NOT saturate today")
     @MainActor func capOne_yesterdayDoesNotSaturateToday() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let (commitment, slot) = makeCommitmentAndSlot(cap: 1, in: ctx)
 
@@ -168,7 +158,7 @@ final class SlotCapacityTests {
 
     @Test("whole-day slot, cap=1, any same-day check-in → saturated")
     @MainActor func wholeDay_capOne_anyCheckInSaturates() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // Whole-day sentinel: start == end
         let slot = Slot(start: tod(hour: 0), end: tod(hour: 0))
@@ -192,7 +182,7 @@ final class SlotCapacityTests {
 
     @Test("5am whole-day slot, cap=1, previous occurrence check-in saturates at 1am")
     @MainActor func fiveAMWholeDay_capOne_previousOccurrenceSaturatesAtOneAM() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 5), end: tod(hour: 5))
         slot.maxCheckIns = 1

@@ -5,20 +5,6 @@ import Testing
 
 // MARK: - Helpers
 
-@MainActor
-private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([
-        Commitment.self,
-        Slot.self,
-        CheckIn.self,
-        PositivityToken.self,
-        SlotSnooze.self,
-        Wilgo.Tag.self,
-    ])
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    return try ModelContainer(for: schema, configurations: [config])
-}
-
 private func makeCommitment(title: String = "Test") -> Commitment {
     let anchor = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1))!
     let cycle = Cycle(kind: .weekly, referencePsychDay: anchor)
@@ -37,7 +23,7 @@ private func makeCommitment(title: String = "Test") -> Commitment {
 struct CommitmentRowTagDisplayTests {
     @Test("Commitment with no tags has empty tags array")
     func commitmentWithNoTagsIsEmpty() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let commitment = makeCommitment()
@@ -50,7 +36,7 @@ struct CommitmentRowTagDisplayTests {
 
     @Test("Tag names join correctly in sorted order")
     func tagNamesJoinInSortedOrder() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let commitment = makeCommitment()
@@ -78,7 +64,7 @@ struct CommitmentRowTagDisplayTests {
 
     @Test("Tag with lower displayOrder appears first")
     func lowerDisplayOrderAppearsFirst() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let commitment = makeCommitment()
@@ -106,7 +92,7 @@ struct CommitmentRowTagDisplayTests {
 
     @Test("Tags with equal displayOrder sort by createdAt — older first")
     func equalDisplayOrderSortsByCreatedAt() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let commitment = makeCommitment()

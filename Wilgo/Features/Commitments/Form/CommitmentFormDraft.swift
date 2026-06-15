@@ -63,51 +63,10 @@ struct CommitmentFormDraft {
     var canSave: Bool {
         !normalizedTitle.isEmpty
             && (!isRemindersEnabled || slotWindows.allSatisfy(\.recurrence.isValidSelection))
-            && inspirationOnlyUntilValidation == nil
     }
 
     var effectiveRemindersEnabled: Bool {
         isRemindersEnabled && !slotWindows.isEmpty
-    }
-
-    var inspirationOnlyUntilValidation: String? {
-        inspirationOnlyUntilValidation(on: Time.startOfDay(for: Time.now()))
-    }
-
-    func inspirationOnlyUntilValidation(on psychToday: Date) -> String? {
-        guard case let .inspirationOnly(_, until) = target.configuredMode else { return nil }
-        guard let until else { return nil }
-
-        let untilDay = Time.startOfDay(for: until)
-        let today = Time.startOfDay(for: psychToday)
-
-        if untilDay <= today {
-            return "Choose a date after today."
-        }
-
-        if cycle.startDayOfCycle(including: untilDay) != untilDay {
-            switch cycle.kind {
-            case .daily:
-                return nil
-            case .weekly:
-                return "Choose a Monday so Inspiration Only ends at the start of a week."
-            case .monthly:
-                return "Choose the 1st of a month so Inspiration Only ends at the start of a month."
-            }
-        }
-
-        return nil
-    }
-
-    mutating func reanchorInspirationOnlyTarget(
-        to cycle: Cycle,
-        including psychDay: Date = Time.startOfDay(for: Time.now())
-    ) {
-        guard case let .inspirationOnly(_, until) = target.configuredMode else { return }
-        let start = cycle.startDayOfCycle(including: psychDay)
-        target.setConfiguredMode(
-            .inspirationOnly(start: start, until: until.map { Time.startOfDay(for: $0) })
-        )
     }
 
     private var normalizedTitle: String {

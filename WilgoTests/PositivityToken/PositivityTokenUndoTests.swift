@@ -4,19 +4,6 @@ import Testing
 @testable import Wilgo
 
 @MainActor
-private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([
-        Commitment.self,
-        Slot.self,
-        CheckIn.self,
-        PositivityToken.self,
-        Tag.self,
-    ])
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    return try ModelContainer(for: schema, configurations: [config])
-}
-
-@MainActor
 struct PositivityTokenUndoTests {
     // Verifies the NEW behavior: production undo closures only delete the check-in.
     // PTs are freestanding (no FK back to CheckIn since Commit 1), so SwiftData
@@ -24,7 +11,7 @@ struct PositivityTokenUndoTests {
     /// Deleting a check-in (simulating undo) does NOT delete an associated PositivityToken.
     /// The PT must still exist in the store with `.active` status after the check-in is removed.
     @Test func deletingCheckInLeavesPositivityTokenIntact() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         // Set up a minimal Commitment
@@ -56,16 +43,16 @@ struct PositivityTokenUndoTests {
         let checkIns = try ctx.fetch(FetchDescriptor<CheckIn>())
         #expect(checkIns.isEmpty)
 
-        // PT must still exist and remain active
+        // PT must still exist and be free (not consumed)
         let tokens = try ctx.fetch(FetchDescriptor<PositivityToken>())
         #expect(tokens.count == 1)
-        #expect(tokens.first?.status == .active)
+        #expect(tokens.first?.consumedByCycleRecord == nil)
         #expect(tokens.first?.reason == "Great job staying consistent!")
     }
 
     /// Deleting a check-in when no PositivityToken exists must not crash.
     @Test func deletingCheckInWithNoPositivityTokenDoesNotCrash() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         // Set up a minimal Commitment
@@ -103,7 +90,7 @@ struct PositivityTokenUndoTests {
     func explicitPTDeletionRemovesToken() throws {
         // This test documents the OLD broken undo behavior.
         // Production undo closures must NOT do this — they should only delete the check-in.
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let anchor = Date()

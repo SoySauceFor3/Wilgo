@@ -42,51 +42,6 @@ struct FinishedCycleReportPresentationStateTests {
         #expect(state.shouldShowReport == false)
     }
 
-    @Test("normalization turns expired finite inspiration only back on")
-    func normalizationTurnsExpiredFiniteInspirationOnlyBackOn() {
-        let until = date(year: 2026, month: 1, day: 1)
-        let commitment = Commitment(
-            title: "Run",
-            cycle: Cycle(kind: .monthly, referencePsychDay: date(year: 2025, month: 12, day: 1)),
-            slots: [],
-            target: Target(
-                count: 3,
-                mode: .inspirationOnly(
-                    start: date(year: 2025, month: 12, day: 1),
-                    until: until
-                )
-            )
-        )
-
-        normalizeExpiredTargetModes(
-            in: [commitment],
-            afterReportedThrough: date(year: 2026, month: 3, day: 1)
-        )
-
-        #expect(commitment.target.configuredMode == .on)
-    }
-
-    @Test("normalization keeps active finite inspiration only")
-    func normalizationKeepsActiveFiniteInspirationOnly() {
-        let mode = TargetMode.inspirationOnly(
-            start: date(year: 2026, month: 1, day: 1),
-            until: date(year: 2026, month: 4, day: 1)
-        )
-        let commitment = Commitment(
-            title: "Run",
-            cycle: Cycle(kind: .monthly, referencePsychDay: date(year: 2026, month: 1, day: 1)),
-            slots: [],
-            target: Target(count: 3, mode: mode)
-        )
-
-        normalizeExpiredTargetModes(
-            in: [commitment],
-            afterReportedThrough: date(year: 2026, month: 3, day: 1)
-        )
-
-        #expect(commitment.target.configuredMode == mode)
-    }
-
     private func makeRequest() -> FinishedCycleReportRequest {
         FinishedCycleReportRequest(
             startPsychDay: date(year: 2026, month: 5, day: 1),

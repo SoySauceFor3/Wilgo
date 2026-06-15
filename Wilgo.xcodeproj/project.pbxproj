@@ -88,6 +88,7 @@
 				CheckIn.swift,
 				Commitment.swift,
 				Cycle.swift,
+				CycleRecord.swift,
 				PositivityToken.swift,
 				Slot.swift,
 				SlotSnooze.swift,

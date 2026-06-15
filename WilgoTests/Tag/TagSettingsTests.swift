@@ -8,19 +8,6 @@ import Testing
 
 /// Callers must keep the returned container alive for the entire test — `ModelContext` only
 /// weakly references its `ModelContainer`; releasing the container makes subsequent operations crash.
-@MainActor
-private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([
-        Commitment.self,
-        Slot.self,
-        CheckIn.self,
-        PositivityToken.self,
-        SlotSnooze.self,
-        Wilgo.Tag.self,
-    ])
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    return try ModelContainer(for: schema, configurations: [config])
-}
 
 private func makeCommitment(title: String = "Test") -> Commitment {
     let anchor = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1))!
@@ -52,7 +39,7 @@ struct TagSettingsTests {
 
     @Test("Reorder: moving last tag to first renumbers all displayOrders sequentially")
     func reorderLastToFirst() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let tagA = Wilgo.Tag(name: "Alpha", displayOrder: 0)
@@ -81,7 +68,7 @@ struct TagSettingsTests {
 
     @Test("Reorder: moving first tag to last renumbers all displayOrders sequentially")
     func reorderFirstToLast() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let tagA = Wilgo.Tag(name: "Alpha", displayOrder: 0)
@@ -110,7 +97,7 @@ struct TagSettingsTests {
 
     @Test("onMove renumbering always produces consecutive 0-based displayOrder values")
     func renumberingIsAlwaysSequential() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         // Create tags with non-sequential displayOrders to start (simulating real-world drift)
@@ -135,7 +122,7 @@ struct TagSettingsTests {
 
     @Test("Delete tag: commitment that had the tag survives with empty tags")
     func deleteTagCommitmentSurvivesWithEmptyTags() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let commitment = makeCommitment(title: "My Commitment")
@@ -167,7 +154,7 @@ struct TagSettingsTests {
 
     @Test("deleteDialogTitle: no commitments produces simple message")
     func deleteDialogTitleNoCommitments() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let tag = Wilgo.Tag(name: "Lonely", displayOrder: 0)
@@ -186,7 +173,7 @@ struct TagSettingsTests {
 
     @Test("deleteDialogTitle: one commitment produces singular message")
     func deleteDialogTitleOneCommitment() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let commitment = makeCommitment()
@@ -207,7 +194,7 @@ struct TagSettingsTests {
 
     @Test("deleteDialogTitle: multiple commitments produces plural message")
     func deleteDialogTitleMultipleCommitments() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let c1 = makeCommitment(title: "C1")

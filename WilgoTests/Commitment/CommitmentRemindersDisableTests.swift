@@ -28,12 +28,6 @@ final class CommitmentRemindersDisableTests {
     }
 
     @MainActor
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([Commitment.self, Slot.self, CheckIn.self, SlotSnooze.self, Tag.self])
-        return try ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
-    }
-
-    @MainActor
     private func makeCommitment(remindersEnabled: Bool, in ctx: ModelContext) -> Commitment {
         let anchor = date(year: 2026, month: 1, day: 1)
         let slot = Slot(start: tod(hour: 9), end: tod(hour: 11))
@@ -51,7 +45,7 @@ final class CommitmentRemindersDisableTests {
 
     @Test("reminders disabled → currentWithBehind excludes it (.disabled slotKind filtered by helper)")
     @MainActor func remindersDisabled_excludedByHelper() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(remindersEnabled: false, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
         // status(now:) returns .disabled slotKind when isRemindersEnabled==false,
@@ -61,7 +55,7 @@ final class CommitmentRemindersDisableTests {
 
     @Test("reminders enabled → currentWithBehind includes it")
     @MainActor func remindersEnabled_includedByHelper() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(remindersEnabled: true, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
         #expect(CommitmentAndSlot.currentWithBehind(commitments: [c], now: now).count == 1)
@@ -69,7 +63,7 @@ final class CommitmentRemindersDisableTests {
 
     @Test("reminders disabled → status.slotKind is .disabled (reminders off encoded in model)")
     @MainActor func remindersDisabled_statusSlotKindIsDisabled() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(remindersEnabled: false, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
         #expect(c.status(now: now).slotKind == .disabled)

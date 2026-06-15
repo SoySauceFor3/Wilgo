@@ -45,7 +45,7 @@ struct CommitmentRowView: View {
 
                 Text(targetSummaryText)
                     .font(.caption)
-                    .foregroundStyle(displayedTargetMode == .disabled ? .tertiary : .secondary)
+                    .foregroundStyle(commitment.target.configuredMode == .disabled ? .tertiary : .secondary)
             }
 
             // Fifth line: skip credits + proof-of-work
@@ -75,10 +75,15 @@ struct CommitmentRowView: View {
             }
 
             if !commitment.tags.isEmpty {
-                Text(commitment.tags.sorted { $0.displayOrder < $1.displayOrder || ($0.displayOrder == $1.displayOrder && $0.createdAt < $1.createdAt) }
-                    .map(\.name).joined(separator: ", "))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                Text(
+                    commitment.tags.sorted {
+                        $0.displayOrder < $1.displayOrder
+                            || ($0.displayOrder == $1.displayOrder && $0.createdAt < $1.createdAt)
+                    }
+                    .map(\.name).joined(separator: ", ")
+                )
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 4)
@@ -87,29 +92,13 @@ struct CommitmentRowView: View {
 
     private func slotWindowsSummary(_ commitment: Commitment) -> String {
         commitment.slots.map(\.label)
-        .joined(separator: "\n")
-    }
-
-    private var displayedTargetMode: TargetMode {
-        let psychToday = Time.startOfDay(for: Time.now())
-        return commitment.target.effectiveMode(on: psychToday)
+            .joined(separator: "\n")
     }
 
     private var targetSummaryText: String {
-        switch displayedTargetMode {
-        case .on:
-            return "\(commitment.target.count)× \(commitment.cycle.kind.adj)"
-        case let .inspirationOnly(_, until):
-            let suffix = until.map { "until \(formattedShortDate($0))" } ?? "forever"
-            return "\(commitment.target.count)× \(commitment.cycle.kind.adj) · Inspiration Only \(suffix)"
-        case .disabled:
-            return "Disabled"
+        switch commitment.target.configuredMode {
+        case .on: return "\(commitment.target.count)× \(commitment.cycle.kind.adj)"
+        case .disabled: return "Disabled"
         }
-    }
-
-    private func formattedShortDate(_ date: Date) -> String {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "MM/dd/yy"
-        return fmt.string(from: date)
     }
 }

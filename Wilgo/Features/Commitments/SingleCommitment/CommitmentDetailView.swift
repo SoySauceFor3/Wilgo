@@ -37,33 +37,21 @@ struct CommitmentDetailView: View {
         commitment.cycle.label(of: psychToday)
     }
 
-    private var displayedTargetMode: TargetMode {
-        commitment.target.effectiveMode(on: psychToday)
+    private var targetMode: TargetMode {
+        commitment.target.configuredMode
     }
 
     private var targetModeDetailText: String {
-        switch displayedTargetMode {
-        case .on:
-            return "On"
-        case let .inspirationOnly(_, until):
-            if let until {
-                return "Inspiration Only until \(formattedShortDate(until))"
-            } else {
-                return "Inspiration Only forever"
-            }
-        case .disabled:
-            return "Disabled"
+        switch targetMode {
+        case .on: return "On"
+        case .disabled: return "Disabled"
         }
     }
 
     private var targetModeShortText: String {
-        switch displayedTargetMode {
-        case .on:
-            return "On"
-        case .inspirationOnly:
-            return "Inspiration Only"
-        case .disabled:
-            return "Disabled"
+        switch targetMode {
+        case .on: return "On"
+        case .disabled: return "Disabled"
         }
     }
 
@@ -81,6 +69,7 @@ struct CommitmentDetailView: View {
                     CommitmentRowView(commitment: commitment, variant: .settings)
                     currentSection
                     historySection
+                    pastCyclesSection
                     backfillButton
                 }
                 .padding()
@@ -98,7 +87,7 @@ struct CommitmentDetailView: View {
             .sheet(isPresented: $isPresentingBackfill) {
                 BackfillSheet(commitment: commitment)
                     .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
+                    .presentationDragIndicator(.visible)
             }
         }
     }
@@ -134,13 +123,13 @@ struct CommitmentDetailView: View {
                     Text(targetModeDetailText)
                         .font(.caption)
                         .foregroundStyle(
-                            displayedTargetMode == .disabled ? .tertiary : .secondary
+                            targetMode == .disabled ? .tertiary : .secondary
                         )
                     statTile(
-                        value: displayedTargetMode != .disabled
+                        value: targetMode != .disabled
                             ? "\(checkInsInCurrentTargetCycle.count)/\(commitment.target.count)"
                             : "\(checkInsInCurrentTargetCycle.count)",
-                        label: displayedTargetMode != .disabled
+                        label: targetMode != .disabled
                             ? "Completed \(commitment.cycle.kind.thisNoun)"
                             : "Check-ins \(commitment.cycle.kind.thisNoun)"
                     )
@@ -172,13 +161,76 @@ struct CommitmentDetailView: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
+    // MARK: - Past Cycles
+
+    private var pastCycleRecords: [CycleRecord] {
+        PastCyclesFormatting.displayRecords(from: commitment.cycleRecords)
+    }
+
+    @ViewBuilder
+    private var pastCyclesSection: some View {
+        if !pastCycleRecords.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Past Cycles")
+                    .font(.headline)
+                VStack(spacing: 0) {
+                    ForEach(pastCycleRecords) { record in
+                        pastCycleRow(record)
+                        if record.id != pastCycleRecords.last?.id {
+                            Divider()
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, 16)
+            .padding(.horizontal, 14)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+    }
+
+    private func pastCycleRow(_ record: CycleRecord) -> some View {
+        let passed = record.outcome == .passed
+        let detail = PastCyclesFormatting.detailText(for: record)
+        return HStack(alignment: .top, spacing: 10) {
+            Image(systemName: passed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundStyle(passed ? .green : .red)
+                .font(.subheadline)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(cycleLabel(for: record))
+                        .font(.subheadline)
+                    Spacer()
+                    Text(PastCyclesFormatting.countText(for: record))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                if !detail.isEmpty {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
+    private func cycleLabel(for record: CycleRecord) -> String {
+        commitment.cycle.label(of: previousPsychDay(record.cycleEnd))
+    }
+
+    private func previousPsychDay(_ date: Date) -> Date {
+        Time.calendar.date(byAdding: .day, value: -1, to: date) ?? date
+    }
+
     private var statsSection: some View {
         HStack(spacing: 10) {
             statTile(
                 value: "\(commitment.checkIns.count)",
                 label: "All-time\ncheck-ins"
             )
-            displayedTargetMode != .disabled
+            targetMode != .disabled
                 ? statTile(
                     value: "\(commitment.target.count)×",
                     label: "\(commitment.cycle.kind.rawValue)\ngoal · \(targetModeShortText)")

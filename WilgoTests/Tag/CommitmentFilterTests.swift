@@ -19,20 +19,6 @@ private func applyFilter(
 
 // MARK: - Helpers
 
-@MainActor
-private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([
-        Commitment.self,
-        Slot.self,
-        CheckIn.self,
-        PositivityToken.self,
-        SlotSnooze.self,
-        Wilgo.Tag.self,
-    ])
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    return try ModelContainer(for: schema, configurations: [config])
-}
-
 private func makeCommitment(title: String = "Test") -> Commitment {
     let anchor = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1))!
     let cycle = Cycle(kind: .weekly, referencePsychDay: anchor)
@@ -54,7 +40,7 @@ struct CommitmentFilterTests {
     @Test(
         "OR logic: commitment with tag A shown when filter = {A}; commitment with tag B not shown")
     func orLogicSingleTag() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let cA = makeCommitment(title: "Has A")
@@ -81,7 +67,7 @@ struct CommitmentFilterTests {
 
     @Test("OR logic: both commitments shown when filter = {A, B}")
     func orLogicBothTags() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let cA = makeCommitment(title: "Has A")
@@ -107,7 +93,7 @@ struct CommitmentFilterTests {
 
     @Test("Empty filter: all commitments shown including untagged")
     func emptyFilterShowsAll() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let cTagged = makeCommitment(title: "Tagged")
@@ -130,7 +116,7 @@ struct CommitmentFilterTests {
 
     @Test("Untagged commitment not shown when any filter is active")
     func untaggedExcludedWhenFilterActive() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let cTagged = makeCommitment(title: "Tagged")
@@ -154,7 +140,7 @@ struct CommitmentFilterTests {
 
     @Test("Filter predicate works correctly as pure in-memory logic")
     func filterPredicatePureLogic() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let c1 = makeCommitment(title: "Alpha")

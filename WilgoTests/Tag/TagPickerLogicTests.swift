@@ -6,19 +6,6 @@ import Testing
 // MARK: - Helpers
 
 /// Callers must keep the returned container alive for the entire test.
-@MainActor
-private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([
-        Commitment.self,
-        Slot.self,
-        CheckIn.self,
-        PositivityToken.self,
-        SlotSnooze.self,
-        Wilgo.Tag.self,
-    ])
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    return try ModelContainer(for: schema, configurations: [config])
-}
 
 // MARK: - Tests
 
@@ -29,7 +16,7 @@ struct TagPickerLogicTests {
 
     @Test("First tag in empty store gets displayOrder 0")
     func firstTagDisplayOrderIsZero() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         // No tags exist → allTags is empty → max is nil → nextOrder = (-1 + 1) = 0
@@ -42,7 +29,7 @@ struct TagPickerLogicTests {
 
     @Test("Second tag gets displayOrder = existing max + 1")
     func secondTagDisplayOrderIsMaxPlusOne() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let existing = Wilgo.Tag(name: "Existing", displayOrder: 3)
@@ -74,7 +61,7 @@ struct TagPickerLogicTests {
 
     @Test("Toggling unselected tag adds it to selectedTags")
     func toggleAddsTag() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let tag = Wilgo.Tag(name: "Health", displayOrder: 0)
@@ -98,7 +85,7 @@ struct TagPickerLogicTests {
 
     @Test("Toggling selected tag removes it from selectedTags")
     func toggleRemovesTag() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let tag = Wilgo.Tag(name: "Fitness", displayOrder: 0)

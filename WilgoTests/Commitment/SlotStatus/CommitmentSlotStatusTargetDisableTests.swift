@@ -28,12 +28,6 @@ final class CommitmentSlotStatusTargetDisableTests {
     }
 
     @MainActor
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([Commitment.self, Slot.self, CheckIn.self, SlotSnooze.self, Tag.self])
-        return try ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
-    }
-
-    @MainActor
     private func makeCommitment(targetMode: TargetMode, slotHour: Int = 9, in ctx: ModelContext) -> Commitment {
         let anchor = date(year: 2026, month: 1, day: 1)
         let slot = Slot(start: tod(hour: slotHour), end: tod(hour: slotHour + 2))
@@ -52,7 +46,7 @@ final class CommitmentSlotStatusTargetDisableTests {
 
     @Test("target disabled + slot active now → kind .insideSlot, leftToDo nil")
     @MainActor func slotActive_insideSlot_leftToDoNil() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(targetMode: .disabled, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
         #expect(c.slotStatus(now: now).kind == .insideSlot)
@@ -61,7 +55,7 @@ final class CommitmentSlotStatusTargetDisableTests {
 
     @Test("target disabled + slot in future today → kind .beforeNextToday, remainingSlots non-empty")
     @MainActor func slotFuture_beforeNextToday() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(targetMode: .disabled, slotHour: 15, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
         let slotSt = c.slotStatus(now: now)
@@ -71,7 +65,7 @@ final class CommitmentSlotStatusTargetDisableTests {
 
     @Test("target disabled + no slots → kind .noSlotToday")
     @MainActor func noSlots_noSlotToday() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = Commitment(
             title: "Draw",
@@ -85,7 +79,7 @@ final class CommitmentSlotStatusTargetDisableTests {
 
     @Test("target disabled → goalProgress.isMet always false even with sufficient check-ins")
     @MainActor func manyCheckIns_notMet() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(targetMode: .disabled, in: ctx)
         let checkIn = CheckIn(commitment: c, createdAt: date(year: 2026, month: 3, day: 5, hour: 8))
@@ -98,7 +92,7 @@ final class CommitmentSlotStatusTargetDisableTests {
 
     @Test("target disabled + saturated active slot → kind .noSlotToday, remainingSlots empty")
     @MainActor func saturatedActiveSlot_noSlotToday() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 9), end: tod(hour: 11), maxCheckIns: 1)
         let c = Commitment(
@@ -120,7 +114,7 @@ final class CommitmentSlotStatusTargetDisableTests {
 
     @Test("target disabled + saturated active slot, future slot present → kind .beforeNextToday")
     @MainActor func saturatedActiveSlot_keepsFutureSlot() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let morning = Slot(start: tod(hour: 9), end: tod(hour: 11), maxCheckIns: 1)
         let afternoon = Slot(start: tod(hour: 15), end: tod(hour: 17))
@@ -145,7 +139,7 @@ final class CommitmentSlotStatusTargetDisableTests {
 
     @Test("target disabled + out-of-window check-in does not saturate active slot")
     @MainActor func outOfWindowCheckIn_doesNotSaturateActiveSlot() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 17), end: tod(hour: 20), maxCheckIns: 1)
         let c = Commitment(

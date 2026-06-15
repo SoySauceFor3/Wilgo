@@ -17,37 +17,13 @@ struct Target: Codable, Hashable {
     }
 }
 
+// Legacy code, can be removed and replaced with just `var mode: TargetMode` if needed later
 extension Target {
-    var configuredMode: TargetMode {
-        mode
-    }
-
-    func effectiveMode(on psychDay: Date) -> TargetMode {
-        do {
-            return try mode.effectiveMode(on: psychDay)
-        } catch {
-            return .on
-        }
-
-    }
-
-    func effectiveMode(from startPsychDay: Date, to endPsychDay: Date) -> TargetMode {
-        do {
-            return try mode.effectiveMode(from: startPsychDay, to: endPsychDay)
-        } catch {
-            return .on
-        }
-
-    }
+    var configuredMode: TargetMode { mode }
 
     mutating func setConfiguredMode(_ mode: TargetMode) {
         self.mode = mode
     }
-
-    mutating func normalizeMode(afterReportedThrough reportedEndPsychDay: Date) {
-        mode = mode.normalized(afterReportedThrough: reportedEndPsychDay)
-    }
-
 }
 
 // MARK: - Commitment
@@ -82,6 +58,9 @@ final class Commitment {
 
     @Relationship(deleteRule: .nullify, inverse: \Tag.commitments)
     var tags: [Tag] = []  // nullify: deleting a Tag removes it from this array; Commitment survives
+
+    @Relationship(deleteRule: .cascade, inverse: \CycleRecord.commitment)
+    var cycleRecords: [CycleRecord] = []
 
     /// When false, this commitment is excluded from Stage reminders and CatchUpReminder notifications.
     var isRemindersEnabled: Bool = true
@@ -222,7 +201,7 @@ extension Commitment {
     /// When the target is disabled, returns `GoalProgress(leftToDo: nil)` — `isMet` is always `false`.
     func goalProgress(now: Date = Time.now()) -> GoalProgress {
         let nowPsychDay = Time.startOfDay(for: now)
-        if case .disabled = target.effectiveMode(on: nowPsychDay) {
+        if case .disabled = target.configuredMode {
             return GoalProgress(leftToDo: nil)
         }
         let startDay = cycle.startDayOfCycle(including: nowPsychDay)

@@ -22,11 +22,7 @@
 // }
 
 // @MainActor
-// private func makeContainer() throws -> ModelContainer {
-//     let schema = Schema([Commitment.self, Slot.self, CheckIn.self])
-//     let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-//     return try ModelContainer(for: schema, configurations: [config])
-// }
+//
 
 // private func makeSlot(startHour: Int, endHour: Int) -> Slot {
 //     Slot(start: timeOfDay(hour: startHour), end: timeOfDay(hour: endHour))
@@ -87,7 +83,7 @@
 
 //         @Test("commitments whose daily goal has been met → empty")
 //         @MainActor func commitmentsWithMetDailyGoal() throws {
-//             let container = try makeContainer()
+//             let container = try makeTestContainer()
 //             let ctx = container.mainContext
 //             let commitment = makeCommitment(in: ctx, slots: [wideSlot()])
 //             ctx.insert(
@@ -98,7 +94,7 @@
 
 //         @Test("overlap with now → commitment included")
 //         @MainActor func overlapWithNowIncluded() throws {
-//             let container = try makeContainer()
+//             let container = try makeTestContainer()
 //             let ctx = container.mainContext
 //             let commitment = makeCommitment(in: ctx, slots: [wideSlot()])
 //             let result = CommitmentAndSlot.current(commitments: [commitment])
@@ -108,7 +104,7 @@
 
 //         @Test("more urgent slot (less remaining fraction) sorts first")
 //         @MainActor func sortsByRemainingFraction() throws {
-//             let container = try makeContainer()
+//             let container = try makeTestContainer()
 //             let ctx = container.mainContext
 //             let commitmentA = makeCommitment(in: ctx, title: "A", slots: [wideSlot(endHour: 23)])
 //             let commitmentB = makeCommitment(in: ctx, title: "B", slots: [wideSlot(endHour: 22)])
@@ -150,7 +146,7 @@
 
 //         @Test("commitment with no slots → omitted")
 //         @MainActor func commitmentWithNoSlotsOmitted() throws {
-//             let container = try makeContainer()
+//             let container = try makeTestContainer()
 //             let ctx = container.mainContext
 //             let commitment = makeCommitment(in: ctx)
 //             let result = CommitmentAndSlot.upcoming(
@@ -160,7 +156,7 @@
 
 //         @Test("commitment with a future slot → included")
 //         @MainActor func futureSlotIncluded() throws {
-//             let container = try makeContainer()
+//             let container = try makeTestContainer()
 //             let ctx = container.mainContext
 //             let commitment = makeCommitment(in: ctx, slots: [makeSlot(startHour: 14, endHour: 15)])  // afternoon is later than noon.
 //             let result = CommitmentAndSlot.upcoming(
@@ -171,7 +167,7 @@
 
 //         @Test("commitment with met daily goal → commitment omitted")
 //         @MainActor func commitmentWithMetDailyGoalOmitted() throws {
-//             let container = try makeContainer()
+//             let container = try makeTestContainer()
 //             let ctx = container.mainContext
 //             let commitment = makeCommitment(
 //                 in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)], goalCountPerDay: 1)
@@ -185,7 +181,7 @@
 
 //         @Test("multiple commitments: sorted by ascending slot start time")
 //         @MainActor func sortedBySlotStartTime() throws {
-//             let container = try makeContainer()
+//             let container = try makeTestContainer()
 //             let ctx = container.mainContext
 //             // Insert afternoon-first commitment to prove we're not relying on insertion order.
 //             let commitmentLate = makeCommitment(
@@ -203,7 +199,7 @@
 
 //         @Test("only first future slot per commitment is returned")
 //         @MainActor func onlyFirstFutureSlot() throws {
-//             let container = try makeContainer()
+//             let container = try makeTestContainer()
 //             let ctx = container.mainContext
 //             let morning = makeSlot(startHour: 7, endHour: 8)
 //             let afternoon = makeSlot(startHour: 14, endHour: 15)
@@ -246,7 +242,7 @@
 
 //         @Test("simple one slot case")
 //         @MainActor func oneSlotCase() throws {
-//             let container = try makeContainer()
+//             let container = try makeTestContainer()
 //             let ctx = container.mainContext
 //             let commitment = makeCommitment(in: ctx, slots: [makeSlot(startHour: 9, endHour: 10)])
 //             let result = CommitmentAndSlot.nextTransitionDate(commitments: [commitment])
@@ -256,7 +252,7 @@
 
 //         @Test("start is already passed now")
 //         @MainActor func startIsAlreadyPassedNow() throws {
-//             let container = try makeContainer()
+//             let container = try makeTestContainer()
 //             let ctx = container.mainContext
 //             let commitment = makeCommitment(in: ctx, slots: [makeSlot(startHour: 4, endHour: 10)])
 //             let result = CommitmentAndSlot.nextTransitionDate(commitments: [commitment])
@@ -266,7 +262,7 @@
 
 //         @Test("multiple slots case")
 //         @MainActor func multipleSlotsCase() throws {
-//             let container = try makeContainer()
+//             let container = try makeTestContainer()
 //             let ctx = container.mainContext
 //             let commitment = makeCommitment(
 //                 in: ctx,

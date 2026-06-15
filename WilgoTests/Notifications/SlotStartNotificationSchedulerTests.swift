@@ -31,15 +31,6 @@ final class SlotStartNotificationSchedulerTests {
     }
 
     @MainActor
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([Commitment.self, Slot.self, CheckIn.self, SlotSnooze.self, Tag.self])
-        return try ModelContainer(
-            for: schema,
-            configurations: [ModelConfiguration(isStoredInMemoryOnly: true)]
-        )
-    }
-
-    @MainActor
     private func makeCommitment(
         slots slotDefs: [(start: Int, end: Int)],
         targetCount: Int = 3,
@@ -72,7 +63,7 @@ final class SlotStartNotificationSchedulerTests {
     @Test("single commitment with one slot returns its upcoming start")
     @MainActor func startTimeInRangeToCommitments_singleCommitment_oneSlot_returnsSlotStart() throws
     {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], in: ctx)
         let now = date(year: 2026, month: 3, day: 5, hour: 7)
@@ -88,7 +79,7 @@ final class SlotStartNotificationSchedulerTests {
     @Test("two commitments at the same slot start are grouped into one entry")
     @MainActor func startTimeInRangeToCommitments_twoCommitmentsAtSameTime_groupedTogether() throws
     {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c1 = makeCommitment(slots: [(9, 11)], in: ctx)
         let c2 = makeCommitment(slots: [(9, 11)], in: ctx)
@@ -103,7 +94,7 @@ final class SlotStartNotificationSchedulerTests {
 
     @Test("commitment with reminders disabled is excluded")
     @MainActor func startTimeInRangeToCommitments_remindersDisabled_excluded() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], isRemindersEnabled: false, in: ctx)
         let now = date(year: 2026, month: 3, day: 5, hour: 7)
@@ -116,7 +107,7 @@ final class SlotStartNotificationSchedulerTests {
 
     @Test("commitment whose goal is already met is excluded")
     @MainActor func startTimeInRangeToCommitments_goalAlreadyMet_excluded() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], targetCount: 1, in: ctx)
         // One check-in satisfies the daily target of 1
@@ -131,7 +122,7 @@ final class SlotStartNotificationSchedulerTests {
 
     @Test("slot starts beyond horizon are excluded")
     @MainActor func startTimeInRangeToCommitments_beyondHorizon_excluded() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], in: ctx)
         // horizon is before any slot starts
@@ -146,7 +137,7 @@ final class SlotStartNotificationSchedulerTests {
 
     @Test("results are capped at maxPendingCount")
     @MainActor func startTimeInRangeToCommitments_cappedAtMax() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         // 4 slots/day × 14 days >> 48
         let c = makeCommitment(
@@ -163,7 +154,7 @@ final class SlotStartNotificationSchedulerTests {
 
     @Test("single commitment notification has correct title")
     @MainActor func makeRequest_singleCommitment_titleContainsCommitmentTitle() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], in: ctx)
         c.title = "Morning Run"
@@ -176,7 +167,7 @@ final class SlotStartNotificationSchedulerTests {
 
     @Test("multi-commitment notification title contains count")
     @MainActor func makeRequest_multiCommitment_titleContainsCount() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c1 = makeCommitment(slots: [(9, 11)], in: ctx)
         let c2 = makeCommitment(slots: [(9, 11)], in: ctx)
@@ -189,7 +180,7 @@ final class SlotStartNotificationSchedulerTests {
 
     @Test("single commitment with encouragement uses it as body")
     @MainActor func makeRequest_singleWithEncouragement_bodyIsEncouragement() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], in: ctx)
         c.encouragements = ["You got this!"]
@@ -202,7 +193,7 @@ final class SlotStartNotificationSchedulerTests {
 
     @Test("notification identifier encodes the fire date")
     @MainActor func makeRequest_identifierEncodesFireDate() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], in: ctx)
         let fireDate = date(year: 2026, month: 3, day: 5, hour: 9)
@@ -216,7 +207,7 @@ final class SlotStartNotificationSchedulerTests {
 
     @Test("commitment with goal met and continueRemindersAfterGoalMet=true is included")
     @MainActor func startTimeInRangeToCommitments_goalMet_continueEnabled_included() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], targetCount: 1, in: ctx)
         c.continueRemindersAfterGoalMet = true
@@ -233,7 +224,7 @@ final class SlotStartNotificationSchedulerTests {
 
     @Test("commitment with goal met and continueRemindersAfterGoalMet=false is excluded (default)")
     @MainActor func startTimeInRangeToCommitments_goalMet_continueDisabled_excluded() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], targetCount: 1, in: ctx)
         c.continueRemindersAfterGoalMet = false

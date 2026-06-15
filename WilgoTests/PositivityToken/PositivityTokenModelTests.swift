@@ -4,23 +4,11 @@ import Testing
 @testable import Wilgo
 
 @MainActor
-private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([
-        Commitment.self,
-        Slot.self,
-        CheckIn.self,
-        PositivityToken.self,
-        Tag.self,
-    ])
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    return try ModelContainer(for: schema, configurations: [config])
-}
-
-@MainActor
 struct PositivityTokenModelTests {
-    /// A PositivityToken can be inserted into a SwiftData container without any linked check-in.
-    @Test func insertTokenWithoutCheckIn() throws {
-        let container = try makeContainer()
+    // MARK: - Basic persistence
+
+    @Test func tokenPersistsWithReasonAndCreatedAt() throws {
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let token = PositivityToken(reason: "I stayed consistent this week")
@@ -30,27 +18,23 @@ struct PositivityTokenModelTests {
         let fetched = try ctx.fetch(FetchDescriptor<PositivityToken>())
         #expect(fetched.count == 1)
         #expect(fetched.first?.reason == "I stayed consistent this week")
-        #expect(fetched.first?.status == .active)
-        #expect(fetched.first?.dayOfStatus == nil)
     }
 
-    /// PositivityToken.init no longer accepts a checkIn parameter.
-    /// Verify the default init produces a well-formed token.
-    @Test func defaultInitValues() {
+    @Test func defaultInitHasNilConsumedByCycleRecord() {
+        let token = PositivityToken(reason: "growth mindset")
+        #expect(token.consumedByCycleRecord == nil)
+    }
+
+    @Test func defaultInitCreatedAtIsNow() {
         let before = Date()
         let token = PositivityToken(reason: "growth mindset")
         let after = Date()
-
-        #expect(token.reason == "growth mindset")
-        #expect(token.status == .active)
-        #expect(token.dayOfStatus == nil)
         #expect(token.createdAt >= before)
         #expect(token.createdAt <= after)
     }
 
-    /// Multiple tokens can coexist in the store without any check-in linkage.
     @Test func multipleTokensInsertedSuccessfully() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let reasons = ["reason A", "reason B", "reason C"]
@@ -61,13 +45,11 @@ struct PositivityTokenModelTests {
 
         let fetched = try ctx.fetch(FetchDescriptor<PositivityToken>())
         #expect(fetched.count == 3)
-        let fetchedReasons = Set(fetched.map(\.reason))
-        #expect(fetchedReasons == Set(reasons))
+        #expect(Set(fetched.map(\.reason)) == Set(reasons))
     }
 
-    /// A token with a custom createdAt date is stored correctly.
-    @Test func customCreatedAt() throws {
-        let container = try makeContainer()
+    @Test func customCreatedAtRoundTrips() throws {
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         var comps = DateComponents()
@@ -82,5 +64,82 @@ struct PositivityTokenModelTests {
 
         let fetched = try ctx.fetch(FetchDescriptor<PositivityToken>())
         #expect(fetched.first?.createdAt == customDate)
+    }
+
+    // MARK: - Free vs consumed via relationship
+
+    @Test func tokenIsFreeWhenNotLinkedToCycleRecord() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+
+        let token = PositivityToken(reason: "great week")
+        ctx.insert(token)
+        try ctx.save()
+
+        #expect(token.consumedByCycleRecord == nil)
+    }
+
+    @Test func tokenIsConsumedWhenLinkedToCycleRecord() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+
+        let commitment = Commitment(
+            title: "Leetcode", cycle: Cycle.makeDefault(.weekly),
+            slots: [], target: Target(count: 3)
+        )
+        ctx.insert(commitment)
+
+        let pt = PositivityToken(reason: "I cooked every day")
+        ctx.insert(pt)
+
+        let record = CycleRecord(
+            commitment: commitment,
+            snapshotTitle: "Leetcode",
+            cycleStart: Date(), cycleEnd: Date(),
+            targetCount: 3, checkInCount: 0,
+            outcome: .punished, reflectionText: "Lazy.",
+            emojiReactions: [], consumedPT: pt
+        )
+        ctx.insert(record)
+        try ctx.save()
+
+        #expect(pt.consumedByCycleRecord != nil)
+    }
+
+    // MARK: - No status/dayOfStatus
+
+    @Test func tokenHasNoStatusProperty() {
+        let token = PositivityToken(reason: "test")
+        // status and dayOfStatus no longer exist — free vs consumed is via consumedByCycleRecord
+        _ = token.consumedByCycleRecord  // this compiles; status would not
+    }
+
+    // MARK: - Unrestricted minting
+
+    @Test func canMintWithoutAnyCheckIns() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+
+        // No check-ins exist — minting should still succeed
+        let token = PositivityToken(reason: "something good happened")
+        ctx.insert(token)
+        try ctx.save()
+
+        let fetched = try ctx.fetch(FetchDescriptor<PositivityToken>())
+        #expect(fetched.count == 1)
+    }
+
+    @Test func canMintMoreTokensThanCheckIns() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+
+        // 0 check-ins, mint 5 tokens — no restriction
+        for i in 0..<5 {
+            ctx.insert(PositivityToken(reason: "win \(i)"))
+        }
+        try ctx.save()
+
+        let fetched = try ctx.fetch(FetchDescriptor<PositivityToken>())
+        #expect(fetched.count == 5)
     }
 }

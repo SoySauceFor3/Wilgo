@@ -4,19 +4,6 @@ import Testing
 @testable import Wilgo
 
 @MainActor
-private func makeContainer() throws -> ModelContainer {
-    let schema = Schema([
-        Commitment.self,
-        Slot.self,
-        CheckIn.self,
-        PositivityToken.self,
-        Tag.self,
-    ])
-    let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-    return try ModelContainer(for: schema, configurations: [config])
-}
-
-@MainActor
 private func createTestCommitment(ctx: ModelContext) -> Commitment {
     let anchor = Date()
     let cycle = Cycle(kind: .daily, referencePsychDay: anchor)
@@ -34,7 +21,7 @@ private func createTestCommitment(ctx: ModelContext) -> Commitment {
 struct CheckInModelTests {
     /// A CheckIn inserted without specifying a source defaults to .app.
     @Test func defaultSourceIsApp() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let commitment = createTestCommitment(ctx: ctx)
@@ -51,7 +38,7 @@ struct CheckInModelTests {
 
     /// A CheckIn can be created with an explicit source, and it is stored correctly.
     @Test func explicitSourceIsStored() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let commitment = createTestCommitment(ctx: ctx)
@@ -87,7 +74,7 @@ struct CheckInModelTests {
 
     /// Multiple CheckIn objects with different sources can coexist.
     @Test func multipleCheckInsWithDifferentSources() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
 
         let commitment = createTestCommitment(ctx: ctx)

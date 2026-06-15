@@ -7,13 +7,6 @@ import Testing
 final class SlotPsychDayTests {
     // MARK: - Helpers
 
-    @MainActor
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([Commitment.self, Slot.self, CheckIn.self, SlotSnooze.self, Tag.self])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: true)
-        return try ModelContainer(for: schema, configurations: [config])
-    }
-
     private func tod(hour: Int, minute: Int = 0) -> Date {
         var c = DateComponents()
         c.year = 2000
@@ -60,7 +53,7 @@ final class SlotPsychDayTests {
 
     @Test("normal slot: returns psychDay of time")
     @MainActor func normal_returnsCurrentPsychDay() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let slot = makeSlot(startHour: 9, endHour: 11, in: container.mainContext)
 
         let time = date(year: 2026, month: 3, day: 5, hour: 10)
@@ -74,7 +67,7 @@ final class SlotPsychDayTests {
 
     @Test("cross-midnight: time is pre-midnight (11:30pm) → psychDay is that same calendar day")
     @MainActor func crossMidnight_preMidnight_returnsSameDay() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         // Slot 11pm–1am
         let slot = makeSlot(startHour: 23, endHour: 1, in: container.mainContext)
 
@@ -90,7 +83,7 @@ final class SlotPsychDayTests {
         "cross-midnight: time is post-midnight (12:30am Jan 1) → psychDay is previous calendar day (Dec 31)"
     )
     @MainActor func crossMidnight_postMidnight_returnsPreviousDay() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         // Slot 11pm–1am
         let slot = makeSlot(startHour: 23, endHour: 1, in: container.mainContext)
 
@@ -106,7 +99,7 @@ final class SlotPsychDayTests {
 
     @Test("wrong time of day → throws slotNotActive")
     @MainActor func inactive_wrongTime_throws() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         // Slot 9am–11am; time is 3pm (outside window)
         let slot = makeSlot(startHour: 9, endHour: 11, in: container.mainContext)
 
@@ -118,7 +111,7 @@ final class SlotPsychDayTests {
 
     @Test("wrong recurrence day → throws slotNotActive")
     @MainActor func inactive_wrongDay_throws() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         // Monday-only slot; time is a Tuesday
         let slot = makeSlot(
             startHour: 9, endHour: 11, recurrence: .specificWeekdays([2]), in: container.mainContext

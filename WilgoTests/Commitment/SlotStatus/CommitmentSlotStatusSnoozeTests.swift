@@ -5,12 +5,6 @@ import Testing
 
 @Suite(.serialized)
 final class CommitmentSlotStatusSnoozeTests {
-    @MainActor
-    private func makeContainer() throws -> ModelContainer {
-        let schema = Schema([Commitment.self, Slot.self, CheckIn.self, SlotSnooze.self, Tag.self])
-        return try ModelContainer(for: schema, configurations: [ModelConfiguration(isStoredInMemoryOnly: true)])
-    }
-
     private func tod(hour: Int, minute: Int = 0) -> Date {
         var c = DateComponents()
         c.year = 2000
@@ -50,7 +44,7 @@ final class CommitmentSlotStatusSnoozeTests {
 
     @Test("active slot, not snoozed → kind is .insideSlot")
     @MainActor func notSnoozed_isInsideSlot() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let c = makeCommitment(slots: [(9, 11)], in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
         #expect(c.slotStatus(now: now).kind == .insideSlot)
@@ -58,7 +52,7 @@ final class CommitmentSlotStatusSnoozeTests {
 
     @Test("9–11am snoozed, 3–5pm slot remains → kind is .beforeNextToday")
     @MainActor func snoozedSlot_dropsToBeforeNextToday() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let commitment = makeCommitment(slots: [(9, 11), (15, 17)], in: ctx)
         commitment.cycle = Cycle(kind: .daily, referencePsychDay: date(year: 2026, month: 1, day: 1))
@@ -75,7 +69,7 @@ final class CommitmentSlotStatusSnoozeTests {
 
     @Test("sole slot snoozed, no other slots → kind is .noSlotToday, behindCount > 0")
     @MainActor func soleSlotSnoozed_noSlotToday_behindCountPositive() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let commitment = makeCommitment(slots: [(9, 11)], in: ctx)
 
@@ -94,7 +88,7 @@ final class CommitmentSlotStatusSnoozeTests {
 
     @Test("snooze on today's occurrence does not affect future occurrences (weekly cycle)")
     @MainActor func snoozeDoesNotAffectFutureOccurrence() throws {
-        let container = try makeContainer()
+        let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 9), end: tod(hour: 11), recurrence: .everyDay)
         let commitment = Commitment(
