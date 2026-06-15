@@ -62,7 +62,7 @@ struct SettingsView: View {
                         get: { weekStartsOnMonday },
                         set: { newValue in
                             guard newValue != weekStartsOnMonday else { return }
-                            let all = (try? modelContext.fetch(FetchDescriptor<Commitment>())) ?? []
+                            let all = (try? modelContext.fetch(.activeOnly)) ?? []
                             let affected = WeekStartChangeHandler.affectedCommitments(all, newStartsOnMonday: newValue)
                             if affected.isEmpty {
                                 weekStartsOnMonday = newValue

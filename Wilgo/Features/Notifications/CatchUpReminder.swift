@@ -71,7 +71,7 @@ enum CatchUpReminder {
     ) {
         let now = now ?? Time.now()
         let context = ModelContext(WilgoApp.sharedModelContainer)
-        let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
+        let commitments = (try? context.fetch(.activeOnly)) ?? []
         let remindersOn = commitments.filter(\.isRemindersEnabled)
         let catchUp = CommitmentAndSlot.catchUpWithBehind(commitments: remindersOn)
 

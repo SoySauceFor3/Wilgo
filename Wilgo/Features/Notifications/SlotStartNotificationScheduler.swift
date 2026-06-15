@@ -17,7 +17,7 @@ enum SlotStartNotificationScheduler {
     @MainActor
     static func refresh(now: Date = Time.now()) {
         let context = WilgoApp.sharedModelContainer.mainContext
-        let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
+        let commitments = (try? context.fetch(.activeOnly)) ?? []
 
         let grouped = startTimeInRangeToCommitments(for: commitments, from: now)
         let requests = grouped.keys.sorted().prefix(maxPendingCount).compactMap {

@@ -3,7 +3,9 @@ import SwiftUI
 
 struct ListCommitmentView: View {
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
+    @Query(filter: Commitment.activePredicate,
+           sort: \Commitment.createdAt, order: .forward)
+    private var commitments: [Commitment]
     @State private var isPresentingAddCommitment: Bool = false
     @State private var commitmentForDetail: Commitment?
     @State private var commitmentForEdit: Commitment?

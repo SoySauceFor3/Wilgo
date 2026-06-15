@@ -7,7 +7,9 @@ import SwiftUI
 
 struct StageView: View {
     @Environment(\.scenePhase) private var scenePhase
-    @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
+    @Query(filter: Commitment.activePredicate,
+           sort: \Commitment.createdAt, order: .forward)
+    private var commitments: [Commitment]
     /// Observed only to force a refresh when check-ins are inserted/deleted,
     /// since @Query for Commitment does not re-fire on child relationship changes.
     @Query private var checkIns: [CheckIn]
