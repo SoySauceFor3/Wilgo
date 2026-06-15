@@ -93,4 +93,48 @@ final class CommitmentArchiveTests {
         let fetched = try container.mainContext.fetch(.activeOnly)
         #expect(fetched.contains { $0.id == active.id })
     }
+
+    @Test("Unarchiving sets archivedAt back to nil")
+    @MainActor func unarchivingSetsArchivedAtToNil() throws {
+        let container = try makeTestContainer()
+        let c = makeCommitment(in: container.mainContext)
+        try container.mainContext.save()
+
+        c.archivedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        try container.mainContext.save()
+
+        c.archivedAt = nil
+        try container.mainContext.save()
+
+        let fetched = try container.mainContext.fetch(FetchDescriptor<Commitment>())
+        let saved = try #require(fetched.first { $0.id == c.id })
+        #expect(saved.archivedAt == nil)
+    }
+
+    @Test("Archived list query returns only commitments with non-nil archivedAt, sorted by archivedAt descending")
+    @MainActor func archivedListQuerySortedDescending() throws {
+        let container = try makeTestContainer()
+
+        let oldest = makeCommitment(in: container.mainContext)
+        let middle = makeCommitment(in: container.mainContext)
+        let newest = makeCommitment(in: container.mainContext)
+        let active = makeCommitment(in: container.mainContext)
+
+        oldest.archivedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        middle.archivedAt = Date(timeIntervalSince1970: 1_710_000_000)
+        newest.archivedAt = Date(timeIntervalSince1970: 1_720_000_000)
+        // `active` is left with archivedAt == nil.
+
+        try container.mainContext.save()
+
+        let fetched = try container.mainContext.fetch(
+            FetchDescriptor<Commitment>(
+                predicate: #Predicate<Commitment> { $0.archivedAt != nil },
+                sortBy: [SortDescriptor(\.archivedAt, order: .reverse)]
+            )
+        )
+
+        #expect(!fetched.contains { $0.id == active.id })
+        #expect(fetched.map(\.id) == [newest.id, middle.id, oldest.id])
+    }
 }
