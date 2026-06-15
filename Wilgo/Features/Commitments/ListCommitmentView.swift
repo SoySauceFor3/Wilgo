@@ -2,7 +2,6 @@ import SwiftData
 import SwiftUI
 
 struct ListCommitmentView: View {
-    @Environment(\.modelContext) private var modelContext
     @Query(filter: Commitment.activePredicate,
            sort: \Commitment.createdAt, order: .forward)
     private var commitments: [Commitment]
@@ -30,8 +29,15 @@ struct ListCommitmentView: View {
                         .onTapGesture {
                             commitmentForDetail = commitment
                         }
+                        .swipeActions(edge: .trailing) {
+                            Button {
+                                archiveCommitment(commitment)
+                            } label: {
+                                Label("Archive", systemImage: "archivebox")
+                            }
+                            .tint(.orange)
+                        }
                 }
-                .onDelete(perform: deleteCommitments)
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Commitments")
@@ -42,10 +48,6 @@ struct ListCommitmentView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    EditButton()
                 }
             }
             .sheet(isPresented: $isPresentingAddCommitment) {
@@ -68,11 +70,9 @@ struct ListCommitmentView: View {
         }
     }
 
-    private func deleteCommitments(offsets: IndexSet) {
+    private func archiveCommitment(_ commitment: Commitment) {
         withAnimation {
-            for index in offsets {
-                modelContext.delete(filteredCommitments[index])
-            }
+            commitment.archivedAt = Date()
         }
         CommitmentChangeRefresher.refreshAll()
     }

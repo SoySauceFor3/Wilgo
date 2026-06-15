@@ -70,6 +70,20 @@ final class CommitmentArchiveTests {
         #expect(!fetched.contains { $0.id == archived.id })
     }
 
+    @Test("archiving a commitment sets archivedAt to a non-nil date")
+    @MainActor func archivingSetsArchivedAt() throws {
+        let container = try makeTestContainer()
+        let c = makeCommitment(in: container.mainContext)
+        try container.mainContext.save()
+
+        c.archivedAt = Date()
+        try container.mainContext.save()
+
+        let fetched = try container.mainContext.fetch(FetchDescriptor<Commitment>())
+        let saved = try #require(fetched.first { $0.id == c.id })
+        #expect(saved.archivedAt != nil)
+    }
+
     @Test("activePredicate / activeOnly includes a commitment with nil archivedAt")
     @MainActor func activeOnlyIncludesActive() throws {
         let container = try makeTestContainer()
