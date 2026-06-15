@@ -62,12 +62,14 @@ struct CommitmentDetailView: View {
         return false
     }
 
+    private var isArchived: Bool { commitment.archivedAt != nil }
+
     var body: some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
                     CommitmentRowView(commitment: commitment, variant: .settings)
-                    currentSection
+                    if !isArchived { currentSection }
                     historySection
                     pastCyclesSection
                     backfillButton
@@ -80,8 +82,10 @@ struct CommitmentDetailView: View {
                 ToolbarItem(placement: .topBarLeading) {
                     Button("Done") { dismiss() }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Edit") { onEdit?() }
+                if !isArchived {
+                    ToolbarItem(placement: .topBarTrailing) {
+                        Button("Edit") { onEdit?() }
+                    }
                 }
             }
             .sheet(isPresented: $isPresentingBackfill) {
