@@ -87,6 +87,7 @@
 			membershipExceptions = (
 				CheckIn.swift,
 				Commitment.swift,
+				"Commitment+FetchDescriptor.swift",
 				Cycle.swift,
 				CycleRecord.swift,
 				PositivityToken.swift,
