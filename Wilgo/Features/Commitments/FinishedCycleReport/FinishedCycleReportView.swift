@@ -7,7 +7,9 @@ struct FinishedCycleReportView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
+    @Query(filter: Commitment.activePredicate,
+           sort: \Commitment.createdAt, order: .forward)
+    private var commitments: [Commitment]
     @Query private var allTokens: [PositivityToken]
 
     /// Per-cycle editable state, keyed by `CycleReport.id`. Persists across

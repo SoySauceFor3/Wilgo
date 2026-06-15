@@ -34,6 +34,8 @@ final class Commitment {
     var id: UUID
     var title: String
     var createdAt: Date
+    /// When the commitment was archived. Nil means the commitment is active.
+    var archivedAt: Date?
 
     /// Historical completion / skip records for this commitment.
     @Relationship(deleteRule: .cascade, inverse: \CheckIn.commitment)

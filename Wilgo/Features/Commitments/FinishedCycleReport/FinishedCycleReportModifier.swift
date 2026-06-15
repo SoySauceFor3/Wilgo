@@ -74,7 +74,7 @@ struct FinishedCycleReportModifier: ViewModifier {
         }
 
         do {
-            let commitments = try modelContext.fetch(FetchDescriptor<Commitment>())
+            let commitments = try modelContext.fetch(.activeOnly)
             normalizeExpiredTargetModes(in: commitments, afterReportedThrough: request.endPsychDay)
             try modelContext.save()
         } catch {
@@ -87,7 +87,7 @@ struct FinishedCycleReportModifier: ViewModifier {
         // The data set is small (O(tens) of commitments) and this is a one-time
         // check on scene activation — not worth the complexity of actor hopping.
         // If commitment data ever grows large, move to a background ModelContext.
-        let commitments = try modelContext.fetch(FetchDescriptor<Commitment>())
+        let commitments = try modelContext.fetch(.activeOnly)
         print(
             "[FCR] anyFinishedCycles: fetched \(commitments.count) commitments, window=[\(request.startPsychDay), \(request.endPsychDay))"
         )

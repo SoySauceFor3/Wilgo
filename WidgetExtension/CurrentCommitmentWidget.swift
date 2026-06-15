@@ -116,7 +116,7 @@ struct CurrentCommitmentProvider: TimelineProvider {
             return CurrentCommitmentEntry(date: date, snapshots: [])
         }
         let context = ModelContext(container)
-        let all = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
+        let all = (try? context.fetch(.activeOnly)) ?? []
         return CurrentCommitmentEntry(
             date: date, snapshots: buildSnapshots(commitments: all, now: date))
     }
@@ -154,7 +154,7 @@ struct CurrentCommitmentProvider: TimelineProvider {
         let allCommitments: [Commitment]
         if let container = try? makeContainer() {
             allCommitments =
-                (try? ModelContext(container).fetch(FetchDescriptor<Commitment>())) ?? []
+                (try? ModelContext(container).fetch(.activeOnly)) ?? []
         } else {
             allCommitments = []
         }

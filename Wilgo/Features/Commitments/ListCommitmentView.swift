@@ -2,8 +2,9 @@ import SwiftData
 import SwiftUI
 
 struct ListCommitmentView: View {
-    @Environment(\.modelContext) private var modelContext
-    @Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
+    @Query(filter: Commitment.activePredicate,
+           sort: \Commitment.createdAt, order: .forward)
+    private var commitments: [Commitment]
     @State private var isPresentingAddCommitment: Bool = false
     @State private var commitmentForDetail: Commitment?
     @State private var commitmentForEdit: Commitment?
@@ -22,14 +23,30 @@ struct ListCommitmentView: View {
         NavigationStack {
             TagFilterChipsView(selectedTagIDs: $selectedFilterTagIDs)
             List {
-                ForEach(filteredCommitments) { commitment in
-                    CommitmentRowView(commitment: commitment)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            commitmentForDetail = commitment
-                        }
+                Section {
+                    NavigationLink(destination: ArchivedCommitmentsView()) {
+                        Label("Archived", systemImage: "archivebox")
+                            .foregroundStyle(.secondary)
+                            .font(.subheadline)
+                    }
                 }
-                .onDelete(perform: deleteCommitments)
+                Section {
+                    ForEach(filteredCommitments) { commitment in
+                        CommitmentRowView(commitment: commitment)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                commitmentForDetail = commitment
+                            }
+                            .swipeActions(edge: .trailing) {
+                                Button {
+                                    archiveCommitment(commitment)
+                                } label: {
+                                    Label("Archive", systemImage: "archivebox")
+                                }
+                                .tint(.orange)
+                            }
+                    }
+                }
             }
             .listStyle(.insetGrouped)
             .navigationTitle("Commitments")
@@ -40,10 +57,6 @@ struct ListCommitmentView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
-                }
-
-                ToolbarItem(placement: .topBarTrailing) {
-                    EditButton()
                 }
             }
             .sheet(isPresented: $isPresentingAddCommitment) {
@@ -66,13 +79,11 @@ struct ListCommitmentView: View {
         }
     }
 
-    private func deleteCommitments(offsets: IndexSet) {
+    private func archiveCommitment(_ commitment: Commitment) {
         withAnimation {
-            for index in offsets {
-                modelContext.delete(filteredCommitments[index])
-            }
+            commitment.archivedAt = Date()
         }
-        SlotStartNotificationScheduler.refresh()
+        CommitmentChangeRefresher.refreshAll()
     }
 }
 

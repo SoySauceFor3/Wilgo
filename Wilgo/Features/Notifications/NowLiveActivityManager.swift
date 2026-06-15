@@ -22,7 +22,7 @@ enum NowLiveActivityManager {
     @MainActor
     private static func apply() async {
         let context = ModelContext.wilgoMain
-        let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
+        let commitments = (try? context.fetch(.activeOnly)) ?? []
         let now = Time.now()
         let current = CommitmentAndSlot.currentWithBehind(
             commitments: commitments,
@@ -130,7 +130,7 @@ enum NowLiveActivityManager {
     private static func scheduleBackgroundTask() {
         let now = Time.now()
         let context = ModelContext.wilgoMain
-        let commitments = (try? context.fetch(FetchDescriptor<Commitment>())) ?? []
+        let commitments = (try? context.fetch(.activeOnly)) ?? []
         let nextDate =
             CommitmentAndSlot.nextTransitionDate(commitments: commitments, now: now)
             ?? now.addingTimeInterval(60 * 60)  // 1-hour fallback when there are no commitments
