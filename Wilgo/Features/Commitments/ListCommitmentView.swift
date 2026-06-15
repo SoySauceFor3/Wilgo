@@ -23,20 +23,29 @@ struct ListCommitmentView: View {
         NavigationStack {
             TagFilterChipsView(selectedTagIDs: $selectedFilterTagIDs)
             List {
-                ForEach(filteredCommitments) { commitment in
-                    CommitmentRowView(commitment: commitment)
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            commitmentForDetail = commitment
-                        }
-                        .swipeActions(edge: .trailing) {
-                            Button {
-                                archiveCommitment(commitment)
-                            } label: {
-                                Label("Archive", systemImage: "archivebox")
+                Section {
+                    NavigationLink(destination: ArchivedCommitmentsView()) {
+                        Label("Archived", systemImage: "archivebox")
+                            .foregroundStyle(.secondary)
+                            .font(.subheadline)
+                    }
+                }
+                Section {
+                    ForEach(filteredCommitments) { commitment in
+                        CommitmentRowView(commitment: commitment)
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                commitmentForDetail = commitment
                             }
-                            .tint(.orange)
-                        }
+                            .swipeActions(edge: .trailing) {
+                                Button {
+                                    archiveCommitment(commitment)
+                                } label: {
+                                    Label("Archive", systemImage: "archivebox")
+                                }
+                                .tint(.orange)
+                            }
+                    }
                 }
             }
             .listStyle(.insetGrouped)
