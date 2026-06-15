@@ -69,6 +69,7 @@ struct CommitmentDetailView: View {
                     CommitmentRowView(commitment: commitment, variant: .settings)
                     currentSection
                     historySection
+                    pastCyclesSection
                     backfillButton
                 }
                 .padding()
@@ -158,6 +159,69 @@ struct CommitmentDetailView: View {
         .padding(.horizontal, 14)
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    // MARK: - Past Cycles
+
+    private var pastCycleRecords: [CycleRecord] {
+        PastCyclesFormatting.displayRecords(from: commitment.cycleRecords)
+    }
+
+    @ViewBuilder
+    private var pastCyclesSection: some View {
+        if !pastCycleRecords.isEmpty {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Past Cycles")
+                    .font(.headline)
+                VStack(spacing: 0) {
+                    ForEach(pastCycleRecords) { record in
+                        pastCycleRow(record)
+                        if record.id != pastCycleRecords.last?.id {
+                            Divider()
+                        }
+                    }
+                }
+            }
+            .padding(.vertical, 16)
+            .padding(.horizontal, 14)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+        }
+    }
+
+    private func pastCycleRow(_ record: CycleRecord) -> some View {
+        let passed = record.outcome == .passed
+        let detail = PastCyclesFormatting.detailText(for: record)
+        return HStack(alignment: .top, spacing: 10) {
+            Image(systemName: passed ? "checkmark.circle.fill" : "xmark.circle.fill")
+                .foregroundStyle(passed ? .green : .red)
+                .font(.subheadline)
+            VStack(alignment: .leading, spacing: 2) {
+                HStack {
+                    Text(cycleLabel(for: record))
+                        .font(.subheadline)
+                    Spacer()
+                    Text(PastCyclesFormatting.countText(for: record))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                if !detail.isEmpty {
+                    Text(detail)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(2)
+                }
+            }
+        }
+        .padding(.vertical, 8)
+    }
+
+    private func cycleLabel(for record: CycleRecord) -> String {
+        commitment.cycle.label(of: previousPsychDay(record.cycleEnd))
+    }
+
+    private func previousPsychDay(_ date: Date) -> Date {
+        Time.calendar.date(byAdding: .day, value: -1, to: date) ?? date
     }
 
     private var statsSection: some View {
