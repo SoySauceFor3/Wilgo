@@ -72,7 +72,7 @@ struct ListCommitmentView: View {
                 modelContext.delete(filteredCommitments[index])
             }
         }
-        SlotStartNotificationScheduler.refresh()
+        CommitmentChangeRefresher.refreshAll()
     }
 }
 

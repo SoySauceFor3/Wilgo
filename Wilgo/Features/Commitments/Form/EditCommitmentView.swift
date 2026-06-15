@@ -1,6 +1,5 @@
 import SwiftData
 import SwiftUI
-import WidgetKit
 
 struct EditCommitmentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -53,8 +52,7 @@ struct EditCommitmentView: View {
     private func saveChanges() {
         draft.apply(to: commitment, in: modelContext)
         try? modelContext.save()
-        WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
-        SlotStartNotificationScheduler.refresh()
+        CommitmentChangeRefresher.refreshAll()
         dismiss()
     }
 }
