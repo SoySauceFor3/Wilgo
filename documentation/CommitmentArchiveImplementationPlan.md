@@ -78,7 +78,7 @@ A secondary fix is included: all callers of commitment mutation (add, edit, dele
 | `Shared/Models/Commitment.swift` | Add `var archivedAt: Date?` |
 | **New:** `Wilgo/Shared/CommitmentChangeRefresher.swift` | Static `refreshAll()` consolidating all 5 side-effect calls |
 | **New:** `Shared/Models/Commitment+FetchDescriptor.swift` | `FetchDescriptor<Commitment>.activeOnly` extension |
-| `Wilgo/Features/Commitments/ListCommitmentView.swift` | Filter query, replace onDelete with Archive swipe, add NavigationLink row |
+| `Wilgo/Features/Commitments/ListCommitmentView.swift` | Filter query (Commit 2), replace onDelete with Archive swipe (Commit 4), add NavigationLink row (Commit 6) |
 | `Wilgo/Features/Stage/StageView.swift` | Filter query to exclude archived |
 | `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportView.swift` | Filter `@Query` to exclude archived |
 | `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportModifier.swift` | Filter both `FetchDescriptor` fetches to exclude archived |
@@ -119,9 +119,87 @@ Tests:
 
 ---
 
-#### Commit 2 — extract CommitmentChangeRefresher #CommitmentArchive
+#### Commit 2 — filter archived commitments out of all reads #CommitmentArchive
 
-**Depends on:** nothing (independent of Commit 1, can be parallel)
+**Depends on:** Commit 1
+
+At this point `archivedAt` is always `nil` for every commitment, so this commit is behaviorally a no-op — it lands the filtering plumbing everywhere commitments are read for active use, ahead of any UI that can actually set `archivedAt`.
+
+**Create:** `Shared/Models/Commitment+FetchDescriptor.swift`
+```swift
+import SwiftData
+
+extension Commitment {
+    /// Shared predicate for excluding archived commitments. Used by both
+    /// `@Query` sites (which require an inline predicate value) and
+    /// `FetchDescriptor.activeOnly` (for imperative fetches).
+    static var activePredicate: Predicate<Commitment> {
+        #Predicate<Commitment> { $0.archivedAt == nil }
+    }
+}
+
+extension FetchDescriptor where T == Commitment {
+    static var activeOnly: FetchDescriptor<Commitment> {
+        FetchDescriptor<Commitment>(predicate: Commitment.activePredicate)
+    }
+}
+```
+
+**Modify:** `Wilgo/Features/Commitments/ListCommitmentView.swift`  
+Change `@Query` predicate to filter active only:
+```swift
+@Query(filter: Commitment.activePredicate,
+       sort: \Commitment.createdAt, order: .forward)
+private var commitments: [Commitment]
+```
+
+**Modify:** `Wilgo/Features/Stage/StageView.swift`  
+Add predicate to `@Query`:
+```swift
+@Query(filter: Commitment.activePredicate,
+       sort: \Commitment.createdAt, order: .forward)
+private var commitments: [Commitment]
+```
+
+**Modify:** `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportView.swift` line 10  
+Change:
+```swift
+@Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
+```
+to:
+```swift
+@Query(filter: Commitment.activePredicate,
+       sort: \Commitment.createdAt, order: .forward)
+private var commitments: [Commitment]
+```
+Archived commitments must not appear in cycle-end reports.
+
+**Modify:** `Wilgo/Features/Notifications/SlotStartNotificationScheduler.swift` line 20  
+**Modify:** `Wilgo/Features/Notifications/CatchUpReminder.swift` line 74  
+**Modify:** `Wilgo/Features/Notifications/CycleEndNotificationScheduler.swift` line 17  
+**Modify:** `Wilgo/Features/Notifications/NowLiveActivityManager.swift` lines 25 & 133  
+**Modify:** `Wilgo/Features/Settings/SettingsView.swift` line 65  
+**Modify:** `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportModifier.swift` lines 77 & 90  
+In each, replace `FetchDescriptor<Commitment>()` with:
+```swift
+.activeOnly
+```
+
+Note: `@Query` sites (`ListCommitmentView`, `StageView`, `FinishedCycleReportView`) cannot use the `FetchDescriptor.activeOnly` extension directly — `@Query`'s `filter:` parameter takes a `Predicate<Commitment>` value, not a `FetchDescriptor`. They instead use the shared `Commitment.activePredicate`:
+```swift
+@Query(filter: Commitment.activePredicate, ...)
+```
+
+**Tests:** `WilgoTests/Commitment/CommitmentArchiveTests.swift`  
+Add:
+- `Commitment.activePredicate` / `FetchDescriptor.activeOnly` excludes a commitment with non-nil `archivedAt`
+- `Commitment.activePredicate` / `FetchDescriptor.activeOnly` includes a commitment with nil `archivedAt`
+
+---
+
+#### Commit 3 — extract CommitmentChangeRefresher #CommitmentArchive
+
+**Depends on:** nothing (independent, can be parallel with Commit 1/2)
 
 **Create:** `Wilgo/Shared/CommitmentChangeRefresher.swift`
 
@@ -161,22 +239,15 @@ Replace existing `SlotStartNotificationScheduler.refresh()` in `deleteCommitment
 
 ---
 
-### Phase 2 — Archive action on active list (depends on Commit 1)
+### Phase 2 — Archive action on active list (depends on Commit 1, 2 & 3)
 
-#### Commit 3 — swipe-to-archive on ListCommitmentView #CommitmentArchive
+#### Commit 4 — swipe-to-archive on ListCommitmentView #CommitmentArchive
 
-**Depends on:** Commit 1, Commit 2
+**Depends on:** Commit 1, Commit 2, Commit 3
 
 **Modify:** `Wilgo/Features/Commitments/ListCommitmentView.swift`
 
-1. Change `@Query` predicate to filter active only:
-```swift
-@Query(filter: Commitment.activePredicate,
-       sort: \Commitment.createdAt, order: .forward)
-private var commitments: [Commitment]
-```
-
-2. Replace `.onDelete(perform: deleteCommitments)` with `.swipeActions(edge: .trailing)`:
+1. Replace `.onDelete(perform: deleteCommitments)` with `.swipeActions(edge: .trailing)`:
 ```swift
 .swipeActions(edge: .trailing) {
     Button {
@@ -188,7 +259,7 @@ private var commitments: [Commitment]
 }
 ```
 
-3. Replace `deleteCommitments` with `archiveCommitment`:
+2. Replace `deleteCommitments` with `archiveCommitment`:
 ```swift
 private func archiveCommitment(_ commitment: Commitment) {
     withAnimation {
@@ -198,75 +269,17 @@ private func archiveCommitment(_ commitment: Commitment) {
 }
 ```
 
-**Modify:** `Wilgo/Features/Stage/StageView.swift`  
-Add predicate to `@Query`:
-```swift
-@Query(filter: Commitment.activePredicate,
-       sort: \Commitment.createdAt, order: .forward)
-private var commitments: [Commitment]
-```
-
-**Modify:** `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportView.swift` line 10  
-Change:
-```swift
-@Query(sort: \Commitment.createdAt, order: .forward) private var commitments: [Commitment]
-```
-to:
-```swift
-@Query(filter: Commitment.activePredicate,
-       sort: \Commitment.createdAt, order: .forward)
-private var commitments: [Commitment]
-```
-Archived commitments must not appear in cycle-end reports.
-
-**Create:** `Shared/Models/Commitment+FetchDescriptor.swift`
-```swift
-import SwiftData
-
-extension Commitment {
-    /// Shared predicate for excluding archived commitments. Used by both
-    /// `@Query` sites (which require an inline predicate value) and
-    /// `FetchDescriptor.activeOnly` (for imperative fetches).
-    static var activePredicate: Predicate<Commitment> {
-        #Predicate<Commitment> { $0.archivedAt == nil }
-    }
-}
-
-extension FetchDescriptor where T == Commitment {
-    static var activeOnly: FetchDescriptor<Commitment> {
-        FetchDescriptor<Commitment>(predicate: Commitment.activePredicate)
-    }
-}
-```
-
-**Modify:** `Wilgo/Features/Notifications/SlotStartNotificationScheduler.swift` line 20  
-**Modify:** `Wilgo/Features/Notifications/CatchUpReminder.swift` line 74  
-**Modify:** `Wilgo/Features/Notifications/CycleEndNotificationScheduler.swift` line 17  
-**Modify:** `Wilgo/Features/Notifications/NowLiveActivityManager.swift` lines 25 & 133  
-**Modify:** `Wilgo/Features/Settings/SettingsView.swift` line 65  
-**Modify:** `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportModifier.swift` lines 77 & 90  
-In each, replace `FetchDescriptor<Commitment>()` with:
-```swift
-.activeOnly
-```
-
-Note: `@Query` sites (`ListCommitmentView`, `StageView`, `FinishedCycleReportView`) cannot use the `FetchDescriptor.activeOnly` extension directly — `@Query`'s `filter:` parameter takes a `Predicate<Commitment>` value, not a `FetchDescriptor`. They instead use the shared `Commitment.activePredicate`:
-```swift
-@Query(filter: Commitment.activePredicate, ...)
-```
-
 **Tests:** `WilgoTests/Commitment/CommitmentArchiveTests.swift`  
 Add:
 - Archiving a commitment sets `archivedAt` to a non-nil date
-- Archived commitment is excluded from `archivedAt == nil` predicate
 
 ---
 
-### Phase 3 — Archived list screen (depends on Commit 1 & 2, parallel with Commit 3)
+### Phase 3 — Archived list screen (depends on Commit 1, 2 & 3, parallel with Commit 4)
 
-#### Commit 4 — ArchivedCommitmentsView #CommitmentArchive
+#### Commit 5 — ArchivedCommitmentsView #CommitmentArchive
 
-**Depends on:** Commit 1, Commit 2
+**Depends on:** Commit 1, Commit 2, Commit 3
 
 **Create:** `Wilgo/Features/Commitments/ArchivedCommitmentsView.swift`
 
@@ -286,11 +299,11 @@ Add:
 
 ---
 
-### Phase 4 — Wire up entry point and detail view (depends on 3 & 4)
+### Phase 4 — Wire up entry point and detail view (depends on 4 & 5)
 
-#### Commit 5 — NavigationLink entry point in ListCommitmentView #CommitmentArchive
+#### Commit 6 — NavigationLink entry point in ListCommitmentView #CommitmentArchive
 
-**Depends on:** Commit 3, Commit 4
+**Depends on:** Commit 4, Commit 5
 
 **Modify:** `Wilgo/Features/Commitments/ListCommitmentView.swift`  
 Add a `Section` before the commitments `ForEach`:
@@ -307,9 +320,9 @@ Section {
 
 ---
 
-#### Commit 6 — hide configuration UI in CommitmentDetailView for archived commitments #CommitmentArchive
+#### Commit 7 — hide configuration UI in CommitmentDetailView for archived commitments #CommitmentArchive
 
-**Depends on:** Commit 4
+**Depends on:** Commit 5
 
 **Modify:** `Wilgo/Features/Commitments/SingleCommitment/CommitmentDetailView.swift`
 
@@ -366,11 +379,12 @@ These are all historical-data views/edits, not configuration, and remain availab
 
 ```
 Commit 1: add archivedAt to Commitment
-Commit 2: extract CommitmentChangeRefresher      [parallel with Commit 1]
+Commit 2: filter archived out of all reads        [after 1]
+Commit 3: extract CommitmentChangeRefresher       [parallel with 1 & 2]
     |
-    +-- Commit 3: swipe-to-archive on active list  [after 1 & 2]
-    +-- Commit 4: ArchivedCommitmentsView           [after 1 & 2, parallel with 3]
+    +-- Commit 4: swipe-to-archive on active list   [after 1, 2 & 3]
+    +-- Commit 5: ArchivedCommitmentsView            [after 1, 2 & 3, parallel with 4]
             |
-            +-- Commit 5: NavigationLink entry point  [after 3 & 4]
-            +-- Commit 6: read-only detail view        [after 4, parallel with 5]
+            +-- Commit 6: NavigationLink entry point  [after 4 & 5]
+            +-- Commit 7: read-only detail view        [after 5, parallel with 6]
 ```
