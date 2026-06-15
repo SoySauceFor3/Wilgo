@@ -34,22 +34,6 @@ struct FCRCycleCardStateTests {
         #expect(state.isComplete == false)
     }
 
-    @Test func failedCycleIncompleteWithoutReflection() {
-        var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
-        state.outcome = .excused
-        state.hasAssignedPT = true
-        state.reflectionText = ""
-        #expect(state.isComplete == false)
-    }
-
-    @Test func failedCycleIncompleteWithWhitespaceOnlyReflection() {
-        var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
-        state.outcome = .excused
-        state.hasAssignedPT = true
-        state.reflectionText = "   \n  "
-        #expect(state.isComplete == false)
-    }
-
     @Test func failedCycleIncompleteWithoutPT() {
         var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
         state.outcome = .excused
@@ -58,12 +42,54 @@ struct FCRCycleCardStateTests {
         #expect(state.isComplete == false)
     }
 
-    @Test func failedCycleCompleteWithLabelReflectionAndPT() {
+    @Test func failedCycleCompleteWithLabelAndPT() {
         var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
         state.outcome = .punished
-        state.reflectionText = "No excuse, just didn't do it"
         state.hasAssignedPT = true
         #expect(state.isComplete == true)
+    }
+
+    // MARK: - Reflection only required for .other
+
+    @Test func excusedCompleteWithoutReflection() {
+        var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
+        state.outcome = .excused
+        state.hasAssignedPT = true
+        state.reflectionText = ""
+        #expect(state.isReflectionRequired == false)
+        #expect(state.isComplete == true)
+    }
+
+    @Test func letGoCompleteWithoutReflection() {
+        var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
+        state.outcome = .letGo
+        state.hasAssignedPT = true
+        #expect(state.isComplete == true)
+    }
+
+    @Test func otherRequiresReflection() {
+        var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
+        state.outcome = .other
+        state.hasAssignedPT = true
+        state.reflectionText = ""
+        #expect(state.isReflectionRequired == true)
+        #expect(state.isComplete == false)
+    }
+
+    @Test func otherCompleteWithReflection() {
+        var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
+        state.outcome = .other
+        state.hasAssignedPT = true
+        state.reflectionText = "Some special situation"
+        #expect(state.isComplete == true)
+    }
+
+    @Test func otherIncompleteWithWhitespaceOnlyReflection() {
+        var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
+        state.outcome = .other
+        state.hasAssignedPT = true
+        state.reflectionText = "   \n  "
+        #expect(state.isComplete == false)
     }
 
     // MARK: - Auto-flip clears purposeful-stop fields

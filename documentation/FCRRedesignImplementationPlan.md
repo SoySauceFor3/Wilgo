@@ -439,3 +439,40 @@ Phase 1 — Remove InsOnly (1A)
 - [ ] Tracking link from 3Sauce for commit messages
 - [ ] Does `PreTokenReportBuilder` need to be renamed/refactored or just updated in place?
 - [ ] Should passed cycles that the user never expanded also get a `CycleRecord` written? (Lean: yes, with `outcome = .passed` and empty emoji reactions)
+
+---
+
+## Post-Ship Refinements (proposed 2026-06-15)
+
+### Refinement A — Reflection text required only for "Other" (IMPLEMENTED)
+
+**Proposal (3Sauce):** On a failed cycle, the reflection text box is only *required*
+when the user selects the **Other** label. Excused / Punished / Let go are
+self-explanatory categories — the label itself carries the meaning, so a note adds
+friction without value. "Other" is the catch-all that's meaningless without
+explanation, so that's where a note earns its keep. The PT is still required for all
+failed cycles (the purposeful-stop gate is unchanged); only the *text* requirement
+narrows.
+
+**Impact:** `FCRCycleCardState.isComplete` for a failed cycle becomes:
+label selected AND PT assigned AND (reflection non-empty **iff** outcome == .other).
+
+**Status:** Implemented.
+
+### Refinement B — Prefill reflection with the last note (UNDER CONSIDERATION)
+
+**Proposal (3Sauce):** Prefill the reflection text box with the user's previous note
+(when applicable) to save typing.
+
+**Claude's pushback / counter:**
+- The note's purpose is a *genuine* per-cycle reflection (the purposeful stop).
+  Prefilling last time's note invites leaving it unchanged, quietly defeating the
+  reflection — optimizing for less typing at the cost of the feature's soul.
+- A note is tied to a specific failure; carrying "Was sick last week" into a
+  different failure this week is often semantically wrong.
+- With Refinement A shipped, most failures need *zero* text already, so the typing
+  burden largely disappears — worth confirming it's still a problem before building.
+- **Counter-proposal if typing is still a pain:** quick-pick chips of recent notes
+  (tap to fill, but chosen deliberately) rather than auto-defaulting to stale text.
+
+**Status:** Deferred — 3Sauce to decide after living with Refinement A.

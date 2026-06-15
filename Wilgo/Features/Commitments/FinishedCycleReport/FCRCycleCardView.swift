@@ -182,12 +182,16 @@ struct FCRCycleCardView: View {
                 labelPills
             }
             VStack(alignment: .leading, spacing: 8) {
-                Text("WRITE SOMETHING")
+                Text(state.isReflectionRequired ? "WRITE SOMETHING (REQUIRED)" : "WRITE SOMETHING (OPTIONAL)")
                     .font(.caption2.weight(.bold))
-                    .foregroundStyle(.secondary)
-                TextField("Required", text: $state.reflectionText, axis: .vertical)
-                    .lineLimit(2...4)
-                    .textFieldStyle(.roundedBorder)
+                    .foregroundStyle(state.isReflectionRequired ? .orange : .secondary)
+                TextField(
+                    state.isReflectionRequired ? "Required for \u{201C}Other\u{201D}" : "Optional note",
+                    text: $state.reflectionText,
+                    axis: .vertical
+                )
+                .lineLimit(2...4)
+                .textFieldStyle(.roundedBorder)
             }
             ptRow
         }
