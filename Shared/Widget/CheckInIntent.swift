@@ -3,7 +3,7 @@ import Foundation
 import SwiftData
 import WidgetKit
 
-struct CheckInIntent: AppIntent {
+struct CheckInIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Check In"
 
     @Parameter(title: "Commitment ID")
@@ -55,11 +55,11 @@ struct CheckInIntent: AppIntent {
         CheckIn.insert(commitment: commitment, source: source, into: context)
         try context.save()  // mandatory. SwiftData's auto-save only works when the context is owned and managed by the SwiftUI environment.
 
-        CFNotificationCenterPostNotification(
-            CFNotificationCenterGetDarwinNotifyCenter(),
-            CFNotificationName(WilgoConstants.liveActivitySyncNotification as CFString),
-            nil, nil, true
-        )
+        // LiveActivityIntent runs perform() in the app process, so the Live Activity handle
+        // (Activity.activities) is reachable here. Refresh it in-process using the same context that
+        // just saved the check-in, so the recompute sees the new check-in with no fresh-container lag.
+        // Replaces the old Darwin liveActivitySync ping, which was dropped whenever the app was suspended.
+        await LiveActivityRefresher.refresh(context: context)
         WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
 
         return .result()
