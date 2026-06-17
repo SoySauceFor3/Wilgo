@@ -111,6 +111,66 @@ final class CommitmentArchiveTests {
         #expect(saved.archivedAt == nil)
     }
 
+    @Test("Batch unarchive clears archivedAt only for the commitments passed in")
+    @MainActor func batchUnarchiveAppliesToSelectionOnly() throws {
+        let container = try makeTestContainer()
+
+        let a = makeCommitment(in: container.mainContext)
+        let b = makeCommitment(in: container.mainContext)
+        let c = makeCommitment(in: container.mainContext)
+        for commitment in [a, b, c] {
+            commitment.archivedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        }
+        try container.mainContext.save()
+
+        let actions = ArchivedCommitmentsActions(modelContext: container.mainContext)
+        actions.unarchive([a, c])
+        try container.mainContext.save()
+
+        let fetched = try container.mainContext.fetch(FetchDescriptor<Commitment>())
+        #expect(try #require(fetched.first { $0.id == a.id }).archivedAt == nil)
+        #expect(try #require(fetched.first { $0.id == b.id }).archivedAt != nil)
+        #expect(try #require(fetched.first { $0.id == c.id }).archivedAt == nil)
+    }
+
+    @Test("Batch delete removes only the commitments passed in")
+    @MainActor func batchDeleteAppliesToSelectionOnly() throws {
+        let container = try makeTestContainer()
+
+        let a = makeCommitment(in: container.mainContext)
+        let b = makeCommitment(in: container.mainContext)
+        let c = makeCommitment(in: container.mainContext)
+        for commitment in [a, b, c] {
+            commitment.archivedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        }
+        try container.mainContext.save()
+
+        let actions = ArchivedCommitmentsActions(modelContext: container.mainContext)
+        actions.delete([a, c])
+        try container.mainContext.save()
+
+        let remaining = try container.mainContext.fetch(FetchDescriptor<Commitment>())
+        #expect(remaining.map(\.id) == [b.id])
+    }
+
+    @Test("Single unarchive resets the cycle to a fresh default of the same kind")
+    @MainActor func unarchiveResetsCycle() throws {
+        let container = try makeTestContainer()
+        let c = makeCommitment(in: container.mainContext)
+        c.archivedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        try container.mainContext.save()
+        let originalKind = c.cycle.kind
+
+        let actions = ArchivedCommitmentsActions(modelContext: container.mainContext)
+        actions.unarchive([c])
+        try container.mainContext.save()
+
+        let fetched = try container.mainContext.fetch(FetchDescriptor<Commitment>())
+        let saved = try #require(fetched.first { $0.id == c.id })
+        #expect(saved.archivedAt == nil)
+        #expect(saved.cycle.kind == originalKind)
+    }
+
     @Test("Archived list query returns only commitments with non-nil archivedAt, sorted by archivedAt descending")
     @MainActor func archivedListQuerySortedDescending() throws {
         let container = try makeTestContainer()
