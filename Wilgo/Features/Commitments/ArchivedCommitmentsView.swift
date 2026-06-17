@@ -2,118 +2,201 @@ import SwiftData
 import SwiftUI
 
 struct ArchivedCommitmentsView: View {
-    @Query(filter: #Predicate<Commitment> { $0.archivedAt != nil },
-           sort: [SortDescriptor(\Commitment.archivedAt, order: .reverse)])
+    @Query(
+        filter: #Predicate<Commitment> { $0.archivedAt != nil },
+        sort: [SortDescriptor(\Commitment.archivedAt, order: .reverse)])
     private var archivedCommitments: [Commitment]
 
     @Environment(\.modelContext) private var modelContext
     @Environment(\.editMode) private var editMode
 
     @State private var commitmentForDetail: Commitment?
-    @State private var commitmentPendingDelete: Commitment?
-    @State private var isPresentingDeleteConfirmation: Bool = false
+    @State private var deleteTarget: DeleteTarget?
     @State private var selection: Set<Commitment.ID> = []
 
+    private var isEditing: Bool {
+        editMode?.wrappedValue.isEditing == true
+    }
+
+    private var actions: ArchivedCommitmentsActions {
+        ArchivedCommitmentsActions(modelContext: modelContext)
+    }
+
+    private var selectedCommitments: [Commitment] {
+        archivedCommitments.filter { selection.contains($0.id) }
+    }
+
     var body: some View {
-        NavigationStack {
-            Group {
-                if archivedCommitments.isEmpty {
-                    ContentUnavailableView(
-                        "No Archived Commitments",
-                        systemImage: "archivebox",
-                        description: Text("Commitments you archive will appear here.")
-                    )
-                } else {
-                    List(selection: $selection) {
-                        ForEach(archivedCommitments) { commitment in
-                            CommitmentRowView(commitment: commitment)
-                                .contentShape(Rectangle())
-                                .onTapGesture {
-                                    if editMode?.wrappedValue.isEditing != true {
-                                        commitmentForDetail = commitment
-                                    }
-                                }
-                                .swipeActions(edge: .trailing) {
-                                    Button(role: .destructive) {
-                                        commitmentPendingDelete = commitment
-                                        isPresentingDeleteConfirmation = true
-                                    } label: {
-                                        Label("Delete", systemImage: "trash")
-                                    }
-                                }
-                                .swipeActions(edge: .leading) {
-                                    Button {
-                                        unarchive(commitment)
-                                    } label: {
-                                        Label("Unarchive", systemImage: "archivebox.fill")
-                                    }
-                                    .tint(.blue)
-                                }
-                        }
-                    }
-                    .listStyle(.insetGrouped)
-                }
-            }
-            .navigationTitle("Archived")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    if editMode?.wrappedValue.isEditing == true, !selection.isEmpty {
-                        Button("Unarchive") {
-                            unarchiveSelection()
-                        }
-                    } else {
-                        EditButton()
+        Group {
+            if archivedCommitments.isEmpty {
+                ContentUnavailableView(
+                    "No Archived Commitments",
+                    systemImage: "archivebox",
+                    description: Text("Commitments you archive will appear here.")
+                )
+            } else {
+                List(selection: $selection) {
+                    ForEach(archivedCommitments) { commitment in
+                        ArchivedCommitmentRow(
+                            commitment: commitment,
+                            onTap: { tap(commitment) },
+                            onUnarchive: { actions.unarchive([commitment]) },
+                            onDelete: { promptDelete(commitment) }
+                        )
                     }
                 }
+                .listStyle(.insetGrouped)
             }
-            .sheet(item: $commitmentForDetail) { commitment in
-                CommitmentDetailView(commitment: commitment)
-                    .presentationDetents([.fraction(0.65), .large])
-                    .presentationDragIndicator(.visible)
+        }
+        .navigationTitle("Archived")
+        .toolbar { toolbarContent }
+        .sheet(item: $commitmentForDetail) { commitment in
+            CommitmentDetailView(commitment: commitment)
+                .presentationDetents([.fraction(0.65), .large])
+                .presentationDragIndicator(.visible)
+        }
+        .alert(
+            deleteTarget?.title ?? "",
+            isPresented: Binding(
+                get: { deleteTarget != nil },
+                set: { if !$0 { deleteTarget = nil } }
+            ),
+            presenting: deleteTarget
+        ) { target in
+            Button("Delete", role: .destructive) {
+                confirmDelete(target)
             }
-            .alert(
-                "Delete this commitment?",
-                isPresented: $isPresentingDeleteConfirmation,
-                presenting: commitmentPendingDelete
-            ) { commitment in
-                Button("Delete", role: .destructive) {
-                    delete(commitment)
+            Button("Cancel", role: .cancel) {}
+        } message: { _ in
+            Text("This cannot be undone.")
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        if isEditing, !selection.isEmpty {
+            ToolbarItem(placement: .topBarTrailing) {
+                Menu {
+                    Button {
+                        actions.unarchive(selectedCommitments)
+                        selection.removeAll()
+                    } label: {
+                        Label("Unarchive Selected", systemImage: "archivebox.fill")
+                    }
+                    Button(role: .destructive) {
+                        deleteTarget = .selection(selectedCommitments)
+                    } label: {
+                        Label("Delete Selected", systemImage: "trash")
+                    }
+                } label: {
+                    Label("Actions", systemImage: "ellipsis.circle")
                 }
-                Button("Cancel", role: .cancel) {
-                    commitmentPendingDelete = nil
-                }
-            } message: { _ in
-                Text("This cannot be undone.")
+            }
+        }
+        ToolbarItem(placement: .topBarTrailing) {
+            if !archivedCommitments.isEmpty {
+                EditButton()
             }
         }
     }
 
-    private func unarchive(_ commitment: Commitment) {
-        withAnimation {
-            commitment.archivedAt = nil
-            commitment.cycle = Cycle.makeDefault(commitment.cycle.kind)
-        }
-        CommitmentChangeRefresher.refreshAll()
+    private func tap(_ commitment: Commitment) {
+        guard !isEditing else { return }
+        commitmentForDetail = commitment
     }
 
-    private func unarchiveSelection() {
-        let toUnarchive = archivedCommitments.filter { selection.contains($0.id) }
+    private func promptDelete(_ commitment: Commitment) {
+        deleteTarget = .single(commitment)
+    }
+
+    private func confirmDelete(_ target: DeleteTarget) {
+        actions.delete(target.commitments)
+        if case .selection = target {
+            selection.removeAll()
+        }
+    }
+}
+
+/// What a delete confirmation alert is about: a single row or the current selection.
+private enum DeleteTarget: Identifiable {
+    case single(Commitment)
+    case selection([Commitment])
+
+    var id: String {
+        switch self {
+        case let .single(commitment): commitment.id.uuidString
+        case .selection: "selection"
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .single: "Delete this commitment?"
+        case .selection: "Delete selected commitments?"
+        }
+    }
+
+    var commitments: [Commitment] {
+        switch self {
+        case let .single(commitment): [commitment]
+        case let .selection(commitments): commitments
+        }
+    }
+}
+
+/// Owns the model-layer mutations for archived commitments so they can be
+/// exercised in unit tests without constructing the SwiftUI view.
+struct ArchivedCommitmentsActions {
+    let modelContext: ModelContext
+
+    /// Restores commitments to the active list and resets their cycle.
+    func unarchive(_ commitments: [Commitment]) {
         withAnimation {
-            for commitment in toUnarchive {
+            for commitment in commitments {
                 commitment.archivedAt = nil
                 commitment.cycle = Cycle.makeDefault(commitment.cycle.kind)
             }
-            selection.removeAll()
         }
         CommitmentChangeRefresher.refreshAll()
     }
 
-    private func delete(_ commitment: Commitment) {
+    /// Permanently removes commitments from the store.
+    func delete(_ commitments: [Commitment]) {
         withAnimation {
-            modelContext.delete(commitment)
+            for commitment in commitments {
+                modelContext.delete(commitment)
+            }
         }
         CommitmentChangeRefresher.refreshAll()
-        commitmentPendingDelete = nil
+    }
+}
+
+private struct ArchivedCommitmentRow: View {
+    let commitment: Commitment
+    let onTap: () -> Void
+    let onUnarchive: () -> Void
+    let onDelete: () -> Void
+
+    var body: some View {
+        CommitmentRowView(commitment: commitment)
+            .contentShape(Rectangle())
+            .onTapGesture(perform: onTap)
+            .swipeActions(edge: .trailing) {
+                Button(role: .destructive, action: onDelete) {
+                    Label("Delete", systemImage: "trash")
+                }
+                unarchiveButton
+            }
+            .swipeActions(edge: .leading) {
+                unarchiveButton
+            }
+    }
+
+    private var unarchiveButton: some View {
+        Button(action: onUnarchive) {
+            Label("Unarchive", systemImage: "archivebox.fill")
+        }
+        .tint(.blue)
     }
 }
 
