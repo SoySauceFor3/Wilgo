@@ -3,7 +3,7 @@ import Foundation
 import SwiftData
 import WidgetKit
 
-struct SnoozeIntent: AppIntent {
+struct SnoozeIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "Snooze"
 
     @Parameter(title: "Slot ID")
@@ -49,11 +49,11 @@ struct SnoozeIntent: AppIntent {
         SlotSnooze.create(slot: slot, at: Time.now(), in: context)
         try context.save()
 
-        CFNotificationCenterPostNotification(
-            CFNotificationCenterGetDarwinNotifyCenter(),
-            CFNotificationName(WilgoConstants.liveActivitySyncNotification as CFString),
-            nil, nil, true
-        )
+        // LiveActivityIntent runs perform() in the app process, so the Live Activity handle
+        // (Activity.activities) is reachable here. Refresh it in-process using the same context that
+        // just saved the snooze, so the recompute sees the snoozed slot with no fresh-container lag.
+        // Replaces the old Darwin liveActivitySync ping, which was dropped whenever the app was suspended.
+        await LiveActivityRefresher.refresh(context: context)
         WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
 
         return .result()
