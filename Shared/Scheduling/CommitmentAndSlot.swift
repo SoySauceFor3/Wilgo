@@ -9,6 +9,7 @@ enum CommitmentAndSlot {
         now: Date = Time.now()
     ) -> [WithBehind] {
         let result: [WithBehind] = commitments.compactMap { commitment in
+            guard commitment.isActiveForReminders(now: now) else { return nil }
             let status = commitment.status(now: now)
             guard status.slotKind == .insideSlot else { return nil }
             return (
@@ -27,6 +28,7 @@ enum CommitmentAndSlot {
         after time: Date
     ) -> [WithBehind] {
         let result: [WithBehind] = commitments.compactMap { commitment in
+            guard commitment.isActiveForReminders(now: time) else { return nil }
             let status = commitment.status(now: time)
             guard status.slotKind == .beforeNextToday else { return nil }
             return (
@@ -47,6 +49,7 @@ enum CommitmentAndSlot {
         now: Date = Time.now()
     ) -> [WithBehind] {
         let result: [WithBehind] = commitments.compactMap { commitment in
+            guard commitment.isActiveForReminders(now: now) else { return nil }
             let status = commitment.status(now: now)
             guard status.slotKind == .noSlotToday else { return nil }
             guard let behindCount = status.behindCount, behindCount > 0 else { return nil }
