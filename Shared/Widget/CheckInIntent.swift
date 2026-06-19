@@ -22,46 +22,39 @@ struct CheckInIntent: LiveActivityIntent {
         self.sourceRaw = source.rawValue
     }
 
-    func perform() async throws -> some IntentResult {
-        guard let id = UUID(uuidString: commitmentId) else {
+    // As a LiveActivityIntent, perform() always runs in the APP process, never the widget
+    // extension — so it uses the app's shared ModelContainer and the app-only schedulers directly.
+    // The file still compiles into the WidgetExtension target (the widget needs the type for its
+    // Button(intent:)), but perform() is never invoked there, so that build gets an empty body.
+    #if WIDGET_EXTENSION
+        func perform() async throws -> some IntentResult {
+            .result()
+        }
+    #else
+        @MainActor
+        func perform() async throws -> some IntentResult {
+            guard let id = UUID(uuidString: commitmentId) else {
+                return .result()
+            }
+
+            // Write through the app's shared mainContext so the post-write refresh — which also reads
+            // mainContext — sees the new check-in immediately, with no cross-container merge lag.
+            let context = WilgoApp.sharedModelContainer.mainContext
+            let descriptor = FetchDescriptor<Commitment>(predicate: #Predicate { $0.id == id })
+            guard let commitment = try context.fetch(descriptor).first else {
+                return .result()
+            }
+
+            let source = CheckInSource(rawValue: sourceRaw) ?? .widget
+            CheckIn.insert(commitment: commitment, source: source, into: context)
+            try context.save()
+
+            // Rebuild every notification surface (Live Activity included) from the single choke point,
+            // so surfaces added later are picked up here automatically. Replaces the old Darwin
+            // liveActivitySync ping, which was dropped whenever the app was suspended.
+            CommitmentChangeRefresher.refreshAll()
+
             return .result()
         }
-
-        guard
-            let groupContainer = FileManager.default
-                .containerURL(forSecurityApplicationGroupIdentifier: WilgoConstants.appGroupID)
-        else {
-            return .result()
-        }
-        let storeURL =
-            groupContainer
-            .appendingPathComponent("Library/Application Support", isDirectory: true)
-            .appendingPathComponent("default.store")
-
-        let schema = Schema([
-            Commitment.self, Slot.self, CheckIn.self, PositivityToken.self, SlotSnooze.self,
-        ])
-        let config = ModelConfiguration(schema: schema, url: storeURL)
-        let container = try ModelContainer(for: schema, configurations: [config])
-        let context = ModelContext(container)
-
-        let descriptor = FetchDescriptor<Commitment>(predicate: #Predicate { $0.id == id })
-        let commitments = try context.fetch(descriptor)
-        guard let commitment = commitments.first else {
-            return .result()
-        }
-
-        let source = CheckInSource(rawValue: sourceRaw) ?? .widget
-        CheckIn.insert(commitment: commitment, source: source, into: context)
-        try context.save()  // mandatory. SwiftData's auto-save only works when the context is owned and managed by the SwiftUI environment.
-
-        // LiveActivityIntent runs perform() in the app process, so the Live Activity handle
-        // (Activity.activities) is reachable here. Refresh it in-process using the same context that
-        // just saved the check-in, so the recompute sees the new check-in with no fresh-container lag.
-        // Replaces the old Darwin liveActivitySync ping, which was dropped whenever the app was suspended.
-        await LiveActivityRefresher.refresh(context: context)
-        WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
-
-        return .result()
-    }
+    #endif
 }

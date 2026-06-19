@@ -17,45 +17,38 @@ struct SnoozeIntent: LiveActivityIntent {
         self.slotId = slotId.uuidString
     }
 
-    func perform() async throws -> some IntentResult {
-        guard let id = UUID(uuidString: slotId) else {
+    // As a LiveActivityIntent, perform() always runs in the APP process, never the widget
+    // extension — so it uses the app's shared ModelContainer and the app-only schedulers directly.
+    // The file still compiles into the WidgetExtension target (the widget needs the type for its
+    // Button(intent:)), but perform() is never invoked there, so that build gets an empty body.
+    #if WIDGET_EXTENSION
+        func perform() async throws -> some IntentResult {
+            .result()
+        }
+    #else
+        @MainActor
+        func perform() async throws -> some IntentResult {
+            guard let id = UUID(uuidString: slotId) else {
+                return .result()
+            }
+
+            // Write through the app's shared mainContext so the post-write refresh — which also reads
+            // mainContext — sees the new snooze immediately, with no cross-container merge lag.
+            let context = WilgoApp.sharedModelContainer.mainContext
+            let descriptor = FetchDescriptor<Slot>(predicate: #Predicate { $0.id == id })
+            guard let slot = try context.fetch(descriptor).first else {
+                return .result()
+            }
+
+            SlotSnooze.create(slot: slot, at: Time.now(), in: context)
+            try context.save()
+
+            // Rebuild every notification surface (Live Activity included) from the single choke point,
+            // so surfaces added later are picked up here automatically. Replaces the old Darwin
+            // liveActivitySync ping, which was dropped whenever the app was suspended.
+            CommitmentChangeRefresher.refreshAll()
+
             return .result()
         }
-
-        guard
-            let groupContainer = FileManager.default
-                .containerURL(forSecurityApplicationGroupIdentifier: WilgoConstants.appGroupID)
-        else {
-            return .result()
-        }
-        let storeURL =
-            groupContainer
-            .appendingPathComponent("Library/Application Support", isDirectory: true)
-            .appendingPathComponent("default.store")
-
-        let schema = Schema([
-            Commitment.self, Slot.self, CheckIn.self, PositivityToken.self, SlotSnooze.self,
-        ])
-        let config = ModelConfiguration(schema: schema, url: storeURL)
-        let container = try ModelContainer(for: schema, configurations: [config])
-        let context = ModelContext(container)
-
-        let descriptor = FetchDescriptor<Slot>(predicate: #Predicate { $0.id == id })
-        let slots = try context.fetch(descriptor)
-        guard let slot = slots.first else {
-            return .result()
-        }
-
-        SlotSnooze.create(slot: slot, at: Time.now(), in: context)
-        try context.save()
-
-        // LiveActivityIntent runs perform() in the app process, so the Live Activity handle
-        // (Activity.activities) is reachable here. Refresh it in-process using the same context that
-        // just saved the snooze, so the recompute sees the snoozed slot with no fresh-container lag.
-        // Replaces the old Darwin liveActivitySync ping, which was dropped whenever the app was suspended.
-        await LiveActivityRefresher.refresh(context: context)
-        WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
-
-        return .result()
-    }
+    #endif
 }
