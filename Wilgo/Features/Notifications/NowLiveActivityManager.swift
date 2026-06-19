@@ -21,77 +21,7 @@ private extension ModelContext {
 enum NowLiveActivityManager {
     @MainActor
     private static func apply() async {
-        let context = ModelContext.wilgoMain
-        let commitments = (try? context.fetch(.activeOnly)) ?? []
-        let now = Time.now()
-        let current = CommitmentAndSlot.currentWithBehind(
-            commitments: commitments,
-            now: now,
-        )
-
-        let contentState = NowLiveActivityManager.makeLiveActivityContentState(from: current)
-        let staleDate = current.first.map { $0.1[0].endToday }
-
-        if let state = contentState, state.hasCurrentCommitment {
-            let content = ActivityContent(state: state, staleDate: staleDate)
-            if let activity = Activity<NowAttributes>.activities.first {
-                await activity.update(content)
-            } else {
-                do {
-                    _ = try Activity.request(
-                        attributes: NowAttributes(),
-                        content: content,
-                        pushType: nil
-                    )
-                } catch {
-                    print(
-                        "LiveActivityManager.apply() - Activity.request failed with error: \(error)"
-                    )
-                }
-
-            }
-        } else {
-            for activity in Activity<NowAttributes>.activities {
-                await activity.end(nil, dismissalPolicy: .immediate)
-            }
-        }
-    }
-
-    private static func makeLiveActivityContentState(
-        from currentSlots: [CommitmentAndSlot.WithBehind]
-    ) -> NowAttributes.ContentState? {
-        guard let (commitment, slots, _) = currentSlots.first else { return nil }
-        let commitmentId = commitment.id
-        let slotId = slots[0].id
-        let secondaryTitles = currentSlots.dropFirst().map(\.commitment.title)
-        let encouragementText = commitment.encouragements.randomElement()
-        return NowAttributes.ContentState(
-            commitmentTitle: commitment.title,
-            slotTimeText: slots[0].timeOfDayText,
-            commitmentId: commitmentId,
-            slotId: slotId,
-            secondaryTitles: secondaryTitles,
-            encouragementText: encouragementText
-        )
-    }
-
-    /// Registers a Darwin notification observer so that when a widget extension intent
-    /// (CheckInIntent, SnoozeIntent) fires, the Live Activity is refreshed immediately.
-    /// Must be called once at app startup, before any intents can fire.
-    static func startObservingIntentNotifications() {
-        CFNotificationCenterAddObserver(
-            CFNotificationCenterGetDarwinNotifyCenter(),
-            nil,
-            { _, _, _, _, _ in
-                Task { @MainActor in
-                    NowLiveActivityManager.workAndScheduleNextBGTask()
-                    SlotStartNotificationScheduler.refresh()
-                }
-            },
-            WilgoConstants.liveActivitySyncNotification as CFString,
-            nil,
-            .deliverImmediately
-        )
+        await LiveActivityRefresher.refresh(context: ModelContext.wilgoMain)
     }
 
     private static let backgroundTaskIdentifier = "wilgo.live-activity-sync"

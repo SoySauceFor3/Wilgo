@@ -50,9 +50,6 @@ struct WilgoApp: App {
 
         // Register the Live Activity background sync task. Must come before any submit() call.
         NowLiveActivityManager.registerBackgroundTask()
-        // Observe Darwin notifications posted by widget extension intents (CheckInIntent, SnoozeIntent)
-        // so the Live Activity refreshes immediately when the user taps a button.
-        NowLiveActivityManager.startObservingIntentNotifications()
 
         // Register the per-slot-start notification scheduler. Must come before any submit() call.
         SlotStartNotificationScheduler.registerBackgroundTask()

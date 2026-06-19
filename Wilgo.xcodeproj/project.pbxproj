@@ -16,8 +16,14 @@
 		701EBE7A2F5348DA0060F5B6 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 701EBE792F5348DA0060F5B6 /* WidgetKit.framework */; };
 		701EBE7C2F5348DA0060F5B6 /* SwiftUI.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 701EBE7B2F5348DA0060F5B6 /* SwiftUI.framework */; };
 		701EBE892F5348DC0060F5B6 /* WidgetExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 701EBE772F5348DA0060F5B6 /* WidgetExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		701EC1C32F537F980060F5B6 /* NowAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701EC1C22F537F6E0060F5B6 /* NowAttributes.swift */; };
-		701EC1C42F537F980060F5B6 /* NowAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 701EC1C22F537F6E0060F5B6 /* NowAttributes.swift */; };
+		703254792FE2F42D0067A19D /* CheckInIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 703254752FE2F42D0067A19D /* CheckInIntent.swift */; };
+		7032547A2FE2F42D0067A19D /* NowAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 703254762FE2F42D0067A19D /* NowAttributes.swift */; };
+		7032547B2FE2F42D0067A19D /* SnoozeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 703254772FE2F42D0067A19D /* SnoozeIntent.swift */; };
+		7032547C2FE2F42D0067A19D /* CheckInIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 703254752FE2F42D0067A19D /* CheckInIntent.swift */; };
+		7032547D2FE2F42D0067A19D /* NowAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 703254762FE2F42D0067A19D /* NowAttributes.swift */; };
+		7032547E2FE2F42D0067A19D /* SnoozeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 703254772FE2F42D0067A19D /* SnoozeIntent.swift */; };
+		703254802FE2F8CA0067A19D /* LiveActivityRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7032547F2FE2F8CA0067A19D /* LiveActivityRefresher.swift */; };
+		703254812FE2F8CA0067A19D /* LiveActivityRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7032547F2FE2F8CA0067A19D /* LiveActivityRefresher.swift */; };
 		AABB00010001000100010001 /* MemoryProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00000000000000000000 /* MemoryProbe.swift */; };
 /* End PBXBuildFile section */
 
@@ -69,7 +75,10 @@
 		701EBE772F5348DA0060F5B6 /* WidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = WidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		701EBE792F5348DA0060F5B6 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		701EBE7B2F5348DA0060F5B6 /* SwiftUI.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SwiftUI.framework; path = System/Library/Frameworks/SwiftUI.framework; sourceTree = SDKROOT; };
-		701EC1C22F537F6E0060F5B6 /* NowAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowAttributes.swift; sourceTree = "<group>"; };
+		703254752FE2F42D0067A19D /* CheckInIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInIntent.swift; sourceTree = "<group>"; };
+		703254762FE2F42D0067A19D /* NowAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowAttributes.swift; sourceTree = "<group>"; };
+		703254772FE2F42D0067A19D /* SnoozeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnoozeIntent.swift; sourceTree = "<group>"; };
+		7032547F2FE2F8CA0067A19D /* LiveActivityRefresher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityRefresher.swift; sourceTree = "<group>"; };
 		AABB00000000000000000000 /* MemoryProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryProbe.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -230,15 +239,26 @@
 		701EC1C12F537F610060F5B6 /* Shared */ = {
 			isa = PBXGroup;
 			children = (
+				703254782FE2F42D0067A19D /* Widget */,
 				700D160C2F833A60004B6B57 /* AppSettings.swift */,
 				700D160D2F833A60004B6B57 /* InAppScheduler.swift */,
 				700D166D2F838172004B6B57 /* WilgoConstants.swift */,
-				701EC1C22F537F6E0060F5B6 /* NowAttributes.swift */,
 				AABB00000000000000000000 /* MemoryProbe.swift */,
 				700D167F2F83854E004B6B57 /* Scheduling */,
 				700D16762F838544004B6B57 /* Models */,
 			);
 			path = Shared;
+			sourceTree = "<group>";
+		};
+		703254782FE2F42D0067A19D /* Widget */ = {
+			isa = PBXGroup;
+			children = (
+				7032547F2FE2F8CA0067A19D /* LiveActivityRefresher.swift */,
+				703254752FE2F42D0067A19D /* CheckInIntent.swift */,
+				703254762FE2F42D0067A19D /* NowAttributes.swift */,
+				703254772FE2F42D0067A19D /* SnoozeIntent.swift */,
+			);
+			path = Widget;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -426,8 +446,11 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				701EC1C32F537F980060F5B6 /* NowAttributes.swift in Sources */,
 				700D166F2F838172004B6B57 /* WilgoConstants.swift in Sources */,
+				7032547C2FE2F42D0067A19D /* CheckInIntent.swift in Sources */,
+				7032547D2FE2F42D0067A19D /* NowAttributes.swift in Sources */,
+				7032547E2FE2F42D0067A19D /* SnoozeIntent.swift in Sources */,
+				703254802FE2F8CA0067A19D /* LiveActivityRefresher.swift in Sources */,
 				700D16412F833A60004B6B57 /* AppSettings.swift in Sources */,
 				700D16422F833A60004B6B57 /* InAppScheduler.swift in Sources */,
 				AABB00010001000100010001 /* MemoryProbe.swift in Sources */,
@@ -454,7 +477,10 @@
 			files = (
 				700D18E52F838864004B6B57 /* AppSettings.swift in Sources */,
 				700D166E2F838172004B6B57 /* WilgoConstants.swift in Sources */,
-				701EC1C42F537F980060F5B6 /* NowAttributes.swift in Sources */,
+				703254812FE2F8CA0067A19D /* LiveActivityRefresher.swift in Sources */,
+				703254792FE2F42D0067A19D /* CheckInIntent.swift in Sources */,
+				7032547A2FE2F42D0067A19D /* NowAttributes.swift in Sources */,
+				7032547B2FE2F42D0067A19D /* SnoozeIntent.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -826,6 +852,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "WIDGET_EXTENSION DEBUG $(inherited)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
@@ -863,6 +890,7 @@
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "WIDGET_EXTENSION $(inherited)";
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
