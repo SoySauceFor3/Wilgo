@@ -33,13 +33,11 @@ final class StageViewModel {
 
     private func recompute() {
         let now = Date()
-        let active = lastCommitments.filter { commitment in
-            if commitment.continueRemindersAfterGoalMet { return true }
-            return !commitment.goalProgress(now: now).isMet
-        }
-        current = CommitmentAndSlot.currentWithBehind(commitments: active, now: now)
-        upcoming = CommitmentAndSlot.upcomingWithBehind(commitments: active, after: now)
-        catchUp = CommitmentAndSlot.catchUpWithBehind(commitments: active, now: now)
+        // The *WithBehind helpers apply isActiveForReminders internally; passing the full list and
+        // letting them filter keeps the goal-met∕continue rule in exactly one place.
+        current = CommitmentAndSlot.currentWithBehind(commitments: lastCommitments, now: now)
+        upcoming = CommitmentAndSlot.upcomingWithBehind(commitments: lastCommitments, after: now)
+        catchUp = CommitmentAndSlot.catchUpWithBehind(commitments: lastCommitments, now: now)
     }
 
     private func scheduleTimer() {
