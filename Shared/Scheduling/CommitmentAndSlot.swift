@@ -80,6 +80,10 @@ enum CommitmentAndSlot {
     }
 
     /// Earliest upcoming windowStart, windowEnd, or psychDay boundary across all commitments' slots.
+    ///
+    /// Intentionally does NOT apply `isActiveForReminders`: a goal-met commitment can become
+    /// un-met across a cycle boundary, and waking slightly early is harmless — whereas filtering
+    /// here could skip a needed wake-up. This is the one helper that does not gate on that rule.
     static func nextTransitionDate(
         commitments: [Commitment], now: Date = Time.now()
     ) -> Date? {

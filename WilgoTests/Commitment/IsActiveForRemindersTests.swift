@@ -102,4 +102,42 @@ final class IsActiveForRemindersTests {
         let current = CommitmentAndSlot.currentWithBehind(commitments: [a], now: Date())
         #expect(current.map(\.commitment.title) == ["A"])
     }
+
+    // MARK: - upcoming / catchUp honor the rule too
+
+    private func tod(hour: Int) -> Date {
+        var c = DateComponents()
+        c.year = 2000
+        c.month = 1
+        c.day = 1
+        c.hour = hour
+        return Calendar.current.date(from: c)!
+    }
+
+    /// Goal-met commitment with a slot that starts later today (so without the goal-met filter it
+    /// would land in `upcomingWithBehind`). The filter must still exclude it.
+    @Test("upcomingWithBehind excludes a goal-met commitment with a later-today slot")
+    @MainActor func upcomingWithBehind_excludesGoalMet() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // now = 06:00, slot starts 14:00 → later today → would be .beforeNextToday (upcoming).
+        let slot = Slot(start: tod(hour: 14), end: tod(hour: 15))
+        ctx.insert(slot)
+        let now = Calendar.current.startOfDay(for: Date()).addingTimeInterval(6 * 3600)
+        let anchor = Calendar.current.startOfDay(for: now)
+        let c = Commitment(
+            title: "A",
+            cycle: Cycle(kind: .daily, referencePsychDay: anchor),
+            slots: [slot],
+            target: Target(count: 1),
+            isRemindersEnabled: true,
+            continueRemindersAfterGoalMet: false
+        )
+        ctx.insert(c)
+        let checkIn = CheckIn(commitment: c, createdAt: now)
+        ctx.insert(checkIn)
+        c.checkIns.append(checkIn)
+
+        #expect(CommitmentAndSlot.upcomingWithBehind(commitments: [c], after: now).isEmpty)
+    }
 }
