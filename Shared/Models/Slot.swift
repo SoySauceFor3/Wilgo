@@ -278,6 +278,17 @@ extension Slot {
         resolved.id = self.id
         return resolved
     }
+
+    /// Resolves this slot's firing on `psychDay` as a `SlotOccurrence`, or `nil` if the
+    /// slot's recurrence excludes that day.
+    ///
+    /// This is the only constructor of `SlotOccurrence`: a firing for a day the slot does
+    /// not fire cannot be built. Eventually replaces `resolveOccurrence`, which returns a
+    /// fake `Slot` copy.
+    func occurrence(on psychDay: Date, calendar: Calendar = Time.calendar) -> SlotOccurrence? {
+        guard recurrence.matches(date: psychDay, calendar: calendar) else { return nil }
+        return SlotOccurrence(slot: self, psychDay: psychDay)
+    }
 }
 
 extension Slot {

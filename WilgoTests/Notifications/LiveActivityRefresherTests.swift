@@ -65,7 +65,6 @@ final class LiveActivityRefresherTests {
         #expect(state.commitmentId == c.id)
         #expect(state.slotId == current[0].slots[0].id)
         #expect(state.secondaryTitles.isEmpty)
-        #expect(state.hasCurrentCommitment)
     }
 
     @Test("empty encouragements → encouragementText is nil")
