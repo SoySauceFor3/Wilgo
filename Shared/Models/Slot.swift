@@ -153,6 +153,20 @@ extension Slot {
     /// End of the slot mapped onto the current psychological day.
     var endToday: Date { Time.resolve(timeOfDay: end) }
 
+    /// Absolute end datetime of the occurrence that *starts* on `day`.
+    ///
+    /// For a normal window the end falls on `day` itself. For a cross-midnight
+    /// window (e.g. 23:00–01:00) the end falls on the following calendar day,
+    /// mirroring `resolveOccurrence`. Pass the psychDay the slot *starts* on,
+    /// not the day it ends.
+    func endTime(onDayStarting day: Date, calendar: Calendar = Time.calendar) -> Date {
+        var end = Time.resolve(timeOfDay: self.end, on: day)
+        if crossesMidnight {
+            end = calendar.date(byAdding: .day, value: 1, to: end) ?? end
+        }
+        return end
+    }
+
     var timeOfDayText: String {
         if isWholeDay {
             let formatter = DateFormatter()

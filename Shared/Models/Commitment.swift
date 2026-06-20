@@ -213,6 +213,22 @@ extension Commitment {
         return GoalProgress(leftToDo: leftToDo)
     }
 
+    /// Commitment-level rule for whether this commitment should still surface as
+    /// current / upcoming / catch-up on any reminder surface (Stage, Live Activity, widget,
+    /// slot-start notifications).
+    ///
+    /// It is `false` once the cycle goal is met, unless the user opted into
+    /// `continueRemindersAfterGoalMet`. Slot-level concerns (snooze, capacity/saturation,
+    /// window timing) are NOT decided here — those live in `slotStatus` /
+    /// `remainingUsableOccurrences` and are applied downstream by the `*WithBehind` helpers.
+    ///
+    /// This is the single source of truth for the goal-met∕continue rule; every surface must
+    /// go through it (directly or via the `*WithBehind` helpers, which call it) so they agree.
+    func isActiveForReminders(now: Date = Time.now()) -> Bool {
+        if continueRemindersAfterGoalMet { return true }
+        return !goalProgress(now: now).isMet
+    }
+
     /// Returns the combined slot + goal status for `now`. Prefer this over calling
     /// `slotStatus` and `goalProgress` separately when both are needed, as it avoids
     /// computing cycle check-ins twice.

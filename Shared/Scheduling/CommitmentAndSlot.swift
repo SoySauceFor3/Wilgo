@@ -9,6 +9,7 @@ enum CommitmentAndSlot {
         now: Date = Time.now()
     ) -> [WithBehind] {
         let result: [WithBehind] = commitments.compactMap { commitment in
+            guard commitment.isActiveForReminders(now: now) else { return nil }
             let status = commitment.status(now: now)
             guard status.slotKind == .insideSlot else { return nil }
             return (
@@ -27,6 +28,7 @@ enum CommitmentAndSlot {
         after time: Date
     ) -> [WithBehind] {
         let result: [WithBehind] = commitments.compactMap { commitment in
+            guard commitment.isActiveForReminders(now: time) else { return nil }
             let status = commitment.status(now: time)
             guard status.slotKind == .beforeNextToday else { return nil }
             return (
@@ -47,6 +49,7 @@ enum CommitmentAndSlot {
         now: Date = Time.now()
     ) -> [WithBehind] {
         let result: [WithBehind] = commitments.compactMap { commitment in
+            guard commitment.isActiveForReminders(now: now) else { return nil }
             let status = commitment.status(now: now)
             guard status.slotKind == .noSlotToday else { return nil }
             guard let behindCount = status.behindCount, behindCount > 0 else { return nil }
@@ -77,6 +80,10 @@ enum CommitmentAndSlot {
     }
 
     /// Earliest upcoming windowStart, windowEnd, or psychDay boundary across all commitments' slots.
+    ///
+    /// Intentionally does NOT apply `isActiveForReminders`: a goal-met commitment can become
+    /// un-met across a cycle boundary, and waking slightly early is harmless — whereas filtering
+    /// here could skip a needed wake-up. This is the one helper that does not gate on that rule.
     static func nextTransitionDate(
         commitments: [Commitment], now: Date = Time.now()
     ) -> Date? {
