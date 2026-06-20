@@ -156,9 +156,8 @@ extension Slot {
     /// Absolute end datetime of the occurrence that *starts* on `day`.
     ///
     /// For a normal window the end falls on `day` itself. For a cross-midnight
-    /// window (e.g. 23:00–01:00) the end falls on the following calendar day,
-    /// mirroring `resolveOccurrence`. Pass the psychDay the slot *starts* on,
-    /// not the day it ends.
+    /// window (e.g. 23:00–01:00) the end falls on the following calendar day.
+    /// Pass the psychDay the slot *starts* on, not the day it ends.
     func endTime(onDayStarting day: Date, calendar: Calendar = Time.calendar) -> Date {
         var end = Time.resolve(timeOfDay: self.end, on: day)
         if crossesMidnight {
@@ -258,33 +257,11 @@ extension Slot {
         return recurrence.matches(date: anchor, calendar: calendar)
     }
 
-    /// Resolves this slot's time-of-day window into concrete datetimes on the given psych day.
-    /// Returns `nil` if the slot's recurrence rule excludes this day.
-    /// The returned `Slot` carries the original slot's `id` so callers can look up the
-    /// persisted Slot in the SwiftData store.
-    func resolveOccurrence(on psychDay: Date, calendar: Calendar = Time.calendar) -> Slot? {
-        guard self.recurrence.matches(date: psychDay, calendar: calendar) else { return nil }
-
-        let start = Time.resolve(timeOfDay: self.start, on: psychDay)
-        var end = Time.resolve(timeOfDay: self.end, on: psychDay)
-        if end <= start {
-            end = calendar.date(byAdding: .day, value: 1, to: end) ?? end
-        }
-
-        // For slots with selected days
-        guard isScheduled(on: start, calendar: calendar) else { return nil }
-
-        let resolved = Slot(start: start, end: end)
-        resolved.id = self.id
-        return resolved
-    }
-
     /// Resolves this slot's firing on `psychDay` as a `SlotOccurrence`, or `nil` if the
     /// slot's recurrence excludes that day.
     ///
     /// This is the only constructor of `SlotOccurrence`: a firing for a day the slot does
-    /// not fire cannot be built. Eventually replaces `resolveOccurrence`, which returns a
-    /// fake `Slot` copy.
+    /// not fire cannot be built.
     func occurrence(on psychDay: Date, calendar: Calendar = Time.calendar) -> SlotOccurrence? {
         guard recurrence.matches(date: psychDay, calendar: calendar) else { return nil }
         return SlotOccurrence(slot: self, psychDay: psychDay)
@@ -333,7 +310,7 @@ extension Slot {
         // Resolve the occurrence that actually contains `time`. For cross-midnight
         // windows, post-midnight times belong to the previous occurrence.
         let psychDay = anchorDate(for: time, calendar: calendar)
-        guard let occurrence = self.resolveOccurrence(on: psychDay, calendar: calendar) else {
+        guard let occurrence = self.occurrence(on: psychDay, calendar: calendar) else {
             return false
         }
         return Self.countCheckInsInWindow(
