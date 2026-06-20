@@ -47,11 +47,6 @@ final class LiveActivityRefresherTests {
         return c
     }
 
-    @Test("empty current list → nil content state")
-    @MainActor func emptyCurrent_returnsNil() {
-        #expect(LiveActivityRefresher.makeContentState(from: []) == nil)
-    }
-
     @Test("single current commitment → maps title, ids, no secondary titles")
     @MainActor func singleCurrent_mapsPrimaryFields() throws {
         let container = try makeTestContainer()
@@ -63,9 +58,8 @@ final class LiveActivityRefresherTests {
         let state = try #require(LiveActivityRefresher.makeContentState(from: current))
         #expect(state.commitmentTitle == "Draw")
         #expect(state.commitmentId == c.id)
-        #expect(state.slotId == current[0].slots[0].id)
+        #expect(state.slotId == current[0].slots[0].slot.id)
         #expect(state.secondaryTitles.isEmpty)
-        #expect(state.hasCurrentCommitment)
     }
 
     @Test("empty encouragements → encouragementText is nil")

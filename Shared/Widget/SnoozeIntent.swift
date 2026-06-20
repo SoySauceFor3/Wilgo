@@ -40,7 +40,7 @@ struct SnoozeIntent: LiveActivityIntent {
                 return .result()
             }
 
-            SlotSnooze.create(slot: slot, at: Time.now(), in: context)
+            slot.snooze(at: Time.now(), in: context)
             try context.save()
 
             // Rebuild every notification surface (Live Activity included) from the single choke point,

@@ -101,6 +101,7 @@
 				CycleRecord.swift,
 				PositivityToken.swift,
 				Slot.swift,
+				SlotOccurrence.swift,
 				SlotSnooze.swift,
 				Tag.swift,
 				TargetMode.swift,

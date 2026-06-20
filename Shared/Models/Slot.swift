@@ -156,9 +156,8 @@ extension Slot {
     /// Absolute end datetime of the occurrence that *starts* on `day`.
     ///
     /// For a normal window the end falls on `day` itself. For a cross-midnight
-    /// window (e.g. 23:00–01:00) the end falls on the following calendar day,
-    /// mirroring `resolveOccurrence`. Pass the psychDay the slot *starts* on,
-    /// not the day it ends.
+    /// window (e.g. 23:00–01:00) the end falls on the following calendar day.
+    /// Pass the psychDay the slot *starts* on, not the day it ends.
     func endTime(onDayStarting day: Date, calendar: Calendar = Time.calendar) -> Date {
         var end = Time.resolve(timeOfDay: self.end, on: day)
         if crossesMidnight {
@@ -234,7 +233,7 @@ extension Slot {
     /// For cross-midnight windows (e.g. 23:00–01:00), post-midnight times are
     /// attributed back to the previous calendar day (the day the window started).
     /// Precondition: `time` must be within this slot's window (`containsTime` is true).
-    private func anchorDate(for time: Date, calendar: Calendar) -> Date {
+    func anchorDate(for time: Date, calendar: Calendar = Time.calendar) -> Date {
         guard containsTime(time) else {
             assertionFailure("anchorDate(for:) called with time outside slot window")
             return calendar.startOfDay(for: time)
@@ -258,44 +257,79 @@ extension Slot {
         return recurrence.matches(date: anchor, calendar: calendar)
     }
 
-    /// Resolves this slot's time-of-day window into concrete datetimes on the given psych day.
-    /// Returns `nil` if the slot's recurrence rule excludes this day.
-    /// The returned `Slot` carries the original slot's `id` so callers can look up the
-    /// persisted Slot in the SwiftData store.
-    func resolveOccurrence(on psychDay: Date, calendar: Calendar = Time.calendar) -> Slot? {
-        guard self.recurrence.matches(date: psychDay, calendar: calendar) else { return nil }
-
-        let start = Time.resolve(timeOfDay: self.start, on: psychDay)
-        var end = Time.resolve(timeOfDay: self.end, on: psychDay)
-        if end <= start {
-            end = calendar.date(byAdding: .day, value: 1, to: end) ?? end
-        }
-
-        // For slots with selected days
-        guard isScheduled(on: start, calendar: calendar) else { return nil }
-
-        let resolved = Slot(start: start, end: end)
-        resolved.id = self.id
-        return resolved
+    /// Resolves this slot's firing on `psychDay` as a `SlotOccurrence`, or `nil` if the
+    /// slot's recurrence excludes that day.
+    ///
+    /// This is the only constructor of `SlotOccurrence`: a firing for a day the slot does
+    /// not fire cannot be built.
+    func occurrence(on psychDay: Date, calendar: Calendar = Time.calendar) -> SlotOccurrence? {
+        guard recurrence.matches(date: psychDay, calendar: calendar) else { return nil }
+        return SlotOccurrence(slot: self, psychDay: psychDay)
     }
 }
 
+// MARK: - Snooze
+
 extension Slot {
     /// Returns true if this slot's occurrence on the psychDay of `time` has been snoozed.
-    /// Returns false if `time` is outside this slot's scheduled window (no occurrence → not snoozed).
+    ///
+    /// The `isScheduled` check is a **defensive read guard**: if `time` is outside this
+    /// slot's current window (wrong time-of-day or excluded recurrence day), there is no
+    /// occurrence to snooze, so this returns false. It also renders any *stale* snooze inert
+    /// — e.g. one left over from before a recurrence edit — because the day it was recorded
+    /// for no longer resolves to an active occurrence.
+    ///
+    /// The match compares the stored, frozen `snooze.psychDay` against the anchor day of
+    /// `time` (the day the occurrence containing `time` starts on; cross-midnight tails
+    /// anchor back to the start day). `snooze.psychDay` is set once at create and never
+    /// re-derived, so the match does not depend on the slot's current `start`/`end`.
     func isSnoozed(at time: Date, calendar: Calendar = Time.calendar) -> Bool {
         guard self.isScheduled(on: time, calendar: calendar) else {
             return false
         }
 
-        guard let psychDay = try? SlotSnooze.slotPsychDay(slot: self, at: time, calendar: calendar)
-        else {
-            return false
-        }
-
+        let psychDay = anchorDate(for: time, calendar: calendar)
         return snoozes.contains { snooze in
             calendar.isDate(snooze.psychDay, inSameDayAs: psychDay)
         }
+    }
+
+    /// Snoozes this slot's firing at `time`, inserting a `SlotSnooze`, or returns `nil` if
+    /// `time` is outside the slot's active window (wrong time-of-day or wrong recurrence day).
+    ///
+    /// Always clears **all** of this slot's existing snoozes first (even when this returns `nil`).
+    /// This is safe and simpler than selective stale-cleanup because a slot fires at most once per
+    /// logical day and `snooze(at:)` is only ever called for the *current* firing — so any existing
+    /// snooze is necessarily for an earlier day, or today's (which we are replacing). Clearing all
+    /// also guarantees a slot never accumulates duplicate snoozes for the same day.
+    /// (Assumption: no caller pre-snoozes a *future* firing; if that ever changes, this must too.)
+    ///
+    /// The recorded `psychDay` is the anchor day of the firing containing `time` (frozen here,
+    /// never re-derived on read). For cross-midnight slots (e.g. 11pm–1am), a snooze tapped at
+    /// 12am Jan 1 belongs to the Dec 31 firing, so `psychDay = Dec 31`.
+    ///
+    /// - Parameters:
+    ///   - time: The creation time (injectable for testing), and effective time.
+    ///   - context: The SwiftData context to insert into. `@Model` objects require an explicit
+    ///     `ModelContext` for insert/delete — there is no implicit context on the model itself.
+    /// - Returns: The newly created `SlotSnooze`, or `nil` if `time` is not in the slot's window.
+    @discardableResult
+    func snooze(
+        at time: Date = Time.now(), in context: ModelContext, calendar: Calendar = Time.calendar
+    ) -> SlotSnooze? {
+        // Clear all existing snoozes — see doc: any prior snooze is for a past day (or today's,
+        // which we replace), so this can't drop a snooze that's still relevant.
+        for s in snoozes {
+            context.delete(s)
+        }
+        snoozes.removeAll()
+
+        guard isScheduled(on: time, calendar: calendar) else { return nil }
+
+        let psychDay = anchorDate(for: time, calendar: calendar)
+        let snooze = SlotSnooze(slot: self, psychDay: psychDay, snoozedAt: time)
+        context.insert(snooze)
+        return snooze
     }
 }
 
@@ -322,7 +356,7 @@ extension Slot {
         // Resolve the occurrence that actually contains `time`. For cross-midnight
         // windows, post-midnight times belong to the previous occurrence.
         let psychDay = anchorDate(for: time, calendar: calendar)
-        guard let occurrence = self.resolveOccurrence(on: psychDay, calendar: calendar) else {
+        guard let occurrence = self.occurrence(on: psychDay, calendar: calendar) else {
             return false
         }
         return Self.countCheckInsInWindow(

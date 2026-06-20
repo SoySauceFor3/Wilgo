@@ -90,15 +90,15 @@ struct SlotEndTimeTests {
         #expect(cal.component(.hour, from: end) == 9)
     }
 
-    @Test("end matches resolveOccurrence end for the same day")
-    @MainActor func matchesResolveOccurrence() throws {
+    @Test("end matches the SlotOccurrence end for the same day")
+    @MainActor func matchesOccurrence() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         let slot = Slot(start: tod(hour: 23), end: tod(hour: 1))
         ctx.insert(slot)
 
         let day = date(year: 2026, month: 4, day: 24)
-        let resolved = try #require(slot.resolveOccurrence(on: day))
-        #expect(slot.endTime(onDayStarting: day) == resolved.end)
+        let occurrence = try #require(slot.occurrence(on: day))
+        #expect(slot.endTime(onDayStarting: day) == occurrence.end)
     }
 }

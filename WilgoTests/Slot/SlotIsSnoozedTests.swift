@@ -131,7 +131,7 @@ final class SlotIsSnoozedTests {
         let ctx = container.mainContext
         let slot = makeSlot(startHour: 23, endHour: 1, in: ctx)
 
-        // Snooze recorded with psychDay = Jan 1 (wrong — would never be created by SlotSnooze.create,
+        // Snooze recorded with psychDay = Jan 1 (wrong — would never be created by slot.snooze(at:in:),
         // but we verify the matching logic is correct regardless)
         let jan1 = date(year: 2026, month: 1, day: 1)
         let snooze = SlotSnooze(

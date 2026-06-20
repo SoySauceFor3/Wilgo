@@ -123,7 +123,7 @@ enum SlotStartNotificationScheduler {
         let content = UNMutableNotificationContent()
         content.title = "Time for: \(commitment.title)"
         let slot = commitment.slots.first(where: {
-            $0.resolveOccurrence(on: Time.startOfDay(for: fireDate))?.start == fireDate
+            $0.occurrence(on: Time.startOfDay(for: fireDate))?.start == fireDate
         })
         content.body = commitment.encouragements.randomElement() ?? slot?.timeOfDayText ?? ""
         content.userInfo = [

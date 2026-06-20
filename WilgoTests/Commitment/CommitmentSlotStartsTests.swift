@@ -61,7 +61,7 @@ final class CommitmentUpcomingSlotStartsTests {
 
     @MainActor
     private func addSnooze(to slot: Slot, at date: Date, in ctx: ModelContext) {
-        SlotSnooze.create(slot: slot, at: date, in: ctx)
+        slot.snooze(at: date, in: ctx)
     }
 
     // MARK: - Tests
@@ -155,7 +155,7 @@ final class CommitmentUpcomingSlotStartsTests {
         let c = makeCommitment(slots: [(9, 11, nil)], in: ctx)
         let slot = try #require(c.slots.first)
         let from = date(year: 2026, month: 3, day: 5, hour: 7)
-        // Snooze must be created at a time within the slot window for SlotSnooze.create to succeed
+        // Snooze must be created at a time within the slot window for slot.snooze(at:in:) to succeed
         addSnooze(to: slot, at: date(year: 2026, month: 3, day: 5, hour: 9), in: ctx)
         let to = date(year: 2026, month: 3, day: 6)
 

@@ -3,7 +3,7 @@ import SwiftUI
 
 struct UpcomingCommitmentRow: View {
     let commitment: Commitment
-    let slots: [Slot]
+    let slots: [SlotOccurrence]
     /// Pre-computed by `StageViewModel`; avoids re-running `status` per row.
     let behindCount: Int
     var onTap: () -> Void
@@ -59,7 +59,8 @@ struct UpcomingCommitmentRow: View {
         target: Target(count: 1),
     )
 
-    UpcomingCommitmentRow(commitment: commitment, slots: [slot], behindCount: 0, onTap: {})
+    let occurrence = slot.occurrence(on: Time.startOfDay(for: today))!
+    UpcomingCommitmentRow(commitment: commitment, slots: [occurrence], behindCount: 0, onTap: {})
         .modelContainer(
             for: [Commitment.self, Slot.self, CheckIn.self], inMemory: true
         )
