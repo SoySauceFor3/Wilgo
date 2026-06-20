@@ -197,8 +197,8 @@ struct SlotSnoozeCreateTests: ~Copyable {
                 slot.snoozes[0].psychDay, inSameDayAs: date(year: 2026, month: 3, day: 5)))
     }
 
-    @Test("cross-midnight stale cleanup: snooze NOT deleted while slot still active at 12:30am")
-    @MainActor func create_crossMidnight_snoozeKeptWhileSlotActive() throws {
+    @Test("cross-midnight: snoozing twice in the same firing keeps exactly one snooze (no duplicates)")
+    @MainActor func create_crossMidnight_noDuplicateSnoozeForSameFiring() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         // Slot: 11pm–1am (crosses midnight)
@@ -210,17 +210,15 @@ struct SlotSnoozeCreateTests: ~Copyable {
         #expect(snooze != nil)
         #expect(slot.snoozes.count == 1)
 
-        // Attempt another create at 12:30am Jan 1 — slot still active, stale check should NOT delete existing snooze
-        // (occurrence end = 1am Jan 1, which is > 12:30am, so NOT stale)
-        // However create will return nil since a snooze already exists... actually it would create another one.
-        // The real test: the existing snooze should not be deleted at 12:30am.
+        // Snooze again at 12:30am Jan 1 — same Dec 31 firing. snooze(at:) clears all existing snoozes
+        // first, so there is still exactly one snooze (no duplicate for the same day).
         let at1230 = date(year: 2026, month: 1, day: 1, hour: 0, minute: 30)
         _ = slot.snooze(at: at1230, in: ctx)
-        // Both the original and new snooze exist (cleanup didn't delete the live one)
-        let dec31Snoozes = slot.snoozes.filter {
-            Calendar.current.isDate($0.psychDay, inSameDayAs: date(year: 2025, month: 12, day: 31))
-        }
-        #expect(!dec31Snoozes.isEmpty)
+        #expect(slot.snoozes.count == 1)
+        // And it is still recorded against the Dec 31 firing.
+        #expect(
+            Calendar.current.isDate(
+                slot.snoozes[0].psychDay, inSameDayAs: date(year: 2025, month: 12, day: 31)))
     }
 
     @Test("cross-midnight stale cleanup: snooze IS deleted after slot ends at 1:30am")

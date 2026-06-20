@@ -297,9 +297,12 @@ extension Slot {
     /// Snoozes this slot's firing at `time`, inserting a `SlotSnooze`, or returns `nil` if
     /// `time` is outside the slot's active window (wrong time-of-day or wrong recurrence day).
     ///
-    /// Always performs lazy cleanup first: deletes existing stale snoozes on this slot — those
-    /// whose firing window has fully closed (`occurrence end < time`) or whose recorded day no
-    /// longer resolves to an occurrence at all. This cleanup runs even when this returns `nil`.
+    /// Always clears **all** of this slot's existing snoozes first (even when this returns `nil`).
+    /// This is safe and simpler than selective stale-cleanup because a slot fires at most once per
+    /// logical day and `snooze(at:)` is only ever called for the *current* firing — so any existing
+    /// snooze is necessarily for an earlier day, or today's (which we are replacing). Clearing all
+    /// also guarantees a slot never accumulates duplicate snoozes for the same day.
+    /// (Assumption: no caller pre-snoozes a *future* firing; if that ever changes, this must too.)
     ///
     /// The recorded `psychDay` is the anchor day of the firing containing `time` (frozen here,
     /// never re-derived on read). For cross-midnight slots (e.g. 11pm–1am), a snooze tapped at
@@ -314,17 +317,12 @@ extension Slot {
     func snooze(
         at time: Date = Time.now(), in context: ModelContext, calendar: Calendar = Time.calendar
     ) -> SlotSnooze? {
-        // Lazy cleanup: always remove stale snoozes, regardless of whether we'll insert a new one.
-        let stale = snoozes.filter { existing in
-            guard let end = occurrence(on: existing.psychDay, calendar: calendar)?.end else {
-                return true
-            }
-            return end < time
-        }
-        for s in stale {
-            snoozes.removeAll { $0.id == s.id }
+        // Clear all existing snoozes — see doc: any prior snooze is for a past day (or today's,
+        // which we replace), so this can't drop a snooze that's still relevant.
+        for s in snoozes {
             context.delete(s)
         }
+        snoozes.removeAll()
 
         guard isScheduled(on: time, calendar: calendar) else { return nil }
 
