@@ -268,6 +268,8 @@ extension Slot {
     }
 }
 
+// MARK: - Snooze
+
 extension Slot {
     /// Returns true if this slot's occurrence on the psychDay of `time` has been snoozed.
     ///
@@ -290,6 +292,46 @@ extension Slot {
         return snoozes.contains { snooze in
             calendar.isDate(snooze.psychDay, inSameDayAs: psychDay)
         }
+    }
+
+    /// Snoozes this slot's firing at `time`, inserting a `SlotSnooze`, or returns `nil` if
+    /// `time` is outside the slot's active window (wrong time-of-day or wrong recurrence day).
+    ///
+    /// Always performs lazy cleanup first: deletes existing stale snoozes on this slot — those
+    /// whose firing window has fully closed (`occurrence end < time`) or whose recorded day no
+    /// longer resolves to an occurrence at all. This cleanup runs even when this returns `nil`.
+    ///
+    /// The recorded `psychDay` is the anchor day of the firing containing `time` (frozen here,
+    /// never re-derived on read). For cross-midnight slots (e.g. 11pm–1am), a snooze tapped at
+    /// 12am Jan 1 belongs to the Dec 31 firing, so `psychDay = Dec 31`.
+    ///
+    /// - Parameters:
+    ///   - time: The creation time (injectable for testing), and effective time.
+    ///   - context: The SwiftData context to insert into. `@Model` objects require an explicit
+    ///     `ModelContext` for insert/delete — there is no implicit context on the model itself.
+    /// - Returns: The newly created `SlotSnooze`, or `nil` if `time` is not in the slot's window.
+    @discardableResult
+    func snooze(
+        at time: Date = Time.now(), in context: ModelContext, calendar: Calendar = Time.calendar
+    ) -> SlotSnooze? {
+        // Lazy cleanup: always remove stale snoozes, regardless of whether we'll insert a new one.
+        let stale = snoozes.filter { existing in
+            guard let end = occurrence(on: existing.psychDay, calendar: calendar)?.end else {
+                return true
+            }
+            return end < time
+        }
+        for s in stale {
+            snoozes.removeAll { $0.id == s.id }
+            context.delete(s)
+        }
+
+        guard isScheduled(on: time, calendar: calendar) else { return nil }
+
+        let psychDay = anchorDate(for: time, calendar: calendar)
+        let snooze = SlotSnooze(slot: self, psychDay: psychDay, snoozedAt: time)
+        context.insert(snooze)
+        return snooze
     }
 }
 

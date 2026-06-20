@@ -65,7 +65,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
         let slot = makeSlotAndInsert(startHour: 9, endHour: 11, in: ctx)
 
         let time = date(year: 2026, month: 3, day: 5, hour: 10)  // within 9–11am
-        let snooze = SlotSnooze.create(slot: slot, at: time, in: ctx)
+        let snooze = slot.snooze(at: time, in: ctx)
 
         #expect(snooze != nil)
         #expect(slot.snoozes.count == 1)
@@ -85,7 +85,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
         // Snooze tapped at 12am Jan 1 (post-midnight portion of the Dec 31 slot occurrence)
         let time = date(year: 2026, month: 1, day: 1, hour: 0, minute: 30)
-        let snooze = SlotSnooze.create(slot: slot, at: time, in: ctx)
+        let snooze = slot.snooze(at: time, in: ctx)
 
         #expect(snooze != nil)
 
@@ -101,7 +101,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
         let slot = makeSlotAndInsert(startHour: 9, endHour: 11, in: ctx)
 
         let time = date(year: 2026, month: 6, day: 15, hour: 10)
-        let snooze = SlotSnooze.create(slot: slot, at: time, in: ctx)
+        let snooze = slot.snooze(at: time, in: ctx)
 
         #expect(snooze != nil)
         let expectedPsychDay = date(year: 2026, month: 6, day: 15)
@@ -118,7 +118,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
         let slot = makeSlotAndInsert(startHour: 1, endHour: 3, in: ctx)
         let time = date(year: 2026, month: 3, day: 5, hour: 5)
 
-        let snooze = SlotSnooze.create(slot: slot, at: time, in: ctx)
+        let snooze = slot.snooze(at: time, in: ctx)
 
         #expect(snooze == nil)
         #expect(slot.snoozes.isEmpty)
@@ -132,7 +132,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
         let slot = makeSlotAndInsert(startHour: 9, endHour: 11, in: ctx)
         let time = date(year: 2026, month: 3, day: 5, hour: 7)
 
-        let snooze = SlotSnooze.create(slot: slot, at: time, in: ctx)
+        let snooze = slot.snooze(at: time, in: ctx)
 
         #expect(snooze == nil)
         #expect(slot.snoozes.isEmpty)
@@ -150,7 +150,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
         // Jan 6 2026 is a Tuesday. Weekday: 1=Sun,2=Mon,3=Tue
         // We need a day that is NOT Monday. Jan 6 2026 = Tuesday.
         let tuesday = date(year: 2026, month: 1, day: 6, hour: 10)  // Tuesday, within time window
-        let snooze = SlotSnooze.create(slot: slot, at: tuesday, in: ctx)
+        let snooze = slot.snooze(at: tuesday, in: ctx)
 
         #expect(snooze == nil)
         #expect(slot.snoozes.isEmpty)
@@ -166,7 +166,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
         // Jan 5 2026 is a Monday
         let monday = date(year: 2026, month: 1, day: 5, hour: 10)
-        let snooze = SlotSnooze.create(slot: slot, at: monday, in: ctx)
+        let snooze = slot.snooze(at: monday, in: ctx)
 
         #expect(snooze != nil)
     }
@@ -188,7 +188,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
         // Create a new snooze today — stale one should be cleaned up
         let time = date(year: 2026, month: 3, day: 5, hour: 10)
-        SlotSnooze.create(slot: slot, at: time, in: ctx)
+        slot.snooze(at: time, in: ctx)
 
         // Only today's snooze should remain
         #expect(slot.snoozes.count == 1)
@@ -206,7 +206,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
         // First snooze at 12am Jan 1 (slot is active: in 11pm Dec 31 – 1am Jan 1 window)
         let snoozeTime = date(year: 2026, month: 1, day: 1, hour: 0)
-        let snooze = SlotSnooze.create(slot: slot, at: snoozeTime, in: ctx)
+        let snooze = slot.snooze(at: snoozeTime, in: ctx)
         #expect(snooze != nil)
         #expect(slot.snoozes.count == 1)
 
@@ -215,7 +215,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
         // However create will return nil since a snooze already exists... actually it would create another one.
         // The real test: the existing snooze should not be deleted at 12:30am.
         let at1230 = date(year: 2026, month: 1, day: 1, hour: 0, minute: 30)
-        _ = SlotSnooze.create(slot: slot, at: at1230, in: ctx)
+        _ = slot.snooze(at: at1230, in: ctx)
         // Both the original and new snooze exist (cleanup didn't delete the live one)
         let dec31Snoozes = slot.snoozes.filter {
             Calendar.current.isDate($0.psychDay, inSameDayAs: date(year: 2025, month: 12, day: 31))
@@ -241,7 +241,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
         // `Time` it's 1:30am Jan 1 — slot has ended (occurrence end = 1am Jan 1 < 1:30am)
         // Trigger cleanup by attempting create (which will return nil since 1:30am is outside the 11pm-1am window)
         let at130am = date(year: 2026, month: 1, day: 1, hour: 1, minute: 30)
-        let result = SlotSnooze.create(slot: nightSlot, at: at130am, in: ctx)
+        let result = nightSlot.snooze(at: at130am, in: ctx)
         #expect(result == nil)  // 1:30am is outside 11pm-1am window
 
         // The stale snooze should have been deleted

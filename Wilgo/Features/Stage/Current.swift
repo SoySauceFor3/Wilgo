@@ -54,7 +54,7 @@ struct CurrentCommitmentRow: View {
         guard let originalSlot = commitment.slots.first(where: { $0.isScheduled(on: now) }) else {
             return
         }
-        SlotSnooze.create(slot: originalSlot, at: now, in: modelContext)
+        originalSlot.snooze(at: now, in: modelContext)
     }
 }
 
