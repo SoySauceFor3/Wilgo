@@ -106,8 +106,6 @@ final class Commitment {
 // MARK: - Slot queries
 
 extension Commitment {
-    private typealias ResolvedSlotPair = (occurrence: Slot, original: Slot)
-
     func checkInsInCycle(
         cycle: Cycle,
         until psychDay: Date = Time.startOfDay(for: Time.now()),
@@ -170,7 +168,7 @@ extension Commitment {
         let endDay = cycle.endDayOfCycle(including: nowPsychDay)
         let cycleCheckIns = checkInsInRange(startPsychDay: startDay, endPsychDay: endDay)
         let remainingSlots = remainingUsableOccurrences(
-            in: resolvedSlotPairs(from: startDay, until: endDay),
+            in: slotOccurrences(from: startDay, until: endDay),
             now: now,
             checkIns: cycleCheckIns
         )
@@ -262,63 +260,63 @@ extension Commitment {
     func slotStarts(from: Date, to: Date) -> [Date] {
         let startDay = Time.startOfDay(for: from)
         let cycleCheckIns = checkInsInRange(startPsychDay: startDay, endPsychDay: to)
-        let pairs = resolvedSlotPairs(from: startDay, until: to, includeCarryOver: false)
-        return pairs.compactMap { pair -> Date? in
-            let start = pair.occurrence.start
+        let occurrences = slotOccurrences(from: startDay, until: to, includeCarryOver: false)
+        return occurrences.compactMap { occ -> Date? in
+            let start = occ.start
             guard start >= from, start < to else { return nil }
-            guard !pair.original.isSnoozed(at: start) else { return nil }
-            guard !pair.original.isSaturated(at: start, checkIns: cycleCheckIns) else { return nil }
+            guard !occ.slot.isSnoozed(at: start) else { return nil }
+            guard !occ.slot.isSaturated(at: start, checkIns: cycleCheckIns) else { return nil }
             return start
         }
     }
 
-    private func resolvedSlotPairs(
+    private func slotOccurrences(
         from startDay: Date,
         until endDay: Date,
         includeCarryOver: Bool = true,  // if we include slots that end on StartDay but start on PreviousDay.
         calendar: Calendar = Time.calendar
-    ) -> [ResolvedSlotPair] {
-        var pairs: [ResolvedSlotPair] = []
+    ) -> [SlotOccurrence] {
+        var occurrences: [SlotOccurrence] = []
 
         if includeCarryOver,
             let previousDay = calendar.date(byAdding: .day, value: -1, to: startDay)
         {
             for slot in slots {
-                guard let occurrence = slot.resolveOccurrence(on: previousDay) else { continue }
+                guard let occurrence = slot.occurrence(on: previousDay) else { continue }
                 guard occurrence.end > startDay else { continue }
-                pairs.append((occurrence: occurrence, original: slot))
+                occurrences.append(occurrence)
             }
         }
 
         var dayCursor = startDay
         while dayCursor < endDay {
             for slot in slots {
-                guard let occurrence = slot.resolveOccurrence(on: dayCursor) else { continue }
-                pairs.append((occurrence: occurrence, original: slot))
+                guard let occurrence = slot.occurrence(on: dayCursor) else { continue }
+                occurrences.append(occurrence)
             }
             dayCursor = calendar.date(byAdding: .day, value: 1, to: dayCursor) ?? endDay
         }
 
-        pairs.sort {
-            let lhs = $0.occurrence
-            let rhs = $1.occurrence
-            if lhs.start == rhs.start { return lhs.end < rhs.end }
-            return lhs.start < rhs.start
+        occurrences.sort {
+            if $0.start == $1.start { return $0.end < $1.end }
+            return $0.start < $1.start
         }
-        return pairs
+        return occurrences
     }
 
     private func remainingUsableOccurrences(
-        in pairs: [ResolvedSlotPair],
+        in occurrences: [SlotOccurrence],
         now: Date,
         checkIns: [CheckIn]
     ) -> [Slot] {
-        pairs.compactMap { pair in
-            guard pair.occurrence.end >= now else { return nil }
-            guard pair.occurrence.start <= now else { return pair.occurrence }
-            guard !pair.original.isSnoozed(at: now) else { return nil }
-            guard !pair.original.isSaturated(at: now, checkIns: checkIns) else { return nil }
-            return pair.occurrence
+        occurrences.compactMap { occ -> Slot? in
+            guard occ.end >= now else { return nil }
+            // Boundary conversion: this method still returns resolved `Slot` copies until
+            // Commit 3 changes `remainingSlots` to `[SlotOccurrence]`.
+            guard occ.start <= now else { return occ.slot.resolveOccurrence(on: occ.psychDay) }
+            guard !occ.slot.isSnoozed(at: now) else { return nil }
+            guard !occ.slot.isSaturated(at: now, checkIns: checkIns) else { return nil }
+            return occ.slot.resolveOccurrence(on: occ.psychDay)
         }
     }
 }
