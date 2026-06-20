@@ -26,10 +26,5 @@ struct NowAttributes: ActivityAttributes {
 
         /// Random encouragement sentence for the primary commitment. Nil if none set.
         var encouragementText: String?
-
-        /// Only start or update the Live Activity when this is true (primary commitment + slot set).
-        var hasCurrentCommitment: Bool {
-            !commitmentTitle.isEmpty && !slotTimeText.isEmpty
-        }
     }
 }

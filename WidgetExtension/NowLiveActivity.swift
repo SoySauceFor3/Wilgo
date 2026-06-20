@@ -148,10 +148,6 @@ private struct CompactTrailingTitle: View {
 struct NowLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: NowAttributes.self) { context in
-            let _ = precondition(
-                context.state.hasCurrentCommitment,
-                "Live Activity must only be started when there is a current commitment (commitmentTitle and slotTimeText must be set)."
-            )
             let secondaryLine = formatSecondaryTitlesLine(titles: context.state.secondaryTitles)
 
             HStack(alignment: .top, spacing: 12) {
@@ -189,10 +185,6 @@ struct NowLiveActivity: Widget {
             .activityBackgroundTint(Color(.systemFill))
             .activitySystemActionForegroundColor(Color.primary)
         } dynamicIsland: { context in
-            let _ = precondition(
-                context.state.hasCurrentCommitment,
-                "Live Activity must only be started when there is a current commitment (commitmentTitle and slotTimeText must be set)."
-            )
             let secondaryLine = formatSecondaryTitlesLine(titles: context.state.secondaryTitles)
             return DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
