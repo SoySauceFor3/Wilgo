@@ -4,7 +4,7 @@ import SwiftUI
 struct CatchUpCommitmentRow: View {
     @Bindable var commitment: Commitment
     /// For catch-up, these are the "next up" slots for this commitment.
-    let slots: [Slot]
+    let slotOccurences: [SlotOccurrence]
     /// Pre-computed by `StageViewModel`; avoids re-running `status` per row.
     let behindCount: Int
     var onTap: () -> Void
@@ -12,10 +12,10 @@ struct CatchUpCommitmentRow: View {
     var body: some View {
         CommitmentStatsCard(
             commitment: commitment,
-            slots: slots,
+            slotOccurences: slotOccurences,
             topRightTitle: "Next up Slots"
         ) {
-            let count = slots.count
+            let count = slotOccurences.count
             VStack(alignment: .leading, spacing: 2) {
                 Text(
                     "\(count) " + (count <= 1 ? "slot" : "slots")
@@ -51,10 +51,13 @@ struct CatchUpCommitmentRow: View {
         target: Target(count: 1),
     )
 
-    CatchUpCommitmentRow(commitment: commitment, slots: [slot], behindCount: 0, onTap: {})
-        .modelContainer(
-            for: [Commitment.self, Slot.self, CheckIn.self], inMemory: true
-        )
-        .padding()
-        .environmentObject(CheckInUndoManager())
+    let occurrence = slot.occurrence(on: Time.startOfDay(for: today))!
+    CatchUpCommitmentRow(
+        commitment: commitment, slotOccurences: [occurrence], behindCount: 0, onTap: {}
+    )
+    .modelContainer(
+        for: [Commitment.self, Slot.self, CheckIn.self], inMemory: true
+    )
+    .padding()
+    .environmentObject(CheckInUndoManager())
 }

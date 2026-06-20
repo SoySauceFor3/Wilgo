@@ -63,7 +63,7 @@ final class LiveActivityRefresherTests {
         let state = try #require(LiveActivityRefresher.makeContentState(from: current))
         #expect(state.commitmentTitle == "Draw")
         #expect(state.commitmentId == c.id)
-        #expect(state.slotId == current[0].slots[0].id)
+        #expect(state.slotId == current[0].slots[0].slot.id)
         #expect(state.secondaryTitles.isEmpty)
     }
 

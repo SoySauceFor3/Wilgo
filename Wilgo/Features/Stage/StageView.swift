@@ -61,7 +61,7 @@ struct StageView: View {
                             ForEach(viewModel.catchUp, id: \.commitment.id) { item in
                                 CatchUpCommitmentRow(
                                     commitment: item.commitment,
-                                    slots: item.slots,
+                                    slotOccurences: item.slots,
                                     behindCount: item.behindCount
                                 ) { commitmentForDetail = item.commitment }
                             }

@@ -147,8 +147,8 @@ extension Commitment {
         let kind: SlotStatusKind
         /// Unfinished, unsnoozed, unsaturated slot occurrences in the target cycle,
         /// sorted by start time. Includes the current slot (if any) and any later slots.
-        /// Carries date info, not just time of day.
-        let remainingSlots: [Slot]
+        /// Each occurrence carries its concrete window (date info, not just time of day).
+        let remainingSlots: [SlotOccurrence]
     }
 
     /// Returns the slot mechanics for `now`. Mode-agnostic — always uses the
@@ -189,7 +189,7 @@ extension Commitment {
 
     struct CommitmentStatus: Equatable {
         let slotKind: SlotStatusKind
-        let remainingSlots: [Slot]?
+        let remainingSlots: [SlotOccurrence]?
         /// Nil when target is disabled or reminders are off.
         let leftToDo: Int?
         /// `max(0, leftToDo - remainingSlots.count)`. Nil when target is disabled or reminders are off.
@@ -308,15 +308,13 @@ extension Commitment {
         in occurrences: [SlotOccurrence],
         now: Date,
         checkIns: [CheckIn]
-    ) -> [Slot] {
-        occurrences.compactMap { occ -> Slot? in
+    ) -> [SlotOccurrence] {
+        occurrences.compactMap { occ -> SlotOccurrence? in
             guard occ.end >= now else { return nil }
-            // Boundary conversion: this method still returns resolved `Slot` copies until
-            // Commit 3 changes `remainingSlots` to `[SlotOccurrence]`.
-            guard occ.start <= now else { return occ.slot.resolveOccurrence(on: occ.psychDay) }
+            guard occ.start <= now else { return occ }
             guard !occ.slot.isSnoozed(at: now) else { return nil }
             guard !occ.slot.isSaturated(at: now, checkIns: checkIns) else { return nil }
-            return occ.slot.resolveOccurrence(on: occ.psychDay)
+            return occ
         }
     }
 }

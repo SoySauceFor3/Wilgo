@@ -2,7 +2,7 @@ import Foundation
 
 enum CommitmentAndSlot {
     /// Shared tuple used by Stage to render rows with behind information.
-    typealias WithBehind = (commitment: Commitment, slots: [Slot], behindCount: Int)
+    typealias WithBehind = (commitment: Commitment, slots: [SlotOccurrence], behindCount: Int)
 
     static func currentWithBehind(
         commitments: [Commitment],

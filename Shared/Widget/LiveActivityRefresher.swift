@@ -50,23 +50,23 @@ enum LiveActivityRefresher {
     /// early morning, or any slot that already ended earlier today — so we only use it when it is
     /// still in the future, otherwise we fall back to the next psych-day boundary. Returns nil (never
     /// auto-stale) when there is no current commitment.
-    static func staleDate(for current: CommitmentAndSlot.WithBehind?, now: Date) -> Date? {
+    static func staleDate(for current: CommitmentAndSlot.WithBehind?, now _: Date) -> Date? {
         guard let current else { return nil }
-        return current.slots[0].endTime(onDayStarting: Time.startOfDay(for: now))
+        return current.slots[0].end
     }
 
     // precondition: currentSlots is not empty
     static func makeContentState(
         from currentSlots: [CommitmentAndSlot.WithBehind]
     ) -> NowAttributes.ContentState {
-        let (commitment, slots, _) = currentSlots.first!
+        let (commitment, slotOccurences, _) = currentSlots.first!
         let secondaryTitles = currentSlots.dropFirst().map(\.commitment.title)
         let encouragementText = commitment.encouragements.randomElement()
         return NowAttributes.ContentState(
             commitmentTitle: commitment.title,
-            slotTimeText: slots[0].timeOfDayText,
+            slotTimeText: slotOccurences[0].timeOfDayText,
             commitmentId: commitment.id,
-            slotId: slots[0].id,
+            slotId: slotOccurences[0].slot.id,
             secondaryTitles: secondaryTitles,
             encouragementText: encouragementText
         )
