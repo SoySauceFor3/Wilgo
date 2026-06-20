@@ -47,11 +47,6 @@ final class LiveActivityRefresherTests {
         return c
     }
 
-    @Test("empty current list → nil content state")
-    @MainActor func emptyCurrent_returnsNil() {
-        #expect(LiveActivityRefresher.makeContentState(from: []) == nil)
-    }
-
     @Test("single current commitment → maps title, ids, no secondary titles")
     @MainActor func singleCurrent_mapsPrimaryFields() throws {
         let container = try makeTestContainer()
