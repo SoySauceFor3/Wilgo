@@ -173,7 +173,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
 
     // MARK: Stale cleanup
 
-    @Test("stale snooze (resolvedSlotEnd in past) is deleted on next create call")
+    @Test("stale snooze (occurrence window closed) is deleted on next create call")
     @MainActor func create_deletesStaleSnooze() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
@@ -211,7 +211,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
         #expect(slot.snoozes.count == 1)
 
         // Attempt another create at 12:30am Jan 1 — slot still active, stale check should NOT delete existing snooze
-        // (resolvedSlotEnd = 1am Jan 1, which is > 12:30am, so NOT stale)
+        // (occurrence end = 1am Jan 1, which is > 12:30am, so NOT stale)
         // However create will return nil since a snooze already exists... actually it would create another one.
         // The real test: the existing snooze should not be deleted at 12:30am.
         let at1230 = date(year: 2026, month: 1, day: 1, hour: 0, minute: 30)
@@ -238,7 +238,7 @@ struct SlotSnoozeCreateTests: ~Copyable {
         ctx.insert(staleSnooze)
         #expect(nightSlot.snoozes.count == 1)
 
-        // `Time` it's 1:30am Jan 1 — slot has ended (resolvedSlotEnd = 1am Jan 1 < 1:30am)
+        // `Time` it's 1:30am Jan 1 — slot has ended (occurrence end = 1am Jan 1 < 1:30am)
         // Trigger cleanup by attempting create (which will return nil since 1:30am is outside the 11pm-1am window)
         let at130am = date(year: 2026, month: 1, day: 1, hour: 1, minute: 30)
         let result = SlotSnooze.create(slot: nightSlot, at: at130am, in: ctx)

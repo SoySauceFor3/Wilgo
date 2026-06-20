@@ -233,7 +233,7 @@ extension Slot {
     /// For cross-midnight windows (e.g. 23:00–01:00), post-midnight times are
     /// attributed back to the previous calendar day (the day the window started).
     /// Precondition: `time` must be within this slot's window (`containsTime` is true).
-    private func anchorDate(for time: Date, calendar: Calendar) -> Date {
+    func anchorDate(for time: Date, calendar: Calendar = Time.calendar) -> Date {
         guard containsTime(time) else {
             assertionFailure("anchorDate(for:) called with time outside slot window")
             return calendar.startOfDay(for: time)
@@ -270,17 +270,23 @@ extension Slot {
 
 extension Slot {
     /// Returns true if this slot's occurrence on the psychDay of `time` has been snoozed.
-    /// Returns false if `time` is outside this slot's scheduled window (no occurrence → not snoozed).
+    ///
+    /// The `isScheduled` check is a **defensive read guard**: if `time` is outside this
+    /// slot's current window (wrong time-of-day or excluded recurrence day), there is no
+    /// occurrence to snooze, so this returns false. It also renders any *stale* snooze inert
+    /// — e.g. one left over from before a recurrence edit — because the day it was recorded
+    /// for no longer resolves to an active occurrence.
+    ///
+    /// The match compares the stored, frozen `snooze.psychDay` against the anchor day of
+    /// `time` (the day the occurrence containing `time` starts on; cross-midnight tails
+    /// anchor back to the start day). `snooze.psychDay` is set once at create and never
+    /// re-derived, so the match does not depend on the slot's current `start`/`end`.
     func isSnoozed(at time: Date, calendar: Calendar = Time.calendar) -> Bool {
         guard self.isScheduled(on: time, calendar: calendar) else {
             return false
         }
 
-        guard let psychDay = try? SlotSnooze.slotPsychDay(slot: self, at: time, calendar: calendar)
-        else {
-            return false
-        }
-
+        let psychDay = anchorDate(for: time, calendar: calendar)
         return snoozes.contains { snooze in
             calendar.isDate(snooze.psychDay, inSameDayAs: psychDay)
         }

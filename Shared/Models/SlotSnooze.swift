@@ -1,27 +1,39 @@
 import Foundation
 import SwiftData
 
-/// Records that a specific slot instance has been snoozed by the user for its current occurrence.
+/// Records that a specific slot firing has been snoozed by the user for one logical day.
 ///
-/// A `SlotSnooze` is scoped to a single slot firing — identified by `slot` + `psychDay`
-/// (derived from `slot.start`'s psychDay, not the tap time). It does not carry over to the
-/// same slot on any other day.
+/// A `SlotSnooze` is a **frozen occurrence reference**: it is identified by `slot` + `psychDay`,
+/// where `psychDay` is the anchor day of the firing (the day the window *starts* on), captured
+/// once at create time and **never re-derived from the live slot**. It is therefore *not* a
+/// `SlotOccurrence` — a `SlotOccurrence` recomputes its window from the live slot on demand,
+/// whereas a `SlotSnooze.psychDay` is a persisted fact. (If a snooze recomputed its day, editing
+/// the slot's recurrence would silently change which day was silenced.) It does not carry over to
+/// the same slot on any other day.
+///
+/// Staleness from slot edits is handled without any active invalidation here:
+/// - The supported edit flow (`CommitmentFormDraft.apply`) deletes and recreates `Slot`s, so the
+///   `Slot.snoozes` cascade-delete wipes a slot's snoozes on edit.
+/// - `Slot.isSnoozed`'s `isScheduled` guard renders any leftover snooze inert (a day the slot no
+///   longer fires never matches), and lazy cleanup eventually removes it.
+///   **Invariant:** any future in-place slot editor (mutating `start`/`end`/`recurrence` without
+///   delete-and-recreate) must clear that slot's snoozes.
 ///
 /// Lifecycle:
 /// - Created via `SlotSnooze.create(slot:at time:in:)` — returns nil if `time` is outside the
 ///   slot's active window (wrong time or wrong recurrence day).
 /// - Deleted automatically (cascade) when its parent `Slot` is deleted.
-/// - Stale entries (where the slot window has fully closed) are lazily deleted on each
-///   `create` call.
+/// - Stale entries (where the firing's window has fully closed, or no longer resolves) are
+///   lazily deleted on each `create` call.
 @Model
 final class SlotSnooze {
     @Attribute(.unique)
     var id: UUID = UUID()
 
-    /// Logical day this snooze applies to, derived from `Time.startOfDay(for: slot.start)`.
-    /// Always the psychDay of the **slot's start time**, not the moment snooze was tapped.
+    /// Logical/anchor day this snooze applies to — the day the snoozed firing *starts* on.
+    /// Frozen at create from `slot.anchorDate(for: tapTime)`, never re-derived.
     /// For cross-midnight slots (e.g. 11pm–1am), a snooze tapped at 12am Jan 1 records
-    /// psychDay = Dec 31 (the psychDay of 11pm).
+    /// psychDay = Dec 31 (the anchor day of the 11pm start).
     var psychDay: Date
 
     /// Wall-clock time the snooze was triggered.
@@ -29,7 +41,7 @@ final class SlotSnooze {
 
     /// The slot being snoozed.
     /// The inverse relationship (Slot.snoozes) declares the cascade delete rule.
-    var slot: Slot?
+    var slot: Slot
 
     init(slot: Slot, psychDay: Date, snoozedAt: Date) {
         self.slot = slot
@@ -44,9 +56,9 @@ extension SlotSnooze {
     /// Creates and inserts a `SlotSnooze` for the given slot at `time`, or returns `nil` if
     /// `time` is outside the slot's active window (wrong time-of-day or wrong recurrence day).
     ///
-    /// Always performs lazy cleanup first: deletes existing stale snoozes on `slot` where
-    /// the slot window has fully closed (`resolvedSlotEnd < time`). This cleanup runs even
-    /// when `create` returns nil.
+    /// Always performs lazy cleanup first: deletes existing stale snoozes on `slot` — those
+    /// whose firing window has fully closed (`occurrence end < time`) or whose recorded day no
+    /// longer resolves to an occurrence at all. This cleanup runs even when `create` returns nil.
     ///
     /// - Parameters:
     ///   - slot: The slot to snooze. SwiftData `@Model` objects require an explicit `ModelContext`
@@ -61,96 +73,29 @@ extension SlotSnooze {
         let calendar = Time.calendar
 
         // Lazy cleanup: always remove stale snoozes, regardless of whether we'll insert a new one.
+        // A snooze is stale if its firing has fully closed, or its recorded day no longer resolves
+        // to an occurrence (e.g. after a recurrence edit).
         let stale = slot.snoozes.filter { existing in
-            resolvedSlotEnd(slot: slot, psychDay: existing.psychDay, calendar: calendar) < time
+            guard let end = slot.occurrence(on: existing.psychDay, calendar: calendar)?.end else {
+                return true
+            }
+            return end < time
         }
         for s in stale {
             slot.snoozes.removeAll { $0.id == s.id }
             context.delete(s)
         }
 
-        // Guard: `time`` must be within an active window for this slot.
-        guard slot.isScheduled(on: time) else { return nil }
+        // Guard: `time` must be within an active window for this slot.
+        guard slot.isScheduled(on: time, calendar: calendar) else { return nil }
 
-        // psychDay is the psychDay of the slot's start occurrence at `time`.
-        // For cross-midnight slots (e.g. 11pm–1am), a snooze tapped at 12am Jan 1
-        // belongs to the Dec 31 occurrence (start was 11pm Dec 31), so psychDay = Dec 31.
-        // slotPsychDay can't throw here — we already guarded isScheduled above.
-        guard let psychDay = try? slotPsychDay(slot: slot, at: time, calendar: calendar) else {
-            return nil
-        }
+        // psychDay is the anchor day of the firing containing `time`. For cross-midnight slots
+        // (e.g. 11pm–1am), a snooze tapped at 12am Jan 1 belongs to the Dec 31 firing (start was
+        // 11pm Dec 31), so psychDay = Dec 31. Frozen here; never re-derived on read.
+        let psychDay = slot.anchorDate(for: time, calendar: calendar)
 
         let snooze = SlotSnooze(slot: slot, psychDay: psychDay, snoozedAt: time)
         context.insert(snooze)
         return snooze
-    }
-
-    enum SlotPsychDayError: Error {
-        /// `time` is not within the slot's active window.
-        case slotNotActive
-    }
-
-    /// Returns the psychDay of the slot's current occurrence at `time`.
-    ///
-    /// For normal slots (start < end), this is `Time.startOfDay(for: time)`.
-    /// For cross-midnight slots (start > end), if `time` is in the post-midnight portion
-    /// (i.e. before the end time), the occurrence started the previous calendar day,
-    /// so we return `Time.startOfDay(for: yesterday)`.
-    ///
-    /// - Throws: `SlotPsychDayError.slotNotActive` if `time` is outside the slot's active window.
-    static func slotPsychDay(slot: Slot, at time: Date, calendar: Calendar) throws -> Date {
-        guard slot.isScheduled(on: time, calendar: calendar) else {
-            throw SlotPsychDayError.slotNotActive
-        }
-
-        let startComponents = calendar.dateComponents([.hour, .minute], from: slot.start)
-        let endComponents = calendar.dateComponents([.hour, .minute], from: slot.end)
-        let startMinutes = (startComponents.hour ?? 0) * 60 + (startComponents.minute ?? 0)
-        let endMinutes = (endComponents.hour ?? 0) * 60 + (endComponents.minute ?? 0)
-
-        guard startMinutes >= endMinutes else {
-            // Normal (non-cross-midnight) slot: psychDay is derived from time.
-            return Time.startOfDay(for: time)
-        }
-
-        // Cross-midnight slot: check if time is in the post-midnight tail (before endMinutes).
-        let targetTimeComponents = calendar.dateComponents([.hour, .minute], from: time)
-        let targetMinutes =
-            (targetTimeComponents.hour ?? 0) * 60 + (targetTimeComponents.minute ?? 0)
-
-        if targetMinutes < startMinutes {
-            // Post-midnight portion: this occurrence started yesterday.
-            let yesterday = calendar.date(byAdding: .day, value: -1, to: time) ?? time
-            return Time.startOfDay(for: yesterday)
-        } else {
-            // Pre-midnight portion: occurrence starts today.
-            return Time.startOfDay(for: time)
-        }
-    }
-
-    /// Resolves the absolute end time of `slot` for the occurrence on `psychDay`.
-    ///
-    /// For normal slots (start < end), the end falls on the same calendar day as `psychDay`.
-    /// For cross-midnight slots (start > end), the end falls on the calendar day *after* `psychDay`.
-    private static func resolvedSlotEnd(slot: Slot, psychDay: Date, calendar: Calendar) -> Date {
-        let startComponents = calendar.dateComponents([.hour, .minute], from: slot.start)
-        let endComponents = calendar.dateComponents([.hour, .minute], from: slot.end)
-        let startMinutes = (startComponents.hour ?? 0) * 60 + (startComponents.minute ?? 0)
-        let endMinutes = (endComponents.hour ?? 0) * 60 + (endComponents.minute ?? 0)
-
-        let endCalendarDay: Date
-        if startMinutes < endMinutes {
-            // Normal slot: end is on the same calendar day as psychDay.
-            endCalendarDay = psychDay
-        } else {
-            // Cross-midnight slot: end is on the following calendar day.
-            endCalendarDay = calendar.date(byAdding: .day, value: 1, to: psychDay) ?? psychDay
-        }
-
-        let endHour = endComponents.hour ?? 0
-        let endMinute = endComponents.minute ?? 0
-        return calendar.date(
-            bySettingHour: endHour, minute: endMinute, second: 0, of: endCalendarDay
-        ) ?? endCalendarDay
     }
 }
