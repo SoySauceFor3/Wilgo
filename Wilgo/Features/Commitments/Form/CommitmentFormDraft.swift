@@ -117,6 +117,16 @@ struct CommitmentFormDraft {
 
         guard effectiveRemindersEnabled else { return }
 
+        // Delete-and-recreate the slots on every save. This is unconditional — it runs even on a
+        // no-op save (editor opened, nothing changed) — so it also **clears all of the
+        // commitment's snoozes** via the `Slot.snoozes` cascade-delete rule.
+        //
+        // This is intentional and is the snooze model's only staleness mechanism: a `SlotSnooze`
+        // freezes its `psychDay` and never re-derives it, so editing a slot's time/recurrence must
+        // invalidate snoozes — which delete-and-recreate does for free. The cost is that a no-op
+        // save also drops snoozes; acceptable, since snoozes are same-day ephemeral (worst case:
+        // one re-tap). Any future *in-place* slot editor (mutating start/end/recurrence without
+        // delete-and-recreate) MUST clear that slot's snoozes to preserve this invariant.
         for old in commitment.slots {
             modelContext.delete(old)
         }
