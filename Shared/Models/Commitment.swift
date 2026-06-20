@@ -101,22 +101,21 @@ final class Commitment {
         return checkInsInRange.sorted { $0.createdAt < $1.createdAt }
     }
 
+    /// Check-ins falling in the target cycle that contains `day`, sorted by `createdAt`.
+    /// Uses the half-open cycle range `[startDay, exclusiveEndDay)` — the same window the status
+    /// engine (`goalProgress`) counts against, so UI counts stay consistent with goal-met logic.
+    func checkInsInCycle(containing day: Date = Time.now()) -> [CheckIn] {
+        let psychDay = Time.startOfDay(for: day)
+        let startDay = cycle.startDayOfCycle(including: psychDay)
+        let endDay = cycle.endDayOfCycle(including: psychDay)
+        return checkInsInRange(startPsychDay: startDay, endPsychDay: endDay)
+    }
+
 }
 
 // MARK: - Slot queries
 
 extension Commitment {
-    func checkInsInCycle(
-        cycle: Cycle,
-        until psychDay: Date = Time.startOfDay(for: Time.now()),
-        inclusive: Bool = true
-    ) -> [CheckIn] {
-        let start = cycle.startDayOfCycle(including: psychDay)
-        return checkIns.filter {
-            start <= $0.psychDay && (inclusive ? $0.psychDay <= psychDay : $0.psychDay < psychDay)
-        }
-    }
-
     /// Cycle-level goal progress, independent of slot mechanics.
     struct GoalProgress {
         /// `max(0, target.count - checkInsInCycle.count)`. Nil when target is disabled

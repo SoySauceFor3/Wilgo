@@ -71,9 +71,7 @@ struct CurrentCommitmentProvider: TimelineProvider {
             stage: CommitmentStage
         ) -> CommitmentSnapshot {
             let c = wb.commitment
-            let count = c.checkInsInCycle(
-                cycle: c.cycle, until: psychDay, inclusive: true
-            ).count
+            let count = c.checkInsInCycle(containing: psychDay).count
 
             let slotDetail: String?
             switch stage {

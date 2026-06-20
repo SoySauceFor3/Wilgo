@@ -20,9 +20,7 @@ struct CommitmentDetailView: View {
     }
 
     private var checkInsInCurrentTargetCycle: [CheckIn] {
-        commitment.checkInsInCycle(
-            cycle: commitment.cycle, until: psychToday, inclusive: true
-        )
+        commitment.checkInsInCycle(containing: psychToday)
     }
 
     private var daysTracked: String {
