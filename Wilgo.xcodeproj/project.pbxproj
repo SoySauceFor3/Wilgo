@@ -87,6 +87,7 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				CommitmentAndSlot.swift,
+				"Commitment+Status.swift",
 				Time.swift,
 			);
 			target = 701EBE762F5348DA0060F5B6 /* WidgetExtension */;
