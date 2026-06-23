@@ -100,6 +100,15 @@ enum CyclePeriodMathTests {
             #expect(cycle.startDayOfCycle(including: thursday) == thursday)
         }
 
+        @Test("always return the start of a day")
+        func alwaysReturnTheStartOfADay() {
+            // anchor = Thu Mar 5, date = Thu Mar 5 → period starts Mar 5
+            let thursday = date(year: 2026, month: 3, day: 5, hour: 12, minute: 12)
+            let cycle = Cycle(kind: .weekly, referencePsychDay: thursday)
+            #expect(
+                cycle.startDayOfCycle(including: thursday) == date(year: 2026, month: 3, day: 5))
+        }
+
         @Test("anchor weekday falls earlier this week → period started mid-week")
         func anchorWeekdayEarlierThisWeek() {
             // anchor = Mon Mar 2 (weekday 2), date = Thu Mar 5 → 3 days back → Mar 2
@@ -184,7 +193,9 @@ enum CyclePeriodMathTests {
             #expect(cycle.startDayOfCycle(including: feb28) == feb28)
         }
 
-        @Test("crosses year boundary: anchor day 15, today = Jan 10 → period started Dec 15 last year")
+        @Test(
+            "crosses year boundary: anchor day 15, today = Jan 10 → period started Dec 15 last year"
+        )
         func crossesYearBoundary() {
             let dec15 = date(year: 2025, month: 12, day: 15)
             let jan10 = date(year: 2026, month: 1, day: 10)

@@ -63,7 +63,7 @@ struct Cycle: Codable, Equatable, Hashable {
     // a multi-week block. Do not use multiplier > 1 until this is resolved.
     var multiplier: Int
 
-    init(kind: CycleKind, referencePsychDay: Date, multiplier: Int = 1,) {
+    init(kind: CycleKind, referencePsychDay: Date, multiplier: Int = 1) {
         self.kind = kind
         self.referencePsychDay = referencePsychDay
         self.multiplier = max(1, multiplier)
@@ -125,6 +125,7 @@ extension Cycle {
     }
 
     /// Start of the (multiplier × base-kind) period that contains `date`.
+    /// Always normalize to the start-of-day.
     func startDayOfCycle(including psychDay: Date = Time.now()) -> Date {
         let cal = Time.calendar
         let psychDay = cal.startOfDay(for: psychDay)
@@ -189,6 +190,7 @@ extension Cycle {
     }
 
     /// Exclusive end of the budget period (multiplier × base-kind) of `date` (i.e. next period start).
+    /// Always normalize to the start-of-day.
     func endDayOfCycle(including psychDay: Date = Time.now()) -> Date {
         let start = startDayOfCycle(including: psychDay)
         let cal = Time.calendar
@@ -205,6 +207,13 @@ extension Cycle {
             }
             return result
         }
+    }
+
+    /// The half-open psych-day range `[start, end)` of the period containing `psychDay`.
+    /// `end` is the start of the next period (exclusive). Single source for resolving the
+    /// cycle window, used by `Commitment.checkInsInCycle(containing:)` and the status engine.
+    func bounds(including psychDay: Date = Time.now()) -> (start: Date, end: Date) {
+        (start: startDayOfCycle(including: psychDay), end: endDayOfCycle(including: psychDay))
     }
 
     // MARK: - Private: Anchor-based period math

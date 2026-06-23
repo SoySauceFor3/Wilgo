@@ -11,8 +11,8 @@ import Foundation
 extension Commitment {
     /// Cycle-level goal progress, independent of slot mechanics.
     struct GoalProgress {
-        /// `max(0, target.count - checkInsInCycle.count)`. Nil when target is disabled
-        /// (no meaningful "left to do" exists in that mode).
+        /// `max(0, target.count - checkInsInCycle(containing:).count)`. Nil when target is
+        /// disabled (no meaningful "left to do" exists in that mode).
         let leftToDo: Int?
         /// True only when `leftToDo == 0`. False when `leftToDo` is nil (disabled) or > 0.
         var isMet: Bool { leftToDo == 0 }
@@ -55,28 +55,31 @@ extension Commitment {
     /// - `.beforeNextToday` when some remaining slot starts within today's psych-day,
     /// - `.noSlotToday` otherwise.
     func slotStatus(now: Date = Time.now()) -> SlotStatus {
-        let nowPsychDay = Time.startOfDay(for: now)
-        let startDay = cycle.startDayOfCycle(including: nowPsychDay)
-        let endDay = cycle.endDayOfCycle(including: nowPsychDay)
-        let cycleCheckIns = checkInsInRange(startPsychDay: startDay, endPsychDay: endDay)
+        let bounds = cycle.bounds(including: now)
+        let cycleCheckIns = checkInsInRange(startPsychDay: bounds.start, endPsychDay: bounds.end)
         let remainingSlots = remainingUsableOccurrences(
-            in: slotOccurrences(from: startDay, until: endDay),
+            in: slotOccurrences(from: bounds.start, until: bounds.end),
             now: now,
             checkIns: cycleCheckIns
         )
+        return SlotStatus(kind: classifyKind(remainingSlots: remainingSlots, now: now), remainingSlots: remainingSlots)
+    }
 
+    /// Classifies where `now` falls relative to `remainingSlots` (assumed sorted by start):
+    /// `.insideSlot` if the first remaining slot has already started, `.beforeNextToday` if
+    /// some remaining slot starts later within today's psych-day, else `.noSlotToday`.
+    private func classifyKind(remainingSlots: [SlotOccurrence], now: Date) -> SlotStatusKind {
+        let nowPsychDay = Time.startOfDay(for: now)
         let todayEnd =
             Time.calendar.date(byAdding: .day, value: 1, to: nowPsychDay) ?? nowPsychDay
 
-        let kind: SlotStatusKind
         if let first = remainingSlots.first, first.start <= now {
-            kind = .insideSlot
+            return .insideSlot
         } else if remainingSlots.contains(where: { $0.start < todayEnd }) {
-            kind = .beforeNextToday
+            return .beforeNextToday
         } else {
-            kind = .noSlotToday
+            return .noSlotToday
         }
-        return SlotStatus(kind: kind, remainingSlots: remainingSlots)
     }
 
     struct CommitmentStatus: Equatable {
@@ -92,15 +95,10 @@ extension Commitment {
     ///
     /// When the target is disabled, returns `GoalProgress(leftToDo: nil)` — `isMet` is always `false`.
     func goalProgress(now: Date = Time.now()) -> GoalProgress {
-        let nowPsychDay = Time.startOfDay(for: now)
         if case .disabled = target.configuredMode {
             return GoalProgress(leftToDo: nil)
         }
-        let startDay = cycle.startDayOfCycle(including: nowPsychDay)
-        let endDay = cycle.endDayOfCycle(including: nowPsychDay)
-        let checkInsInCycle = checkInsInRange(startPsychDay: startDay, endPsychDay: endDay)
-        let leftToDo = max(0, target.count - checkInsInCycle.count)
-        return GoalProgress(leftToDo: leftToDo)
+        return GoalProgress(leftToDo: max(0, target.count - checkInsInCycle(containing: now).count))
     }
 
     /// Commitment-level rule for whether this commitment should still surface as
@@ -119,12 +117,11 @@ extension Commitment {
         return !goalProgress(now: now).isMet
     }
 
-    /// Returns the combined slot + goal status for `now`. Prefer this over calling
-    /// `slotStatus` and `goalProgress` separately when both are needed, as it avoids
-    /// computing cycle check-ins twice.
+    /// Returns the combined slot + goal status for `now` — the slot kind, remaining slots,
+    /// goal `leftToDo`, and derived `behindCount` in one value.
     ///
     /// When `isRemindersEnabled` is false, treats the commitment as having no slots:
-    /// `slotKind` is `.noSlotToday` and `remainingSlots` is empty.
+    /// `slotKind` is `.disabled` and `remainingSlots` is nil.
     func status(now: Date = Time.now()) -> CommitmentStatus {
         if !isRemindersEnabled {
             return CommitmentStatus(
@@ -134,7 +131,7 @@ extension Commitment {
                 behindCount: nil
             )
         }
-        let slot: SlotStatus = slotStatus(now: now)
+        let slot = slotStatus(now: now)
         let progress = goalProgress(now: now)
         let behind: Int? = progress.leftToDo.map { max(0, $0 - slot.remainingSlots.count) }
         return CommitmentStatus(

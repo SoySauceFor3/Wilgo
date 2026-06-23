@@ -102,13 +102,11 @@ final class Commitment {
     }
 
     /// Check-ins falling in the target cycle that contains `day`, sorted by `createdAt`.
-    /// Uses the half-open cycle range `[startDay, exclusiveEndDay)` — the same window the status
-    /// engine (`goalProgress`) counts against, so UI counts stay consistent with goal-met logic.
+    /// Uses the half-open cycle range `[start, exclusiveEnd)` — the same window the status engine
+    /// (`goalProgress`) counts against, so UI counts stay consistent with goal-met logic.
     func checkInsInCycle(containing day: Date = Time.now()) -> [CheckIn] {
-        let psychDay = Time.startOfDay(for: day)
-        let startDay = cycle.startDayOfCycle(including: psychDay)
-        let endDay = cycle.endDayOfCycle(including: psychDay)
-        return checkInsInRange(startPsychDay: startDay, endPsychDay: endDay)
+        let bounds = cycle.bounds(including: day)
+        return checkInsInRange(startPsychDay: bounds.start, endPsychDay: bounds.end)
     }
 
 }
