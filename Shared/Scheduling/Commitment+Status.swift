@@ -153,8 +153,7 @@ extension Commitment {
         return occurrences.compactMap { occ -> Date? in
             let start = occ.start
             guard start >= from, start < to else { return nil }
-            guard !occ.slot.isSnoozed(at: start) else { return nil }
-            guard !occ.slot.isSaturated(at: start, checkIns: cycleCheckIns) else { return nil }
+            guard occ.isUsable(checkIns: cycleCheckIns) else { return nil }
             return start
         }
     }
@@ -201,8 +200,9 @@ extension Commitment {
         occurrences.compactMap { occ -> SlotOccurrence? in
             guard occ.end >= now else { return nil }
             guard occ.start <= now else { return occ }
-            guard !occ.slot.isSnoozed(at: now) else { return nil }
-            guard !occ.slot.isSaturated(at: now, checkIns: checkIns) else { return nil }
+            // `now` is inside this occurrence's window, so usability "at now" is exactly this
+            // occurrence's usability (snooze/saturation are per-occurrence).
+            guard occ.isUsable(checkIns: checkIns) else { return nil }
             return occ
         }
     }
