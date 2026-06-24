@@ -64,4 +64,11 @@ extension SlotOccurrence {
     var isSnoozed: Bool {
         slot.snoozes.contains { Time.calendar.isDate($0.psychDay, inSameDayAs: psychDay) }
     }
+
+    /// True if this firing can be acted on: neither snoozed nor saturated. Pass the full check-in
+    /// set — saturation only counts those inside this occurrence's window. `&&` short-circuits, so
+    /// the costlier saturation count is skipped when the firing is already snoozed.
+    func isUsable(checkIns: [CheckIn]) -> Bool {
+        !isSnoozed && !isSaturated(checkIns: checkIns)
+    }
 }
