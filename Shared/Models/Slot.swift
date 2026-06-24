@@ -271,29 +271,6 @@ extension Slot {
 // MARK: - Snooze
 
 extension Slot {
-    /// Returns true if this slot's occurrence on the psychDay of `time` has been snoozed.
-    ///
-    /// The `isScheduled` check is a **defensive read guard**: if `time` is outside this
-    /// slot's current window (wrong time-of-day or excluded recurrence day), there is no
-    /// occurrence to snooze, so this returns false. It also renders any *stale* snooze inert
-    /// — e.g. one left over from before a recurrence edit — because the day it was recorded
-    /// for no longer resolves to an active occurrence.
-    ///
-    /// The match compares the stored, frozen `snooze.psychDay` against the anchor day of
-    /// `time` (the day the occurrence containing `time` starts on; cross-midnight tails
-    /// anchor back to the start day). `snooze.psychDay` is set once at create and never
-    /// re-derived, so the match does not depend on the slot's current `start`/`end`.
-    func isSnoozed(at time: Date, calendar: Calendar = Time.calendar) -> Bool {
-        guard self.isScheduled(on: time, calendar: calendar) else {
-            return false
-        }
-
-        let psychDay = anchorDate(for: time, calendar: calendar)
-        return snoozes.contains { snooze in
-            calendar.isDate(snooze.psychDay, inSameDayAs: psychDay)
-        }
-    }
-
     /// Snoozes this slot's firing at `time`, inserting a `SlotSnooze`, or returns `nil` if
     /// `time` is outside the slot's active window (wrong time-of-day or wrong recurrence day).
     ///
@@ -336,36 +313,6 @@ extension Slot {
 // MARK: - Capacity
 
 extension Slot {
-    /// Returns true if the given occurrence has been saturated by check-ins
-    /// whose `createdAt` falls in `[occurrence.start, occurrence.end)`.
-    ///
-    /// Precondition:
-    /// maxCheckIn is not 0.
-    /// the given time is within a slot occurrence.
-    /// Returns false if:
-    /// - `maxCheckIns` is nil (unlimited), or
-    /// - `time` is outside this slot's scheduled window (no occurrence to saturate).
-    func isSaturated(
-        at time: Date,
-        checkIns: [CheckIn],
-        calendar: Calendar = Time.calendar
-    ) -> Bool {
-        guard let cap = maxCheckIns, cap > 0 else { return false }
-        guard self.isScheduled(on: time, calendar: calendar) else { return false }
-
-        // Resolve the occurrence that actually contains `time`. For cross-midnight
-        // windows, post-midnight times belong to the previous occurrence.
-        let psychDay = anchorDate(for: time, calendar: calendar)
-        guard let occurrence = self.occurrence(on: psychDay, calendar: calendar) else {
-            return false
-        }
-        return Self.countCheckInsInWindow(
-            checkIns: checkIns,
-            start: occurrence.start,
-            end: occurrence.end
-        ) >= cap
-    }
-
     /// Pure helper: how many check-ins fall in `[start, end)` by `createdAt`.
     static func countCheckInsInWindow(
         checkIns: [CheckIn],
