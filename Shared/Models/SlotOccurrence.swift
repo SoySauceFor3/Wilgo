@@ -57,4 +57,11 @@ extension SlotOccurrence {
         guard let cap = slot.maxCheckIns, cap > 0 else { return false }
         return Slot.countCheckInsInWindow(checkIns: checkIns, start: start, end: end) >= cap
     }
+
+    /// True if this firing has been snoozed: the slot has a snooze whose frozen `psychDay`
+    /// matches this occurrence's `psychDay`. (`SlotSnooze.psychDay` is set once at create and
+    /// never re-derived, so a stale snooze for a different day never matches.)
+    var isSnoozed: Bool {
+        slot.snoozes.contains { Time.calendar.isDate($0.psychDay, inSameDayAs: psychDay) }
+    }
 }
