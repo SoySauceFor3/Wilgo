@@ -56,13 +56,16 @@ extension Commitment {
     /// - `.noSlotToday` otherwise.
     func slotStatus(now: Date = Time.now()) -> SlotStatus {
         let bounds = cycle.bounds(including: now)
-        let cycleCheckIns = checkInsInRange(startPsychDay: bounds.start, endPsychDay: bounds.end)
+        // Pass all check-ins: `isSaturated` counts only those inside each occurrence's own window,
+        // so narrowing to the cycle would wrongly drop a cross-midnight occurrence's tail.
         let remainingSlots = remainingUsableOccurrences(
             in: slotOccurrences(from: bounds.start, until: bounds.end),
             now: now,
-            checkIns: cycleCheckIns
+            checkIns: checkIns
         )
-        return SlotStatus(kind: classifyKind(remainingSlots: remainingSlots, now: now), remainingSlots: remainingSlots)
+        return SlotStatus(
+            kind: classifyKind(remainingSlots: remainingSlots, now: now),
+            remainingSlots: remainingSlots)
     }
 
     /// Classifies where `now` falls relative to `remainingSlots` (assumed sorted by start):
@@ -148,12 +151,13 @@ extension Commitment {
     /// saturation checks reflect the slot's actual state when it fires.
     func slotStarts(from: Date, to: Date) -> [Date] {
         let startDay = Time.startOfDay(for: from)
-        let cycleCheckIns = checkInsInRange(startPsychDay: startDay, endPsychDay: to)
         let occurrences = slotOccurrences(from: startDay, until: to, includeCarryOver: false)
         return occurrences.compactMap { occ -> Date? in
             let start = occ.start
             guard start >= from, start < to else { return nil }
-            guard occ.isUsable(checkIns: cycleCheckIns) else { return nil }
+            // Pass all check-ins: saturation counts only those inside the occurrence's own window,
+            // so narrowing here would wrongly drop a cross-midnight occurrence's tail.
+            guard occ.isUsable(checkIns: checkIns) else { return nil }
             return start
         }
     }
@@ -205,5 +209,67 @@ extension Commitment {
             guard occ.isUsable(checkIns: checkIns) else { return nil }
             return occ
         }
+    }
+
+}
+
+// For "nearestUsableUpcomingOccurrence"
+extension Commitment {
+    /// The commitment's nearest *usable* slot occurrence whose `start >= searchStart`, across all
+    /// its slots — i.e. `min` over slots of each slot's next usable occurrence. Returns `nil` if
+    /// no slot has a usable upcoming occurrence.
+    ///
+    /// "Usable" = not snoozed and not saturated, evaluated at the occurrence's own start and —
+    /// crucially — against **that occurrence's own cycle's** check-ins (the occurrence may fall
+    /// in a future cycle, e.g. a 7 AM slot seen at 11 PM on a daily cycle). This is what lets
+    /// Upcoming cross the cycle boundary without the midnight cliff.
+    ///
+    /// The search starts at `now` while the commitment is active for reminders — goal not met, OR
+    /// met but `continueRemindersAfterGoalMet` is on (we still surface the current cycle's remaining
+    /// slots). It starts at the **next cycle's start** only when the commitment is *not* active
+    /// (goal met and not continuing); that case is normally filtered out upstream, so this branch
+    /// is a safe fallback rather than a common path.
+    ///
+    /// There is no calendar-based search horizon. Per slot it walks occurrence-to-occurrence via
+    /// `Slot.nextOccurrence(onOrAfter:)`, so the reach comes from the recurrence itself and stays
+    /// correct for arbitrary (future, user-defined) periods.
+    func nearestUsableUpcomingOccurrence(now: Date = Time.now()) -> SlotOccurrence? {
+        let searchStart: Date =
+            isActiveForReminders(now: now) ? now : cycle.bounds(including: now).end
+        return
+            slots
+            .compactMap { nextUsableOccurrence(for: $0, onOrAfter: searchStart) }
+            .min { $0.start < $1.start }
+    }
+
+    /// The first usable occurrence of `slot` with `start >= searchStart`: walks the slot's
+    /// occurrences via `Slot.nextOccurrence(onOrAfter:)`, skipping any that is snoozed or saturated.
+    /// Saturation only counts check-ins inside each occurrence's own window, so all check-ins are
+    /// passed. `nil` if the recurrence never matches or all candidates within reach are suppressed.
+    ///
+    /// Termination: an occurrence is skipped only when *suppressed* by stored data — a snooze for
+    /// its day, or check-ins saturating its window. Both are finite, so after skipping past every
+    /// such record a usable occurrence must appear. The bound is thus derived from data, never a
+    /// magic calendar number. (The before-`searchStart` boundary case is owned by `nextOccurrence`.)
+    private func nextUsableOccurrence(
+        for slot: Slot,
+        onOrAfter searchStart: Date,  // a day + time
+        calendar: Calendar = Time.calendar
+    ) -> SlotOccurrence? {
+        let maxSuppressed = slot.snoozes.count + checkIns.count
+        var cursor = searchStart
+        for _ in 0...maxSuppressed {
+            guard let occ = slot.nextOccurrence(onOrAfter: cursor, calendar: calendar) else {
+                return nil
+            }
+            // Pass all check-ins: saturation counts only those inside the occurrence's own window,
+            // so narrowing to the cycle would wrongly drop a cross-midnight occurrence's tail.
+            if occ.isUsable(checkIns: checkIns) {
+                return occ
+            }
+            // Suppressed: resume the search just after this occurrence's start.
+            cursor = occ.start.addingTimeInterval(1)
+        }
+        return nil
     }
 }
