@@ -48,4 +48,13 @@ extension SlotOccurrence {
 
     /// Human-readable time-of-day window, delegating to the slot's formatting.
     var timeOfDayText: String { slot.timeOfDayText }
+
+    /// True if this firing's capacity is used up: the count of `checkIns` whose `createdAt`
+    /// falls in this occurrence's own window `[start, end)` reaches the slot's `maxCheckIns`.
+    /// Always false when `maxCheckIns` is nil (unlimited). Pass the full check-in set — only
+    /// those inside this window are counted.
+    func isSaturated(checkIns: [CheckIn]) -> Bool {
+        guard let cap = slot.maxCheckIns, cap > 0 else { return false }
+        return Slot.countCheckInsInWindow(checkIns: checkIns, start: start, end: end) >= cap
+    }
 }
