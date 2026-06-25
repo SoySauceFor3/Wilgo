@@ -227,16 +227,8 @@ extension CommitmentAndSlot.UpcomingEntry {
                 extraCount: max(0, currentCycleRemainingCount - 1)
             )
         } else {
-            return .futureCycle(
-                dateTimeText: Self.futureDateTimeFormatter.string(from: nearestSlot.start)
-            )
+            // Future-cycle row: anchor date + full window, via SlotOccurrence's own formatting.
+            return .futureCycle(dateTimeText: nearestSlot.datedLabel)
         }
     }
-
-    /// Exact datetime for future-cycle rows, e.g. "Mar 14, 7:00 AM". Exact (not relative) for now.
-    private static let futureDateTimeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "MMM d, h:mm a"
-        return f
-    }()
 }

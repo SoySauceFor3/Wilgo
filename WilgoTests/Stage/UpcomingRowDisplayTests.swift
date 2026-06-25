@@ -100,8 +100,45 @@ final class UpcomingRowDisplayTests {
             Issue.record("expected .futureCycle, got \(entry.rowDisplay)")
             return
         }
-        // Exact datetime format "MMM d, h:mm a" — nearest slot is Mar 5, 7:00 AM.
+        // Date prefix + the slot's FULL window (not just the start) — nearest slot is the
+        // 7:00–9:00 occurrence on Mar 5. The end time (9:00) confirms the whole window is shown.
         #expect(dateTimeText.contains("Mar 5"))
         #expect(dateTimeText.contains("7:00"))
+        #expect(dateTimeText.contains("9:00"))
+        #expect(dateTimeText == "Mar 5 · \(entry.nearestSlot.timeOfDayText)")
+    }
+
+    @Test("future cycle, cross-midnight slot → start date + full window (end shown as time only)")
+    @MainActor func futureCycleCrossMidnight() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // 23:00–01:00 slot crosses midnight; occurrence anchored to Mar 5 (start day).
+        let slot = Slot(start: tod(hour: 23), end: tod(hour: 1))
+        let c = Commitment(
+            title: "Night",
+            cycle: Cycle(kind: .daily, referencePsychDay: date(year: 2026, month: 1, day: 1)),
+            slots: [slot],
+            target: Target(count: 3)
+        )
+        ctx.insert(c)
+        ctx.insert(slot)
+        let occ = try #require(slot.occurrence(on: date(year: 2026, month: 3, day: 5)))
+        let entry = CommitmentAndSlot.UpcomingEntry(
+            commitment: c,
+            nearestSlot: occ,
+            isInCurrentCycle: false,
+            currentCycleRemainingCount: 0,
+            behindCount: 0
+        )
+
+        guard case let .futureCycle(dateTimeText) = entry.rowDisplay else {
+            Issue.record("expected .futureCycle, got \(entry.rowDisplay)")
+            return
+        }
+        // Decision: anchor to the START day (Mar 5); the window text carries both times, with the
+        // 1:00 AM end shown as time-of-day only (its real date, Mar 6, is intentionally not shown).
+        #expect(dateTimeText == "Mar 5 · \(entry.nearestSlot.timeOfDayText)")
+        #expect(dateTimeText.contains("Mar 5"))
+        #expect(!dateTimeText.contains("Mar 6"))
     }
 }
