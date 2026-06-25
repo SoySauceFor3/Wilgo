@@ -19,6 +19,16 @@ enum CommitmentAndSlot {
         let behindCount: Int
     }
 
+    /// How an Upcoming row should render its time line (PRD §9). Pure value so the decision is
+    /// unit-tested without a view.
+    enum UpcomingRowDisplay: Equatable {
+        /// Nearest slot is in the current cycle: show the time-of-day, plus "+k more" when
+        /// `extraCount > 0` (other usable slots remaining in this cycle).
+        case currentCycle(timeText: String, extraCount: Int)
+        /// Nearest slot is in a future cycle: show its exact datetime + a "future cycle" marker.
+        case futureCycle(dateTimeText: String)
+    }
+
     /// The combined Stage buckets for `now`, with the closest-N Upcoming rule and the
     /// Upcoming-takes-priority / overflow-demotes-to-Catch-up rule wired in one place.
     ///
@@ -205,4 +215,28 @@ enum CommitmentAndSlot {
         return candidates.min()
     }
 
+}
+
+extension CommitmentAndSlot.UpcomingEntry {
+    /// The row's time-line rendering decision (PRD §9): current-cycle time + optional "+k more",
+    /// or a future-cycle exact datetime. View-agnostic so it can be tested directly.
+    var rowDisplay: CommitmentAndSlot.UpcomingRowDisplay {
+        if isInCurrentCycle {
+            return .currentCycle(
+                timeText: nearestSlot.timeOfDayText,
+                extraCount: max(0, currentCycleRemainingCount - 1)
+            )
+        } else {
+            return .futureCycle(
+                dateTimeText: Self.futureDateTimeFormatter.string(from: nearestSlot.start)
+            )
+        }
+    }
+
+    /// Exact datetime for future-cycle rows, e.g. "Mar 14, 7:00 AM". Exact (not relative) for now.
+    private static let futureDateTimeFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d, h:mm a"
+        return f
+    }()
 }

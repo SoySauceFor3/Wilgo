@@ -9,15 +9,44 @@ struct UpcomingCommitmentRow: View {
 
     private var commitment: Commitment { entry.commitment }
 
+    /// The time line under the title: current-cycle time (+ "+k more"), or a future-cycle
+    /// exact datetime tagged "future cycle". Decision comes from `entry.rowDisplay` (PRD §9).
+    @ViewBuilder
+    private var timeLine: some View {
+        switch entry.rowDisplay {
+        case let .currentCycle(timeText, extraCount):
+            HStack(spacing: 6) {
+                Text(timeText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                if extraCount > 0 {
+                    Text("+\(extraCount) more")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+        case let .futureCycle(dateTimeText):
+            HStack(spacing: 6) {
+                Text(dateTimeText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Text("future cycle")
+                    .font(.caption2)
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(Capsule().fill(Color.secondary.opacity(0.15)))
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
     var body: some View {
         HStack {
             VStack(alignment: .leading, spacing: 4) {
                 Text(commitment.title)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                Text(entry.nearestSlot.timeOfDayText)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                timeLine
             }
             Spacer()
             if commitment.target.configuredMode != .disabled, entry.behindCount > 0 {
@@ -61,16 +90,28 @@ struct UpcomingCommitmentRow: View {
     )
 
     let occurrence = slot.occurrence(on: Time.startOfDay(for: today))!
-    let entry = CommitmentAndSlot.UpcomingEntry(
+    // Current-cycle row with 2 more usable slots this cycle → shows "+2 more".
+    let currentEntry = CommitmentAndSlot.UpcomingEntry(
         commitment: commitment,
         nearestSlot: occurrence,
         isInCurrentCycle: true,
-        currentCycleRemainingCount: 1,
+        currentCycleRemainingCount: 3,
         behindCount: 0
     )
-    UpcomingCommitmentRow(entry: entry, onTap: {})
-        .modelContainer(
-            for: [Commitment.self, Slot.self, CheckIn.self], inMemory: true
-        )
-        .padding()
+    // Future-cycle row → exact datetime + "future cycle" marker.
+    let futureEntry = CommitmentAndSlot.UpcomingEntry(
+        commitment: commitment,
+        nearestSlot: occurrence,
+        isInCurrentCycle: false,
+        currentCycleRemainingCount: 0,
+        behindCount: 0
+    )
+    VStack {
+        UpcomingCommitmentRow(entry: currentEntry, onTap: {})
+        UpcomingCommitmentRow(entry: futureEntry, onTap: {})
+    }
+    .modelContainer(
+        for: [Commitment.self, Slot.self, CheckIn.self], inMemory: true
+    )
+    .padding()
 }
