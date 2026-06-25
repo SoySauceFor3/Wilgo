@@ -14,7 +14,7 @@ import Foundation
 @Observable
 final class StageViewModel {
     private(set) var current: [CommitmentAndSlot.WithBehind] = []
-    private(set) var upcoming: [CommitmentAndSlot.WithBehind] = []
+    private(set) var upcoming: [CommitmentAndSlot.UpcomingEntry] = []
     private(set) var catchUp: [CommitmentAndSlot.WithBehind] = []
 
     private var lastCommitments: [Commitment] = []
@@ -33,11 +33,16 @@ final class StageViewModel {
 
     private func recompute() {
         let now = Date()
-        // The *WithBehind helpers apply isActiveForReminders internally; passing the full list and
-        // letting them filter keeps the goal-met∕continue rule in exactly one place.
-        current = CommitmentAndSlot.currentWithBehind(commitments: lastCommitments, now: now)
-        upcoming = CommitmentAndSlot.upcomingWithBehind(commitments: lastCommitments, after: now)
-        catchUp = CommitmentAndSlot.catchUpWithBehind(commitments: lastCommitments, now: now)
+        // stageBuckets owns the active filter + closest-N + priority/demotion rule, so all three
+        // lists come from one call and stay mutually consistent.
+        let buckets = CommitmentAndSlot.stageBuckets(
+            commitments: lastCommitments,
+            now: now,
+            n: AppSettings.upcomingCommitmentCount
+        )
+        current = buckets.current
+        upcoming = buckets.upcoming
+        catchUp = buckets.catchUp
     }
 
     private func scheduleTimer() {

@@ -76,11 +76,9 @@ struct StageView: View {
                                 .padding(.horizontal, 4)
 
                             ForEach(viewModel.upcoming, id: \.commitment.id) { item in
-                                UpcomingCommitmentRow(
-                                    commitment: item.commitment,
-                                    slots: item.slots,
-                                    behindCount: item.behindCount
-                                ) { commitmentForDetail = item.commitment }
+                                UpcomingCommitmentRow(entry: item) {
+                                    commitmentForDetail = item.commitment
+                                }
                             }
                         }
                     }

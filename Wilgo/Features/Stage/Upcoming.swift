@@ -2,11 +2,12 @@ import SwiftData
 import SwiftUI
 
 struct UpcomingCommitmentRow: View {
-    let commitment: Commitment
-    let slots: [SlotOccurrence]
-    /// Pre-computed by `StageViewModel`; avoids re-running `status` per row.
-    let behindCount: Int
+    /// Pre-computed by `StageViewModel`; carries the nearest slot + the data the row needs
+    /// (avoids re-running `status` per row).
+    let entry: CommitmentAndSlot.UpcomingEntry
     var onTap: () -> Void
+
+    private var commitment: Commitment { entry.commitment }
 
     var body: some View {
         HStack {
@@ -14,16 +15,16 @@ struct UpcomingCommitmentRow: View {
                 Text(commitment.title)
                     .font(.subheadline)
                     .fontWeight(.medium)
-                Text(slots[0].timeOfDayText)
+                Text(entry.nearestSlot.timeOfDayText)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            if commitment.target.configuredMode != .disabled, behindCount > 0 {
+            if commitment.target.configuredMode != .disabled, entry.behindCount > 0 {
                 Text(
-                    behindCount == 1
+                    entry.behindCount == 1
                         ? "Behind"
-                        : "Behind +\(behindCount)"
+                        : "Behind +\(entry.behindCount)"
                 )
                 .font(.caption2)
                 .padding(.horizontal, 8)
@@ -60,7 +61,14 @@ struct UpcomingCommitmentRow: View {
     )
 
     let occurrence = slot.occurrence(on: Time.startOfDay(for: today))!
-    UpcomingCommitmentRow(commitment: commitment, slots: [occurrence], behindCount: 0, onTap: {})
+    let entry = CommitmentAndSlot.UpcomingEntry(
+        commitment: commitment,
+        nearestSlot: occurrence,
+        isInCurrentCycle: true,
+        currentCycleRemainingCount: 1,
+        behindCount: 0
+    )
+    UpcomingCommitmentRow(entry: entry, onTap: {})
         .modelContainer(
             for: [Commitment.self, Slot.self, CheckIn.self], inMemory: true
         )
