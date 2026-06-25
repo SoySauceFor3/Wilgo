@@ -368,12 +368,17 @@ datetime + "future cycle" marker).
 
 ## Open Items / Notes
 
-- **`.beforeNextToday` enum case** becomes unused for bucket selection (Decision 2). Left in
-  place this round; removing it + simplifying `classifyKind` is a possible follow-up cleanup,
-  not part of #StageUpcomingN.
-- **Pre-existing parked work:** the status-engine cleanup (window dedupe `Cycle.bounds`,
-  `classifyKind` extraction) is uncommitted in the working tree and unrelated to this feature.
-  It should be committed/handled separately before or independently of this plan to keep
-  #StageUpcomingN commits clean.
+- **Post-Commit-4 cleanup sweep (Commit 6, planned).** Once the VM uses `stageBuckets`, much of
+  the old `slotKind`-based machinery is orphaned. Do this in one accurate pass *after* wiring,
+  not before (avoids churning code that's about to be deleted):
+  - `SlotStatusKind` consumers today are ONLY the three old `*WithBehind` helpers. After Commit 4:
+    - `.beforeNextToday` — sole consumer is `upcomingWithBehind`, replaced by `stageBuckets`. Likely **deletable** (with `classifyKind`'s middle branch).
+    - `.disabled` — **never read** by anyone today (only set in `status`); dead now.
+    - `.noSlotToday` — still used by `catchUpWithBehind`, which the widget + `CatchUpReminder` call. Frees up only if those migrate too.
+    - `.insideSlot` — still needed (Current bucket).
+  - **`status()` recompute smell in `stageBuckets`:** `status(now:)` is computed 2–3× per commitment
+    (inside `currentWithBehind`, the future-eligible map, and `catchUpDemoted`). Compute one
+    per-commitment snapshot once and partition over it. (Negligible at Stage-sized N, but cleaner.)
+  - Re-evaluate whether the old `upcomingWithBehind`/`catchUpWithBehind` can be removed or slimmed.
 - **N input range:** `0...99` — floor 0 (hide Upcoming), soft ceiling 99 for the stepper/field
   hybrid; revisit if a user genuinely needs more.
