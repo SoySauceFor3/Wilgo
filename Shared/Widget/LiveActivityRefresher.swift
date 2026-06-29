@@ -14,7 +14,14 @@ enum LiveActivityRefresher {
     static func refresh(context: ModelContext, now: Date? = nil) async {
         let now = now ?? Time.now()
         let commitments = (try? context.fetch(.activeOnly)) ?? []
-        let current = CommitmentAndSlot.currentWithBehind(commitments: commitments, now: now)
+        // Same source of truth as the Stage/widget: characterize, then take the Current bucket.
+        let characteristics =
+            commitments
+            .filter { $0.isActiveForReminders(now: now) }
+            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
+        let current = CommitmentAndSlot.stageBuckets(
+            characteristics: characteristics, now: now, n: AppSettings.upcomingCommitmentCount
+        ).current
 
         if current.isEmpty {
             for activity in Activity<NowAttributes>.activities {
@@ -50,23 +57,25 @@ enum LiveActivityRefresher {
     /// early morning, or any slot that already ended earlier today — so we only use it when it is
     /// still in the future, otherwise we fall back to the next psych-day boundary. Returns nil (never
     /// auto-stale) when there is no current commitment.
-    static func staleDate(for current: CommitmentAndSlot.WithBehind?, now _: Date) -> Date? {
+    static func staleDate(for current: CommitmentCharacteristics?, now _: Date) -> Date? {
         guard let current else { return nil }
-        return current.slots[0].end
+        return current.currentOccurrence?.end
     }
 
-    // precondition: currentSlots is not empty
+    // precondition: currentSlots is not empty (each has an open `currentOccurrence`)
     static func makeContentState(
-        from currentSlots: [CommitmentAndSlot.WithBehind]
+        from currentSlots: [CommitmentCharacteristics]
     ) -> NowAttributes.ContentState {
-        let (commitment, slotOccurences, _) = currentSlots.first!
+        let first = currentSlots.first!
+        let commitment = first.commitment
+        let occurrence = first.currentOccurrence!
         let secondaryTitles = currentSlots.dropFirst().map(\.commitment.title)
         let encouragementText = commitment.encouragements.randomElement()
         return NowAttributes.ContentState(
             commitmentTitle: commitment.title,
-            slotTimeText: slotOccurences[0].timeOfDayText,
+            slotTimeText: occurrence.timeOfDayText,
             commitmentId: commitment.id,
-            slotId: slotOccurences[0].slot.id,
+            slotId: occurrence.slot.id,
             secondaryTitles: secondaryTitles,
             encouragementText: encouragementText
         )
