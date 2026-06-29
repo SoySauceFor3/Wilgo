@@ -31,7 +31,7 @@ final class UpcomingRowDisplayTests {
 
     @MainActor
     private func makeEntry(
-        isInCurrentCycle: Bool,
+        nearestUsableInCurrentCycle: Bool,
         currentCycleRemainingCount: Int,
         in ctx: ModelContext
     ) -> CommitmentAndSlot.UpcomingEntry {
@@ -48,7 +48,7 @@ final class UpcomingRowDisplayTests {
         return CommitmentAndSlot.UpcomingEntry(
             commitment: c,
             nearestSlot: occ,
-            isInCurrentCycle: isInCurrentCycle,
+            nearestUsableInCurrentCycle: nearestUsableInCurrentCycle,
             currentCycleRemainingCount: currentCycleRemainingCount,
             behindCount: 0
         )
@@ -57,7 +57,7 @@ final class UpcomingRowDisplayTests {
     @Test("current cycle, multiple remaining → time + '+k more' with k = remaining - 1")
     @MainActor func currentCycleWithExtras() throws {
         let container = try makeTestContainer()
-        let entry = makeEntry(isInCurrentCycle: true, currentCycleRemainingCount: 3, in: container.mainContext)
+        let entry = makeEntry(nearestUsableInCurrentCycle: true, currentCycleRemainingCount: 3, in: container.mainContext)
 
         guard case let .currentCycle(timeText, extraCount) = entry.rowDisplay else {
             Issue.record("expected .currentCycle, got \(entry.rowDisplay)")
@@ -70,7 +70,7 @@ final class UpcomingRowDisplayTests {
     @Test("current cycle, single remaining → no '+k more' (extraCount 0)")
     @MainActor func currentCycleSingle() throws {
         let container = try makeTestContainer()
-        let entry = makeEntry(isInCurrentCycle: true, currentCycleRemainingCount: 1, in: container.mainContext)
+        let entry = makeEntry(nearestUsableInCurrentCycle: true, currentCycleRemainingCount: 1, in: container.mainContext)
 
         guard case let .currentCycle(_, extraCount) = entry.rowDisplay else {
             Issue.record("expected .currentCycle, got \(entry.rowDisplay)")
@@ -82,7 +82,7 @@ final class UpcomingRowDisplayTests {
     @Test("current cycle, zero remaining count → extraCount clamps to 0 (never negative)")
     @MainActor func currentCycleZeroClamps() throws {
         let container = try makeTestContainer()
-        let entry = makeEntry(isInCurrentCycle: true, currentCycleRemainingCount: 0, in: container.mainContext)
+        let entry = makeEntry(nearestUsableInCurrentCycle: true, currentCycleRemainingCount: 0, in: container.mainContext)
 
         guard case let .currentCycle(_, extraCount) = entry.rowDisplay else {
             Issue.record("expected .currentCycle, got \(entry.rowDisplay)")
@@ -94,7 +94,7 @@ final class UpcomingRowDisplayTests {
     @Test("future cycle → exact datetime, no count")
     @MainActor func futureCycle() throws {
         let container = try makeTestContainer()
-        let entry = makeEntry(isInCurrentCycle: false, currentCycleRemainingCount: 0, in: container.mainContext)
+        let entry = makeEntry(nearestUsableInCurrentCycle: false, currentCycleRemainingCount: 0, in: container.mainContext)
 
         guard case let .futureCycle(dateTimeText) = entry.rowDisplay else {
             Issue.record("expected .futureCycle, got \(entry.rowDisplay)")
@@ -126,7 +126,7 @@ final class UpcomingRowDisplayTests {
         let entry = CommitmentAndSlot.UpcomingEntry(
             commitment: c,
             nearestSlot: occ,
-            isInCurrentCycle: false,
+            nearestUsableInCurrentCycle: false,
             currentCycleRemainingCount: 0,
             behindCount: 0
         )

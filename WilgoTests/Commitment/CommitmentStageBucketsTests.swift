@@ -7,7 +7,7 @@ import Testing
 /// splits commitments into Current / Upcoming / Catch-up for the Stage. Key rules:
 /// active filtering, the closest-N Upcoming cap, Upcoming-takes-priority over Catch-up,
 /// overflow demotion of behind commitments to Catch-up, and the per-row UpcomingEntry
-/// metadata (`isInCurrentCycle`, `currentCycleRemainingCount`, `behindCount`).
+/// metadata (`nearestUsableInCurrentCycle`, `currentCycleRemainingCount`, `behindCount`).
 @Suite(.serialized)
 final class CommitmentStageBucketsTests {
     // MARK: - Helpers
@@ -236,8 +236,8 @@ final class CommitmentStageBucketsTests {
         #expect(buckets.upcoming.map(\.commitment.id) == [cActive.id])
     }
 
-    @Test("isInCurrentCycle true for a same-day (current-cycle) nearest slot")
-    @MainActor func isInCurrentCycleTrue() throws {
+    @Test("nearestUsableInCurrentCycle true for a same-day (current-cycle) nearest slot")
+    @MainActor func nearestUsableInCurrentCycleTrue() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         let now = date(year: 2026, month: 3, day: 5, hour: 6)
@@ -247,17 +247,17 @@ final class CommitmentStageBucketsTests {
 
         let entry = try #require(buckets.upcoming.first)
         #expect(entry.nearestSlot.start == date(year: 2026, month: 3, day: 5, hour: 8))
-        #expect(entry.isInCurrentCycle)
+        #expect(entry.nearestUsableInCurrentCycle)
         // remainingSlots in the current cycle (the single 8am occurrence) → currentCycleRemainingCount 1.
         #expect(entry.currentCycleRemainingCount == 1)
     }
 
-    @Test("isInCurrentCycle false for a next-cycle nearest slot (11pm, only a 7am slot)")
-    @MainActor func isInCurrentCycleFalse() throws {
+    @Test("nearestUsableInCurrentCycle false for a next-cycle nearest slot (11pm, only a 7am slot)")
+    @MainActor func nearestUsableInCurrentCycleFalse() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         // 11pm on a daily cycle: today's 7am slot has passed; nearest usable is tomorrow's 7am,
-        // which falls in the NEXT daily cycle (next psych-day) → isInCurrentCycle false.
+        // which falls in the NEXT daily cycle (next psych-day) → nearestUsableInCurrentCycle false.
         let now = date(year: 2026, month: 3, day: 5, hour: 23)
         let c = makeCommitment(title: "7am", slots: [(7, 9, nil)], in: ctx)
 
@@ -265,6 +265,6 @@ final class CommitmentStageBucketsTests {
 
         let entry = try #require(buckets.upcoming.first)
         #expect(entry.nearestSlot.start == date(year: 2026, month: 3, day: 6, hour: 7))
-        #expect(!entry.isInCurrentCycle)
+        #expect(!entry.nearestUsableInCurrentCycle)
     }
 }

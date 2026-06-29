@@ -94,7 +94,7 @@ struct UpcomingCommitmentRow: View {
     let currentEntry = CommitmentAndSlot.UpcomingEntry(
         commitment: commitment,
         nearestSlot: occurrence,
-        isInCurrentCycle: true,
+        nearestUsableInCurrentCycle: true,
         currentCycleRemainingCount: 3,
         behindCount: 0
     )
@@ -102,7 +102,7 @@ struct UpcomingCommitmentRow: View {
     let futureEntry = CommitmentAndSlot.UpcomingEntry(
         commitment: commitment,
         nearestSlot: occurrence,
-        isInCurrentCycle: false,
+        nearestUsableInCurrentCycle: false,
         currentCycleRemainingCount: 0,
         behindCount: 0
     )

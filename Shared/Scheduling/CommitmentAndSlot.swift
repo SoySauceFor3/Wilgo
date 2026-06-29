@@ -12,9 +12,9 @@ enum CommitmentAndSlot {
         let nearestSlot: SlotOccurrence
         /// True when `nearestSlot` falls in the cycle that contains `now`. When false the row is a
         /// future-cycle row (exact datetime + "future cycle" marker, no "+k more").
-        let isInCurrentCycle: Bool
+        let nearestUsableInCurrentCycle: Bool
         /// Usable slot occurrences remaining in the *current* cycle (drives "+k more": `count - 1`).
-        /// Only meaningful when `isInCurrentCycle` is true.
+        /// Only meaningful when `nearestUsableInCurrentCycle` is true.
         let currentCycleRemainingCount: Int
         let behindCount: Int
     }
@@ -29,46 +29,49 @@ enum CommitmentAndSlot {
         case futureCycle(dateTimeText: String)
     }
 
-    /// The combined Stage buckets for `now`, with the closest-N Upcoming rule and the
-    /// Upcoming-takes-priority / overflow-demotes-to-Catch-up rule wired in one place.
+    /// The combined Stage buckets, placed from pre-built `characteristics` (one per active commitment —
+    /// callers build them once, e.g. so the same pass also feeds `behindForReminder`). Implements the
+    /// closest-N Upcoming rule and the Upcoming-takes-priority / overflow-demotes-to-Catch-up rule.
     ///
-    /// - **Current**: active commitments with an open slot right now (`.insideSlot`).
-    /// - **Upcoming**: the `n` active, non-current commitments whose nearest usable upcoming slot is
-    ///   soonest (ranked across commitments, then capped at `n`).
-    /// - **Catch-up**: active, behind commitments that are *not* in Upcoming — i.e. those with no
-    ///   usable upcoming slot at all, plus those whose nearest slot exists but fell outside the
-    ///   top-`n` (overflow demotion).
+    /// - **Current**: an open slot right now (`isCurrent`).
+    /// - **Upcoming**: the `n` non-current commitments whose nearest usable slot is soonest (ranked
+    ///   across commitments, capped at `n`).
+    /// - **Catch-up**: behind commitments *not* in Upcoming — those with no usable upcoming slot, plus
+    ///   behind ones whose nearest slot fell outside the top-`n` (overflow demotion).
     ///
-    /// A commitment appears in exactly one bucket. `n` counts commitments, not slots.
+    /// A commitment appears in exactly one bucket. `n` counts commitments, not slots. The active /
+    /// goal-met filter is applied by the caller when building `characteristics`.
     static func stageBuckets(
-        commitments: [Commitment],
-        now: Date = Time.now(),
+        characteristics: [CommitmentCharacteristics],
+        now: Date,
         n: Int
-    ) -> (current: [WithBehind], upcoming: [UpcomingEntry], catchUp: [WithBehind]) {
-        let active = commitments.filter { $0.isActiveForReminders(now: now) }
-
-        let current = currentWithBehind(commitments: active, now: now)
+    ) -> (
+        current: [CommitmentCharacteristics],
+        upcoming: [UpcomingEntry],
+        catchUp: [CommitmentCharacteristics]
+    ) {
+        // Current: open slot right now, sorted by remaining fraction of the open slot (sooner-to-end first).
+        let current =
+            characteristics
+            .filter(\.isCurrent)
+            .sorted {
+                ($0.currentOccurrence?.remainingFraction(at: now) ?? 1)
+                    < ($1.currentOccurrence?.remainingFraction(at: now) ?? 1)
+            }
         let currentIDs = Set(current.map(\.commitment.id))
 
-        // Future-eligible: active, not already Current, with a nearest usable upcoming slot.
-        // Build entries carrying that slot so we can rank by it and render the row.
+        // Future-eligible: non-current, with a nearest usable slot. Rank by that slot's start (then end).
         let futureEligible: [UpcomingEntry] =
-            active
-            .filter { !currentIDs.contains($0.id) }
-            .compactMap { commitment in
-                guard let nearest = commitment.nearestUsableUpcomingOccurrence(now: now) else {
-                    return nil
-                }
-                let status = commitment.status(now: now)
-                let cycleBounds = commitment.cycle.bounds(including: now)
-                let inCurrentCycle =
-                    nearest.start >= cycleBounds.start && nearest.start < cycleBounds.end
+            characteristics
+            .filter { !currentIDs.contains($0.commitment.id) }
+            .compactMap { ch -> UpcomingEntry? in
+                guard let nearest = ch.nearestUsable else { return nil }
                 return UpcomingEntry(
-                    commitment: commitment,
+                    commitment: ch.commitment,
                     nearestSlot: nearest,
-                    isInCurrentCycle: inCurrentCycle,
-                    currentCycleRemainingCount: status.remainingSlots?.count ?? 0,
-                    behindCount: status.behindCount ?? 0
+                    nearestUsableInCurrentCycle: ch.nearestUsableInCurrentCycle,
+                    currentCycleRemainingCount: ch.remainingThisCycleCount,
+                    behindCount: ch.behindCount
                 )
             }
             .sorted {
@@ -79,57 +82,48 @@ enum CommitmentAndSlot {
             }
 
         let upcoming = Array(futureEligible.prefix(max(0, n)))
-        let upcomingIDs = Set(upcoming.map(\.commitment.id))
+        let excluded = currentIDs.union(upcoming.map(\.commitment.id))
 
-        // Catch-up: active, behind, and not in Upcoming. Covers both "no upcoming slot at all" and
-        // overflow (had a slot but ranked beyond the top-n).
-        let catchUp = catchUpDemoted(
-            active: active,
-            excluding: currentIDs.union(upcomingIDs),
-            now: now
-        )
+        // Catch-up: behind and not in Current/Upcoming. Covers "no upcoming slot" + overflow demotion.
+        let catchUp =
+            characteristics
+            .filter { $0.isBehind && !excluded.contains($0.commitment.id) }
+            .sorted(by: Self.catchUpUrgencyOrder)
 
         return (current: current, upcoming: upcoming, catchUp: catchUp)
     }
 
-    /// Active, behind commitments not already shown in Current or Upcoming, sorted by the shared
-    /// catch-up urgency ordering.
-    private static func catchUpDemoted(
-        active: [Commitment],
-        excluding excludedIDs: Set<UUID>,
-        now: Date
-    ) -> [WithBehind] {
-        let result: [WithBehind] = active.compactMap { commitment in
-            guard !excludedIDs.contains(commitment.id) else { return nil }
-            let status = commitment.status(now: now)
-            guard let behindCount = status.behindCount, behindCount > 0 else { return nil }
-            return (
-                commitment: commitment, slots: status.remainingSlots ?? [], behindCount: behindCount
-            )
-        }
-        return result.sorted(by: Self.catchUpUrgencyOrder)
+    /// Commitments that should fire a catch-up reminder: behind, and **not** currently in an open slot
+    /// (a commitment being acted on right now doesn't also need a nudge). Reads the characterization
+    /// layer directly, so it includes behind commitments regardless of which Stage bucket they land in
+    /// (e.g. a behind one sitting in Upcoming's top-N is still reminded).
+    static func behindForReminder(
+        characteristics: [CommitmentCharacteristics]
+    ) -> [CommitmentCharacteristics] {
+        characteristics.filter { $0.isBehind && !$0.isCurrent }
     }
 
     /// Catch-up urgency ordering: by `behindCount / targetCount` (higher first), then larger target
-    /// count, then earliest next slot. A stored closure (not a method) so it stays nonisolated and
-    /// is usable from both `@MainActor` and non-isolated callers (e.g. the widget timeline).
-    private static let catchUpUrgencyOrder: (WithBehind, WithBehind) -> Bool = { lhs, rhs in
-        let lhsTargetCount = max(lhs.commitment.target.count, 1)
-        let rhsTargetCount = max(rhs.commitment.target.count, 1)
-        let lhsUrgency = Double(lhs.behindCount) / Double(lhsTargetCount)
-        let rhsUrgency = Double(rhs.behindCount) / Double(rhsTargetCount)
-        if lhsUrgency != rhsUrgency { return lhsUrgency > rhsUrgency }
-        if lhs.commitment.target.count != rhs.commitment.target.count {
-            return lhs.commitment.target.count > rhs.commitment.target.count
+    /// count, then earliest next usable slot. A stored closure (not a method) so it stays nonisolated
+    /// and is usable from both `@MainActor` and non-isolated callers (e.g. the widget timeline).
+    private static let catchUpUrgencyOrder:
+        (CommitmentCharacteristics, CommitmentCharacteristics) -> Bool = { lhs, rhs in
+            let lhsTargetCount = max(lhs.commitment.target.count, 1)
+            let rhsTargetCount = max(rhs.commitment.target.count, 1)
+            let lhsUrgency = Double(lhs.behindCount) / Double(lhsTargetCount)
+            let rhsUrgency = Double(rhs.behindCount) / Double(rhsTargetCount)
+            if lhsUrgency != rhsUrgency { return lhsUrgency > rhsUrgency }
+            if lhs.commitment.target.count != rhs.commitment.target.count {
+                return lhs.commitment.target.count > rhs.commitment.target.count
+            }
+            guard let lhsSlot = lhs.nearestUsable, let rhsSlot = rhs.nearestUsable else {
+                if lhs.nearestUsable == nil, rhs.nearestUsable != nil { return false }
+                if lhs.nearestUsable != nil, rhs.nearestUsable == nil { return true }
+                return false
+            }
+            if lhsSlot.start == rhsSlot.start { return lhsSlot.end < rhsSlot.end }
+            return lhsSlot.start < rhsSlot.start
         }
-        guard let lhsSlot = lhs.slots.first, let rhsSlot = rhs.slots.first else {
-            if lhs.slots.isEmpty, !rhs.slots.isEmpty { return false }
-            if !lhs.slots.isEmpty, rhs.slots.isEmpty { return true }
-            return false
-        }
-        if lhsSlot.start == rhsSlot.start { return lhsSlot.end < rhsSlot.end }
-        return lhsSlot.start < rhsSlot.start
-    }
 
     static func currentWithBehind(
         commitments: [Commitment],
@@ -184,7 +178,25 @@ enum CommitmentAndSlot {
                 commitment: commitment, slots: status.remainingSlots ?? [], behindCount: behindCount
             )
         }
-        return result.sorted(by: Self.catchUpUrgencyOrder)
+        // Self-contained legacy sort (same urgency order). This helper + its sort are deleted in 6g;
+        // keeping the closure inline avoids coupling it to the new characteristics-based ordering.
+        return result.sorted { lhs, rhs in
+            let lhsTargetCount = max(lhs.commitment.target.count, 1)
+            let rhsTargetCount = max(rhs.commitment.target.count, 1)
+            let lhsUrgency = Double(lhs.behindCount) / Double(lhsTargetCount)
+            let rhsUrgency = Double(rhs.behindCount) / Double(rhsTargetCount)
+            if lhsUrgency != rhsUrgency { return lhsUrgency > rhsUrgency }
+            if lhs.commitment.target.count != rhs.commitment.target.count {
+                return lhs.commitment.target.count > rhs.commitment.target.count
+            }
+            guard let lhsSlot = lhs.slots.first, let rhsSlot = rhs.slots.first else {
+                if lhs.slots.isEmpty, !rhs.slots.isEmpty { return false }
+                if !lhs.slots.isEmpty, rhs.slots.isEmpty { return true }
+                return false
+            }
+            if lhsSlot.start == rhsSlot.start { return lhsSlot.end < rhsSlot.end }
+            return lhsSlot.start < rhsSlot.start
+        }
     }
 
     /// Earliest upcoming windowStart, windowEnd, or psychDay boundary across all commitments' slots.
@@ -221,7 +233,7 @@ extension CommitmentAndSlot.UpcomingEntry {
     /// The row's time-line rendering decision (PRD §9): current-cycle time + optional "+k more",
     /// or a future-cycle exact datetime. View-agnostic so it can be tested directly.
     var rowDisplay: CommitmentAndSlot.UpcomingRowDisplay {
-        if isInCurrentCycle {
+        if nearestUsableInCurrentCycle {
             return .currentCycle(
                 timeText: nearestSlot.timeOfDayText,
                 extraCount: max(0, currentCycleRemainingCount - 1)
