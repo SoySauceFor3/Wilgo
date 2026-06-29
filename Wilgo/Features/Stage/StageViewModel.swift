@@ -14,7 +14,7 @@ import Foundation
 @Observable
 final class StageViewModel {
     private(set) var current: [CommitmentCharacteristics] = []
-    private(set) var upcoming: [CommitmentAndSlot.UpcomingEntry] = []
+    private(set) var upcoming: [CommitmentCharacteristics] = []
     private(set) var catchUp: [CommitmentCharacteristics] = []
 
     private var lastCommitments: [Commitment] = []

@@ -6,7 +6,7 @@ import Testing
 /// Covers `CommitmentAndSlot.stageBuckets(commitments:now:n:)` — the single place that
 /// splits commitments into Current / Upcoming / Catch-up for the Stage. Key rules:
 /// active filtering, the closest-N Upcoming cap, Upcoming-takes-priority over Catch-up,
-/// overflow demotion of behind commitments to Catch-up, and the per-row UpcomingEntry
+/// overflow demotion of behind commitments to Catch-up, and the per-commitment Upcoming
 /// metadata (`nearestUsableInCurrentCycle`, `currentCycleRemainingCount`, `behindCount`).
 @Suite(.serialized)
 final class CommitmentStageBucketsTests {
@@ -71,7 +71,7 @@ final class CommitmentStageBucketsTests {
     private func buckets(_ commitments: [Commitment], now: Date, n: Int)
         -> (
             current: [CommitmentCharacteristics],
-            upcoming: [CommitmentAndSlot.UpcomingEntry],
+            upcoming: [CommitmentCharacteristics],
             catchUp: [CommitmentCharacteristics]
         )
     {
@@ -257,10 +257,10 @@ final class CommitmentStageBucketsTests {
         let buckets = buckets([c], now: now, n: 5)
 
         let entry = try #require(buckets.upcoming.first)
-        #expect(entry.nearestSlot.start == date(year: 2026, month: 3, day: 5, hour: 8))
+        #expect(entry.nearestUsable?.start == date(year: 2026, month: 3, day: 5, hour: 8))
         #expect(entry.nearestUsableInCurrentCycle)
-        // remainingSlots in the current cycle (the single 8am occurrence) → currentCycleRemainingCount 1.
-        #expect(entry.currentCycleRemainingCount == 1)
+        // remainingSlots in the current cycle (the single 8am occurrence) → remainingThisCycleCount 1.
+        #expect(entry.remainingThisCycleCount == 1)
     }
 
     @Test("nearestUsableInCurrentCycle false for a next-cycle nearest slot (11pm, only a 7am slot)")
@@ -275,7 +275,7 @@ final class CommitmentStageBucketsTests {
         let buckets = buckets([c], now: now, n: 5)
 
         let entry = try #require(buckets.upcoming.first)
-        #expect(entry.nearestSlot.start == date(year: 2026, month: 3, day: 6, hour: 7))
+        #expect(entry.nearestUsable?.start == date(year: 2026, month: 3, day: 6, hour: 7))
         #expect(!entry.nearestUsableInCurrentCycle)
     }
 

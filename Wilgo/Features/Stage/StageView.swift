@@ -72,7 +72,7 @@ struct StageView: View {
                                 .padding(.horizontal, 4)
 
                             ForEach(viewModel.upcoming, id: \.commitment.id) { item in
-                                UpcomingCommitmentRow(entry: item) {
+                                UpcomingCommitmentRow(characteristics: item) {
                                     commitmentForDetail = item.commitment
                                 }
                             }

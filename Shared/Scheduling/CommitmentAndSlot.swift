@@ -4,31 +4,6 @@ enum CommitmentAndSlot {
     /// Shared tuple used by Stage to render rows with behind information.
     typealias WithBehind = (commitment: Commitment, slots: [SlotOccurrence], behindCount: Int)
 
-    /// One Upcoming row. Carries the single nearest usable slot plus what the row needs to render
-    /// its "current-cycle +k more" vs "future cycle" variants (PRD §9).
-    struct UpcomingEntry: Equatable {
-        let commitment: Commitment
-        /// The commitment's nearest usable upcoming slot occurrence (the row's headline time).
-        let nearestSlot: SlotOccurrence
-        /// True when `nearestSlot` falls in the cycle that contains `now`. When false the row is a
-        /// future-cycle row (exact datetime + "future cycle" marker, no "+k more").
-        let nearestUsableInCurrentCycle: Bool
-        /// Usable slot occurrences remaining in the *current* cycle (drives "+k more": `count - 1`).
-        /// Only meaningful when `nearestUsableInCurrentCycle` is true.
-        let currentCycleRemainingCount: Int
-        let behindCount: Int
-    }
-
-    /// How an Upcoming row should render its time line (PRD §9). Pure value so the decision is
-    /// unit-tested without a view.
-    enum UpcomingRowDisplay: Equatable {
-        /// Nearest slot is in the current cycle: show the time-of-day, plus "+k more" when
-        /// `extraCount > 0` (other usable slots remaining in this cycle).
-        case currentCycle(timeText: String, extraCount: Int)
-        /// Nearest slot is in a future cycle: show its exact datetime + a "future cycle" marker.
-        case futureCycle(dateTimeText: String)
-    }
-
     /// The combined Stage buckets, placed from pre-built `characteristics` (one per active commitment —
     /// callers build them once, e.g. so the same pass also feeds `behindForReminder`). Implements the
     /// closest-N Upcoming rule and the Upcoming-takes-priority / overflow-demotes-to-Catch-up rule.
@@ -47,7 +22,7 @@ enum CommitmentAndSlot {
         n: Int
     ) -> (
         current: [CommitmentCharacteristics],
-        upcoming: [UpcomingEntry],
+        upcoming: [CommitmentCharacteristics],
         catchUp: [CommitmentCharacteristics]
     ) {
         // Current: open slot right now, sorted by remaining fraction of the open slot (sooner-to-end first).
@@ -61,24 +36,15 @@ enum CommitmentAndSlot {
         let currentIDs = Set(current.map(\.commitment.id))
 
         // Future-eligible: non-current, with a nearest usable slot. Rank by that slot's start (then end).
-        let futureEligible: [UpcomingEntry] =
+        let futureEligible =
             characteristics
-            .filter { !currentIDs.contains($0.commitment.id) }
-            .compactMap { ch -> UpcomingEntry? in
-                guard let nearest = ch.nearestUsable else { return nil }
-                return UpcomingEntry(
-                    commitment: ch.commitment,
-                    nearestSlot: nearest,
-                    nearestUsableInCurrentCycle: ch.nearestUsableInCurrentCycle,
-                    currentCycleRemainingCount: ch.remainingThisCycleCount,
-                    behindCount: ch.behindCount
-                )
-            }
+            .filter { !currentIDs.contains($0.commitment.id) && $0.nearestUsable != nil }
             .sorted {
-                if $0.nearestSlot.start == $1.nearestSlot.start {
-                    return $0.nearestSlot.end < $1.nearestSlot.end
-                }
-                return $0.nearestSlot.start < $1.nearestSlot.start
+                // Safe to force-unwrap: filtered to non-nil nearestUsable above.
+                let lhs = $0.nearestUsable!
+                let rhs = $1.nearestUsable!
+                if lhs.start == rhs.start { return lhs.end < rhs.end }
+                return lhs.start < rhs.start
             }
 
         let upcoming = Array(futureEligible.prefix(max(0, n)))
@@ -227,20 +193,4 @@ enum CommitmentAndSlot {
         return candidates.min()
     }
 
-}
-
-extension CommitmentAndSlot.UpcomingEntry {
-    /// The row's time-line rendering decision (PRD §9): current-cycle time + optional "+k more",
-    /// or a future-cycle exact datetime. View-agnostic so it can be tested directly.
-    var rowDisplay: CommitmentAndSlot.UpcomingRowDisplay {
-        if nearestUsableInCurrentCycle {
-            return .currentCycle(
-                timeText: nearestSlot.timeOfDayText,
-                extraCount: max(0, currentCycleRemainingCount - 1)
-            )
-        } else {
-            // Future-cycle row: anchor date + full window, via SlotOccurrence's own formatting.
-            return .futureCycle(dateTimeText: nearestSlot.datedLabel)
-        }
-    }
 }
