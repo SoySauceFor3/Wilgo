@@ -66,6 +66,22 @@ final class CommitmentStageBucketsTests {
         c.checkIns.append(checkIn)
     }
 
+    /// Characterize the active commitments (the caller's job in production) and place into buckets.
+    @MainActor
+    private func buckets(_ commitments: [Commitment], now: Date, n: Int)
+        -> (
+            current: [CommitmentCharacteristics],
+            upcoming: [CommitmentAndSlot.UpcomingEntry],
+            catchUp: [CommitmentCharacteristics]
+        )
+    {
+        let characteristics =
+            commitments
+            .filter { $0.isActiveForReminders(now: now) }
+            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
+        return CommitmentAndSlot.stageBuckets(characteristics: characteristics, now: now, n: n)
+    }
+
     // MARK: - Tests
 
     @Test("empty commitments → all three buckets empty")
@@ -74,7 +90,7 @@ final class CommitmentStageBucketsTests {
         _ = container.mainContext
         let now = date(year: 2026, month: 3, day: 5, hour: 7)
 
-        let buckets = CommitmentAndSlot.stageBuckets(commitments: [], now: now, n: 5)
+        let buckets = buckets([], now: now, n: 5)
 
         #expect(buckets.current.isEmpty)
         #expect(buckets.upcoming.isEmpty)
@@ -93,8 +109,7 @@ final class CommitmentStageBucketsTests {
         let c12 = makeCommitment(title: "12", slots: [(12, 13, nil)], in: ctx)
         let c14 = makeCommitment(title: "14", slots: [(14, 15, nil)], in: ctx)
 
-        let buckets = CommitmentAndSlot.stageBuckets(
-            commitments: [c12, c8, c14, c10], now: now, n: 2)
+        let buckets = buckets([c12, c8, c14, c10], now: now, n: 2)
 
         // Exactly N=2 in upcoming, ordered nearest-first (8 then 10).
         #expect(buckets.upcoming.count == 2)
@@ -112,7 +127,7 @@ final class CommitmentStageBucketsTests {
         let c8 = makeCommitment(title: "8", slots: [(8, 9, nil)], in: ctx)
         let c10 = makeCommitment(title: "10", slots: [(10, 11, nil)], in: ctx)
 
-        let buckets = CommitmentAndSlot.stageBuckets(commitments: [c10, c8], now: now, n: 5)
+        let buckets = buckets([c10, c8], now: now, n: 5)
 
         #expect(buckets.upcoming.map(\.commitment.id) == [c8.id, c10.id])
         #expect(buckets.catchUp.isEmpty)
@@ -127,7 +142,7 @@ final class CommitmentStageBucketsTests {
         let c8 = makeCommitment(title: "8", slots: [(8, 9, nil)], in: ctx)
         let c10 = makeCommitment(title: "10", slots: [(10, 11, nil)], in: ctx)
 
-        let buckets = CommitmentAndSlot.stageBuckets(commitments: [c8, c10], now: now, n: 0)
+        let buckets = buckets([c8, c10], now: now, n: 0)
 
         #expect(buckets.upcoming.isEmpty)
         // Both behind → both demote to catch-up.
@@ -144,8 +159,7 @@ final class CommitmentStageBucketsTests {
         // c14 is behind (target 3, no check-ins) but ranks 3rd by slot start → beyond n=2.
         let c14 = makeCommitment(title: "14", slots: [(14, 15, nil)], in: ctx)
 
-        let buckets = CommitmentAndSlot.stageBuckets(
-            commitments: [c8, c10, c14], now: now, n: 2)
+        let buckets = buckets([c8, c10, c14], now: now, n: 2)
 
         #expect(buckets.upcoming.map(\.commitment.id) == [c8.id, c10.id])
         #expect(!buckets.upcoming.map(\.commitment.id).contains(c14.id))
@@ -169,8 +183,7 @@ final class CommitmentStageBucketsTests {
         #expect(c14.isActiveForReminders(now: now))
         #expect((c14.status(now: now).behindCount ?? 0) == 0)
 
-        let buckets = CommitmentAndSlot.stageBuckets(
-            commitments: [c8, c10, c14], now: now, n: 2)
+        let buckets = buckets([c8, c10, c14], now: now, n: 2)
 
         #expect(buckets.upcoming.map(\.commitment.id) == [c8.id, c10.id])
         #expect(!buckets.upcoming.map(\.commitment.id).contains(c14.id))
@@ -185,7 +198,7 @@ final class CommitmentStageBucketsTests {
         // c8 is behind but it is the nearest slot → in upcoming despite being behind.
         let c8 = makeCommitment(title: "8", slots: [(8, 9, nil)], in: ctx)
 
-        let buckets = CommitmentAndSlot.stageBuckets(commitments: [c8], now: now, n: 5)
+        let buckets = buckets([c8], now: now, n: 5)
 
         #expect(buckets.upcoming.map(\.commitment.id) == [c8.id])
         #expect(!buckets.catchUp.map(\.commitment.id).contains(c8.id))
@@ -202,8 +215,7 @@ final class CommitmentStageBucketsTests {
         let cNow = makeCommitment(title: "now", slots: [(8, 9, nil)], in: ctx)
         let cLater = makeCommitment(title: "later", slots: [(12, 13, nil)], in: ctx)
 
-        let buckets = CommitmentAndSlot.stageBuckets(
-            commitments: [cNow, cLater], now: now, n: 5)
+        let buckets = buckets([cNow, cLater], now: now, n: 5)
 
         #expect(buckets.current.map(\.commitment.id) == [cNow.id])
         #expect(!buckets.upcoming.map(\.commitment.id).contains(cNow.id))
@@ -225,8 +237,7 @@ final class CommitmentStageBucketsTests {
         // Sanity: cMet is not active for reminders.
         #expect(!cMet.isActiveForReminders(now: now))
 
-        let buckets = CommitmentAndSlot.stageBuckets(
-            commitments: [cMet, cActive], now: now, n: 5)
+        let buckets = buckets([cMet, cActive], now: now, n: 5)
 
         let allIDs =
             buckets.current.map(\.commitment.id)
@@ -243,7 +254,7 @@ final class CommitmentStageBucketsTests {
         let now = date(year: 2026, month: 3, day: 5, hour: 6)
         let c = makeCommitment(title: "today", slots: [(8, 9, nil)], in: ctx)
 
-        let buckets = CommitmentAndSlot.stageBuckets(commitments: [c], now: now, n: 5)
+        let buckets = buckets([c], now: now, n: 5)
 
         let entry = try #require(buckets.upcoming.first)
         #expect(entry.nearestSlot.start == date(year: 2026, month: 3, day: 5, hour: 8))
@@ -261,10 +272,67 @@ final class CommitmentStageBucketsTests {
         let now = date(year: 2026, month: 3, day: 5, hour: 23)
         let c = makeCommitment(title: "7am", slots: [(7, 9, nil)], in: ctx)
 
-        let buckets = CommitmentAndSlot.stageBuckets(commitments: [c], now: now, n: 5)
+        let buckets = buckets([c], now: now, n: 5)
 
         let entry = try #require(buckets.upcoming.first)
         #expect(entry.nearestSlot.start == date(year: 2026, month: 3, day: 6, hour: 7))
         #expect(!entry.nearestUsableInCurrentCycle)
+    }
+
+    // MARK: - behindForReminder
+
+    /// Builds the characteristics list the way production does (active filter + characterize).
+    @MainActor
+    private func chars(_ commitments: [Commitment], now: Date) -> [CommitmentCharacteristics] {
+        commitments
+            .filter { $0.isActiveForReminders(now: now) }
+            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
+    }
+
+    @Test("behindForReminder includes a behind commitment even when it sits in Upcoming's top-N")
+    @MainActor func behindForReminderIncludesUpcoming() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // 6am, before the 8am slot: behind (target 3, no check-ins) AND future-eligible (→ Upcoming).
+        let now = date(year: 2026, month: 3, day: 5, hour: 6)
+        let c = makeCommitment(title: "8", slots: [(8, 9, nil)], targetCount: 3, in: ctx)
+
+        let cs = chars([c], now: now)
+        // It lands in Upcoming (not catchUp), yet behindForReminder still includes it.
+        let placed = CommitmentAndSlot.stageBuckets(characteristics: cs, now: now, n: 5)
+        #expect(placed.upcoming.map(\.commitment.id) == [c.id])
+        #expect(placed.catchUp.isEmpty)
+
+        let reminded = CommitmentAndSlot.behindForReminder(characteristics: cs)
+        #expect(reminded.map(\.commitment.id) == [c.id])
+    }
+
+    @Test("behindForReminder excludes a behind commitment that is currently in an open slot")
+    @MainActor func behindForReminderExcludesCurrent() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // now is inside the 9–11 slot, and target 3 with no check-ins → behind, but currently open.
+        let now = date(year: 2026, month: 3, day: 5, hour: 10)
+        let c = makeCommitment(title: "open", slots: [(9, 11, nil)], targetCount: 3, in: ctx)
+
+        let cs = chars([c], now: now)
+        #expect(cs.first?.isBehind == true)
+        #expect(cs.first?.isCurrent == true)
+
+        let reminded = CommitmentAndSlot.behindForReminder(characteristics: cs)
+        #expect(reminded.isEmpty)  // behind, but in an open slot → no catch-up nudge
+    }
+
+    @Test("behindForReminder excludes a not-behind commitment")
+    @MainActor func behindForReminderExcludesOnTrack() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        let now = date(year: 2026, month: 3, day: 5, hour: 6)
+        // target 1, one upcoming slot → leftToDo 1 - remaining 1 = behindCount 0 (on track).
+        let c = makeCommitment(title: "ok", slots: [(8, 9, nil)], targetCount: 1, in: ctx)
+
+        let cs = chars([c], now: now)
+        #expect(cs.first?.isBehind == false)
+        #expect(CommitmentAndSlot.behindForReminder(characteristics: cs).isEmpty)
     }
 }

@@ -6,7 +6,6 @@ struct CommitmentStatsCard<TopRightContent: View>: View {
     @Environment(\.modelContext) private var modelContext
     @Bindable var commitment: Commitment
     @EnvironmentObject private var checkInUndoManager: CheckInUndoManager
-    let slotOccurences: [SlotOccurrence]
     let topRightTitle: String
     var onSnooze: (() -> Void)?
     @ViewBuilder var topRightContent: () -> TopRightContent

@@ -42,11 +42,9 @@ struct StageView: View {
                                 .padding(.horizontal, 4)
 
                             ForEach(viewModel.current, id: \.commitment.id) { item in
-                                CurrentCommitmentRow(
-                                    commitment: item.commitment,
-                                    slots: item.slots,
-                                    behindCount: item.behindCount
-                                ) { commitmentForDetail = item.commitment }
+                                CurrentCommitmentRow(characteristics: item) {
+                                    commitmentForDetail = item.commitment
+                                }
                             }
                         }
                     }
@@ -59,11 +57,9 @@ struct StageView: View {
                                 .padding(.horizontal, 4)
 
                             ForEach(viewModel.catchUp, id: \.commitment.id) { item in
-                                CatchUpCommitmentRow(
-                                    commitment: item.commitment,
-                                    slotOccurences: item.slots,
-                                    behindCount: item.behindCount
-                                ) { commitmentForDetail = item.commitment }
+                                CatchUpCommitmentRow(characteristics: item) {
+                                    commitmentForDetail = item.commitment
+                                }
                             }
                         }
                     }

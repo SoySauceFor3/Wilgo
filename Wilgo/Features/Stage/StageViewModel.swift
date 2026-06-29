@@ -13,9 +13,9 @@ import Foundation
 @MainActor
 @Observable
 final class StageViewModel {
-    private(set) var current: [CommitmentAndSlot.WithBehind] = []
+    private(set) var current: [CommitmentCharacteristics] = []
     private(set) var upcoming: [CommitmentAndSlot.UpcomingEntry] = []
-    private(set) var catchUp: [CommitmentAndSlot.WithBehind] = []
+    private(set) var catchUp: [CommitmentCharacteristics] = []
 
     private var lastCommitments: [Commitment] = []
     @ObservationIgnored
@@ -33,10 +33,14 @@ final class StageViewModel {
 
     private func recompute() {
         let now = Date()
-        // stageBuckets owns the active filter + closest-N + priority/demotion rule, so all three
-        // lists come from one call and stay mutually consistent.
+        // Characterize each active commitment once, then place into buckets. The same characteristics
+        // pass is what other surfaces (widget, reminders) will reuse, keeping every surface in sync.
+        let characteristics =
+            lastCommitments
+            .filter { $0.isActiveForReminders(now: now) }
+            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
         let buckets = CommitmentAndSlot.stageBuckets(
-            commitments: lastCommitments,
+            characteristics: characteristics,
             now: now,
             n: AppSettings.upcomingCommitmentCount
         )

@@ -2,23 +2,22 @@ import SwiftData
 import SwiftUI
 
 struct CatchUpCommitmentRow: View {
-    @Bindable var commitment: Commitment
-    /// For catch-up, these are the "next up" slots for this commitment.
-    let slotOccurences: [SlotOccurrence]
-    /// Pre-computed by `StageViewModel`; avoids re-running `status` per row.
-    let behindCount: Int
+    /// Pre-computed by `StageViewModel`; carries the counts (avoids re-running status).
+    let characteristics: CommitmentCharacteristics
     var onTap: () -> Void
+
+    private var commitment: Commitment { characteristics.commitment }
+    private var behindCount: Int { characteristics.behindCount }
 
     var body: some View {
         CommitmentStatsCard(
             commitment: commitment,
-            slotOccurences: slotOccurences,
             topRightTitle: "Next up Slots"
         ) {
-            let count = slotOccurences.count
+            let count = characteristics.remainingThisCycleCount
             VStack(alignment: .leading, spacing: 2) {
                 Text(
-                    "\(count) " + (count <= 1 ? "slot" : "slots")
+                    count == 1 ? "1 slot remaining" : "\(count) slots remaining"
                 )
                 .font(.caption2)
                 .foregroundStyle(.primary)
@@ -52,10 +51,18 @@ struct CatchUpCommitmentRow: View {
     )
 
     let occurrence = slot.occurrence(on: Time.startOfDay(for: today))!
-    CatchUpCommitmentRow(
-        commitment: commitment, slotOccurences: [occurrence], behindCount: 0, onTap: {}
+    let characteristics = CommitmentCharacteristics(
+        commitment: commitment,
+        currentOccurrence: nil,
+        remainingThisCycleCount: 1,
+        nearestUsable: occurrence,
+        nearestUsableInCurrentCycle: true,
+        behindCount: 2,
+        checkInCount: 0,
+        targetCount: 3
     )
-    .modelContainer(
+    CatchUpCommitmentRow(characteristics: characteristics, onTap: {})
+        .modelContainer(
         for: [Commitment.self, Slot.self, CheckIn.self], inMemory: true
     )
     .padding()
