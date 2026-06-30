@@ -45,27 +45,30 @@ extension Commitment {
 
     /// Returns the slot mechanics for `now`. Mode-agnostic — always uses the
     /// target cycle as the window, regardless of `target.effectiveMode`.
-    ///
-    /// `remainingSlots`: occurrences whose window has not yet ended, with the current slot
-    /// dropped if it has been snoozed or its capacity is saturated by in-window
-    /// check-ins.
-    ///
-    /// `kind` classifies `now`:
-    /// - `.insideSlot` when the first remaining slot's start is at or before `now`,
-    /// - `.beforeNextToday` when some remaining slot starts within today's psych-day,
-    /// - `.noSlotToday` otherwise.
     func slotStatus(now: Date = Time.now()) -> SlotStatus {
-        let bounds = cycle.bounds(including: now)
-        // Pass all check-ins: `isSaturated` counts only those inside each occurrence's own window,
-        // so narrowing to the cycle would wrongly drop a cross-midnight occurrence's tail.
-        let remainingSlots = remainingUsableOccurrences(
-            in: slotOccurrences(from: bounds.start, until: bounds.end),
-            now: now,
-            checkIns: checkIns
-        )
+        let remainingSlots = remainingUsableOccurrencesInCycle(now: now)
         return SlotStatus(
             kind: classifyKind(remainingSlots: remainingSlots, now: now),
             remainingSlots: remainingSlots)
+    }
+
+    /// Unfinished, unsnoozed, unsaturated slot occurrences remaining in the **current cycle**, sorted
+    /// by start (includes the open-now slot, if any). The Stage characterization layer
+    /// (`CommitmentAndSlot.characteristics`) reads this for `currentOccurrence` + the remaining count.
+    func remainingUsableOccurrencesInCycle(now: Date = Time.now()) -> [SlotOccurrence] {
+        let bounds = cycle.bounds(including: now)
+        // Pass all check-ins: `isUsable`/saturation counts only those inside each occurrence's own
+        // window, so narrowing to the cycle would wrongly drop a cross-midnight occurrence's tail.
+        return slotOccurrences(from: bounds.start, until: bounds.end).compactMap {
+            occ -> SlotOccurrence? in
+            guard occ.end >= now else { return nil }  // window already ended → not remaining
+
+            // Usability (snooze/saturation) is a per-occurrence property, not a "now" one, so this is
+            // valid for both the open-now occurrence and any not-yet-started future ones (a future
+            // window has no snooze for its day and no check-ins inside it → trivially usable).
+            guard occ.isUsable(checkIns: checkIns) else { return nil }
+            return occ
+        }
     }
 
     /// Classifies where `now` falls relative to `remainingSlots` (assumed sorted by start):
@@ -194,21 +197,6 @@ extension Commitment {
             return $0.start < $1.start
         }
         return occurrences
-    }
-
-    private func remainingUsableOccurrences(
-        in occurrences: [SlotOccurrence],
-        now: Date,
-        checkIns: [CheckIn]
-    ) -> [SlotOccurrence] {
-        occurrences.compactMap { occ -> SlotOccurrence? in
-            guard occ.end >= now else { return nil }
-            guard occ.start <= now else { return occ }
-            // `now` is inside this occurrence's window, so usability "at now" is exactly this
-            // occurrence's usability (snooze/saturation are per-occurrence).
-            guard occ.isUsable(checkIns: checkIns) else { return nil }
-            return occ
-        }
     }
 
 }

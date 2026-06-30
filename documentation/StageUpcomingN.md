@@ -596,3 +596,4 @@ either break the build or force duplicated logic across several commits. 6c/6d/6
 Open issues:
 
 1. should we keep the bucket func? not every place need to calculate all current, future and catchup.
+2. func `slotOccurrences` should change to be day-time boundaries and allow deciding if the one starts in the boundary but does not end on boundary should be counted.

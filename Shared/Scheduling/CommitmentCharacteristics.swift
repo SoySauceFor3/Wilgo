@@ -69,13 +69,18 @@ extension CommitmentAndSlot {
     static func characteristics(of commitment: Commitment, now: Date = Time.now())
         -> CommitmentCharacteristics
     {
-        let status = commitment.status(now: now)
-        let remaining = status.remainingSlots ?? []
-        // The open-now slot is the first remaining occurrence that has already started (= .insideSlot).
+        // Unfinished, unsnoozed, unsaturated occurrences remaining in the current cycle.
+        let remaining = commitment.remainingUsableOccurrencesInCycle(now: now)
+        // The open-now slot is the first remaining occurrence that has already started.
         let currentOccurrence: SlotOccurrence? = {
             guard let first = remaining.first, first.start <= now else { return nil }
             return first
         }()
+        // behindCount: goal still needs this many check-ins that no remaining in-cycle slot covers.
+        // Nil leftToDo (target disabled) → not behind.
+        let behindCount = commitment.goalProgress(now: now).leftToDo
+            .map { max(0, $0 - remaining.count) } ?? 0
+
         let nearest = commitment.nearestUsableUpcomingOccurrence(now: now)
         let nearestUsableInCurrentCycle: Bool = nearest.map {
             let bounds = commitment.cycle.bounds(including: now)
@@ -87,7 +92,7 @@ extension CommitmentAndSlot {
             remainingThisCycleCount: remaining.count,
             nearestUsable: nearest,
             nearestUsableInCurrentCycle: nearestUsableInCurrentCycle,
-            behindCount: status.behindCount ?? 0,
+            behindCount: behindCount,
             checkInCount: commitment.checkInsInCycle(containing: now).count,
             targetCount: commitment.target.count
         )
