@@ -61,9 +61,9 @@ Given `commitments`, `now`, and `n`:
 - **Not cycle-bounded** `remainingSlots`**.** A slot's next occurrence can fall in the next
   cycle; `remainingSlots` stops at the current cycle end and would reintroduce the cliff.
 
-4. **Upcoming** = `futureEligible.prefix(n)`.
-5. **Overflow** = `futureEligible.dropFirst(n)` (future-eligible but beyond the cutoff).
-6. **Catch-up** = all active commitments that are **behind** (`behindCount > 0`) AND
+1. **Upcoming** = `futureEligible.prefix(n)`.
+2. **Overflow** = `futureEligible.dropFirst(n)` (future-eligible but beyond the cutoff).
+3. **Catch-up** = all active commitments that are **behind** (`behindCount > 0`) AND
    **not in Upcoming**. This is the union of:
 
 - the old catch-up set (behind, no future usable slot — formerly `.noSlotToday` + behind), and
@@ -386,9 +386,11 @@ datetime + "future cycle" marker).
 1. **Restructure into two layers now** (not a simpler migration): characterization (`CommitmentSnapshot`)
    → placement (`stageBuckets(snapshots:n:)`). Supersedes the earlier "point everything at the existing
    `stageBuckets`" plan.
-2. **CatchUpReminder reminds** `behindCount > 0 && !isCurrent` — every behind commitment regardless of
-   bucket, **except** ones in an open slot now (they're being acted on; a second nudge is redundant and
-   noisy; easy to loosen later, annoying to tighten after users expect it).
+2. **CatchUpReminder reminds every behind commitment** (regardless of Stage bucket). Whether to also
+   remind ones in an **open slot right now** is a **user setting, default OFF (exclude)** — open-slot
+   commitments are already maximally visible, so a push is redundant; power users can opt in. Implemented
+   as `behindForReminder(characteristics:includeCurrent:)` reading `AppSettings.includeActiveSlotsInCatchUp`.
+   (See Commit 6e.)
 3. **Snapshot carries ALL derived facts** (categorization + UI values), as **raw values not formatted
    strings**. It's the single "compute once" source; views read values and format at the boundary.
 4. **Flat fields + computed accessors** (`isCurrent`/`isBehind`/`hasUpcoming`), MARK-grouped by concern.
@@ -419,13 +421,13 @@ datetime + "future cycle" marker).
     correct for 0/1/many open slots), shown under the headline slot time. This keeps the engine a pure
     fact-emitter and fixes the latent multi-current bug. Label work lands in **6c** (Stage rows).
 
-12. **`characteristics` becomes the single computation; `status()`/`CommitmentStatus`/`slotStatus`/
-    `SlotStatus`/`SlotStatusKind`/`classifyKind` are deleted.** 6a wraps `status()` for now, but the END
-    commit (6g) inlines the slot+goal computation into `characteristics` and removes the intermediate
-    types. Sequenced last because the old `*WithBehind` helpers still call `status()`/`slotStatus()`
-    until the surfaces migrate (6d–6f) — inlining earlier would break the build or duplicate logic.
-    Lower-level pieces `characteristics` still uses are kept (`goalProgress`, `remainingUsableOccurrences`,
-    `nearestUsableUpcomingOccurrence`, `isActiveForReminders`).
+1. **`characteristics` becomes the single computation; `status()`/`CommitmentStatus`/`slotStatus`/
+   `SlotStatus`/`SlotStatusKind`/`classifyKind` are deleted.** 6a wraps `status()` for now, but the END
+   commit (6g) inlines the slot+goal computation into `characteristics` and removes the intermediate
+   types. Sequenced last because the old `*WithBehind` helpers still call `status()`/`slotStatus()`
+   until the surfaces migrate (6d–6f) — inlining earlier would break the build or duplicate logic.
+   Lower-level pieces `characteristics` still uses are kept (`goalProgress`, `remainingUsableOccurrences`,
+   `nearestUsableUpcomingOccurrence`, `isActiveForReminders`).
 
 ### Bug + design smell this fixes
 
@@ -457,7 +459,7 @@ express that; reading a _characterization_ layer can.
   `checkInCount`/`targetCount`; Upcoming uses `nearestUsable`/`nearestUsableInCurrentCycle`/
   `remainingThisCycle.count`.
 
-2. **Placement —** `stageBuckets(snapshots:n:)` (across snapshots → rows): Current = `isCurrent`;
+1. **Placement —** `stageBuckets(snapshots:n:)` (across snapshots → rows): Current = `isCurrent`;
    Upcoming = non-current with `nearestUsable`, ranked by start, `prefix(n)`; Catch-up = behind and
    not in Current/Upcoming (overflow demotion). Per-bucket **sorting lives here** (current by remaining
    fraction, upcoming by nearest start, catch-up by urgency) — ordering is domain logic, identical
@@ -548,8 +550,24 @@ separate; lets a caller reuse one snapshot pass for both buckets and the reminde
 - **6d — Migrate widget** (`CurrentCommitmentWidget.buildSnapshots`) to characteristics → `stageBuckets`.
   Widget Upcoming stays simple (nearest slot time only). Test: widget buckets match the engine
   (respects `n`, closest-N, demotion). _Builds green._
-- **6e — Migrate CatchUpReminder** to `behindForReminder(snapshots:)`. Test: reminder set = behind ∧
-  not-current, incl. a behind-in-Upcoming case. _Builds green._
+- **6e — Migrate CatchUpReminder to** `behindForReminder`**, made user-configurable.**
+  CatchUpReminder reminds **every behind commitment** (not just the Stage's catch-up bucket — a behind
+  commitment sitting in Upcoming's top-N still needs catching up). It builds `characteristics` for all
+  reminders-enabled, active commitments and filters via `behindForReminder`.
+  - **New decision — "include active slots" is a user setting.** Whether to also remind a behind
+    commitment whose slot is **open right now** is now a user choice, **default OFF (exclude)**:
+    - _Why default exclude:_ an open-slot commitment is already maximally visible (Stage row + Live
+      Activity) and the user is in the window to act, so a push notification is redundant/nagging.
+      Excluding loses little; including risks annoyance. (Power users who want "remind whenever behind"
+      can turn it on.)
+  - **Setting:** `AppSettings.includeActiveSlotsInCatchUpReminder` (UserDefaults, default `false`). Settings UI:
+    a **"Notifications" → "Catch-up reminders"** area with a toggle **"Include active slots"**.
+  - **Engine:** `behindForReminder(characteristics:includeCurrent:)` — `filter { isBehind && (includeCurrent || !isCurrent) }`,
+    `includeCurrent` defaulting `false`. The engine stays a pure rule; CatchUpReminder reads the setting
+    and passes the bool (setting access stays at the call-site boundary, not in the engine).
+  - **Tests:** `behindForReminder` both branches (include vs exclude current); a behind-in-Upcoming case
+    is still reminded; the AppSettings flag default/read.
+  - _Builds green._
 - **6f — Migrate LiveActivityRefresher** to `stageBuckets(snapshots:n:).current`. _Builds green._
 - **6g — Inline everything into** `characteristics`**; delete the intermediate engine.** After 6b–6f no
   surface uses the old `*WithBehind` helpers or `status()`/`CommitmentStatus` (only `characteristics`

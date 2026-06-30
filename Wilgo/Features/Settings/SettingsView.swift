@@ -18,6 +18,9 @@ struct SettingsView: View {
     @AppStorage(AppSettings.upcomingCommitmentCountKey)
     private var upcomingCommitmentCount: Int = 3
 
+    @AppStorage(AppSettings.includeActiveSlotsInCatchUpReminderKey)
+    private var includeActiveSlotsInCatchUp: Bool = false
+
     @Environment(\.modelContext) private var modelContext
 
     @State private var pendingWeekStart: Bool? = nil
@@ -113,6 +116,14 @@ struct SettingsView: View {
                     Text("Stage")
                 } footer: {
                     Text("How many commitments appear in the Stage's Upcoming list, ordered by which is due soonest. Default is 3.")
+                }
+
+                Section {
+                    Toggle("Include active slots", isOn: $includeActiveSlotsInCatchUp)
+                } header: {
+                    Text("Catch-up reminders")
+                } footer: {
+                    Text("When on, you'll also be reminded to catch up on a commitment whose slot is open right now. Off by default — those are already on your Stage.")
                 }
 
                 Section("Tags") {

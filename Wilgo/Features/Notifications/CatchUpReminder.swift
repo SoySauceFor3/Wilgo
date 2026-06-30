@@ -72,8 +72,18 @@ enum CatchUpReminder {
         let now = now ?? Time.now()
         let context = ModelContext(WilgoApp.sharedModelContainer)
         let commitments = (try? context.fetch(.activeOnly)) ?? []
-        let remindersOn = commitments.filter(\.isRemindersEnabled)
-        let catchUp = CommitmentAndSlot.catchUpWithBehind(commitments: remindersOn)
+        // Remind every behind commitment (not just the Stage's catch-up bucket): a behind commitment
+        // sitting in Upcoming's top-N still needs catching up. `behindForReminder` reads the
+        // characterization layer directly, so it isn't gated by the closest-N bucketing.
+        let characteristics =
+            commitments
+            .filter(\.isRemindersEnabled)
+            .filter { $0.isActiveForReminders(now: now) }
+            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
+        let catchUp = CommitmentAndSlot.behindForReminder(
+            characteristics: characteristics,
+            includeCurrent: AppSettings.includeActiveSlotsInCatchUp
+        )
 
         updateCatchUpCommitmentsStorage(catchUp: catchUp, now: now)
         scheduleNotificationPost(for: catchUp, now: now)
@@ -102,11 +112,11 @@ enum CatchUpReminder {
     // If any are new, stamps lastNewCatchUpCommitmentDate = now. This is the anchor date for the chain
     // NOTE: because this function runs roughly 1/hour when the app is not active, so the date might be slightly outdated.
     private static func updateCatchUpCommitmentsStorage(
-        catchUp: [CommitmentAndSlot.WithBehind],
+        catchUp: [CommitmentCharacteristics],
         now: Date = Time.now()
     ) {
         let defaults = UserDefaults.standard
-        let currentIDs = Set(catchUp.map(\.0.id))
+        let currentIDs = Set(catchUp.map(\.commitment.id))
 
         let prevRawIDs = defaults.stringArray(forKey: lastCatchUpCommitmentsKey) ?? []
         let prevIDs = Set(prevRawIDs.compactMap { UUID(uuidString: $0) })
@@ -134,7 +144,7 @@ enum CatchUpReminder {
     // MARK: - Notification content
 
     private static func makeNotificationContent(
-        for catchUp: [CommitmentAndSlot.WithBehind]
+        for catchUp: [CommitmentCharacteristics]
     ) -> UNMutableNotificationContent {
         let content = UNMutableNotificationContent()
         content.sound = .default
@@ -145,7 +155,7 @@ enum CatchUpReminder {
             return content
         }
 
-        let commitments = catchUp.map(\.0)
+        let commitments = catchUp.map(\.commitment)
         let count = commitments.count
 
         if count == 1, let commitment = commitments.first {
@@ -168,7 +178,7 @@ enum CatchUpReminder {
     // MARK: - Notification scheduling
 
     private static func scheduleNotificationPost(
-        for catchUp: [CommitmentAndSlot.WithBehind], now: Date
+        for catchUp: [CommitmentCharacteristics], now: Date
     ) {
         let center = UNUserNotificationCenter.current()
         center.requestAuthorization(options: [.alert, .sound]) { granted, _ in

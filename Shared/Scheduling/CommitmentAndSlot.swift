@@ -59,14 +59,17 @@ enum CommitmentAndSlot {
         return (current: current, upcoming: upcoming, catchUp: catchUp)
     }
 
-    /// Commitments that should fire a catch-up reminder: behind, and **not** currently in an open slot
-    /// (a commitment being acted on right now doesn't also need a nudge). Reads the characterization
-    /// layer directly, so it includes behind commitments regardless of which Stage bucket they land in
-    /// (e.g. a behind one sitting in Upcoming's top-N is still reminded).
+    /// Commitments that should fire a catch-up reminder: every behind commitment, regardless of which
+    /// Stage bucket it lands in (so a behind one sitting in Upcoming's top-N is still reminded).
+    ///
+    /// When `includeCurrent` is false (the default), commitments currently in an **open slot** are
+    /// excluded — they're already maximally visible (Stage row + Live Activity) and the user is in the
+    /// window to act, so a push notification would be redundant. The caller passes the user's setting.
     static func behindForReminder(
-        characteristics: [CommitmentCharacteristics]
+        characteristics: [CommitmentCharacteristics],
+        includeCurrent: Bool = false
     ) -> [CommitmentCharacteristics] {
-        characteristics.filter { $0.isBehind && !$0.isCurrent }
+        characteristics.filter { $0.isBehind && (includeCurrent || !$0.isCurrent) }
     }
 
     /// Catch-up urgency ordering: by `behindCount / targetCount` (higher first), then larger target

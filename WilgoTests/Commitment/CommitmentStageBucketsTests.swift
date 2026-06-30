@@ -97,7 +97,9 @@ final class CommitmentStageBucketsTests {
         #expect(buckets.catchUp.isEmpty)
     }
 
-    @Test("closest-N: more than N future-eligible → exactly N upcoming, nearest first; rest to catch-up")
+    @Test(
+        "closest-N: more than N future-eligible → exactly N upcoming, nearest first; rest to catch-up"
+    )
     @MainActor func closestN() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
@@ -176,7 +178,8 @@ final class CommitmentStageBucketsTests {
         // c14: target 1, continue ON, and one check-in today → goal met but still active.
         // Because it has a remaining usable slot, leftToDo(=0) - remainingSlots makes behindCount 0.
         let c14 = makeCommitment(
-            title: "14", slots: [(14, 15, nil)], targetCount: 1, continueAfterGoalMet: true, in: ctx)
+            title: "14", slots: [(14, 15, nil)], targetCount: 1, continueAfterGoalMet: true, in: ctx
+        )
         addCheckIn(to: c14, at: date(year: 2026, month: 3, day: 5, hour: 5), in: ctx)
 
         // Sanity: c14 is active and NOT behind.
@@ -320,7 +323,25 @@ final class CommitmentStageBucketsTests {
         #expect(cs.first?.isCurrent == true)
 
         let reminded = CommitmentAndSlot.behindForReminder(characteristics: cs)
-        #expect(reminded.isEmpty)  // behind, but in an open slot → no catch-up nudge
+        #expect(reminded.isEmpty)  // behind, but in an open slot → no catch-up nudge (default)
+    }
+
+    @Test("behindForReminder(includeCurrent: true) → reminds behind + current commitment")
+    @MainActor func behindForReminderIncludeCurrentOptIn() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // Same setup as the exclude case: behind AND currently in an open slot.
+        let now = date(year: 2026, month: 3, day: 5, hour: 10)
+        let c = makeCommitment(title: "open", slots: [(9, 11, nil)], targetCount: 3, in: ctx)
+
+        let cs = chars([c], now: now)
+        #expect(cs.first?.isBehind == true)
+        #expect(cs.first?.isCurrent == true)
+
+        // With the opt-in flag, the open-slot behind commitment IS reminded.
+        let reminded = CommitmentAndSlot.behindForReminder(
+            characteristics: cs, includeCurrent: true)
+        #expect(reminded.map(\.commitment.id) == [c.id])
     }
 
     @Test("behindForReminder excludes a not-behind commitment")

@@ -39,6 +39,16 @@ enum AppSettings {
         let raw = UserDefaults.standard.object(forKey: upcomingCommitmentCountKey) as? Int
         return max(0, raw ?? 3)
     }
+
+    /// Whether catch-up reminders also fire for a behind commitment whose slot is open *right now*.
+    /// Default: false (exclude) — an open-slot commitment is already maximally visible, so a push
+    /// would be redundant. Users who want "remind whenever behind" can opt in.
+    static let includeActiveSlotsInCatchUpReminderKey = "includeActiveSlotsInCatchUpReminder"
+
+    /// Reads the include-active-slots preference. Returns `false` (exclude) when the key is absent.
+    static var includeActiveSlotsInCatchUp: Bool {
+        UserDefaults.standard.bool(forKey: includeActiveSlotsInCatchUpReminderKey)
+    }
 }
 
 #if DEBUG
