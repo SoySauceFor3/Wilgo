@@ -64,7 +64,10 @@ final class Commitment {
     @Relationship(deleteRule: .cascade, inverse: \CycleRecord.commitment)
     var cycleRecords: [CycleRecord] = []
 
-    /// When false, this commitment is excluded from Stage reminders and CatchUpReminder notifications.
+    /// Raw user toggle for whether reminders are on. **For display/form editing only.**
+    /// Do NOT use this as the reminders gate in scheduling/Stage code — it omits the goal-met∕continue
+    /// rule, which is exactly the bug class that surfaced when it was used standalone. Use
+    /// `isActiveForReminders(now:)` instead (it checks this flag first, then the goal rule).
     var isRemindersEnabled: Bool = true
 
     /// When true, reminders keep firing even after the daily goal has been met.

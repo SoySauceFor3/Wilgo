@@ -2,30 +2,32 @@ import SwiftData
 import SwiftUI
 
 struct CurrentCommitmentRow: View {
-    @Bindable var commitment: Commitment
-    let slots: [SlotOccurrence]
-    /// Pre-computed by `StageViewModel`; avoids re-running `status` per row.
-    let behindCount: Int
+    /// Pre-computed by `StageViewModel`; carries the open slot + counts (avoids re-running status).
+    let characteristics: CommitmentCharacteristics
     @Environment(\.modelContext) private var modelContext
     var onTap: () -> Void
+
+    private var commitment: Commitment { characteristics.commitment }
+    private var behindCount: Int { characteristics.behindCount }
 
     var body: some View {
         CommitmentStatsCard(
             commitment: commitment,
-            slotOccurences: slots,
             topRightTitle: "Current Slot",
             onSnooze: snoozeCurrentSlot
         ) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(slots.first?.timeOfDayText ?? "No slot")
+                Text(characteristics.currentOccurrence?.timeOfDayText ?? "No slot")
                     .font(.caption2)
                     .foregroundStyle(.primary)
 
-                let remaining = max(0, slots.count - 1)
+                // Full remaining count (includes the open slot shown above — it's still "remaining").
+                // No `- 1`: correct even when multiple slots are open at once.
+                let remaining = characteristics.remainingThisCycleCount
                 Text(
                     remaining == 1
-                        ? "Next Up: 1 slot"
-                        : "Next Up: \(remaining) slots"
+                        ? "1 slot remaining"
+                        : "\(remaining) slots remaining"
                 )
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -73,7 +75,17 @@ struct CurrentCommitmentRow: View {
     )
 
     let occurrence = slot.occurrence(on: Time.startOfDay(for: today))!
-    CurrentCommitmentRow(commitment: commitment, slots: [occurrence], behindCount: 0, onTap: {})
+    let characteristics = CommitmentCharacteristics(
+        commitment: commitment,
+        currentOccurrence: occurrence,
+        remainingThisCycleCount: 1,
+        nearestUsable: nil,
+        nearestUsableInCurrentCycle: false,
+        behindCount: 0,
+        checkInCount: 0,
+        targetCount: 1
+    )
+    CurrentCommitmentRow(characteristics: characteristics, onTap: {})
         .modelContainer(
             for: [Commitment.self, Slot.self, CheckIn.self], inMemory: true
         )

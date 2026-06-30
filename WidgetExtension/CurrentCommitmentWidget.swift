@@ -55,7 +55,6 @@ struct CurrentCommitmentProvider: TimelineProvider {
     }
 
     private func buildSnapshots(commitments: [Commitment], now: Date) -> [CommitmentSnapshot] {
-        let psychDay = Time.startOfDay(for: now)
         let shortTime = DateFormatter()
         shortTime.dateFormat = "h:mm a"
         shortTime.amSymbol = "AM"
@@ -67,45 +66,47 @@ struct CurrentCommitmentProvider: TimelineProvider {
         }
 
         func makeSnapshot(
-            _ wb: CommitmentAndSlot.WithBehind,
+            _ ch: CommitmentCharacteristics,
             stage: CommitmentStage
         ) -> CommitmentSnapshot {
-            let c = wb.commitment
-            let count = c.checkInsInCycle(containing: psychDay).count
+            let c = ch.commitment
 
             let slotDetail: String?
             switch stage {
             case .current:
-                slotDetail = wb.slots.first?.timeOfDayText
+                slotDetail = ch.currentOccurrence?.timeOfDayText
             case .future:
-                if let start = wb.slots.first?.start {
-                    slotDetail = "starts \(shortTime.string(from: start))"
-                } else {
-                    slotDetail = nil
-                }
+                slotDetail = ch.nearestUsable.map { "starts \(shortTime.string(from: $0.start))" }
             case .catchUp:
                 slotDetail = nil
             }
 
             return CommitmentSnapshot(
                 title: c.title,
-                checkedInCount: count,
-                targetCount: c.target.count,
+                checkedInCount: ch.checkInCount,
+                targetCount: ch.targetCount,
                 cycleLabel: cycleLabel(for: c),
                 slotDetail: slotDetail,
-                behindCount: wb.behindCount,
+                behindCount: ch.behindCount,
                 stage: stage,
                 commitmentId: c.id
             )
         }
 
+        // Same source of truth as the Stage: characterize active commitments, then place into buckets
+        // with the user's closest-N. Keeps the widget in sync with the Stage view.
+        let characteristics =
+            commitments
+            .filter { $0.isActiveForReminders(now: now) }
+            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
+        let buckets = CommitmentAndSlot.stageBuckets(
+            characteristics: characteristics, now: now, n: AppSettings.upcomingCommitmentCount
+        )
+
         var result: [CommitmentSnapshot] = []
-        result += CommitmentAndSlot.currentWithBehind(commitments: commitments, now: now)
-            .map { makeSnapshot($0, stage: .current) }
-        result += CommitmentAndSlot.catchUpWithBehind(commitments: commitments, now: now)
-            .map { makeSnapshot($0, stage: .catchUp) }
-        result += CommitmentAndSlot.upcomingWithBehind(commitments: commitments, after: now)
-            .map { makeSnapshot($0, stage: .future) }
+        result += buckets.current.map { makeSnapshot($0, stage: .current) }
+        result += buckets.catchUp.map { makeSnapshot($0, stage: .catchUp) }
+        result += buckets.upcoming.map { makeSnapshot($0, stage: .future) }
         return result
     }
 

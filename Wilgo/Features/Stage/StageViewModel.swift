@@ -13,9 +13,9 @@ import Foundation
 @MainActor
 @Observable
 final class StageViewModel {
-    private(set) var current: [CommitmentAndSlot.WithBehind] = []
-    private(set) var upcoming: [CommitmentAndSlot.WithBehind] = []
-    private(set) var catchUp: [CommitmentAndSlot.WithBehind] = []
+    private(set) var current: [CommitmentCharacteristics] = []
+    private(set) var upcoming: [CommitmentCharacteristics] = []
+    private(set) var catchUp: [CommitmentCharacteristics] = []
 
     private var lastCommitments: [Commitment] = []
     @ObservationIgnored
@@ -33,11 +33,20 @@ final class StageViewModel {
 
     private func recompute() {
         let now = Date()
-        // The *WithBehind helpers apply isActiveForReminders internally; passing the full list and
-        // letting them filter keeps the goal-met∕continue rule in exactly one place.
-        current = CommitmentAndSlot.currentWithBehind(commitments: lastCommitments, now: now)
-        upcoming = CommitmentAndSlot.upcomingWithBehind(commitments: lastCommitments, after: now)
-        catchUp = CommitmentAndSlot.catchUpWithBehind(commitments: lastCommitments, now: now)
+        // Characterize each active commitment once, then place into buckets. The same characteristics
+        // pass is what other surfaces (widget, reminders) will reuse, keeping every surface in sync.
+        let characteristics =
+            lastCommitments
+            .filter { $0.isActiveForReminders(now: now) }
+            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
+        let buckets = CommitmentAndSlot.stageBuckets(
+            characteristics: characteristics,
+            now: now,
+            n: AppSettings.upcomingCommitmentCount
+        )
+        current = buckets.current
+        upcoming = buckets.upcoming
+        catchUp = buckets.catchUp
     }
 
     private func scheduleTimer() {

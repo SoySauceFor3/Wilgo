@@ -3,8 +3,9 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
-/// Tests the single goal-met∕continue rule (`Commitment.isActiveForReminders`) and that the
-/// `*WithBehind` helpers honor it — so Stage, the Live Activity, and the widget all agree.
+/// Tests the single reminders gate (`Commitment.isActiveForReminders`: reminders-enabled +
+/// goal-met∕continue rule) and that placement (`stageBuckets` over the filtered characteristics)
+/// honors it — so Stage, the Live Activity, and the widget all agree.
 @Suite(.serialized)
 final class IsActiveForRemindersTests {
     // Whole-day slot (start == end == midnight) is always inside its window regardless of wall clock.
@@ -24,6 +25,7 @@ final class IsActiveForRemindersTests {
         targetCount: Int,
         continueAfterGoalMet: Bool,
         checkInCount: Int,
+        remindersEnabled: Bool = true,
         in ctx: ModelContext
     ) -> Commitment {
         let slot = makeWholeDaySlot()
@@ -34,7 +36,7 @@ final class IsActiveForRemindersTests {
             cycle: Cycle(kind: .daily, referencePsychDay: anchor),
             slots: [slot],
             target: Target(count: targetCount),
-            isRemindersEnabled: true,
+            isRemindersEnabled: remindersEnabled,
             continueRemindersAfterGoalMet: continueAfterGoalMet
         )
         ctx.insert(c)
@@ -44,6 +46,16 @@ final class IsActiveForRemindersTests {
             c.checkIns.append(checkIn)
         }
         return c
+    }
+
+    /// Mirrors the production boundary: filter on the gate, then characterize, then place.
+    @MainActor
+    private func placed(_ commitments: [Commitment], now: Date) -> [CommitmentCharacteristics] {
+        let characteristics = commitments
+            .filter { $0.isActiveForReminders(now: now) }
+            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
+        let buckets = CommitmentAndSlot.stageBuckets(characteristics: characteristics, now: now, n: 3)
+        return buckets.current + buckets.upcoming + buckets.catchUp
     }
 
     // MARK: - isActiveForReminders
@@ -75,10 +87,19 @@ final class IsActiveForRemindersTests {
         #expect(c.isActiveForReminders(now: Date()))
     }
 
-    // MARK: - currentWithBehind honors the rule (the bug fix)
+    @Test("reminders disabled → inactive even when goal is unmet")
+    @MainActor func remindersDisabled_inactive() throws {
+        let container = try makeTestContainer()
+        let c = makeCommitment(
+            title: "A", targetCount: 2, continueAfterGoalMet: false, checkInCount: 0,
+            remindersEnabled: false, in: container.mainContext)
+        #expect(!c.isActiveForReminders(now: Date()))
+    }
 
-    @Test("currentWithBehind excludes a goal-met commitment whose slot is still open")
-    @MainActor func currentWithBehind_excludesGoalMet() throws {
+    // MARK: - placement honors the rule (the bug fix)
+
+    @Test("placement excludes a goal-met commitment whose slot is still open")
+    @MainActor func placement_excludesGoalMet() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         // A: target 1, checked in once → goal met, continue off. Slot is whole-day (still open).
@@ -88,22 +109,18 @@ final class IsActiveForRemindersTests {
         let b = makeCommitment(
             title: "B", targetCount: 2, continueAfterGoalMet: false, checkInCount: 0, in: ctx)
 
-        let current = CommitmentAndSlot.currentWithBehind(commitments: [a, b], now: Date())
-        #expect(current.map(\.commitment.title) == ["B"])
+        #expect(placed([a, b], now: Date()).map(\.commitment.title) == ["B"])
     }
 
-    @Test("currentWithBehind keeps a goal-met commitment when continueRemindersAfterGoalMet is on")
-    @MainActor func currentWithBehind_keepsGoalMetWhenContinue() throws {
+    @Test("placement keeps a goal-met commitment when continueRemindersAfterGoalMet is on")
+    @MainActor func placement_keepsGoalMetWhenContinue() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         let a = makeCommitment(
             title: "A", targetCount: 1, continueAfterGoalMet: true, checkInCount: 1, in: ctx)
 
-        let current = CommitmentAndSlot.currentWithBehind(commitments: [a], now: Date())
-        #expect(current.map(\.commitment.title) == ["A"])
+        #expect(placed([a], now: Date()).map(\.commitment.title) == ["A"])
     }
-
-    // MARK: - upcoming / catchUp honor the rule too
 
     private func tod(hour: Int) -> Date {
         var c = DateComponents()
@@ -114,13 +131,13 @@ final class IsActiveForRemindersTests {
         return Calendar.current.date(from: c)!
     }
 
-    /// Goal-met commitment with a slot that starts later today (so without the goal-met filter it
-    /// would land in `upcomingWithBehind`). The filter must still exclude it.
-    @Test("upcomingWithBehind excludes a goal-met commitment with a later-today slot")
-    @MainActor func upcomingWithBehind_excludesGoalMet() throws {
+    /// Goal-met commitment with a slot that starts later today (so without the gate it would land in
+    /// Upcoming). The gate must still exclude it from every bucket.
+    @Test("placement excludes a goal-met commitment with a later-today slot")
+    @MainActor func placement_excludesGoalMetUpcoming() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        // now = 06:00, slot starts 14:00 → later today → would be .beforeNextToday (upcoming).
+        // now = 06:00, slot starts 14:00 → later today → would be Upcoming.
         let slot = Slot(start: tod(hour: 14), end: tod(hour: 15))
         ctx.insert(slot)
         let now = Calendar.current.startOfDay(for: Date()).addingTimeInterval(6 * 3600)
@@ -138,6 +155,6 @@ final class IsActiveForRemindersTests {
         ctx.insert(checkIn)
         c.checkIns.append(checkIn)
 
-        #expect(CommitmentAndSlot.upcomingWithBehind(commitments: [c], after: now).isEmpty)
+        #expect(placed([c], now: now).isEmpty)
     }
 }

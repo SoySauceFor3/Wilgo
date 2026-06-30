@@ -15,11 +15,21 @@ struct SettingsView: View {
     @AppStorage(AppSettings.weekStartsOnMondayKey)
     private var weekStartsOnMonday: Bool = true
 
+    @AppStorage(AppSettings.upcomingCommitmentCountKey)
+    private var upcomingCommitmentCount: Int = 3
+
+    @AppStorage(AppSettings.includeActiveSlotsInCatchUpReminderKey)
+    private var includeActiveSlotsInCatchUp: Bool = false
+
     @Environment(\.modelContext) private var modelContext
 
     @State private var pendingWeekStart: Bool? = nil
     @State private var pendingAffectedCommitments: [Commitment] = []
     @State private var showWeekStartSheet = false
+
+    /// Focus for the numeric "Upcoming commitments shown" field. The number pad has no
+    /// Return key, so we add a keyboard toolbar "Done" button to dismiss it.
+    @FocusState private var upcomingCountFieldFocused: Bool
 
     #if DEBUG
         @Environment(\.triggerCycleReport) private var triggerCycleReport
@@ -84,6 +94,38 @@ struct SettingsView: View {
                     Text("Sets the first day of the week for new weekly commitments and the weekly heatmap view.")
                 }
 
+                Section {
+                    let countBinding = Binding(
+                        get: { min(max(upcomingCommitmentCount, 0), 99) },
+                        set: { upcomingCommitmentCount = min(max($0, 0), 99) }
+                    )
+                    Stepper {
+                        LabeledContent("Upcoming commitments shown") {
+                            TextField("", value: countBinding, format: .number)
+                                .keyboardType(.numberPad)
+                                .multilineTextAlignment(.trailing)
+                                .frame(width: 44)
+                                .focused($upcomingCountFieldFocused)
+                        }
+                    } onIncrement: {
+                        countBinding.wrappedValue += 1
+                    } onDecrement: {
+                        countBinding.wrappedValue -= 1
+                    }
+                } header: {
+                    Text("Stage")
+                } footer: {
+                    Text("How many commitments appear in the Stage's Upcoming list, ordered by which is due soonest. Default is 3.")
+                }
+
+                Section {
+                    Toggle("Include active slots", isOn: $includeActiveSlotsInCatchUp)
+                } header: {
+                    Text("Catch-up reminders")
+                } footer: {
+                    Text("When on, you'll also be reminded to catch up on a commitment whose slot is open right now. Off by default — those are already on your Stage.")
+                }
+
                 Section("Tags") {
                     NavigationLink("Tags", destination: TagsSettingsView())
                 }
@@ -117,6 +159,13 @@ struct SettingsView: View {
                     }
                 #endif
             }
+            // Number pad has no Return key; dismiss by scrolling or tapping elsewhere.
+            // `simultaneousGesture` lets row controls (pickers, links, stepper) still receive
+            // their own taps — the dismiss runs alongside, not instead of, them.
+            .scrollDismissesKeyboard(.immediately)
+            .simultaneousGesture(
+                TapGesture().onEnded { upcomingCountFieldFocused = false }
+            )
             .sheet(isPresented: $showWeekStartSheet) {
                 weekStartSheet
             }

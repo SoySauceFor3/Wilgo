@@ -80,8 +80,7 @@ enum SlotStartNotificationScheduler {
 
         var result: [Date: [Commitment]] = [:]
         for commitment in commitments {
-            guard commitment.isRemindersEnabled else { continue }
-            // Same goal-met∕continue rule used by the *WithBehind helpers and Stage.
+            // The single reminders gate (reminders-enabled + goal-met∕continue), shared with Stage.
             guard commitment.isActiveForReminders(now: now) else { continue }
             for fireDate in commitment.slotStarts(from: now, to: horizon) {
                 result[fireDate, default: []].append(commitment)

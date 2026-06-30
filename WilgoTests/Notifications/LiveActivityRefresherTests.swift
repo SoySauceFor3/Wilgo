@@ -47,18 +47,28 @@ final class LiveActivityRefresherTests {
         return c
     }
 
+    /// The Current bucket (characteristics) for `commitments` at `now`, as production builds it.
+    @MainActor
+    private func currentBucket(_ commitments: [Commitment], now: Date) -> [CommitmentCharacteristics] {
+        let characteristics =
+            commitments
+            .filter { $0.isActiveForReminders(now: now) }
+            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
+        return CommitmentAndSlot.stageBuckets(characteristics: characteristics, now: now, n: 3).current
+    }
+
     @Test("single current commitment → maps title, ids, no secondary titles")
     @MainActor func singleCurrent_mapsPrimaryFields() throws {
         let container = try makeTestContainer()
         let c = makeCommitment(title: "Draw", in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        let current = CommitmentAndSlot.currentWithBehind(commitments: [c], now: now)
+        let current = currentBucket([c], now: now)
         #expect(current.count == 1)
 
         let state = try #require(LiveActivityRefresher.makeContentState(from: current))
         #expect(state.commitmentTitle == "Draw")
         #expect(state.commitmentId == c.id)
-        #expect(state.slotId == current[0].slots[0].slot.id)
+        #expect(state.slotId == current[0].currentOccurrence?.slot.id)
         #expect(state.secondaryTitles.isEmpty)
     }
 
@@ -67,7 +77,7 @@ final class LiveActivityRefresherTests {
         let container = try makeTestContainer()
         let c = makeCommitment(title: "Draw", encouragements: [], in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        let current = CommitmentAndSlot.currentWithBehind(commitments: [c], now: now)
+        let current = currentBucket([c], now: now)
 
         let state = try #require(LiveActivityRefresher.makeContentState(from: current))
         #expect(state.encouragementText == nil)
@@ -80,7 +90,7 @@ final class LiveActivityRefresherTests {
         let c = makeCommitment(
             title: "Draw", encouragements: ["Keep going"], in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        let current = CommitmentAndSlot.currentWithBehind(commitments: [c], now: now)
+        let current = currentBucket([c], now: now)
 
         let state = try #require(LiveActivityRefresher.makeContentState(from: current))
         #expect(state.encouragementText == "Keep going")
@@ -93,7 +103,7 @@ final class LiveActivityRefresherTests {
         let a = makeCommitment(title: "Draw", in: ctx)
         let b = makeCommitment(title: "Run", in: ctx)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        let current = CommitmentAndSlot.currentWithBehind(commitments: [a, b], now: now)
+        let current = currentBucket([a, b], now: now)
         #expect(current.count == 2)
 
         let state = try #require(LiveActivityRefresher.makeContentState(from: current))

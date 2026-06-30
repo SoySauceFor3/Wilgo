@@ -35,6 +35,43 @@ enum SlotRecurrence: Codable, Hashable {
         }
     }
 
+    /// The next start-of-day on or after `day` that this recurrence matches, or `nil` if it can
+    /// never match (e.g. an empty weekday/month-day set). Computed from each kind's own period,
+    /// so there is no external "lookahead days" constant: adding a new recurrence kind defines
+    /// its own search here and stays correct for arbitrary periods.
+    func nextMatchDay(onOrAfter day: Date, calendar: Calendar = Time.calendar) -> Date? {
+        let start = calendar.startOfDay(for: day)
+        switch self {
+        case .everyDay:
+            return start
+        case let .specificWeekdays(weekdays):
+            guard !weekdays.isEmpty else { return nil }
+            // A weekly pattern repeats within 7 days; the first match must occur in [0, 7).
+            return firstDay(from: start, within: 7, calendar: calendar)
+        case let .specificMonthDays(days):
+            guard !days.isEmpty else { return nil }
+            // A month-day pattern repeats within a month; two months covers any gap
+            // (e.g. day 31 skipping a short month).
+            return firstDay(from: start, within: 62, calendar: calendar)
+        }
+    }
+
+    /// Steps forward day-by-day from `start` (inclusive) up to `limit` days, returning the first
+    /// that `matches`. Private so the per-kind `limit` (an intrinsic property of that kind, not a
+    /// shared magic number) stays co-located with `nextMatchDay`.
+    /// start: expect start of day, but works fine with day+time
+    private func firstDay(from start: Date, within limit: Int, calendar: Calendar = Time.calendar)
+        -> Date?
+    {
+        var cursor = start
+        for _ in 0..<limit {
+            if matches(date: cursor, calendar: calendar) { return cursor }
+            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { return nil }
+            cursor = next
+        }
+        return nil
+    }
+
     var summaryText: String {
         let calendar = Calendar.current
         switch self {
@@ -266,34 +303,37 @@ extension Slot {
         guard recurrence.matches(date: psychDay, calendar: calendar) else { return nil }
         return SlotOccurrence(slot: self, psychDay: psychDay)
     }
+
+    /// This slot's next occurrence whose `start >= instant`, or `nil` if the recurrence never
+    /// matches. Pure scheduling — ignores snooze and saturation.
+    ///
+    /// Jumps via `recurrence.nextMatchDay`, so it never scans irrelevant days. Handles the boundary
+    /// case where the next *matching day* is `instant`'s own day but that day's occurrence already
+    /// started (e.g. `instant` is 11 PM, the slot fires at 7 AM): it advances to the following
+    /// match. At most one such advance is ever needed, so this terminates in O(1) match lookups.
+    func nextOccurrence(onOrAfter instant: Date, calendar: Calendar = Time.calendar)
+        -> SlotOccurrence?
+    {
+        var dayCursor = calendar.startOfDay(for: instant)
+        // Two iterations suffice: the first match-day may yield an already-started occurrence;
+        // the next match-day's occurrence necessarily starts later.
+        for _ in 0..<2 {
+            guard let matchDay = recurrence.nextMatchDay(onOrAfter: dayCursor, calendar: calendar),
+                let occ = occurrence(on: matchDay, calendar: calendar)
+            else { return nil }
+            if occ.start >= instant { return occ }
+            guard let next = calendar.date(byAdding: .day, value: 1, to: matchDay) else {
+                return nil
+            }
+            dayCursor = next
+        }
+        return nil
+    }
 }
 
 // MARK: - Snooze
 
 extension Slot {
-    /// Returns true if this slot's occurrence on the psychDay of `time` has been snoozed.
-    ///
-    /// The `isScheduled` check is a **defensive read guard**: if `time` is outside this
-    /// slot's current window (wrong time-of-day or excluded recurrence day), there is no
-    /// occurrence to snooze, so this returns false. It also renders any *stale* snooze inert
-    /// — e.g. one left over from before a recurrence edit — because the day it was recorded
-    /// for no longer resolves to an active occurrence.
-    ///
-    /// The match compares the stored, frozen `snooze.psychDay` against the anchor day of
-    /// `time` (the day the occurrence containing `time` starts on; cross-midnight tails
-    /// anchor back to the start day). `snooze.psychDay` is set once at create and never
-    /// re-derived, so the match does not depend on the slot's current `start`/`end`.
-    func isSnoozed(at time: Date, calendar: Calendar = Time.calendar) -> Bool {
-        guard self.isScheduled(on: time, calendar: calendar) else {
-            return false
-        }
-
-        let psychDay = anchorDate(for: time, calendar: calendar)
-        return snoozes.contains { snooze in
-            calendar.isDate(snooze.psychDay, inSameDayAs: psychDay)
-        }
-    }
-
     /// Snoozes this slot's firing at `time`, inserting a `SlotSnooze`, or returns `nil` if
     /// `time` is outside the slot's active window (wrong time-of-day or wrong recurrence day).
     ///
@@ -336,36 +376,6 @@ extension Slot {
 // MARK: - Capacity
 
 extension Slot {
-    /// Returns true if the given occurrence has been saturated by check-ins
-    /// whose `createdAt` falls in `[occurrence.start, occurrence.end)`.
-    ///
-    /// Precondition:
-    /// maxCheckIn is not 0.
-    /// the given time is within a slot occurrence.
-    /// Returns false if:
-    /// - `maxCheckIns` is nil (unlimited), or
-    /// - `time` is outside this slot's scheduled window (no occurrence to saturate).
-    func isSaturated(
-        at time: Date,
-        checkIns: [CheckIn],
-        calendar: Calendar = Time.calendar
-    ) -> Bool {
-        guard let cap = maxCheckIns, cap > 0 else { return false }
-        guard self.isScheduled(on: time, calendar: calendar) else { return false }
-
-        // Resolve the occurrence that actually contains `time`. For cross-midnight
-        // windows, post-midnight times belong to the previous occurrence.
-        let psychDay = anchorDate(for: time, calendar: calendar)
-        guard let occurrence = self.occurrence(on: psychDay, calendar: calendar) else {
-            return false
-        }
-        return Self.countCheckInsInWindow(
-            checkIns: checkIns,
-            start: occurrence.start,
-            end: occurrence.end
-        ) >= cap
-    }
-
     /// Pure helper: how many check-ins fall in `[start, end)` by `createdAt`.
     static func countCheckInsInWindow(
         checkIns: [CheckIn],

@@ -28,6 +28,27 @@ enum AppSettings {
 
     /// The Calendar weekday integer for the configured week-start day (1 = Sunday, 2 = Monday).
     static var weekStartWeekday: Int { weekStartsOnMonday ? 2 : 1 }
+
+    /// How many commitments appear in the Stage's "Upcoming" list. Default: 3, minimum 0.
+    /// 0 is a valid choice — it hides the Upcoming section entirely.
+    static let upcomingCommitmentCountKey = "upcomingCommitmentCount"
+
+    /// Reads the Upcoming commitment count from UserDefaults. Returns 3 when absent;
+    /// clamps to a minimum of 0 (0 = user wants no Upcoming; negative would be meaningless).
+    static var upcomingCommitmentCount: Int {
+        let raw = UserDefaults.standard.object(forKey: upcomingCommitmentCountKey) as? Int
+        return max(0, raw ?? 3)
+    }
+
+    /// Whether catch-up reminders also fire for a behind commitment whose slot is open *right now*.
+    /// Default: false (exclude) — an open-slot commitment is already maximally visible, so a push
+    /// would be redundant. Users who want "remind whenever behind" can opt in.
+    static let includeActiveSlotsInCatchUpReminderKey = "includeActiveSlotsInCatchUpReminder"
+
+    /// Reads the include-active-slots preference. Returns `false` (exclude) when the key is absent.
+    static var includeActiveSlotsInCatchUp: Bool {
+        UserDefaults.standard.bool(forKey: includeActiveSlotsInCatchUpReminderKey)
+    }
 }
 
 #if DEBUG

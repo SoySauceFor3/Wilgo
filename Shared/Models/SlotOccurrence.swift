@@ -48,4 +48,41 @@ extension SlotOccurrence {
 
     /// Human-readable time-of-day window, delegating to the slot's formatting.
     var timeOfDayText: String { slot.timeOfDayText }
+
+    /// This occurrence's anchor date + its time-of-day window, e.g. "Mar 14 · 7:00 – 9:00 AM".
+    /// The date is the occurrence's start (anchor) day; for a cross-midnight window the end is
+    /// still shown as time-of-day only. Use when a row must disambiguate *which day* the firing
+    /// is on (e.g. an Upcoming slot in a future cycle).
+    var datedLabel: String {
+        "\(Self.dateFormatter.string(from: start)) · \(timeOfDayText)"
+    }
+
+    private static let dateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "MMM d"
+        return f
+    }()
+
+    /// True if this firing's capacity is used up: the count of `checkIns` whose `createdAt`
+    /// falls in this occurrence's own window `[start, end)` reaches the slot's `maxCheckIns`.
+    /// Always false when `maxCheckIns` is nil (unlimited). Pass the full check-in set — only
+    /// those inside this window are counted.
+    func isSaturated(checkIns: [CheckIn]) -> Bool {
+        guard let cap = slot.maxCheckIns, cap > 0 else { return false }
+        return Slot.countCheckInsInWindow(checkIns: checkIns, start: start, end: end) >= cap
+    }
+
+    /// True if this firing has been snoozed: the slot has a snooze whose frozen `psychDay`
+    /// matches this occurrence's `psychDay`. (`SlotSnooze.psychDay` is set once at create and
+    /// never re-derived, so a stale snooze for a different day never matches.)
+    var isSnoozed: Bool {
+        slot.snoozes.contains { Time.calendar.isDate($0.psychDay, inSameDayAs: psychDay) }
+    }
+
+    /// True if this firing can be acted on: neither snoozed nor saturated. Pass the full check-in
+    /// set — saturation only counts those inside this occurrence's window. `&&` short-circuits, so
+    /// the costlier saturation count is skipped when the firing is already snoozed.
+    func isUsable(checkIns: [CheckIn]) -> Bool {
+        !isSnoozed && !isSaturated(checkIns: checkIns)
+    }
 }
