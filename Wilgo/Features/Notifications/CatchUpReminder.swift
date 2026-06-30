@@ -77,7 +77,6 @@ enum CatchUpReminder {
         // characterization layer directly, so it isn't gated by the closest-N bucketing.
         let characteristics =
             commitments
-            .filter(\.isRemindersEnabled)
             .filter { $0.isActiveForReminders(now: now) }
             .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
         let catchUp = CommitmentAndSlot.behindForReminder(
