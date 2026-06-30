@@ -3,6 +3,9 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
+/// Reminders-disabled is encoded as `isActiveForReminders == false` — the single gate every Stage
+/// surface filters on before characterizing. (Replaces the old `.disabled` slotKind, which no longer
+/// exists after the characterization/placement refactor.)
 @Suite(.serialized)
 final class CommitmentRemindersDisableTests {
     private func tod(hour: Int) -> Date {
@@ -43,29 +46,38 @@ final class CommitmentRemindersDisableTests {
         return c
     }
 
-    @Test("reminders disabled → currentWithBehind excludes it (.disabled slotKind filtered by helper)")
-    @MainActor func remindersDisabled_excludedByHelper() throws {
+    @Test("reminders disabled → isActiveForReminders is false (even with a slot open now)")
+    @MainActor func remindersDisabled_notActive() throws {
         let container = try makeTestContainer()
         let c = makeCommitment(remindersEnabled: false, in: container.mainContext)
-        let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        // status(now:) returns .disabled slotKind when isRemindersEnabled==false,
-        // so currentWithBehind filters it out without any call-site pre-filtering.
-        #expect(CommitmentAndSlot.currentWithBehind(commitments: [c], now: now).isEmpty)
+        let now = date(year: 2026, month: 3, day: 5, hour: 10)  // inside the 9–11 slot
+        #expect(!c.isActiveForReminders(now: now))
     }
 
-    @Test("reminders enabled → currentWithBehind includes it")
-    @MainActor func remindersEnabled_includedByHelper() throws {
+    @Test("reminders enabled → isActiveForReminders is true while the goal is unmet")
+    @MainActor func remindersEnabled_active() throws {
         let container = try makeTestContainer()
         let c = makeCommitment(remindersEnabled: true, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        #expect(CommitmentAndSlot.currentWithBehind(commitments: [c], now: now).count == 1)
+        #expect(c.isActiveForReminders(now: now))
     }
 
-    @Test("reminders disabled → status.slotKind is .disabled (reminders off encoded in model)")
-    @MainActor func remindersDisabled_statusSlotKindIsDisabled() throws {
+    @Test("disabled commitment is dropped before placement → no Stage bucket")
+    @MainActor func remindersDisabled_excludedFromBuckets() throws {
         let container = try makeTestContainer()
-        let c = makeCommitment(remindersEnabled: false, in: container.mainContext)
+        let ctx = container.mainContext
+        let off = makeCommitment(remindersEnabled: false, in: ctx)
+        let on = makeCommitment(remindersEnabled: true, in: ctx)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        #expect(c.status(now: now).slotKind == .disabled)
+
+        // Mirror the production boundary: callers filter on isActiveForReminders, then characterize.
+        let characteristics = [off, on]
+            .filter { $0.isActiveForReminders(now: now) }
+            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
+        let buckets = CommitmentAndSlot.stageBuckets(characteristics: characteristics, now: now, n: 3)
+
+        let placed = buckets.current + buckets.upcoming + buckets.catchUp
+        #expect(placed.map(\.commitment.title) == ["Draw"])  // only the enabled one
+        #expect(placed.allSatisfy { $0.commitment.id == on.id })
     }
 }

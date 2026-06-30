@@ -184,7 +184,7 @@ final class CommitmentStageBucketsTests {
 
         // Sanity: c14 is active and NOT behind.
         #expect(c14.isActiveForReminders(now: now))
-        #expect((c14.status(now: now).behindCount ?? 0) == 0)
+        #expect(CommitmentAndSlot.characteristics(of: c14, now: now).behindCount == 0)
 
         let buckets = buckets([c8, c10, c14], now: now, n: 2)
 
