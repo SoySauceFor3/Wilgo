@@ -6,7 +6,7 @@ import Foundation
 ///
 /// Every Stage surface (Stage view, widget, Live Activity, catch-up notifications) is built from
 /// these snapshots, so they can never drift. Placement into rows (Current / Upcoming / Catch-up) and
-/// the catch-up reminder filter are pure functions *over* snapshots — see `CommitmentAndSlot`.
+/// the catch-up reminder filter are pure functions *over* snapshots — see `StageCharacterization`.
 ///
 /// Fields are raw values (occurrences, counts), never formatted/localized strings — formatting is a
 /// view concern. Flat stored fields + computed accessors, grouped by concern.
@@ -61,7 +61,7 @@ struct CommitmentCharacteristics: Equatable {
     let targetCount: Int
 }
 
-extension CommitmentAndSlot {
+extension StageCharacterization {
     /// Characterizes a single commitment at `now`. Computed uniformly for every commitment the caller
     /// passes (callers pass the `isActiveForReminders`-filtered set, so the goal-met/continue rule is
     /// applied once at the boundary). `nearestUsable` is computed for all — including current-slot

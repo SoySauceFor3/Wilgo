@@ -98,8 +98,8 @@ struct CurrentCommitmentProvider: TimelineProvider {
         let characteristics =
             commitments
             .filter { $0.isActiveForReminders(now: now) }
-            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
-        let buckets = CommitmentAndSlot.stageBuckets(
+            .map { StageCharacterization.characteristics(of: $0, now: now) }
+        let buckets = StageCharacterization.stageBuckets(
             characteristics: characteristics, now: now, n: AppSettings.upcomingCommitmentCount
         )
 
@@ -158,7 +158,7 @@ struct CurrentCommitmentProvider: TimelineProvider {
             allCommitments = []
         }
         let policy: TimelineReloadPolicy
-        if let nextDate = CommitmentAndSlot.nextTransitionDate(
+        if let nextDate = StageCharacterization.nextTransitionDate(
             commitments: allCommitments, now: now)
         {
             print("Next date: \(nextDate), now: \(now)")

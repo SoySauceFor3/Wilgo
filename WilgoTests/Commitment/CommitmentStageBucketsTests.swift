@@ -3,7 +3,7 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
-/// Covers `CommitmentAndSlot.stageBuckets(commitments:now:n:)` — the single place that
+/// Covers `StageCharacterization.stageBuckets(commitments:now:n:)` — the single place that
 /// splits commitments into Current / Upcoming / Catch-up for the Stage. Key rules:
 /// active filtering, the closest-N Upcoming cap, Upcoming-takes-priority over Catch-up,
 /// overflow demotion of behind commitments to Catch-up, and the per-commitment Upcoming
@@ -78,8 +78,8 @@ final class CommitmentStageBucketsTests {
         let characteristics =
             commitments
             .filter { $0.isActiveForReminders(now: now) }
-            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
-        return CommitmentAndSlot.stageBuckets(characteristics: characteristics, now: now, n: n)
+            .map { StageCharacterization.characteristics(of: $0, now: now) }
+        return StageCharacterization.stageBuckets(characteristics: characteristics, now: now, n: n)
     }
 
     // MARK: - Tests
@@ -184,7 +184,7 @@ final class CommitmentStageBucketsTests {
 
         // Sanity: c14 is active and NOT behind.
         #expect(c14.isActiveForReminders(now: now))
-        #expect(CommitmentAndSlot.characteristics(of: c14, now: now).behindCount == 0)
+        #expect(StageCharacterization.characteristics(of: c14, now: now).behindCount == 0)
 
         let buckets = buckets([c8, c10, c14], now: now, n: 2)
 
@@ -289,7 +289,7 @@ final class CommitmentStageBucketsTests {
     private func chars(_ commitments: [Commitment], now: Date) -> [CommitmentCharacteristics] {
         commitments
             .filter { $0.isActiveForReminders(now: now) }
-            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
+            .map { StageCharacterization.characteristics(of: $0, now: now) }
     }
 
     @Test("behindForReminder includes a behind commitment even when it sits in Upcoming's top-N")
@@ -302,11 +302,11 @@ final class CommitmentStageBucketsTests {
 
         let cs = chars([c], now: now)
         // It lands in Upcoming (not catchUp), yet behindForReminder still includes it.
-        let placed = CommitmentAndSlot.stageBuckets(characteristics: cs, now: now, n: 5)
+        let placed = StageCharacterization.stageBuckets(characteristics: cs, now: now, n: 5)
         #expect(placed.upcoming.map(\.commitment.id) == [c.id])
         #expect(placed.catchUp.isEmpty)
 
-        let reminded = CommitmentAndSlot.behindForReminder(characteristics: cs)
+        let reminded = StageCharacterization.behindForReminder(characteristics: cs)
         #expect(reminded.map(\.commitment.id) == [c.id])
     }
 
@@ -322,7 +322,7 @@ final class CommitmentStageBucketsTests {
         #expect(cs.first?.isBehind == true)
         #expect(cs.first?.isCurrent == true)
 
-        let reminded = CommitmentAndSlot.behindForReminder(characteristics: cs)
+        let reminded = StageCharacterization.behindForReminder(characteristics: cs)
         #expect(reminded.isEmpty)  // behind, but in an open slot → no catch-up nudge (default)
     }
 
@@ -339,7 +339,7 @@ final class CommitmentStageBucketsTests {
         #expect(cs.first?.isCurrent == true)
 
         // With the opt-in flag, the open-slot behind commitment IS reminded.
-        let reminded = CommitmentAndSlot.behindForReminder(
+        let reminded = StageCharacterization.behindForReminder(
             characteristics: cs, includeCurrent: true)
         #expect(reminded.map(\.commitment.id) == [c.id])
     }
@@ -354,6 +354,6 @@ final class CommitmentStageBucketsTests {
 
         let cs = chars([c], now: now)
         #expect(cs.first?.isBehind == false)
-        #expect(CommitmentAndSlot.behindForReminder(characteristics: cs).isEmpty)
+        #expect(StageCharacterization.behindForReminder(characteristics: cs).isEmpty)
     }
 }

@@ -5,7 +5,7 @@ import Foundation
 // Slot + goal mechanics that drive every reminder surface (Stage, Live Activity,
 // widget, slot-start notifications). These primitives — goal progress, the remaining usable
 // occurrences in the cycle, and the nearest upcoming usable occurrence — are consumed by the
-// Stage characterization layer (`CommitmentAndSlot.characteristics` + `stageBuckets`). Kept out
+// Stage characterization layer (`StageCharacterization.characteristics` + `stageBuckets`). Kept out
 // of the `Commitment` @Model so the model file describes only what a commitment *is*, not how
 // reminders behave.
 
@@ -21,7 +21,7 @@ extension Commitment {
 
     /// Unfinished, unsnoozed, unsaturated slot occurrences remaining in the **current cycle**, sorted
     /// by start (includes the open-now slot, if any). The Stage characterization layer
-    /// (`CommitmentAndSlot.characteristics`) reads this for `currentOccurrence` + the remaining count.
+    /// (`StageCharacterization.characteristics`) reads this for `currentOccurrence` + the remaining count.
     func remainingUsableOccurrencesInCycle(now: Date = Time.now()) -> [SlotOccurrence] {
         let bounds = cycle.bounds(including: now)
         // Pass all check-ins: `isUsable`/saturation counts only those inside each occurrence's own
@@ -56,7 +56,7 @@ extension Commitment {
     /// the user opted into `continueRemindersAfterGoalMet`. Slot-level concerns (snooze,
     /// capacity/saturation, window timing) are NOT decided here — those live in
     /// `remainingUsableOccurrencesInCycle` / `nearestUsableUpcomingOccurrence` and are applied
-    /// downstream by the Stage characterization layer (`CommitmentAndSlot.characteristics` + `stageBuckets`).
+    /// downstream by the Stage characterization layer (`StageCharacterization.characteristics` + `stageBuckets`).
     ///
     /// This is the single source of truth for the reminders-enabled + goal-met∕continue rule; callers
     /// apply it once when building characteristics, so every surface agrees.

@@ -3,7 +3,7 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
-/// Covers `CommitmentAndSlot.characteristics(of:now:)` — the per-commitment characterization that
+/// Covers `StageCharacterization.characteristics(of:now:)` — the per-commitment characterization that
 /// every Stage surface is built from. One commitment in → its facts (isCurrent, isBehind,
 /// nearestUsable, nearestUsableInCurrentCycle, counts).
 @Suite(.serialized)
@@ -67,7 +67,7 @@ final class CommitmentCharacteristicsTests {
         let c = makeCommitment(slots: [(9, 11, nil)], in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)  // inside 9–11
 
-        let snap = CommitmentAndSlot.characteristics(of: c, now: now)
+        let snap = StageCharacterization.characteristics(of: c, now: now)
 
         #expect(snap.isCurrent)
         #expect(snap.currentOccurrence?.start == date(year: 2026, month: 3, day: 5, hour: 9))
@@ -80,7 +80,7 @@ final class CommitmentCharacteristicsTests {
         let c = makeCommitment(slots: [(9, 11, nil), (18, 20, nil)], in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 7)
 
-        let snap = CommitmentAndSlot.characteristics(of: c, now: now)
+        let snap = StageCharacterization.characteristics(of: c, now: now)
 
         #expect(snap.remainingThisCycleCount == 2)
         #expect(snap.currentOccurrence == nil)  // neither has started yet
@@ -92,7 +92,7 @@ final class CommitmentCharacteristicsTests {
         let c = makeCommitment(slots: [(9, 11, nil), (18, 20, nil)], in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 10)  // inside the 9–11 slot
 
-        let snap = CommitmentAndSlot.characteristics(of: c, now: now)
+        let snap = StageCharacterization.characteristics(of: c, now: now)
 
         // The open 9–11 slot is still "remaining", so the count is 2 (open + the 6pm one), not 1.
         #expect(snap.currentOccurrence?.start == date(year: 2026, month: 3, day: 5, hour: 9))
@@ -105,7 +105,7 @@ final class CommitmentCharacteristicsTests {
         let c = makeCommitment(slots: [(9, 11, nil)], in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 7)  // before 9
 
-        let snap = CommitmentAndSlot.characteristics(of: c, now: now)
+        let snap = StageCharacterization.characteristics(of: c, now: now)
 
         #expect(!snap.isCurrent)
         #expect(snap.currentOccurrence == nil)
@@ -121,7 +121,7 @@ final class CommitmentCharacteristicsTests {
         let c = makeCommitment(slots: [(9, 11, nil)], in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 7)
 
-        let snap = CommitmentAndSlot.characteristics(of: c, now: now)
+        let snap = StageCharacterization.characteristics(of: c, now: now)
 
         #expect(snap.nearestUsableInCurrentCycle)
     }
@@ -133,7 +133,7 @@ final class CommitmentCharacteristicsTests {
         // 11pm: today's 7am passed; nearest usable is tomorrow 7am, in the next daily cycle.
         let now = date(year: 2026, month: 3, day: 5, hour: 23)
 
-        let snap = CommitmentAndSlot.characteristics(of: c, now: now)
+        let snap = StageCharacterization.characteristics(of: c, now: now)
 
         #expect(snap.nearestUsable?.start == date(year: 2026, month: 3, day: 6, hour: 7))
         #expect(!snap.nearestUsableInCurrentCycle)
@@ -145,7 +145,7 @@ final class CommitmentCharacteristicsTests {
         let c = makeCommitment(slots: [], in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 7)
 
-        let snap = CommitmentAndSlot.characteristics(of: c, now: now)
+        let snap = StageCharacterization.characteristics(of: c, now: now)
 
         #expect(snap.nearestUsable == nil)
         #expect(!snap.hasUpcoming)
@@ -164,7 +164,7 @@ final class CommitmentCharacteristicsTests {
         // now after the slot window → no remaining in-cycle slot; 0 check-ins; target 3.
         let now = date(year: 2026, month: 3, day: 5, hour: 12)
 
-        let snap = CommitmentAndSlot.characteristics(of: c, now: now)
+        let snap = StageCharacterization.characteristics(of: c, now: now)
 
         #expect(snap.remainingThisCycleCount == 0)
         #expect(snap.isBehind)
@@ -177,7 +177,7 @@ final class CommitmentCharacteristicsTests {
         let c = makeCommitment(slots: [(9, 11, nil), (18, 20, nil)], targetCount: 1, in: container.mainContext)
         let now = date(year: 2026, month: 3, day: 5, hour: 7)  // both slots still ahead
 
-        let snap = CommitmentAndSlot.characteristics(of: c, now: now)
+        let snap = StageCharacterization.characteristics(of: c, now: now)
 
         #expect(!snap.isBehind)
         #expect(snap.behindCount == 0)
@@ -192,7 +192,7 @@ final class CommitmentCharacteristicsTests {
         addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 10), in: ctx)
         let now = date(year: 2026, month: 3, day: 5, hour: 12)
 
-        let snap = CommitmentAndSlot.characteristics(of: c, now: now)
+        let snap = StageCharacterization.characteristics(of: c, now: now)
 
         #expect(snap.checkInCount == 2)
         #expect(snap.targetCount == 5)

@@ -38,8 +38,8 @@ final class StageViewModel {
         let characteristics =
             lastCommitments
             .filter { $0.isActiveForReminders(now: now) }
-            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
-        let buckets = CommitmentAndSlot.stageBuckets(
+            .map { StageCharacterization.characteristics(of: $0, now: now) }
+        let buckets = StageCharacterization.stageBuckets(
             characteristics: characteristics,
             now: now,
             n: AppSettings.upcomingCommitmentCount
@@ -51,7 +51,7 @@ final class StageViewModel {
 
     private func scheduleTimer() {
         timerTask?.cancel()
-        let nextDate = CommitmentAndSlot.nextTransitionDate(
+        let nextDate = StageCharacterization.nextTransitionDate(
             commitments: lastCommitments, now: Date())
         let delay = nextDate?.timeIntervalSince(Date()) ?? 60
         timerTask = Task { [weak self, delay] in

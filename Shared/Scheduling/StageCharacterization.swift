@@ -1,6 +1,6 @@
 import Foundation
 
-enum CommitmentAndSlot {
+enum StageCharacterization {
     /// The combined Stage buckets, placed from pre-built `characteristics` (one per active commitment —
     /// callers build them once, e.g. so the same pass also feeds `behindForReminder`). Implements the
     /// closest-N Upcoming rule and the Upcoming-takes-priority / overflow-demotes-to-Catch-up rule.

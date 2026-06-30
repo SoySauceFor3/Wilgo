@@ -53,8 +53,8 @@ final class LiveActivityRefresherTests {
         let characteristics =
             commitments
             .filter { $0.isActiveForReminders(now: now) }
-            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
-        return CommitmentAndSlot.stageBuckets(characteristics: characteristics, now: now, n: 3).current
+            .map { StageCharacterization.characteristics(of: $0, now: now) }
+        return StageCharacterization.stageBuckets(characteristics: characteristics, now: now, n: 3).current
     }
 
     @Test("single current commitment → maps title, ids, no secondary titles")
