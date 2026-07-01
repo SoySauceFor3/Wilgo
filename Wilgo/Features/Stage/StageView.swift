@@ -7,18 +7,37 @@ import SwiftUI
 
 struct StageView: View {
     @Environment(\.scenePhase) private var scenePhase
-    @Query(filter: Commitment.activePredicate,
-           sort: \Commitment.createdAt, order: .forward)
+    @Query(
+        filter: Commitment.activePredicate,
+        sort: \Commitment.createdAt, order: .forward)
     private var commitments: [Commitment]
-    /// Observed only to force a refresh when check-ins are inserted/deleted,
+    /// Observed only to force a `body` recompute when check-ins are inserted/deleted,
     /// since @Query for Commitment does not re-fire on child relationship changes.
     @Query private var checkIns: [CheckIn]
     /// Same reason — snoozing a slot must re-evaluate stage status.
     @Query private var slotSnoozes: [SlotSnooze]
 
-    @State private var viewModel = StageViewModel()
+    /// Bumped by the time-boundary `.task` to force a recompute when a slot window opens/closes
+    /// with no model change. Also nudged when returning to the foreground.
+    @State private var timeTick = 0
     @State private var commitmentForDetail: Commitment?
     @State private var commitmentForEdit: Commitment?
+
+    /// The three Stage lists, recomputed on every `body` evaluation. Cheap: a few date comparisons
+    /// and sorts over the active-commitment set. `@Query` (commitments/checkIns/slotSnoozes) and
+    /// `timeTick` are all read here, so any of them changing re-renders and re-buckets.
+    private var buckets:
+        (
+            current: [CommitmentCharacteristics],
+            upcoming: [CommitmentCharacteristics],
+            catchUp: [CommitmentCharacteristics]
+        )
+    {
+        _ = timeTick  // establish dependency so time-boundary bumps recompute
+        _ = checkIns  // establish dependency: child-relationship changes must re-bucket
+        _ = slotSnoozes
+        return StageCharacterization.stageBuckets(commitments: commitments)
+    }
 
     private var todayTitle: String {
         let today = Time.startOfDay(for: Time.now())
@@ -34,14 +53,14 @@ struct StageView: View {
         NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    if !viewModel.current.isEmpty {
+                    if !buckets.current.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Current")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(viewModel.current, id: \.commitment.id) { item in
+                            ForEach(buckets.current, id: \.commitment.id) { item in
                                 CurrentCommitmentRow(characteristics: item) {
                                     commitmentForDetail = item.commitment
                                 }
@@ -49,14 +68,14 @@ struct StageView: View {
                         }
                     }
 
-                    if !viewModel.catchUp.isEmpty {
+                    if !buckets.catchUp.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Catch up")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(viewModel.catchUp, id: \.commitment.id) { item in
+                            ForEach(buckets.catchUp, id: \.commitment.id) { item in
                                 CatchUpCommitmentRow(characteristics: item) {
                                     commitmentForDetail = item.commitment
                                 }
@@ -64,14 +83,14 @@ struct StageView: View {
                         }
                     }
 
-                    if !viewModel.upcoming.isEmpty {
+                    if !buckets.upcoming.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Upcoming")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(viewModel.upcoming, id: \.commitment.id) { item in
+                            ForEach(buckets.upcoming, id: \.commitment.id) { item in
                                 UpcomingCommitmentRow(characteristics: item) {
                                     commitmentForDetail = item.commitment
                                 }
@@ -79,8 +98,8 @@ struct StageView: View {
                         }
                     }
 
-                    if viewModel.current.isEmpty, viewModel.upcoming.isEmpty,
-                        viewModel.catchUp.isEmpty
+                    if buckets.current.isEmpty, buckets.upcoming.isEmpty,
+                        buckets.catchUp.isEmpty
                     {
                         EmptyStageCard()
                     }
@@ -91,24 +110,28 @@ struct StageView: View {
             .navigationTitle(
                 todayTitle
             )
-            // Fire immediately on first appearance and on every commitment change.
-            .onChange(of: commitments, initial: true) {
-                viewModel.refresh(commitments: commitments)
+            // Time-boundary refresh: sleep until the next slot-window transition (or psychDay
+            // boundary) and bump `timeTick` so `buckets` recomputes even with no model change.
+            // Restarts whenever `commitments` change so the sleep target stays current. SwiftUI
+            // cancels this task on disappear — no manual lifetime management needed.
+            .task(id: commitments) {
+                while !Task.isCancelled {
+                    let now = Date()
+                    guard
+                        let next = StageCharacterization.nextTransitionDate(
+                            commitments: commitments, now: now)
+                    else { break }
+                    let delay = next.timeIntervalSince(now)
+                    if delay > 0 {
+                        try? await Task.sleep(for: .seconds(delay))
+                    }
+                    if Task.isCancelled { break }
+                    timeTick &+= 1
+                }
             }
-            // Check-ins don't surface through the commitments query; watch separately.
-            .onChange(of: checkIns) {
-                viewModel.refresh(commitments: commitments)
-            }
-            // SlotSnoozes don't surface through the commitments query; watch separately.
-            .onChange(of: slotSnoozes) {
-                viewModel.refresh(commitments: commitments)
-            }
-            // Slots edited in EditCommitmentView don't surface through the commitments query either.
-            .onChange(of: commitmentForEdit) { _, newValue in
-                if newValue == nil { viewModel.refresh(commitments: commitments) }
-            }
+            // Returning to the foreground can cross a boundary while the task was suspended; nudge.
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { viewModel.refresh(commitments: commitments) }
+                if phase == .active { timeTick &+= 1 }
             }
             .sheet(item: $commitmentForDetail) { commitment in
                 CommitmentDetailView(commitment: commitment) {

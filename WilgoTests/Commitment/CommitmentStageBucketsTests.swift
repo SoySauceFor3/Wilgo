@@ -226,6 +226,33 @@ final class CommitmentStageBucketsTests {
         #expect(buckets.upcoming.map(\.commitment.id) == [cLater.id])
     }
 
+    @Test("slot end transition: a commitment leaves current once its open slot closes")
+    @MainActor func slotEndLeavesCurrent() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // Pin the clock so slot-time resolution ("today") is deterministic regardless of test order.
+        let saved = Time.now
+        defer { Time.now = saved }
+        let inside = date(year: 2026, month: 3, day: 5, hour: 8, minute: 30)
+        Time.now = { inside }
+        // target 3, no check-ins → behind. Single slot 8-9, no later slot today.
+        let c = makeCommitment(title: "c", slots: [(8, 9, nil)], in: ctx)
+
+        // Inside the window (8:30): current, not catch-up.
+        let insideBuckets = buckets([c], now: inside, n: 5)
+        #expect(insideBuckets.current.map(\.commitment.id) == [c.id])
+        #expect(insideBuckets.catchUp.isEmpty)
+
+        // Just after the window closes (9:30): must leave current. On a daily cycle the next usable
+        // slot is tomorrow's 8am, so the (still-behind) item becomes future-eligible → upcoming.
+        // The key regression guard is that it is no longer in `current`.
+        let after = date(year: 2026, month: 3, day: 5, hour: 9, minute: 30)
+        Time.now = { after }
+        let afterBuckets = buckets([c], now: after, n: 5)
+        #expect(afterBuckets.current.isEmpty)
+        #expect(afterBuckets.upcoming.map(\.commitment.id) == [c.id])
+    }
+
     @Test("met-goal exclusion: goal met + not continuing → excluded from all buckets")
     @MainActor func metGoalExcluded() throws {
         let container = try makeTestContainer()
@@ -280,6 +307,27 @@ final class CommitmentStageBucketsTests {
         let entry = try #require(buckets.upcoming.first)
         #expect(entry.nearestUsable?.start == date(year: 2026, month: 3, day: 6, hour: 7))
         #expect(!entry.nearestUsableInCurrentCycle)
+    }
+
+    @Test("nextTransitionDate: while a slot is open, the next wake is that slot's end")
+    @MainActor func nextTransitionDateReturnsOpenSlotEnd() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        let saved = Time.now
+        defer { Time.now = saved }
+        // Freeze the clock to 8:30 today, inside an 8-9 slot.
+        let frozen = try #require(Calendar.current.date(
+            bySettingHour: 8, minute: 30, second: 0, of: Date()))
+        Time.now = { frozen }
+        let c = makeCommitment(title: "c", slots: [(8, 9, nil)], in: ctx)
+
+        let next = StageCharacterization.nextTransitionDate(commitments: [c], now: frozen)
+
+        // The open slot ends at 9:00 today — that must be the next transition (before tomorrow's
+        // psychDay boundary), so the timer wakes to close the current window.
+        let expectedEnd = try #require(Calendar.current.date(
+            bySettingHour: 9, minute: 0, second: 0, of: Date()))
+        #expect(next == expectedEnd)
     }
 
     // MARK: - behindForReminder

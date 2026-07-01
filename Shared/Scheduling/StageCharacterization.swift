@@ -92,6 +92,26 @@ enum StageCharacterization {
         return (current: current, upcoming: upcoming, catchUp: catchUp)
     }
 
+    /// Convenience that runs the full Stage pass from raw commitments: filter to
+    /// `isActiveForReminders`, `characteristics(of:)` each, then `stageBuckets(...)`. Used by
+    /// `StageView`, which recomputes this directly in `body` (the work is cheap enough that caching
+    /// it is not worth the machinery).
+    static func stageBuckets(
+        commitments: [Commitment],
+        now: Date = Time.now(),
+        n: Int = AppSettings.upcomingCommitmentCount
+    ) -> (
+        current: [CommitmentCharacteristics],
+        upcoming: [CommitmentCharacteristics],
+        catchUp: [CommitmentCharacteristics]
+    ) {
+        let all =
+            commitments
+            .filter { $0.isActiveForReminders(now: now) }
+            .map { characteristics(of: $0, now: now) }
+        return stageBuckets(characteristics: all, now: now, n: n)
+    }
+
     /// Commitments that should fire a catch-up reminder: every behind commitment, regardless of which
     /// Stage bucket it lands in (so a behind one sitting in Upcoming's top-N is still reminded).
     ///

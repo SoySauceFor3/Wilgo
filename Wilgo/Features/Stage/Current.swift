@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct CurrentCommitmentRow: View {
-    /// Pre-computed by `StageViewModel`; carries the open slot + counts (avoids re-running status).
+    /// Pre-computed by `StageBucketing`; carries the open slot + counts (avoids re-running status).
     let characteristics: CommitmentCharacteristics
     @Environment(\.modelContext) private var modelContext
     var onTap: () -> Void
