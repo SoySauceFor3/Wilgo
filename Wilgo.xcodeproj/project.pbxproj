@@ -87,8 +87,8 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				"Commitment+ReminderPrimitives.swift",
-				StageCharacterization.swift,
 				CommitmentCharacteristics.swift,
+				StageCharacterization.swift,
 				Time.swift,
 			);
 			target = 701EBE762F5348DA0060F5B6 /* WidgetExtension */;

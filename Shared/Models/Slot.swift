@@ -329,6 +329,47 @@ extension Slot {
         }
         return nil
     }
+
+    /// This slot's occurrences overlapping the half-open datetime window `[from, until)`, in day
+    /// order. Pure scheduling — ignores snooze and saturation (those are usability, evaluated by the
+    /// owning commitment against its check-ins).
+    ///
+    /// `softFrom` / `softUntil` say whether each window edge is "soft" — whether an occurrence may
+    /// cross it:
+    /// - `softFrom`: allow occurrences starting before `from` (`occ.start < from`) — the
+    ///   cross-midnight carry-overs from the prior day.
+    /// - `softUntil`: allow occurrences ending past `until` (`occ.end > until`). `end == until` does
+    ///   NOT cross — `end` is exclusive, so such an occurrence is fully inside and never gated here.
+    /// An occurrence covering the whole window crosses both edges, so it needs `softFrom && softUntil`.
+    ///
+    /// The day-walk starts one day before `from`'s day so a cross-midnight occurrence anchored on the
+    /// prior day (its tail in the window) is enumerated.
+    func occurrences(
+        from: Date,
+        until: Date,
+        softFrom: Bool = true,
+        softUntil: Bool = true,
+        calendar: Calendar = Time.calendar
+    ) -> [SlotOccurrence] {
+        var occurrences: [SlotOccurrence] = []
+
+        let firstDay =
+            calendar.date(byAdding: .day, value: -1, to: Time.startOfDay(for: from))
+            ?? Time.startOfDay(for: from)
+        var dayCursor = firstDay
+        while dayCursor < until {
+            defer { dayCursor = calendar.date(byAdding: .day, value: 1, to: dayCursor) ?? until }
+
+            guard let occurrence = occurrence(on: dayCursor, calendar: calendar) else { continue }
+            // Overlap test against the datetime window.
+            guard occurrence.start < until, occurrence.end > from else { continue }
+            if occurrence.start < from, !softFrom { continue }
+            if occurrence.end > until, !softUntil { continue }
+
+            occurrences.append(occurrence)
+        }
+        return occurrences
+    }
 }
 
 // MARK: - Snooze
