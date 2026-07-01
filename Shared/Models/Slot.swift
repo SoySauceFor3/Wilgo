@@ -35,34 +35,32 @@ enum SlotRecurrence: Codable, Hashable {
         }
     }
 
-    /// The next start-of-day on or after `day` that this recurrence matches, or `nil` if it can
-    /// never match (e.g. an empty weekday/month-day set). Computed from each kind's own period,
-    /// so there is no external "lookahead days" constant: adding a new recurrence kind defines
-    /// its own search here and stays correct for arbitrary periods.
-    func nextMatchDay(onOrAfter day: Date, calendar: Calendar = Time.calendar) -> Date? {
+    /// The first start-of-day on or after `day` that this recurrence matches (may be `day` itself),
+    /// or `nil` if it can never match (e.g. an empty weekday/month-day set).
+    ///
+    /// Steps forward day-by-day up to a per-kind search limit — the number of days within which a
+    /// match is guaranteed if one exists at all. The limit is an intrinsic property of each kind
+    /// (its period), not a shared "lookahead days" constant, so adding a new recurrence kind defines
+    /// its own bound here and stays correct for arbitrary periods.
+    func firstMatchDay(onOrAfter day: Date, calendar: Calendar = Time.calendar) -> Date? {
         let start = calendar.startOfDay(for: day)
+
+        // Days to scan before concluding "never matches". `.everyDay` matches immediately.
+        let limit: Int
         switch self {
         case .everyDay:
             return start
         case let .specificWeekdays(weekdays):
             guard !weekdays.isEmpty else { return nil }
             // A weekly pattern repeats within 7 days; the first match must occur in [0, 7).
-            return firstDay(from: start, within: 7, calendar: calendar)
+            limit = 7
         case let .specificMonthDays(days):
             guard !days.isEmpty else { return nil }
             // A month-day pattern repeats within a month; two months covers any gap
             // (e.g. day 31 skipping a short month).
-            return firstDay(from: start, within: 62, calendar: calendar)
+            limit = 62
         }
-    }
 
-    /// Steps forward day-by-day from `start` (inclusive) up to `limit` days, returning the first
-    /// that `matches`. Private so the per-kind `limit` (an intrinsic property of that kind, not a
-    /// shared magic number) stays co-located with `nextMatchDay`.
-    /// start: expect start of day, but works fine with day+time
-    private func firstDay(from start: Date, within limit: Int, calendar: Calendar = Time.calendar)
-        -> Date?
-    {
         var cursor = start
         for _ in 0..<limit {
             if matches(date: cursor, calendar: calendar) { return cursor }
@@ -307,7 +305,7 @@ extension Slot {
     /// This slot's next occurrence whose `start >= instant`, or `nil` if the recurrence never
     /// matches. Pure scheduling — ignores snooze and saturation.
     ///
-    /// Jumps via `recurrence.nextMatchDay`, so it never scans irrelevant days. Handles the boundary
+    /// Jumps via `recurrence.firstMatchDay`, so it never scans irrelevant days. Handles the boundary
     /// case where the next *matching day* is `instant`'s own day but that day's occurrence already
     /// started (e.g. `instant` is 11 PM, the slot fires at 7 AM): it advances to the following
     /// match. At most one such advance is ever needed, so this terminates in O(1) match lookups.
@@ -318,7 +316,7 @@ extension Slot {
         // Two iterations suffice: the first match-day may yield an already-started occurrence;
         // the next match-day's occurrence necessarily starts later.
         for _ in 0..<2 {
-            guard let matchDay = recurrence.nextMatchDay(onOrAfter: dayCursor, calendar: calendar),
+            guard let matchDay = recurrence.firstMatchDay(onOrAfter: dayCursor, calendar: calendar),
                 let occ = occurrence(on: matchDay, calendar: calendar)
             else { return nil }
             if occ.start >= instant { return occ }
