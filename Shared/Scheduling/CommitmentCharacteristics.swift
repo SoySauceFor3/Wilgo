@@ -6,7 +6,7 @@ import Foundation
 ///
 /// Every Stage surface (Stage view, widget, Live Activity, catch-up notifications) is built from
 /// these snapshots, so they can never drift. Placement into rows (Current / Upcoming / Catch-up) and
-/// the catch-up reminder filter are pure functions *over* snapshots — see `CommitmentAndSlot`.
+/// the catch-up reminder filter are pure functions *over* snapshots — see `StageCharacterization`.
 ///
 /// Fields are raw values (occurrences, counts), never formatted/localized strings — formatting is a
 /// view concern. Flat stored fields + computed accessors, grouped by concern.
@@ -59,42 +59,4 @@ struct CommitmentCharacteristics: Equatable {
     let checkInCount: Int
     /// The cycle's target count.
     let targetCount: Int
-}
-
-extension CommitmentAndSlot {
-    /// Characterizes a single commitment at `now`. Computed uniformly for every commitment the caller
-    /// passes (callers pass the `isActiveForReminders`-filtered set, so the goal-met/continue rule is
-    /// applied once at the boundary). `nearestUsable` is computed for all — including current-slot
-    /// commitments — for one uniform code path.
-    static func characteristics(of commitment: Commitment, now: Date = Time.now())
-        -> CommitmentCharacteristics
-    {
-        // Unfinished, unsnoozed, unsaturated occurrences remaining in the current cycle.
-        let remaining = commitment.remainingUsableOccurrencesInCycle(now: now)
-        // The open-now slot is the first remaining occurrence that has already started.
-        let currentOccurrence: SlotOccurrence? = {
-            guard let first = remaining.first, first.start <= now else { return nil }
-            return first
-        }()
-        // behindCount: goal still needs this many check-ins that no remaining in-cycle slot covers.
-        // Nil leftToDo (target disabled) → not behind.
-        let behindCount = commitment.goalProgress(now: now).leftToDo
-            .map { max(0, $0 - remaining.count) } ?? 0
-
-        let nearest = commitment.nearestUsableUpcomingOccurrence(now: now)
-        let nearestUsableInCurrentCycle: Bool = nearest.map {
-            let bounds = commitment.cycle.bounds(including: now)
-            return $0.start >= bounds.start && $0.start < bounds.end
-        } ?? false
-        return CommitmentCharacteristics(
-            commitment: commitment,
-            currentOccurrence: currentOccurrence,
-            remainingThisCycleCount: remaining.count,
-            nearestUsable: nearest,
-            nearestUsableInCurrentCycle: nearestUsableInCurrentCycle,
-            behindCount: behindCount,
-            checkInCount: commitment.checkInsInCycle(containing: now).count,
-            targetCount: commitment.target.count
-        )
-    }
 }

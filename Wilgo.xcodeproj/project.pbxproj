@@ -86,9 +86,9 @@
 		700D18DD2F8387FE004B6B57 /* Exceptions for "Scheduling" folder in "WidgetExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
-				"Commitment+Status.swift",
-				CommitmentAndSlot.swift,
+				"Commitment+ReminderPrimitives.swift",
 				CommitmentCharacteristics.swift,
+				StageCharacterization.swift,
 				Time.swift,
 			);
 			target = 701EBE762F5348DA0060F5B6 /* WidgetExtension */;

@@ -73,8 +73,8 @@ final class CommitmentRemindersDisableTests {
         // Mirror the production boundary: callers filter on isActiveForReminders, then characterize.
         let characteristics = [off, on]
             .filter { $0.isActiveForReminders(now: now) }
-            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
-        let buckets = CommitmentAndSlot.stageBuckets(characteristics: characteristics, now: now, n: 3)
+            .map { StageCharacterization.characteristics(of: $0, now: now) }
+        let buckets = StageCharacterization.stageBuckets(characteristics: characteristics, now: now, n: 3)
 
         let placed = buckets.current + buckets.upcoming + buckets.catchUp
         #expect(placed.map(\.commitment.title) == ["Draw"])  // only the enabled one

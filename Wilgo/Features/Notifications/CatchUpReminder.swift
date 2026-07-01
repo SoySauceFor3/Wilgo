@@ -78,8 +78,8 @@ enum CatchUpReminder {
         let characteristics =
             commitments
             .filter { $0.isActiveForReminders(now: now) }
-            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
-        let catchUp = CommitmentAndSlot.behindForReminder(
+            .map { StageCharacterization.characteristics(of: $0, now: now) }
+        let catchUp = StageCharacterization.behindForReminder(
             characteristics: characteristics,
             includeCurrent: AppSettings.includeActiveSlotsInCatchUp
         )

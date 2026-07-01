@@ -12,7 +12,7 @@ import Foundation
 ///
 /// This replaces the former "resolved `Slot` copy" returned by `Slot.resolveOccurrence`,
 /// which was a non-inserted `@Model` carrying meaningless `recurrence`/`maxCheckIns`/`snoozes`.
-struct SlotOccurrence: Equatable {
+struct SlotOccurrence: Comparable {
     /// The template this firing belongs to (owns recurrence, maxCheckIns, snoozes).
     let slot: Slot
     /// The logical/anchor day this firing belongs to (the day the window *starts* on;
@@ -28,8 +28,21 @@ struct SlotOccurrence: Equatable {
         slot.endTime(onDayStarting: psychDay)
     }
 
+    /// **Identity**: two occurrences are equal iff they are the *same firing* — same slot, same day.
+    /// This is deliberately NOT window-based: two different slots can share an identical window on a
+    /// day, yet they are distinct firings. Distinct from `<`, which is *chronological* (see below).
     static func == (lhs: SlotOccurrence, rhs: SlotOccurrence) -> Bool {
         lhs.slot.id == rhs.slot.id && lhs.psychDay == rhs.psychDay
+    }
+
+    /// **Chronological** order — earlier window first, then shorter (the `(start, end)` tie-break,
+    /// mirroring `Slot`'s own `Comparable`). This answers a *different* question than `==`: `<` asks
+    /// "does this fire earlier?", `==` asks "is this the same firing?". Consequently two distinct
+    /// firings with identical windows tie under `<` (neither is `<` the other) without being `==`.
+    /// That is safe for `sorted()`/`min()` — ties simply come out adjacent.
+    static func < (lhs: SlotOccurrence, rhs: SlotOccurrence) -> Bool {
+        if lhs.start == rhs.start { return lhs.end < rhs.end }
+        return lhs.start < rhs.start
     }
 }
 
@@ -69,7 +82,10 @@ extension SlotOccurrence {
     /// those inside this window are counted.
     func isSaturated(checkIns: [CheckIn]) -> Bool {
         guard let cap = slot.maxCheckIns, cap > 0 else { return false }
-        return Slot.countCheckInsInWindow(checkIns: checkIns, start: start, end: end) >= cap
+        let count = checkIns.reduce(0) { acc, checkIn in
+            (checkIn.createdAt >= start && checkIn.createdAt < end) ? acc + 1 : acc
+        }
+        return count >= cap
     }
 
     /// True if this firing has been snoozed: the slot has a snooze whose frozen `psychDay`

@@ -62,7 +62,7 @@ enum NowLiveActivityManager {
         let context = ModelContext.wilgoMain
         let commitments = (try? context.fetch(.activeOnly)) ?? []
         let nextDate =
-            CommitmentAndSlot.nextTransitionDate(commitments: commitments, now: now)
+            StageCharacterization.nextTransitionDate(commitments: commitments, now: now)
             ?? now.addingTimeInterval(60 * 60)  // 1-hour fallback when there are no commitments
         let request = BGAppRefreshTaskRequest(identifier: backgroundTaskIdentifier)
         request.earliestBeginDate = nextDate

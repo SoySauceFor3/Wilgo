@@ -5,7 +5,7 @@ import Foundation
 // Slot + goal mechanics that drive every reminder surface (Stage, Live Activity,
 // widget, slot-start notifications). These primitives — goal progress, the remaining usable
 // occurrences in the cycle, and the nearest upcoming usable occurrence — are consumed by the
-// Stage characterization layer (`CommitmentAndSlot.characteristics` + `stageBuckets`). Kept out
+// Stage characterization layer (`StageCharacterization.characteristics` + `stageBuckets`). Kept out
 // of the `Commitment` @Model so the model file describes only what a commitment *is*, not how
 // reminders behave.
 
@@ -21,7 +21,7 @@ extension Commitment {
 
     /// Unfinished, unsnoozed, unsaturated slot occurrences remaining in the **current cycle**, sorted
     /// by start (includes the open-now slot, if any). The Stage characterization layer
-    /// (`CommitmentAndSlot.characteristics`) reads this for `currentOccurrence` + the remaining count.
+    /// (`StageCharacterization.characteristics`) reads this for `currentOccurrence` + the remaining count.
     func remainingUsableOccurrencesInCycle(now: Date = Time.now()) -> [SlotOccurrence] {
         let bounds = cycle.bounds(including: now)
         // Pass all check-ins: `isUsable`/saturation counts only those inside each occurrence's own
@@ -29,11 +29,6 @@ extension Commitment {
         return slotOccurrences(from: bounds.start, until: bounds.end).compactMap {
             occ -> SlotOccurrence? in
             guard occ.end >= now else { return nil }  // window already ended → not remaining
-
-            // Usability (snooze/saturation) is a per-occurrence property, not a "now" one, so this is
-            // valid for both the open-now occurrence and any not-yet-started future ones (a future
-            // window has no snooze for its day and no check-ins inside it → trivially usable).
-            guard occ.isUsable(checkIns: checkIns) else { return nil }
             return occ
         }
     }
@@ -56,7 +51,7 @@ extension Commitment {
     /// the user opted into `continueRemindersAfterGoalMet`. Slot-level concerns (snooze,
     /// capacity/saturation, window timing) are NOT decided here — those live in
     /// `remainingUsableOccurrencesInCycle` / `nearestUsableUpcomingOccurrence` and are applied
-    /// downstream by the Stage characterization layer (`CommitmentAndSlot.characteristics` + `stageBuckets`).
+    /// downstream by the Stage characterization layer (`StageCharacterization.characteristics` + `stageBuckets`).
     ///
     /// This is the single source of truth for the reminders-enabled + goal-met∕continue rule; callers
     /// apply it once when building characteristics, so every surface agrees.
@@ -66,55 +61,31 @@ extension Commitment {
         return !goalProgress(now: now).isMet
     }
 
-    /// Returns the start times of all eligible slot occurrences in `[from, to)`.
+    /// This commitment's slot occurrences overlapping the half-open datetime window `[from, until)`,
+    /// merged across all slots and sorted by `(start, end)`. Boundaries are arbitrary instants.
     ///
-    /// Eligibility is evaluated at each occurrence's own start time, so snooze and
-    /// saturation checks reflect the slot's actual state when it fires.
-    func slotStarts(from: Date, to: Date) -> [Date] {
-        let startDay = Time.startOfDay(for: from)
-        let occurrences = slotOccurrences(from: startDay, until: to, includeCarryOver: false)
-        return occurrences.compactMap { occ -> Date? in
-            let start = occ.start
-            guard start >= from, start < to else { return nil }
-            // Pass all check-ins: saturation counts only those inside the occurrence's own window,
-            // so narrowing here would wrongly drop a cross-midnight occurrence's tail.
-            guard occ.isUsable(checkIns: checkIns) else { return nil }
-            return start
-        }
-    }
-
-    private func slotOccurrences(
-        from startDay: Date,
-        until endDay: Date,
-        includeCarryOver: Bool = true,  // if we include slots that end on StartDay but start on PreviousDay.
+    /// Per-slot enumeration and the soft-edge rules (`softFrom` / `softUntil`) are owned by
+    /// `Slot.occurrences`; this method adds the two commitment-level concerns on top: merging every
+    /// slot's occurrences and (when `onlyUsable`) filtering out snoozed/saturated firings against
+    /// *this* commitment's check-ins.
+    func slotOccurrences(
+        from: Date,
+        until: Date,
+        softFrom: Bool = true,
+        softUntil: Bool = true,
+        onlyUsable: Bool = true,
         calendar: Calendar = Time.calendar
     ) -> [SlotOccurrence] {
-        var occurrences: [SlotOccurrence] = []
-
-        if includeCarryOver,
-            let previousDay = calendar.date(byAdding: .day, value: -1, to: startDay)
-        {
-            for slot in slots {
-                guard let occurrence = slot.occurrence(on: previousDay) else { continue }
-                guard occurrence.end > startDay else { continue }
-                occurrences.append(occurrence)
+        slots
+            .flatMap {
+                $0.occurrences(
+                    from: from, until: until,
+                    softFrom: softFrom, softUntil: softUntil, calendar: calendar)
             }
-        }
-
-        var dayCursor = startDay
-        while dayCursor < endDay {
-            for slot in slots {
-                guard let occurrence = slot.occurrence(on: dayCursor) else { continue }
-                occurrences.append(occurrence)
-            }
-            dayCursor = calendar.date(byAdding: .day, value: 1, to: dayCursor) ?? endDay
-        }
-
-        occurrences.sort {
-            if $0.start == $1.start { return $0.end < $1.end }
-            return $0.start < $1.start
-        }
-        return occurrences
+            // Usability (snooze/saturation) is a commitment-level concern: it counts against *this*
+            // commitment's check-ins, which the pure `Slot.occurrences` deliberately doesn't know.
+            .filter { !onlyUsable || $0.isUsable(checkIns: checkIns) }
+            .sorted()  // chronological — SlotOccurrence: Comparable
     }
 
 }
@@ -145,7 +116,7 @@ extension Commitment {
         return
             slots
             .compactMap { nextUsableOccurrence(for: $0, onOrAfter: searchStart) }
-            .min { $0.start < $1.start }
+            .min()  // chronological — SlotOccurrence: Comparable
     }
 
     /// The first usable occurrence of `slot` with `start >= searchStart`: walks the slot's

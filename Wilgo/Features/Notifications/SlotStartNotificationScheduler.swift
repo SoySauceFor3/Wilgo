@@ -82,8 +82,10 @@ enum SlotStartNotificationScheduler {
         for commitment in commitments {
             // The single reminders gate (reminders-enabled + goal-met∕continue), shared with Stage.
             guard commitment.isActiveForReminders(now: now) else { continue }
-            for fireDate in commitment.slotStarts(from: now, to: horizon) {
-                result[fireDate, default: []].append(commitment)
+            for occ in commitment.slotOccurrences(
+                from: now, until: horizon, softFrom: false)
+            {
+                result[occ.start, default: []].append(commitment)
             }
         }
         // Enforce cap: keep only the earliest maxPendingCount fire dates

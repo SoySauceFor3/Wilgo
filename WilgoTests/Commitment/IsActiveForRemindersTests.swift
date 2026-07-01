@@ -53,8 +53,8 @@ final class IsActiveForRemindersTests {
     private func placed(_ commitments: [Commitment], now: Date) -> [CommitmentCharacteristics] {
         let characteristics = commitments
             .filter { $0.isActiveForReminders(now: now) }
-            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
-        let buckets = CommitmentAndSlot.stageBuckets(characteristics: characteristics, now: now, n: 3)
+            .map { StageCharacterization.characteristics(of: $0, now: now) }
+        let buckets = StageCharacterization.stageBuckets(characteristics: characteristics, now: now, n: 3)
         return buckets.current + buckets.upcoming + buckets.catchUp
     }
 

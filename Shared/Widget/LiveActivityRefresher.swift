@@ -18,8 +18,8 @@ enum LiveActivityRefresher {
         let characteristics =
             commitments
             .filter { $0.isActiveForReminders(now: now) }
-            .map { CommitmentAndSlot.characteristics(of: $0, now: now) }
-        let current = CommitmentAndSlot.stageBuckets(
+            .map { StageCharacterization.characteristics(of: $0, now: now) }
+        let current = StageCharacterization.stageBuckets(
             characteristics: characteristics, now: now, n: AppSettings.upcomingCommitmentCount
         ).current
 
