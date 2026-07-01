@@ -61,6 +61,9 @@ struct StageView: View {
         // establishes the dependency. (Check-in / snooze changes are tracked separately, via the
         // relationship traversal in bucketing — see the `commitments` doc comment.)
         let _ = timeTick
+        // Compute once per render pass: a computed property re-runs `stageBuckets` on every
+        // `buckets.` access (≈9 per `body`), so bind it to a local `let` and read that instead.
+        let buckets = buckets
         return NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
