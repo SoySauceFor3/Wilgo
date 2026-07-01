@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct CatchUpCommitmentRow: View {
-    /// Pre-computed by `StageViewModel`; carries the counts (avoids re-running status).
+    /// Pre-computed by `StageBucketing`; carries the counts (avoids re-running status).
     let characteristics: CommitmentCharacteristics
     var onTap: () -> Void
 

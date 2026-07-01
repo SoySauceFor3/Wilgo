@@ -35,34 +35,32 @@ enum SlotRecurrence: Codable, Hashable {
         }
     }
 
-    /// The next start-of-day on or after `day` that this recurrence matches, or `nil` if it can
-    /// never match (e.g. an empty weekday/month-day set). Computed from each kind's own period,
-    /// so there is no external "lookahead days" constant: adding a new recurrence kind defines
-    /// its own search here and stays correct for arbitrary periods.
-    func nextMatchDay(onOrAfter day: Date, calendar: Calendar = Time.calendar) -> Date? {
+    /// The first start-of-day on or after `day` that this recurrence matches (may be `day` itself),
+    /// or `nil` if it can never match (e.g. an empty weekday/month-day set).
+    ///
+    /// Steps forward day-by-day up to a per-kind search limit — the number of days within which a
+    /// match is guaranteed if one exists at all. The limit is an intrinsic property of each kind
+    /// (its period), not a shared "lookahead days" constant, so adding a new recurrence kind defines
+    /// its own bound here and stays correct for arbitrary periods.
+    func firstMatchDay(onOrAfter day: Date, calendar: Calendar = Time.calendar) -> Date? {
         let start = calendar.startOfDay(for: day)
+
+        // Days to scan before concluding "never matches". `.everyDay` matches immediately.
+        let limit: Int
         switch self {
         case .everyDay:
             return start
         case let .specificWeekdays(weekdays):
             guard !weekdays.isEmpty else { return nil }
             // A weekly pattern repeats within 7 days; the first match must occur in [0, 7).
-            return firstDay(from: start, within: 7, calendar: calendar)
+            limit = 7
         case let .specificMonthDays(days):
             guard !days.isEmpty else { return nil }
             // A month-day pattern repeats within a month; two months covers any gap
             // (e.g. day 31 skipping a short month).
-            return firstDay(from: start, within: 62, calendar: calendar)
+            limit = 62
         }
-    }
 
-    /// Steps forward day-by-day from `start` (inclusive) up to `limit` days, returning the first
-    /// that `matches`. Private so the per-kind `limit` (an intrinsic property of that kind, not a
-    /// shared magic number) stays co-located with `nextMatchDay`.
-    /// start: expect start of day, but works fine with day+time
-    private func firstDay(from start: Date, within limit: Int, calendar: Calendar = Time.calendar)
-        -> Date?
-    {
         var cursor = start
         for _ in 0..<limit {
             if matches(date: cursor, calendar: calendar) { return cursor }
@@ -307,21 +305,62 @@ extension Slot {
     /// This slot's next occurrence whose `start >= instant`, or `nil` if the recurrence never
     /// matches. Pure scheduling — ignores snooze and saturation.
     ///
-    /// Jumps via `recurrence.nextMatchDay`, so it never scans irrelevant days. Handles the boundary
+    /// Jumps via `recurrence.firstMatchDay`, so it never scans irrelevant days. Handles the boundary
     /// case where the next *matching day* is `instant`'s own day but that day's occurrence already
     /// started (e.g. `instant` is 11 PM, the slot fires at 7 AM): it advances to the following
     /// match. At most one such advance is ever needed, so this terminates in O(1) match lookups.
     func nextOccurrence(onOrAfter instant: Date, calendar: Calendar = Time.calendar)
         -> SlotOccurrence?
     {
+        // No look-back needed (unlike `nextWindowEdge`): a cross-midnight occurrence anchored on the
+        // prior day has `start` in the past, so it fails this method's `start >= instant` contract and
+        // could never be the answer anyway.
         var dayCursor = calendar.startOfDay(for: instant)
         // Two iterations suffice: the first match-day may yield an already-started occurrence;
         // the next match-day's occurrence necessarily starts later.
         for _ in 0..<2 {
-            guard let matchDay = recurrence.nextMatchDay(onOrAfter: dayCursor, calendar: calendar),
+            guard let matchDay = recurrence.firstMatchDay(onOrAfter: dayCursor, calendar: calendar),
                 let occ = occurrence(on: matchDay, calendar: calendar)
             else { return nil }
             if occ.start >= instant { return occ }
+            guard let next = calendar.date(byAdding: .day, value: 1, to: matchDay) else {
+                return nil
+            }
+            dayCursor = next
+        }
+        return nil
+    }
+
+    /// The earliest window edge (an occurrence `start` or `end`) strictly after `instant`, or `nil`
+    /// if the recurrence never matches again. Pure scheduling — recurrence-aware, ignores snooze and
+    /// saturation (an occurrence's window edges are transitions regardless of usability).
+    ///
+    /// Unlike `nextOccurrence(onOrAfter:)`, this accounts for an occurrence that is **open at**
+    /// `instant`: its `start` is in the past (not a candidate) but its `end` is still ahead and is the
+    /// nearest transition. The walk finds the first occurrence whose window has not yet ended
+    /// (`end > instant`) and returns the earliest of its `start`/`end` that is `> instant` — for an
+    /// open occurrence that is `end`, which is necessarily sooner than any later occurrence's `start`.
+    func nextWindowEdge(after instant: Date, calendar: Calendar = Time.calendar) -> Date? {
+        // Start one day before `instant`'s day so a cross-midnight occurrence anchored on the *prior*
+        // day — whose window is still open at `instant` (its post-midnight tail) — is considered. Its
+        // `end` may be the nearest transition, but it is anchored on yesterday and would be skipped by
+        // a walk starting at today. (Mirrors `occurrences(from:until:)`, which looks back for the same
+        // reason.) A normal (same-day) occurrence's `end > instant` test is unaffected by the earlier start.
+        let firstDay =
+            calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: instant))
+            ?? calendar.startOfDay(for: instant)
+        var dayCursor = firstDay
+        // Three iterations suffice: the look-back day and the first same-day match may each yield an
+        // occurrence already ended before `instant`; the following match-day's occurrence ends later.
+        for _ in 0..<3 {
+            guard let matchDay = recurrence.firstMatchDay(onOrAfter: dayCursor, calendar: calendar),
+                let occ = occurrence(on: matchDay, calendar: calendar)
+            else { return nil }
+            if occ.end > instant {
+                // `end > instant` here; `start` may be past (open occurrence) or future. Take the
+                // earliest edge that is still ahead.
+                return occ.start > instant ? occ.start : occ.end
+            }
             guard let next = calendar.date(byAdding: .day, value: 1, to: matchDay) else {
                 return nil
             }

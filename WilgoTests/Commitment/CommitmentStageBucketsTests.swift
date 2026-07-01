@@ -226,6 +226,33 @@ final class CommitmentStageBucketsTests {
         #expect(buckets.upcoming.map(\.commitment.id) == [cLater.id])
     }
 
+    @Test("slot end transition: a commitment leaves current once its open slot closes")
+    @MainActor func slotEndLeavesCurrent() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // Pin the clock so slot-time resolution ("today") is deterministic regardless of test order.
+        let saved = Time.now
+        defer { Time.now = saved }
+        let inside = date(year: 2026, month: 3, day: 5, hour: 8, minute: 30)
+        Time.now = { inside }
+        // target 3, no check-ins → behind. Single slot 8-9, no later slot today.
+        let c = makeCommitment(title: "c", slots: [(8, 9, nil)], in: ctx)
+
+        // Inside the window (8:30): current, not catch-up.
+        let insideBuckets = buckets([c], now: inside, n: 5)
+        #expect(insideBuckets.current.map(\.commitment.id) == [c.id])
+        #expect(insideBuckets.catchUp.isEmpty)
+
+        // Just after the window closes (9:30): must leave current. On a daily cycle the next usable
+        // slot is tomorrow's 8am, so the (still-behind) item becomes future-eligible → upcoming.
+        // The key regression guard is that it is no longer in `current`.
+        let after = date(year: 2026, month: 3, day: 5, hour: 9, minute: 30)
+        Time.now = { after }
+        let afterBuckets = buckets([c], now: after, n: 5)
+        #expect(afterBuckets.current.isEmpty)
+        #expect(afterBuckets.upcoming.map(\.commitment.id) == [c.id])
+    }
+
     @Test("met-goal exclusion: goal met + not continuing → excluded from all buckets")
     @MainActor func metGoalExcluded() throws {
         let container = try makeTestContainer()
@@ -280,6 +307,73 @@ final class CommitmentStageBucketsTests {
         let entry = try #require(buckets.upcoming.first)
         #expect(entry.nearestUsable?.start == date(year: 2026, month: 3, day: 6, hour: 7))
         #expect(!entry.nearestUsableInCurrentCycle)
+    }
+
+    @Test("nextTransitionTime: reflects an edited slot end (the slot-edit staleness bug)")
+    @MainActor func nextTransitionTimeReflectsEditedSlotEnd() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        let saved = Time.now
+        defer { Time.now = saved }
+        // 8:30 today, inside an 8-9 slot → the next transition is the slot's end at 9:00.
+        let frozen = try #require(Calendar.current.date(
+            bySettingHour: 8, minute: 30, second: 0, of: Date()))
+        Time.now = { frozen }
+        let c = makeCommitment(title: "c", slots: [(8, 9, nil)], in: ctx)
+
+        func at(_ h: Int) throws -> Date {
+            try #require(Calendar.current.date(bySettingHour: h, minute: 0, second: 0, of: Date()))
+        }
+        #expect(try StageCharacterization.nextTransitionTime(commitments: [c], now: frozen) == at(9))
+
+        // Edit the slot end to 10:00 (as EditCommitmentView would); the next wake must follow so the
+        // Stage's boundary timer, keyed on this value, restarts toward the new end.
+        c.slots[0].end = tod(hour: 10)
+        #expect(try StageCharacterization.nextTransitionTime(commitments: [c], now: frozen) == at(10))
+    }
+
+    @Test("nextStageRefreshTime: with no slot edge before midnight, wakes at the next psychDay boundary")
+    @MainActor func nextStageRefreshFallsBackToPsychDay() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // 10pm today; the only slot (8-9) already ended and does not fire again before midnight.
+        let now = date(year: 2026, month: 3, day: 5, hour: 22)
+        let c = makeCommitment(title: "morning", slots: [(8, 9, nil)], in: ctx)
+
+        // Slot-only primitive: next edge is tomorrow 8:00.
+        #expect(
+            StageCharacterization.nextTransitionTime(commitments: [c], now: now)
+                == date(year: 2026, month: 3, day: 6, hour: 8))
+        // Refresh helper folds in the cycle boundary (approximated by next psychDay start = midnight),
+        // which is sooner — so the Stage wakes at midnight for the goal-met→un-met rollover.
+        #expect(
+            StageCharacterization.nextStageRefreshTime(commitments: [c], now: now)
+                == date(year: 2026, month: 3, day: 6, hour: 0))
+    }
+
+    @Test("nextStageRefreshTime: a slot edge before midnight wins over the psychDay boundary")
+    @MainActor func nextStageRefreshPrefersEarlierSlotEdge() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // 8:30, inside the 8-9 slot → its end at 9:00 is before the next midnight.
+        let now = date(year: 2026, month: 3, day: 5, hour: 8, minute: 30)
+        let c = makeCommitment(title: "open", slots: [(8, 9, nil)], in: ctx)
+
+        #expect(
+            StageCharacterization.nextStageRefreshTime(commitments: [c], now: now)
+                == date(year: 2026, month: 3, day: 5, hour: 9))
+    }
+
+    @Test("nextStageRefreshTime: no slots → still wakes at the next psychDay boundary")
+    @MainActor func nextStageRefreshPsychDayWithoutSlots() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        let now = date(year: 2026, month: 3, day: 5, hour: 12)
+        let c = makeCommitment(title: "empty", slots: [], in: ctx)
+
+        #expect(
+            StageCharacterization.nextStageRefreshTime(commitments: [c], now: now)
+                == date(year: 2026, month: 3, day: 6, hour: 0))
     }
 
     // MARK: - behindForReminder

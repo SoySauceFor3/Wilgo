@@ -2,7 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct UpcomingCommitmentRow: View {
-    /// Pre-computed by `StageViewModel`; carries the nearest slot + the data the row needs
+    /// Pre-computed by `StageBucketing`; carries the nearest slot + the data the row needs
     /// (avoids re-running `status` per row).
     let characteristics: CommitmentCharacteristics
     var onTap: () -> Void

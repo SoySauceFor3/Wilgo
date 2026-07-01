@@ -92,6 +92,26 @@ enum StageCharacterization {
         return (current: current, upcoming: upcoming, catchUp: catchUp)
     }
 
+    /// Convenience that runs the full Stage pass from raw commitments: filter to
+    /// `isActiveForReminders`, `characteristics(of:)` each, then `stageBuckets(...)`. Used by
+    /// `StageView`, which recomputes this directly in `body` (the work is cheap enough that caching
+    /// it is not worth the machinery).
+    static func stageBuckets(
+        commitments: [Commitment],
+        now: Date = Time.now(),
+        n: Int = AppSettings.upcomingCommitmentCount
+    ) -> (
+        current: [CommitmentCharacteristics],
+        upcoming: [CommitmentCharacteristics],
+        catchUp: [CommitmentCharacteristics]
+    ) {
+        let all =
+            commitments
+            .filter { $0.isActiveForReminders(now: now) }
+            .map { characteristics(of: $0, now: now) }
+        return stageBuckets(characteristics: all, now: now, n: n)
+    }
+
     /// Commitments that should fire a catch-up reminder: every behind commitment, regardless of which
     /// Stage bucket it lands in (so a behind one sitting in Upcoming's top-N is still reminded).
     ///
@@ -127,32 +147,55 @@ enum StageCharacterization {
             return lhsSlot.start < rhsSlot.start
         }
 
-    /// Earliest upcoming windowStart, windowEnd, or psychDay boundary across all commitments' slots.
+    /// Earliest upcoming slot-window edge (an occurrence `start` or `end`) across all commitments'
+    /// slots, or `nil` when no commitment has a future slot edge. Recurrence-aware and
+    /// usability-agnostic (a window edge is a transition regardless of snooze/saturation).
     ///
     /// Intentionally does NOT apply `isActiveForReminders`: a goal-met commitment can become
     /// un-met across a cycle boundary, and waking slightly early is harmless — whereas filtering
     /// here could skip a needed wake-up. This is the one helper that does not gate on that rule.
-    static func nextTransitionDate(
+    ///
+    /// This reports *slot* transitions only. It deliberately does NOT include the cycle-boundary wake
+    /// (a goal-met commitment reappears when its cycle rolls over, with no slot edge at that instant).
+    /// Callers that render the Stage want that too — so they should call `nextStageRefreshTime`, which
+    /// folds this together with the cycle boundary. This primitive is exposed for callers that truly
+    /// only care about slot windows.
+    static func nextTransitionTime(
         commitments: [Commitment], now: Date = Time.now()
     ) -> Date? {
-        var candidates: [Date] = []
-        for commitment in commitments {
-            for slot in commitment.slots {
-                let start = slot.startToday
-                let end = slot.endToday
-                if start > now { candidates.append(start) }
-                if end > now { candidates.append(end) }
-            }
-        }
-        // Wake up exactly at the next psychDay boundary so the Stage resets on time
-        // even when no slot transitions remain in the current day.
-        let currentPsychDayBase = Time.startOfDay(for: now)
-        if let nextPsychDayBase = Time.calendar.date(
-            byAdding: .day, value: 1, to: currentPsychDayBase)
-        {
-            if nextPsychDayBase > now { candidates.append(nextPsychDayBase) }
-        }
-        return candidates.min()
+        commitments.compactMap { $0.nextSlotWindowEdge(after: now) }.min()
+    }
+
+    /// The next instant the Stage's *rendered content* can change: the earlier of the next slot-window
+    /// edge (`nextTransitionTime`) and the next cycle boundary. Always a `Date` — the next-psychDay
+    /// boundary is a floor that is present whether or not any slot transition exists, so callers never
+    /// have to invent their own "nothing scheduled" fallback (they had diverged: schedule-nothing vs.
+    /// a 1-hour timer). The `now + 1h` at the end is an unreachable last resort for the (impossible)
+    /// case where even `Calendar.date(byAdding: .day, value: 1, ...)` fails.
+    ///
+    /// Two things move the Stage independently of user action:
+    /// 1. **Slot edges** — a window opening/closing changes Current/Upcoming. → `nextTransitionTime`.
+    /// 2. **Cycle rollover** — at a cycle boundary a goal-met commitment becomes un-met and reappears,
+    ///    check-in counts reset, `behindCount` shifts. This has no slot edge at that instant, so it
+    ///    must be woken for separately.
+    ///
+    /// The *conceptually correct* second term is "the closest cycle end across all commitments". We
+    /// approximate it with **the next psychDay (start-of-day) boundary**: every cycle boundary lands on
+    /// a start-of-day (see `Cycle.startDayOfCycle`, which normalizes daily/weekly/monthly to
+    /// `startOfDay`), so the next midnight is always on-or-before the next real cycle end. Waking at
+    /// every midnight fires at most one harmless extra time per day (a no-op recompute) and needs no
+    /// per-commitment cycle math — a deliberate simplicity-over-precision trade. If that extra daily
+    /// wake ever matters, replace the psychDay term with the true `min` over commitments' cycle ends.
+    static func nextStageRefreshTime(
+        commitments: [Commitment], now: Date = Time.now()
+    ) -> Date {
+        let nextPsychDayBoundary = Time.calendar.date(
+            byAdding: .day, value: 1, to: Time.startOfDay(for: now))
+        return [
+            nextTransitionTime(commitments: commitments, now: now),
+            nextPsychDayBoundary,
+        ].compactMap(\.self).min()
+            ?? now.addingTimeInterval(60 * 60)  // calendar +1day can't fail; last-resort only
     }
 
 }

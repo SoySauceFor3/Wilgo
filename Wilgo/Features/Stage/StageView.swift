@@ -7,18 +7,36 @@ import SwiftUI
 
 struct StageView: View {
     @Environment(\.scenePhase) private var scenePhase
-    @Query(filter: Commitment.activePredicate,
-           sort: \Commitment.createdAt, order: .forward)
+    /// The active commitments. Bucketing traverses each commitment's `checkIns` and its slots'
+    /// `snoozes` relationships, and the Observation framework tracks every `@Model` property a view
+    /// reads during `body` — so inserting/deleting a `CheckIn` or `SlotSnooze` under one of these
+    /// commitments re-runs `body` and re-buckets. That is why no separate `@Query` for those child
+    /// types is needed. (Caveat: this holds only while bucketing keeps reading those relationships;
+    /// a refactor that stops traversing them, or a flow that *reassigns* a child's parent, would not
+    /// be covered — SwiftData's relationship-reassignment observation is unreliable.)
+    @Query(
+        filter: Commitment.activePredicate,
+        sort: \Commitment.createdAt, order: .forward)
     private var commitments: [Commitment]
-    /// Observed only to force a refresh when check-ins are inserted/deleted,
-    /// since @Query for Commitment does not re-fire on child relationship changes.
-    @Query private var checkIns: [CheckIn]
-    /// Same reason — snoozing a slot must re-evaluate stage status.
-    @Query private var slotSnoozes: [SlotSnooze]
 
-    @State private var viewModel = StageViewModel()
+    /// Bumped to force `buckets` to recompute against the current clock when no model change has
+    /// occurred: at a slot-window / psychDay boundary (by the timer), and when the view reappears
+    /// after being off-screen (tab switch / foreground), during which time may have passed.
+    @State private var timeTick = 0
     @State private var commitmentForDetail: Commitment?
     @State private var commitmentForEdit: Commitment?
+
+    /// The three Stage lists, recomputed on every `body` evaluation. Cheap: a few date comparisons
+    /// and sorts over the active-commitment set.
+    private var buckets:
+        (
+            current: [CommitmentCharacteristics],
+            upcoming: [CommitmentCharacteristics],
+            catchUp: [CommitmentCharacteristics]
+        )
+    {
+        StageCharacterization.stageBuckets(commitments: commitments)
+    }
 
     private var todayTitle: String {
         let today = Time.startOfDay(for: Time.now())
@@ -31,17 +49,30 @@ struct StageView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        // Register `timeTick` as a re-render dependency: SwiftUI only tracks values read during
+        // `body`, and `timeTick` is a bare counter bumped (by the boundary timer and on reappearance)
+        // to force a recompute when no model change occurred. Its value is unused — the read is what
+        // establishes the dependency. (Check-in / snooze changes are tracked separately, via the
+        // relationship traversal in bucketing — see the `commitments` doc comment.)
+        let _ = timeTick
+        // Compute once per render pass: a computed property re-runs `stageBuckets` on every
+        // `buckets.` access (≈9 per `body`), so bind it to a local `let` and read that instead.
+        let buckets = buckets
+        /// The next instant the Stage content can change — the earlier of the next slot-window edge and
+        /// the next cycle boundary (see `nextStageRefreshTime`). Keys the boundary timer so a slot edit
+        /// that moves this instant (e.g. changing the open slot's end time) restarts it.
+        let nextRefreshTime = StageCharacterization.nextStageRefreshTime(commitments: commitments)
+        return NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
-                    if !viewModel.current.isEmpty {
+                    if !buckets.current.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Current")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(viewModel.current, id: \.commitment.id) { item in
+                            ForEach(buckets.current, id: \.commitment.id) { item in
                                 CurrentCommitmentRow(characteristics: item) {
                                     commitmentForDetail = item.commitment
                                 }
@@ -49,14 +80,14 @@ struct StageView: View {
                         }
                     }
 
-                    if !viewModel.catchUp.isEmpty {
+                    if !buckets.catchUp.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Catch up")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(viewModel.catchUp, id: \.commitment.id) { item in
+                            ForEach(buckets.catchUp, id: \.commitment.id) { item in
                                 CatchUpCommitmentRow(characteristics: item) {
                                     commitmentForDetail = item.commitment
                                 }
@@ -64,14 +95,14 @@ struct StageView: View {
                         }
                     }
 
-                    if !viewModel.upcoming.isEmpty {
+                    if !buckets.upcoming.isEmpty {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("Upcoming")
                                 .font(.headline)
                                 .foregroundStyle(.secondary)
                                 .padding(.horizontal, 4)
 
-                            ForEach(viewModel.upcoming, id: \.commitment.id) { item in
+                            ForEach(buckets.upcoming, id: \.commitment.id) { item in
                                 UpcomingCommitmentRow(characteristics: item) {
                                     commitmentForDetail = item.commitment
                                 }
@@ -79,8 +110,8 @@ struct StageView: View {
                         }
                     }
 
-                    if viewModel.current.isEmpty, viewModel.upcoming.isEmpty,
-                        viewModel.catchUp.isEmpty
+                    if buckets.current.isEmpty, buckets.upcoming.isEmpty,
+                        buckets.catchUp.isEmpty
                     {
                         EmptyStageCard()
                     }
@@ -91,24 +122,25 @@ struct StageView: View {
             .navigationTitle(
                 todayTitle
             )
-            // Fire immediately on first appearance and on every commitment change.
-            .onChange(of: commitments, initial: true) {
-                viewModel.refresh(commitments: commitments)
+            // Time-boundary refresh: sleep until the next slot-window / psychDay transition, then bump
+            // `timeTick` so `buckets` recomputes even with no model change. Keyed on `nextRefreshTime`
+            // so any change to that instant — a slot edit that moves it, or the recompute after this
+            // fire that advances it to the following boundary — restarts the task with the new target.
+            // That id-change *is* the loop, so a single sleep suffices. SwiftUI cancels the task on
+            // disappear — no manual lifetime management.
+            .task(id: nextRefreshTime) {  // .task(id: x) {} is evaluated on every body run (and only then). On each evaluation SwiftUI diffs x; a changed x cancels-and-recreates the task, an unchanged x is a no-op.
+                let delay = nextRefreshTime.timeIntervalSince(Time.now())
+                if delay > 0 {
+                    try? await Task.sleep(for: .seconds(delay))
+                }
+                // After sleep and the task is not cancelled, trigger a re-run of body
+                if !Task.isCancelled { timeTick &+= 1 }  // overflow safe addition
             }
-            // Check-ins don't surface through the commitments query; watch separately.
-            .onChange(of: checkIns) {
-                viewModel.refresh(commitments: commitments)
-            }
-            // SlotSnoozes don't surface through the commitments query; watch separately.
-            .onChange(of: slotSnoozes) {
-                viewModel.refresh(commitments: commitments)
-            }
-            // Slots edited in EditCommitmentView don't surface through the commitments query either.
-            .onChange(of: commitmentForEdit) { _, newValue in
-                if newValue == nil { viewModel.refresh(commitments: commitments) }
-            }
+            // The view can be off-screen (other tab) or the app backgrounded while a boundary passes;
+            // the timer is cancelled then, so recompute against the current clock on return.
+            .onAppear { timeTick &+= 1 }
             .onChange(of: scenePhase) { _, phase in
-                if phase == .active { viewModel.refresh(commitments: commitments) }
+                if phase == .active { timeTick &+= 1 }
             }
             .sheet(item: $commitmentForDetail) { commitment in
                 CommitmentDetailView(commitment: commitment) {

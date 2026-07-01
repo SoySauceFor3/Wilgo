@@ -158,7 +158,7 @@ struct CurrentCommitmentProvider: TimelineProvider {
             allCommitments = []
         }
         let policy: TimelineReloadPolicy
-        if let nextDate = StageCharacterization.nextTransitionDate(
+        if let nextDate = StageCharacterization.nextTransitionTime(
             commitments: allCommitments, now: now)
         {
             print("Next date: \(nextDate), now: \(now)")

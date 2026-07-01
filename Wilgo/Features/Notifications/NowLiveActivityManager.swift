@@ -61,9 +61,10 @@ enum NowLiveActivityManager {
         let now = Time.now()
         let context = ModelContext.wilgoMain
         let commitments = (try? context.fetch(.activeOnly)) ?? []
+        // Wake at the next slot edge OR cycle boundary (folded together by `nextStageRefreshTime`), so
+        // the app also refreshes at the daily-cycle rollover when no slot transition precedes it.
         let nextDate =
-            StageCharacterization.nextTransitionDate(commitments: commitments, now: now)
-            ?? now.addingTimeInterval(60 * 60)  // 1-hour fallback when there are no commitments
+            StageCharacterization.nextStageRefreshTime(commitments: commitments, now: now)
         let request = BGAppRefreshTaskRequest(identifier: backgroundTaskIdentifier)
         request.earliestBeginDate = nextDate
         try? BGTaskScheduler.shared.submit(request)
