@@ -414,21 +414,6 @@ extension Slot {
     }
 }
 
-// MARK: - Capacity
-
-extension Slot {
-    /// Pure helper: how many check-ins fall in `[start, end)` by `createdAt`.
-    static func countCheckInsInWindow(
-        checkIns: [CheckIn],
-        start: Date,
-        end: Date
-    ) -> Int {
-        checkIns.reduce(0) { acc, checkIn in
-            (checkIn.createdAt >= start && checkIn.createdAt < end) ? acc + 1 : acc
-        }
-    }
-}
-
 extension Slot: Comparable {
     static func < (lhs: Slot, rhs: Slot) -> Bool {
         if lhs.start == rhs.start {

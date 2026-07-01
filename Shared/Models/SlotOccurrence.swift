@@ -82,7 +82,10 @@ extension SlotOccurrence {
     /// those inside this window are counted.
     func isSaturated(checkIns: [CheckIn]) -> Bool {
         guard let cap = slot.maxCheckIns, cap > 0 else { return false }
-        return Slot.countCheckInsInWindow(checkIns: checkIns, start: start, end: end) >= cap
+        let count = checkIns.reduce(0) { acc, checkIn in
+            (checkIn.createdAt >= start && checkIn.createdAt < end) ? acc + 1 : acc
+        }
+        return count >= cap
     }
 
     /// True if this firing has been snoozed: the slot has a snooze whose frozen `psychDay`
