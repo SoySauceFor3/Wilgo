@@ -58,9 +58,10 @@ struct StageView: View {
         // Compute once per render pass: a computed property re-runs `stageBuckets` on every
         // `buckets.` access (≈9 per `body`), so bind it to a local `let` and read that instead.
         let buckets = buckets
-        /// The next slot-window / psychDay boundary. Keys the boundary timer so a slot edit that moves
-        /// this instant (e.g. changing the open slot's end time) restarts it.
-        let nextTransitionDate = StageCharacterization.nextTransitionDate(commitments: commitments)
+        /// The next instant the Stage content can change — the earlier of the next slot-window edge and
+        /// the next cycle boundary (see `nextStageRefreshTime`). Keys the boundary timer so a slot edit
+        /// that moves this instant (e.g. changing the open slot's end time) restarts it.
+        let nextRefreshTime = StageCharacterization.nextStageRefreshTime(commitments: commitments)
         return NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
@@ -122,14 +123,13 @@ struct StageView: View {
                 todayTitle
             )
             // Time-boundary refresh: sleep until the next slot-window / psychDay transition, then bump
-            // `timeTick` so `buckets` recomputes even with no model change. Keyed on `nextTransitionDate`
+            // `timeTick` so `buckets` recomputes even with no model change. Keyed on `nextRefreshTime`
             // so any change to that instant — a slot edit that moves it, or the recompute after this
             // fire that advances it to the following boundary — restarts the task with the new target.
             // That id-change *is* the loop, so a single sleep suffices. SwiftUI cancels the task on
             // disappear — no manual lifetime management.
-            .task(id: nextTransitionDate) {  // .task(id: x) {} is evaluated on every body run (and only then). On each evaluation SwiftUI diffs x; a changed x cancels-and-recreates the task, an unchanged x is a no-op.
-                guard let next = nextTransitionDate else { return }
-                let delay = next.timeIntervalSince(Time.now())
+            .task(id: nextRefreshTime) {  // .task(id: x) {} is evaluated on every body run (and only then). On each evaluation SwiftUI diffs x; a changed x cancels-and-recreates the task, an unchanged x is a no-op.
+                let delay = nextRefreshTime.timeIntervalSince(Time.now())
                 if delay > 0 {
                     try? await Task.sleep(for: .seconds(delay))
                 }

@@ -88,6 +88,12 @@ extension Commitment {
             .sorted()  // chronological — SlotOccurrence: Comparable
     }
 
+    /// The earliest slot-window edge (an occurrence `start` or `end`) strictly after `instant`, across
+    /// all this commitment's slots — i.e. `min` over slots of `Slot.nextWindowEdge(after:)`. `nil` when
+    /// no slot has any future window edge. Recurrence-aware and usability-agnostic (see `nextWindowEdge`).
+    func nextSlotWindowEdge(after instant: Date) -> Date? {
+        slots.compactMap { $0.nextWindowEdge(after: instant) }.min()
+    }
 }
 
 // For "nearestUsableUpcomingOccurrence"
