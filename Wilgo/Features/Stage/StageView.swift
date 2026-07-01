@@ -7,25 +7,27 @@ import SwiftUI
 
 struct StageView: View {
     @Environment(\.scenePhase) private var scenePhase
+    /// The active commitments. Bucketing traverses each commitment's `checkIns` and its slots'
+    /// `snoozes` relationships, and the Observation framework tracks every `@Model` property a view
+    /// reads during `body` — so inserting/deleting a `CheckIn` or `SlotSnooze` under one of these
+    /// commitments re-runs `body` and re-buckets. That is why no separate `@Query` for those child
+    /// types is needed. (Caveat: this holds only while bucketing keeps reading those relationships;
+    /// a refactor that stops traversing them, or a flow that *reassigns* a child's parent, would not
+    /// be covered — SwiftData's relationship-reassignment observation is unreliable.)
     @Query(
         filter: Commitment.activePredicate,
         sort: \Commitment.createdAt, order: .forward)
     private var commitments: [Commitment]
-    /// Observed only to force a `body` recompute when check-ins are inserted/deleted,
-    /// since @Query for Commitment does not re-fire on child relationship changes.
-    @Query private var checkIns: [CheckIn]
-    /// Same reason — snoozing a slot must re-evaluate stage status.
-    @Query private var slotSnoozes: [SlotSnooze]
 
-    /// Bumped by the time-boundary `.task` to force a recompute when a slot window opens/closes
-    /// with no model change. Also nudged when returning to the foreground.
+    /// Bumped to force `buckets` to recompute against the current clock when no model change has
+    /// occurred: at a slot-window / psychDay boundary (by the timer), and when the view reappears
+    /// after being off-screen (tab switch / foreground), during which time may have passed.
     @State private var timeTick = 0
     @State private var commitmentForDetail: Commitment?
     @State private var commitmentForEdit: Commitment?
 
     /// The three Stage lists, recomputed on every `body` evaluation. Cheap: a few date comparisons
-    /// and sorts over the active-commitment set. `@Query` (commitments/checkIns/slotSnoozes) and
-    /// `timeTick` are all read here, so any of them changing re-renders and re-buckets.
+    /// and sorts over the active-commitment set.
     private var buckets:
         (
             current: [CommitmentCharacteristics],
@@ -33,10 +35,13 @@ struct StageView: View {
             catchUp: [CommitmentCharacteristics]
         )
     {
-        _ = timeTick  // establish dependency so time-boundary bumps recompute
-        _ = checkIns  // establish dependency: child-relationship changes must re-bucket
-        _ = slotSnoozes
-        return StageCharacterization.stageBuckets(commitments: commitments)
+        StageCharacterization.stageBuckets(commitments: commitments)
+    }
+
+    /// The next slot-window / psychDay boundary. Keys the boundary timer so a slot edit that moves
+    /// this instant (e.g. changing the open slot's end time) restarts it.
+    private var nextTransitionDate: Date? {
+        StageCharacterization.nextTransitionDate(commitments: commitments)
     }
 
     private var todayTitle: String {
@@ -50,7 +55,13 @@ struct StageView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        // Register `timeTick` as a re-render dependency: SwiftUI only tracks values read during
+        // `body`, and `timeTick` is a bare counter bumped (by the boundary timer and on reappearance)
+        // to force a recompute when no model change occurred. Its value is unused — the read is what
+        // establishes the dependency. (Check-in / snooze changes are tracked separately, via the
+        // relationship traversal in bucketing — see the `commitments` doc comment.)
+        let _ = timeTick
+        return NavigationStack {
             ScrollView {
                 VStack(spacing: 24) {
                     if !buckets.current.isEmpty {
@@ -110,13 +121,13 @@ struct StageView: View {
             .navigationTitle(
                 todayTitle
             )
-            // Time-boundary refresh: sleep until the next slot-window transition (or psychDay
-            // boundary) and bump `timeTick` so `buckets` recomputes even with no model change.
-            // Restarts whenever `commitments` change so the sleep target stays current. SwiftUI
-            // cancels this task on disappear — no manual lifetime management needed.
-            .task(id: commitments) {
+            // Time-boundary refresh: sleep until the next slot-window / psychDay transition and bump
+            // `timeTick` so `buckets` recomputes even with no model change. Keyed on `nextTransitionDate`
+            // so editing a slot's end time (which moves that instant) restarts the sleep with the
+            // correct target. SwiftUI cancels the task on disappear — no manual lifetime management.
+            .task(id: nextTransitionDate) {
                 while !Task.isCancelled {
-                    let now = Date()
+                    let now = Time.now()
                     guard
                         let next = StageCharacterization.nextTransitionDate(
                             commitments: commitments, now: now)
@@ -126,10 +137,12 @@ struct StageView: View {
                         try? await Task.sleep(for: .seconds(delay))
                     }
                     if Task.isCancelled { break }
-                    timeTick &+= 1
+                    timeTick &+= 1  // overflow safe addition
                 }
             }
-            // Returning to the foreground can cross a boundary while the task was suspended; nudge.
+            // The view can be off-screen (other tab) or the app backgrounded while a boundary passes;
+            // the timer is cancelled then, so recompute against the current clock on return.
+            .onAppear { timeTick &+= 1 }
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active { timeTick &+= 1 }
             }

@@ -330,6 +330,29 @@ final class CommitmentStageBucketsTests {
         #expect(next == expectedEnd)
     }
 
+    @Test("nextTransitionDate: reflects an edited slot end (the slot-edit staleness bug)")
+    @MainActor func nextTransitionDateReflectsEditedSlotEnd() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        let saved = Time.now
+        defer { Time.now = saved }
+        // 8:30 today, inside an 8-9 slot → the next transition is the slot's end at 9:00.
+        let frozen = try #require(Calendar.current.date(
+            bySettingHour: 8, minute: 30, second: 0, of: Date()))
+        Time.now = { frozen }
+        let c = makeCommitment(title: "c", slots: [(8, 9, nil)], in: ctx)
+
+        func at(_ h: Int) throws -> Date {
+            try #require(Calendar.current.date(bySettingHour: h, minute: 0, second: 0, of: Date()))
+        }
+        #expect(try StageCharacterization.nextTransitionDate(commitments: [c], now: frozen) == at(9))
+
+        // Edit the slot end to 10:00 (as EditCommitmentView would); the next wake must follow so the
+        // Stage's boundary timer, keyed on this value, restarts toward the new end.
+        c.slots[0].end = tod(hour: 10)
+        #expect(try StageCharacterization.nextTransitionDate(commitments: [c], now: frozen) == at(10))
+    }
+
     // MARK: - behindForReminder
 
     /// Builds the characteristics list the way production does (active filter + characterize).
