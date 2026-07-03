@@ -183,6 +183,22 @@ final class LiveActivityPlannerTests {
             relevanceScore: 1)
     }
 
+    @Test("identical-window ties are ordered deterministically regardless of input order")
+    @MainActor func tieBreakDeterministic() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        let a = makeCommitment(
+            title: "A", slots: [Slot(start: tod(hour: 9), end: tod(hour: 11))], in: ctx)
+        let b = makeCommitment(
+            title: "B", slots: [Slot(start: tod(hour: 9), end: tod(hour: 11))], in: ctx)
+        let now = date(year: 2026, month: 3, day: 5, hour: 8)
+
+        let forward = LiveActivityPlanner.plan(commitments: [a, b], now: now)
+        let reversed = LiveActivityPlanner.plan(commitments: [b, a], now: now)
+
+        #expect(forward.map(\.state) == reversed.map(\.state))
+    }
+
     @Test("diff keeps exact matches, ends orphans, requests the rest")
     func diffPartitions() {
         let slotA = UUID()

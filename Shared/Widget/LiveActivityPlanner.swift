@@ -33,9 +33,16 @@ enum LiveActivityPlanner {
         let occurrences: [(SlotOccurrence, Commitment)] =
             commitments
             .filter { $0.isActiveForReminders(now: now) }
-            .flatMap { c in c.slotOccurrences(from: now, until: horizon).map { ($0, c) } }
+            .flatMap { c in c.slotOccurrences(from: now, until: horizon, calendar: calendar).map { ($0, c) } }
             .filter { $0.0.end > now }  // softFrom lets open occurrences in; drop fully-past ones
-            .sorted { $0.0 < $1.0 }
+            // SlotOccurrence `<` ties on identical windows and Swift's sort is not stable, so a
+            // tie straddling the `prefix(maxPlanned)` cutoff would make plan membership depend on
+            // fetch order — churning cards between wakes. Slot id breaks the tie deterministically.
+            .sorted {
+                if $0.0 < $1.0 { return true }
+                if $1.0 < $0.0 { return false }
+                return $0.0.slot.id.uuidString < $1.0.slot.id.uuidString
+            }
         return occurrences.prefix(maxPlanned).map { occ, commitment in
             PlannedLiveActivity(
                 state: makeState(occurrence: occ, commitment: commitment),
