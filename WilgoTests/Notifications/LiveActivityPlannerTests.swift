@@ -65,6 +65,7 @@ final class LiveActivityPlannerTests {
         #expect(planned[0].scheduledStart == nil)  // today's open occurrence
         #expect(planned[0].staleDate == date(year: 2026, month: 3, day: 5, hour: 11))
         #expect(planned[1].scheduledStart == date(year: 2026, month: 3, day: 6, hour: 9))
+        #expect(planned[0].state.encouragementText == nil)  // no encouragements configured
     }
 
     @Test("plan caps at maxPlanned nearest occurrences")
