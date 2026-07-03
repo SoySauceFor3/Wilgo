@@ -98,4 +98,24 @@ enum LiveActivityPlanner {
     static func relevanceScore(windowEnd: Date) -> Double {
         max(0, 4_000_000_000 - windowEnd.timeIntervalSince1970)
     }
+
+    /// Reconciliation decision, computed purely so it can be unit-tested. An existing activity
+    /// whose state exactly equals a planned state is kept (zero churn on unchanged cards —
+    /// this is why planned content must be deterministic); every other existing activity is
+    /// ended; every unmatched planned card is requested.
+    static func diff(
+        existing: [(id: String, state: NowAttributes.ContentState)],
+        planned: [PlannedLiveActivity]
+    ) -> (toEnd: [String], toRequest: [PlannedLiveActivity]) {
+        var toRequest = planned
+        var toEnd: [String] = []
+        for activity in existing {
+            if let matched = toRequest.firstIndex(where: { $0.state == activity.state }) {
+                toRequest.remove(at: matched)
+            } else {
+                toEnd.append(activity.id)
+            }
+        }
+        return (toEnd, toRequest)
+    }
 }

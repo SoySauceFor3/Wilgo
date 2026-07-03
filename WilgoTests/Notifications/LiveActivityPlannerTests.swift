@@ -166,4 +166,67 @@ final class LiveActivityPlannerTests {
         #expect(plannedNoTarget[0].state.checkInCount == nil)
         #expect(plannedNoTarget[0].state.targetCount == nil)
     }
+
+    private func state(title: String, slotId: UUID, start: Date, end: Date)
+        -> NowAttributes.ContentState
+    {
+        NowAttributes.ContentState(
+            commitmentTitle: title, slotTimeText: "9:00 AM – 11:00 AM",
+            commitmentId: UUID(), slotId: slotId,
+            windowStart: start, windowEnd: end, encouragementText: nil,
+            checkInCount: nil, targetCount: nil)
+    }
+
+    private func plannedItem(_ s: NowAttributes.ContentState) -> PlannedLiveActivity {
+        PlannedLiveActivity(
+            state: s, scheduledStart: s.windowStart, staleDate: s.windowEnd,
+            relevanceScore: 1)
+    }
+
+    @Test("diff keeps exact matches, ends orphans, requests the rest")
+    func diffPartitions() {
+        let slotA = UUID()
+        let slotB = UUID()
+        let d1 = Date(timeIntervalSince1970: 1_000_000)
+        let d2 = Date(timeIntervalSince1970: 1_010_000)
+        let matching = state(title: "A", slotId: slotA, start: d1, end: d2)
+        let orphanState = state(title: "gone", slotId: UUID(), start: d1, end: d2)
+        let newState = state(title: "B", slotId: slotB, start: d2, end: d2.addingTimeInterval(3600))
+
+        let (toEnd, toRequest) = LiveActivityPlanner.diff(
+            existing: [(id: "act-1", state: matching), (id: "act-2", state: orphanState)],
+            planned: [plannedItem(matching), plannedItem(newState)]
+        )
+
+        #expect(toEnd == ["act-2"])
+        #expect(toRequest.map(\.state) == [newState])
+    }
+
+    @Test("diff with changed content for same slot ends the old and requests the new")
+    func diffContentChanged() {
+        let slot = UUID()
+        let d1 = Date(timeIntervalSince1970: 1_000_000)
+        let d2 = Date(timeIntervalSince1970: 1_010_000)
+        let old = state(title: "Old title", slotId: slot, start: d1, end: d2)
+        let new = state(title: "New title", slotId: slot, start: d1, end: d2)
+
+        let (toEnd, toRequest) = LiveActivityPlanner.diff(
+            existing: [(id: "act-1", state: old)],
+            planned: [plannedItem(new)]
+        )
+
+        #expect(toEnd == ["act-1"])
+        #expect(toRequest.map(\.state) == [new])
+    }
+
+    @Test("diff with empty plan ends everything")
+    func diffEmptyPlan() {
+        let s = state(
+            title: "A", slotId: UUID(),
+            start: Date(timeIntervalSince1970: 0), end: Date(timeIntervalSince1970: 60))
+        let (toEnd, toRequest) = LiveActivityPlanner.diff(
+            existing: [(id: "act-1", state: s)], planned: [])
+        #expect(toEnd == ["act-1"])
+        #expect(toRequest.isEmpty)
+    }
 }
