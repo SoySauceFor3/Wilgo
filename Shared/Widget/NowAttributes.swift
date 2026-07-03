@@ -10,7 +10,7 @@ import Foundation
 
 struct NowAttributes: ActivityAttributes {
     struct ContentState: Codable, Hashable {
-        /// Primary (first) current commitment's title (empty when no commitment in window).
+        /// Title of the commitment this occurrence belongs to.
         var commitmentTitle: String
         /// Current slot time range, e.g. "9:00 AM – 11:00 AM".
         var slotTimeText: String
@@ -20,11 +20,19 @@ struct NowAttributes: ActivityAttributes {
         /// UUID of the slot.
         var slotId: UUID
 
-        /// Non-primary current commitments. Empty when there is at most one commitment in the
-        /// current window. Does not affect ``hasCurrentCommitment``.
-        var secondaryTitles: [String]
+        /// Concrete occurrence window. Drives the countdown timer / progress rendering and,
+        /// together with `slotId`, gives each card its per-occurrence identity for reconciling.
+        var windowStart: Date
+        var windowEnd: Date
 
-        /// Random encouragement sentence for the primary commitment. Nil if none set.
+        /// Deterministic per-(slot, psych-day) encouragement. Nil if none set.
         var encouragementText: String?
+
+        /// Cycle progress at the time this content was built: check-ins done in the occurrence's
+        /// cycle / target count. Both nil when the target is disabled. Safe to freeze: counts only
+        /// change through the app process (check-in / undo paths), and every such path triggers a
+        /// reconcile, so a visible card's count can never silently go stale.
+        var checkInCount: Int?
+        var targetCount: Int?
     }
 }

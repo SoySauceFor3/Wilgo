@@ -69,7 +69,10 @@ final class LiveActivityRefresherTests {
         #expect(state.commitmentTitle == "Draw")
         #expect(state.commitmentId == c.id)
         #expect(state.slotId == current[0].currentOccurrence?.slot.id)
-        #expect(state.secondaryTitles.isEmpty)
+        #expect(state.windowStart == current[0].currentOccurrence?.start)
+        #expect(state.windowEnd == current[0].currentOccurrence?.end)
+        #expect(state.checkInCount == 0) // Target(count: 1), no check-ins yet
+        #expect(state.targetCount == 1)
     }
 
     @Test("empty encouragements → encouragementText is nil")
@@ -96,19 +99,4 @@ final class LiveActivityRefresherTests {
         #expect(state.encouragementText == "Keep going")
     }
 
-    @Test("multiple current commitments → first is primary, rest become secondary titles")
-    @MainActor func multipleCurrent_primaryPlusSecondaries() throws {
-        let container = try makeTestContainer()
-        let ctx = container.mainContext
-        let a = makeCommitment(title: "Draw", in: ctx)
-        let b = makeCommitment(title: "Run", in: ctx)
-        let now = date(year: 2026, month: 3, day: 5, hour: 10)
-        let current = currentBucket([a, b], now: now)
-        #expect(current.count == 2)
-
-        let state = try #require(LiveActivityRefresher.makeContentState(from: current))
-        // Primary is the first element of `current`; secondaries are the remaining titles.
-        #expect(state.commitmentTitle == current[0].commitment.title)
-        #expect(state.secondaryTitles == [current[1].commitment.title])
-    }
 }

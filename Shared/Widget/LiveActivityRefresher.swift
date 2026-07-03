@@ -69,15 +69,27 @@ enum LiveActivityRefresher {
         let first = currentSlots.first!
         let commitment = first.commitment
         let occurrence = first.currentOccurrence!
-        let secondaryTitles = currentSlots.dropFirst().map(\.commitment.title)
-        let encouragementText = commitment.encouragements.randomElement()
+        // Interim duplicate of the count logic — Commit 4 deletes this whole function in favor of
+        // `LiveActivityPlanner.makeState`/`progressCounts`.
+        let checkInCount: Int?
+        let targetCount: Int?
+        if case .disabled = commitment.target.configuredMode {
+            checkInCount = nil
+            targetCount = nil
+        } else {
+            checkInCount = commitment.checkInsInCycle(containing: occurrence.start).count
+            targetCount = commitment.target.count
+        }
         return NowAttributes.ContentState(
             commitmentTitle: commitment.title,
             slotTimeText: occurrence.timeOfDayText,
             commitmentId: commitment.id,
             slotId: occurrence.slot.id,
-            secondaryTitles: secondaryTitles,
-            encouragementText: encouragementText
+            windowStart: occurrence.start,
+            windowEnd: occurrence.end,
+            encouragementText: commitment.encouragements.randomElement(),
+            checkInCount: checkInCount,
+            targetCount: targetCount
         )
     }
 }
