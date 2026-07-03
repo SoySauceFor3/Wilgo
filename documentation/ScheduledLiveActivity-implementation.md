@@ -81,6 +81,14 @@ The only true limit: iOS's queue is small (~5 cards). So we always load the *nea
 
 **Risk:** a pending (not yet started) activity might not expose `content.state` for diffing. Mitigation: manual verification step in Commit 4 checks pending activities round-trip; if they don't, fall back to "end all pending + re-request" (still correct, minor churn) — a one-line change in `refresh`.
 
+### Ordering by absolute deadline — Stage's `remainingFraction` sort cannot be reused
+
+**Decision:** `relevanceScore = 4e9 − windowEnd` ("ends soonest ranks highest") decides the Dynamic Island owner and Lock Screen stack order. This deliberately does NOT reuse the Stage's Current-bucket sort (`StageCharacterization.stageBuckets`, sorted by `remainingFraction(at: now)`), even though both express "most urgent first."
+
+**Why (discussed with 3Sauce, 2026-07-03):** `remainingFraction` is a ratio that changes every minute, and fraction orderings *cross over time* (e.g. slot A 9:00–17:00 vs slot B 10:00–11:00: at 10:00 A ranks first, by 10:30 B does). The Stage may use it because it re-sorts on every render. A Live Activity's `relevanceScore` is **frozen at request time** — re-scoring requires app runtime, the very dependency this design eliminates. So the ordering rule must be computable once and stay correct forever: a time-invariant fact of the window. Among those, absolute deadline is the one matching the Stage's intent.
+
+**Accepted divergence:** when two cards are open simultaneously with very different durations, Stage (fraction, live-sorted) and LA (deadline, frozen) can briefly disagree on which is "most urgent." Each is optimal for its own medium; both agree in the common case.
+
 ### Discover the queue cap by requesting until throw
 
 **Decision:** Plan up to 8 cards; request nearest-first; stop on first `ActivityAuthorizationError`. No hardcoded "5".
