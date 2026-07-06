@@ -21,21 +21,28 @@ enum LiveActivityRefresher {
         let commitments = (try? context.fetch(.activeOnly)) ?? []
         let planned = LiveActivityPlanner.plan(commitments: commitments, now: now)
 
-        let activities = Activity<NowAttributes>.activities
+        // Only these states occupy one of the scarce activity slots and can display content.
+        // Ended/dismissed activities linger in `activities` until the system prunes them;
+        // letting one match the plan would "keep" a card that no longer displays, silently
+        // suppressing the re-request of its replacement.
+        let seated = Activity<NowAttributes>.activities.filter {
+            $0.activityState == .active || $0.activityState == .stale
+                || $0.activityState == .pending
+        }
         let actions = LiveActivityPlanner.diff(
-            existing: activities.map {
+            existing: seated.map {
                 ExistingActivity(
                     id: $0.id, state: $0.content.state, isPending: $0.activityState == .pending)
             },
             planned: planned
         )
 
-        for activity in activities where actions.toEnd.contains(activity.id) {
+        for activity in seated where actions.toEnd.contains(activity.id) {
             await activity.end(nil, dismissalPolicy: .immediate)
         }
 
         for (id, item) in actions.toUpdate {
-            guard let activity = activities.first(where: { $0.id == id }) else { continue }
+            guard let activity = seated.first(where: { $0.id == id }) else { continue }
             await activity.update(
                 ActivityContent(
                     state: item.state,
