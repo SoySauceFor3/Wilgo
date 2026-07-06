@@ -15,8 +15,17 @@ import SwiftData
 /// task degrades to a janitor that can still *end* stale cards. That is by design for this scope
 /// (see documentation/ScheduledLiveActivity-implementation.md: BG work is deferred).
 enum LiveActivityRefresher {
+    /// TEMPORARY (pending-update spike): when true, reconciles are skipped so the spike's probe
+    /// card is not orphan-ended by the diff. Set only by `PendingUpdateSpike`; remove with it.
+    @MainActor
+    static var spikePaused = false
+
     @MainActor
     static func refresh(context: ModelContext, now: Date? = nil) async {
+        if spikePaused {
+            print("LiveActivityRefresher.refresh() skipped: pending-update spike is running")
+            return
+        }
         let now = now ?? Time.now()
         let commitments = (try? context.fetch(.activeOnly)) ?? []
         let planned = LiveActivityPlanner.plan(commitments: commitments, now: now)
@@ -27,18 +36,24 @@ enum LiveActivityRefresher {
         // suppressing the re-request of its replacement.
         let seated = Activity<NowAttributes>.activities.filter {
             $0.activityState == .active || $0.activityState == .stale
-                || $0.activityState == .pending
+                || $0.activityState == .pending  // remove .ended and .dismissed
         }
         // Diagnostic for on-device verification of the reconcile (queue cap, pending
         // diffability, seat composition). Cheap and print-based per house style; remove or
         // demote once the scheduled-LA design is validated in dogfood.
-        print("LiveActivityRefresher.refresh() @\(now): \(seated.count) seated, \(planned.count) planned")
+        print(
+            "LiveActivityRefresher.refresh() @\(now): \(seated.count) seated, \(planned.count) planned"
+        )
         for activity in seated {
             let s = activity.content.state
-            print("  seated[\(activity.activityState)] \(s.commitmentTitle) start=\(s.windowStart) end=\(s.windowEnd) id=\(String(activity.id.prefix(8)))")
+            print(
+                "  seated[\(activity.activityState)] \(s.commitmentTitle) start=\(s.windowStart) end=\(s.windowEnd) id=\(String(activity.id.prefix(8)))"
+            )
         }
         for item in planned {
-            print("  planned \(item.state.commitmentTitle) start=\(item.state.windowStart) scheduled=\(String(describing: item.scheduledStart != nil))")
+            print(
+                "  planned \(item.state.commitmentTitle) start=\(item.state.windowStart) scheduled=\(String(describing: item.scheduledStart != nil))"
+            )
         }
 
         let actions = LiveActivityPlanner.diff(
@@ -54,7 +69,9 @@ enum LiveActivityRefresher {
         )
 
         for activity in seated where actions.toEnd.contains(activity.id) {
-            print("  ending \(activity.content.state.commitmentTitle) id=\(String(activity.id.prefix(8)))")
+            print(
+                "  ending \(activity.content.state.commitmentTitle) id=\(String(activity.id.prefix(8)))"
+            )
             await activity.end(nil, dismissalPolicy: .immediate)
         }
 
@@ -73,14 +90,18 @@ enum LiveActivityRefresher {
         // Nearest-first so the scarce system queue (undocumented cap, ~5 observed) is spent on
         // the most imminent occurrences. On a capacity throw, evict the farthest-future kept
         // pending card (invisible, so eviction is free) and retry — without this, far-future
-        // pendings seated on an earlier wake permanently starve newly current occurrences: iOS
+        // occurrences might be prioritize over newly current occurrences: iOS
         // admission is a pure counter (first-come-first-served), so the "keep the nearest K"
         // policy has to be implemented here. Eviction happens only on capacity errors: a
         // capacity error proves requests are legal in this context, so the retry can succeed.
         // Any other error (.visibility from a background wake, .denied) stops the loop without
         // evicting — ending a pending we cannot replace would only destroy scheduled coverage.
-        var evictablePendings = actions.keptPendings.sorted { $0.state.windowStart > $1.state.windowStart }
-        requestLoop: for item in actions.toRequest.sorted(by: { ($0.scheduledStart ?? now) < ($1.scheduledStart ?? now) }) {
+        var evictablePendings = actions.keptPendings.sorted {
+            $0.state.windowStart > $1.state.windowStart
+        }
+        requestLoop: for item in actions.toRequest.sorted(by: {
+            ($0.scheduledStart ?? now) < ($1.scheduledStart ?? now)
+        }) {
             let content = ActivityContent(
                 state: item.state,
                 staleDate: item.staleDate,
@@ -127,7 +148,7 @@ enum LiveActivityRefresher {
                         print(
                             "  capacity (\(authError)) and no evictable pending later than \(item.state.commitmentTitle) — stopping"
                         )
-                        break requestLoop
+                        break requestLoop  // break the named outer loop
                     }
                     evictablePendings.removeFirst()
                     print(
@@ -139,7 +160,7 @@ enum LiveActivityRefresher {
                     // retry the same item
                 } catch {
                     print("LiveActivityRefresher.refresh() - request stopped: \(error)")
-                    break requestLoop
+                    break requestLoop  // break the named outer loop
                 }
             }
         }
