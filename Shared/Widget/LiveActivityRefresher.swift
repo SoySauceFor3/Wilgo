@@ -29,6 +29,18 @@ enum LiveActivityRefresher {
             $0.activityState == .active || $0.activityState == .stale
                 || $0.activityState == .pending
         }
+        // Diagnostic for on-device verification of the reconcile (queue cap, pending
+        // diffability, seat composition). Cheap and print-based per house style; remove or
+        // demote once the scheduled-LA design is validated in dogfood.
+        print("LiveActivityRefresher.refresh() @\(now): \(seated.count) seated, \(planned.count) planned")
+        for activity in seated {
+            let s = activity.content.state
+            print("  seated[\(activity.activityState)] \(s.commitmentTitle) start=\(s.windowStart) end=\(s.windowEnd) id=\(String(activity.id.prefix(8)))")
+        }
+        for item in planned {
+            print("  planned \(item.state.commitmentTitle) start=\(item.state.windowStart) scheduled=\(String(describing: item.scheduledStart != nil))")
+        }
+
         let actions = LiveActivityPlanner.diff(
             existing: seated.map {
                 ExistingActivity(
