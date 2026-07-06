@@ -255,6 +255,29 @@ final class LiveActivityPlannerTests {
         #expect(actions.toRequest.isEmpty)
     }
 
+    @Test("diff: same slot but different firing (windowStart) is ended, never updated")
+    func diffSameSlotDifferentFiring() {
+        // A started card whose occurrence has passed must not be "updated" into the same
+        // slot's NEXT occurrence — that would relabel a visible card as a future firing.
+        // The windowStart equality clause in the same-firing match is what prevents it.
+        let slot = UUID()
+        let todayStart = Date(timeIntervalSince1970: 1_000_000)
+        let todayEnd = Date(timeIntervalSince1970: 1_010_000)
+        let tomorrowStart = Date(timeIntervalSince1970: 1_086_400)
+        let tomorrowEnd = Date(timeIntervalSince1970: 1_096_400)
+        let passed = state(title: "Draw", slotId: slot, start: todayStart, end: todayEnd)
+        let next = state(title: "Draw", slotId: slot, start: tomorrowStart, end: tomorrowEnd)
+
+        let actions = LiveActivityPlanner.diff(
+            existing: [ExistingActivity(id: "act-1", state: passed, isPending: false)],
+            planned: [plannedItem(next)]
+        )
+
+        #expect(actions.toEnd == ["act-1"])
+        #expect(actions.toUpdate.isEmpty)
+        #expect(actions.toRequest.map(\.state) == [next])
+    }
+
     @Test("diff: pending activity with changed content is ended and re-requested, not updated")
     func diffPendingContentChanged() {
         let slot = UUID()
