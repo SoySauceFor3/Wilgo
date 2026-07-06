@@ -210,16 +210,22 @@ final class LiveActivityPlannerTests {
         let orphanState = state(title: "gone", slotId: UUID(), start: d1, end: d2)
         let newState = state(title: "B", slotId: slotB, start: d2, end: d2.addingTimeInterval(3600))
 
-        let (toEnd, toRequest) = LiveActivityPlanner.diff(
-            existing: [(id: "act-1", state: matching), (id: "act-2", state: orphanState)],
+        let actions = LiveActivityPlanner.diff(
+            existing: [
+                ExistingActivity(id: "act-1", state: matching, isPending: false),
+                ExistingActivity(id: "act-2", state: orphanState, isPending: false),
+            ],
             planned: [plannedItem(matching), plannedItem(newState)]
         )
 
-        #expect(toEnd == ["act-2"])
-        #expect(toRequest.map(\.state) == [newState])
+        #expect(actions.toEnd == ["act-2"])
+        #expect(actions.toRequest.map(\.state) == [newState])
+        #expect(actions.toUpdate.isEmpty)
+        // A kept STARTED match appears in no bucket — it is not an eviction candidate either.
+        #expect(actions.keptPendings.isEmpty)
     }
 
-    @Test("diff with changed content for same slot ends the old and requests the new")
+    @Test("diff with changed content for same started firing updates it in place")
     func diffContentChanged() {
         let slot = UUID()
         let d1 = Date(timeIntervalSince1970: 1_000_000)
@@ -227,13 +233,15 @@ final class LiveActivityPlannerTests {
         let old = state(title: "Old title", slotId: slot, start: d1, end: d2)
         let new = state(title: "New title", slotId: slot, start: d1, end: d2)
 
-        let (toEnd, toRequest) = LiveActivityPlanner.diff(
-            existing: [(id: "act-1", state: old)],
+        let actions = LiveActivityPlanner.diff(
+            existing: [ExistingActivity(id: "act-1", state: old, isPending: false)],
             planned: [plannedItem(new)]
         )
 
-        #expect(toEnd == ["act-1"])
-        #expect(toRequest.map(\.state) == [new])
+        #expect(actions.toUpdate.map(\.id) == ["act-1"])
+        #expect(actions.toUpdate.map(\.item.state) == [new])
+        #expect(actions.toEnd.isEmpty)
+        #expect(actions.toRequest.isEmpty)
     }
 
     @Test("diff with empty plan ends everything")
@@ -241,9 +249,44 @@ final class LiveActivityPlannerTests {
         let s = state(
             title: "A", slotId: UUID(),
             start: Date(timeIntervalSince1970: 0), end: Date(timeIntervalSince1970: 60))
-        let (toEnd, toRequest) = LiveActivityPlanner.diff(
-            existing: [(id: "act-1", state: s)], planned: [])
-        #expect(toEnd == ["act-1"])
-        #expect(toRequest.isEmpty)
+        let actions = LiveActivityPlanner.diff(
+            existing: [ExistingActivity(id: "act-1", state: s, isPending: false)], planned: [])
+        #expect(actions.toEnd == ["act-1"])
+        #expect(actions.toRequest.isEmpty)
+    }
+
+    @Test("diff: pending activity with changed content is ended and re-requested, not updated")
+    func diffPendingContentChanged() {
+        let slot = UUID()
+        let d1 = Date(timeIntervalSince1970: 1_000_000)
+        let d2 = Date(timeIntervalSince1970: 1_010_000)
+        let old = state(title: "Old title", slotId: slot, start: d1, end: d2)
+        let new = state(title: "New title", slotId: slot, start: d1, end: d2)
+
+        let actions = LiveActivityPlanner.diff(
+            existing: [ExistingActivity(id: "act-1", state: old, isPending: true)],
+            planned: [plannedItem(new)]
+        )
+
+        #expect(actions.toEnd == ["act-1"])
+        #expect(actions.toUpdate.isEmpty)
+        #expect(actions.toRequest.map(\.state) == [new])
+    }
+
+    @Test("diff: matching pending activities are reported as eviction candidates")
+    func diffKeptPendings() {
+        let s = state(
+            title: "A", slotId: UUID(),
+            start: Date(timeIntervalSince1970: 1_000_000),
+            end: Date(timeIntervalSince1970: 1_010_000))
+
+        let actions = LiveActivityPlanner.diff(
+            existing: [ExistingActivity(id: "act-1", state: s, isPending: true)],
+            planned: [plannedItem(s)]
+        )
+
+        #expect(actions.toEnd.isEmpty)
+        #expect(actions.toRequest.isEmpty)
+        #expect(actions.keptPendings.map(\.id) == ["act-1"])
     }
 }

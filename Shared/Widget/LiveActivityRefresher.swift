@@ -22,19 +22,33 @@ enum LiveActivityRefresher {
         let planned = LiveActivityPlanner.plan(commitments: commitments, now: now)
 
         let activities = Activity<NowAttributes>.activities
-        let (toEnd, toRequest) = LiveActivityPlanner.diff(
-            existing: activities.map { (id: $0.id, state: $0.content.state) },
+        let actions = LiveActivityPlanner.diff(
+            existing: activities.map {
+                ExistingActivity(
+                    id: $0.id, state: $0.content.state, isPending: $0.activityState == .pending)
+            },
             planned: planned
         )
 
-        for activity in activities where toEnd.contains(activity.id) {
+        for activity in activities where actions.toEnd.contains(activity.id) {
             await activity.end(nil, dismissalPolicy: .immediate)
+        }
+
+        for (id, item) in actions.toUpdate {
+            guard let activity = activities.first(where: { $0.id == id }) else { continue }
+            await activity.update(
+                ActivityContent(
+                    state: item.state,
+                    staleDate: item.staleDate,
+                    relevanceScore: item.relevanceScore
+                )
+            )
         }
 
         // Nearest-first so the scarce system queue (undocumented cap) is spent on the most
         // imminent occurrences; the first capacity error stops the loop — later occurrences
         // get queued on a future wake.
-        for item in toRequest.sorted(by: { ($0.scheduledStart ?? now) < ($1.scheduledStart ?? now) }) {
+        for item in actions.toRequest.sorted(by: { ($0.scheduledStart ?? now) < ($1.scheduledStart ?? now) }) {
             let content = ActivityContent(
                 state: item.state,
                 staleDate: item.staleDate,

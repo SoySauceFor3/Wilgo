@@ -14,6 +14,30 @@ struct PlannedLiveActivity: Equatable {
     let relevanceScore: Double
 }
 
+/// A live-or-pending activity as the refresher sees it, reduced to what reconciliation needs.
+struct ExistingActivity {
+    let id: String
+    let state: NowAttributes.ContentState
+    /// True while scheduled but not yet started (`ActivityState.pending`). Pending cards are
+    /// invisible, so ending + re-requesting one has zero user-visible cost; started cards must
+    /// be updated in place instead (end+recreate blinks).
+    let isPending: Bool
+}
+
+/// The reconciliation decision, computed purely so it can be unit-tested.
+struct ReconcileActions {
+    /// Orphans (no planned counterpart) — end immediately.
+    var toEnd: [String] = []
+    /// Started activities whose firing is still planned but whose content changed — update
+    /// in place (`Activity.update` is legal even from the background and does not blink).
+    var toUpdate: [(id: String, item: PlannedLiveActivity)] = []
+    /// Planned cards with no counterpart — request, nearest-first.
+    var toRequest: [PlannedLiveActivity] = []
+    /// Matching pending cards kept as-is. Ordered eviction candidates if capacity later
+    /// blocks a more imminent request (see the refresher's request loop).
+    var keptPendings: [(id: String, state: NowAttributes.ContentState)] = []
+}
+
 enum LiveActivityPlanner {
     /// More than any plausible device queue cap (undocumented, ~5): the refresher requests
     /// nearest-first and stops at the first capacity throw, so planning extra is free.
@@ -106,23 +130,35 @@ enum LiveActivityPlanner {
         max(0, 4_000_000_000 - windowEnd.timeIntervalSince1970)
     }
 
-    /// Reconciliation decision, computed purely so it can be unit-tested. An existing activity
-    /// whose state exactly equals a planned state is kept (zero churn on unchanged cards —
-    /// this is why planned content must be deterministic); every other existing activity is
-    /// ended; every unmatched planned card is requested.
+    /// An existing activity whose state exactly equals a planned state is kept (zero churn on
+    /// unchanged cards — this is why planned content must be deterministic). A *started* activity
+    /// matching a planned card's firing identity (`slotId` + `windowStart`) with different content
+    /// is updated in place. Everything else existing is ended; every unmatched planned card is
+    /// requested.
     static func diff(
-        existing: [(id: String, state: NowAttributes.ContentState)],
+        existing: [ExistingActivity],
         planned: [PlannedLiveActivity]
-    ) -> (toEnd: [String], toRequest: [PlannedLiveActivity]) {
-        var toRequest = planned
-        var toEnd: [String] = []
+    ) -> ReconcileActions {
+        var actions = ReconcileActions()
+        var remaining = planned
         for activity in existing {
-            if let matched = toRequest.firstIndex(where: { $0.state == activity.state }) {
-                toRequest.remove(at: matched)
+            if let matched = remaining.firstIndex(where: { $0.state == activity.state }) {
+                let item = remaining.remove(at: matched)
+                if activity.isPending {
+                    actions.keptPendings.append((id: activity.id, state: item.state))
+                }
+            } else if !activity.isPending,
+                let sameFiring = remaining.firstIndex(where: {
+                    $0.state.slotId == activity.state.slotId
+                        && $0.state.windowStart == activity.state.windowStart
+                })
+            {
+                actions.toUpdate.append((id: activity.id, item: remaining.remove(at: sameFiring)))
             } else {
-                toEnd.append(activity.id)
+                actions.toEnd.append(activity.id)
             }
         }
-        return (toEnd, toRequest)
+        actions.toRequest = remaining
+        return actions
     }
 }
