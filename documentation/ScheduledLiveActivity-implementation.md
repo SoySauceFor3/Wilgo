@@ -892,6 +892,24 @@ Commits 2 and 3 are independent of each other (3 only shares the file with 2 —
 
 ---
 
+## Post-verification fixes (2026-07-06, from 3Sauce's on-device testing)
+
+Manual verification found three defects. Root causes and fixes, one commit per bug:
+
+### Bug 1 — Done blinks the card (end+recreate churn on count change)
+
+The documented end+re-request-on-mismatch trade-off proved visibly annoying in practice. **Fix (Commit F1): in-place `update()` for *started* activities.** The diff gains an `ExistingActivity` input (`id`, `state`, `isPending` from `activityState == .pending`) and returns a `ReconcileActions` value with four buckets: exact match → keep; same firing (`slotId` + `windowStart`) with changed content **and started** → `toUpdate` (in-place, no blink; `update()` is legal even from background); pending with changed content → end+re-request (invisible, no churn cost); orphans → `toEnd`; unmatched planned → `toRequest`. This supersedes the "no update() path" decision — the reliability argument for end+recreate assumed the blink was rare, and `checkInCount` made it routine.
+
+### Bug 2 — Card never returns after Done from the lock screen
+
+The reconcile-serialization chain made `CheckInIntent.perform()` return before the reconcile ran. ActivityKit's "a `LiveActivityIntent` may start Live Activities from the background" grace applies only **while the intent is executing** — the deferred `Activity.request` ran after `perform()` returned and threw `.visibility`; the old card had already been ended. **Fix (Commit F2):** `NowLiveActivityManager.awaitReconcile()` (awaits the chained task) and both intents `await` it inside `perform()` after `refreshAll()`.
+
+### Bug 3 — Only one of several current cards shows (capacity hogging)
+
+The plan queues the nearest `maxPlanned = 8` occurrences but the device cap is smaller (~5): matching far-future *pending* cards are kept by the diff, so current occurrences' requests hit `targetMaximumExceeded` and the break-on-error loop drops them — even on foreground. **Fix (Commit F3): capacity-aware eviction.** The diff additionally returns `keptPendings`; when a request throws `targetMaximumExceeded`/`globalMaximumExceeded`, the refresher ends the kept pending with the **latest** `windowStart` (only if later than the item being requested — evicting something more imminent would be self-defeating) and retries. Pending cards are invisible, so eviction has zero user-visible cost; most-imminent occurrences always win the queue. Non-capacity errors (`.visibility`, `.denied`) still break the loop.
+
+---
+
 ## Known follow-ups (explicitly out of scope, tracked in the PRD)
 
 - BG-task top-up / janitor improvements (deferred by 3Sauce until the foreground design is validated).
