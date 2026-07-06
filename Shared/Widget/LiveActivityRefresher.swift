@@ -52,43 +52,68 @@ enum LiveActivityRefresher {
             )
         }
 
-        // Nearest-first so the scarce system queue (undocumented cap) is spent on the most
-        // imminent occurrences; the first capacity error stops the loop — later occurrences
-        // get queued on a future wake.
-        for item in actions.toRequest.sorted(by: { ($0.scheduledStart ?? now) < ($1.scheduledStart ?? now) }) {
+        // Nearest-first so the scarce system queue (undocumented cap, ~5 observed) is spent on
+        // the most imminent occurrences. On a capacity throw, evict the farthest-future kept
+        // pending card (invisible, so eviction is free) and retry — without this, far-future
+        // pendings seated on an earlier wake permanently starve newly current occurrences: iOS
+        // admission is a pure counter (first-come-first-served), so the "keep the nearest K"
+        // policy has to be implemented here. Eviction happens only on capacity errors: a
+        // capacity error proves requests are legal in this context, so the retry can succeed.
+        // Any other error (.visibility from a background wake, .denied) stops the loop without
+        // evicting — ending a pending we cannot replace would only destroy scheduled coverage.
+        var evictablePendings = actions.keptPendings.sorted { $0.state.windowStart > $1.state.windowStart }
+        requestLoop: for item in actions.toRequest.sorted(by: { ($0.scheduledStart ?? now) < ($1.scheduledStart ?? now) }) {
             let content = ActivityContent(
                 state: item.state,
                 staleDate: item.staleDate,
                 relevanceScore: item.relevanceScore
             )
-            do {
-                if let start = item.scheduledStart {
-                    // Scheduled start: the system starts the card at `start` even if the app is
-                    // dead by then. The alert configuration is mandatory for scheduled requests.
-                    _ = try Activity.request(
-                        attributes: NowAttributes(),
-                        content: content,
-                        pushType: nil,
-                        style: .standard,
-                        alertConfiguration: AlertConfiguration(
-                            title: "\(item.state.commitmentTitle)",
-                            body: "\(item.state.slotTimeText)",
-                            sound: .default
-                        ),
-                        start: start
-                    )
-                } else {
-                    _ = try Activity.request(
-                        attributes: NowAttributes(),
-                        content: content,
-                        pushType: nil
-                    )
+            while true {
+                do {
+                    if let start = item.scheduledStart {
+                        // Scheduled start: the system starts the card at `start` even if the app
+                        // is dead by then. The alert configuration is mandatory for scheduled
+                        // requests.
+                        _ = try Activity.request(
+                            attributes: NowAttributes(),
+                            content: content,
+                            pushType: nil,
+                            style: .standard,
+                            alertConfiguration: AlertConfiguration(
+                                title: "\(item.state.commitmentTitle)",
+                                body: "\(item.state.slotTimeText)",
+                                sound: .default
+                            ),
+                            start: start
+                        )
+                    } else {
+                        _ = try Activity.request(
+                            attributes: NowAttributes(),
+                            content: content,
+                            pushType: nil
+                        )
+                    }
+                    break
+                } catch let authError as ActivityAuthorizationError
+                    where authError == .targetMaximumExceeded || authError == .globalMaximumExceeded
+                {
+                    // Evict only a pending strictly LESS imminent than what we're requesting —
+                    // evicting a nearer one would be self-defeating, and not evicting on ties
+                    // prevents equally-urgent cards from oscillating across reconciles.
+                    guard let candidate = evictablePendings.first,
+                        candidate.state.windowStart > (item.scheduledStart ?? now)
+                    else {
+                        break requestLoop
+                    }
+                    evictablePendings.removeFirst()
+                    if let pending = seated.first(where: { $0.id == candidate.id }) {
+                        await pending.end(nil, dismissalPolicy: .immediate)
+                    }
+                    // retry the same item
+                } catch {
+                    print("LiveActivityRefresher.refresh() - request stopped: \(error)")
+                    break requestLoop
                 }
-            } catch {
-                // Capacity reached, activities disabled, or background-start attempt — in every
-                // case, further requests would also fail this wake.
-                print("LiveActivityRefresher.refresh() - request stopped: \(error)")
-                break
             }
         }
     }
