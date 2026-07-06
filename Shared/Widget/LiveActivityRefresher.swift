@@ -49,12 +49,18 @@ enum LiveActivityRefresher {
             planned: planned
         )
 
+        print(
+            "  actions: end=\(actions.toEnd.count) update=\(actions.toUpdate.count) request=\(actions.toRequest.count) keptPending=\(actions.keptPendings.count)"
+        )
+
         for activity in seated where actions.toEnd.contains(activity.id) {
+            print("  ending \(activity.content.state.commitmentTitle) id=\(String(activity.id.prefix(8)))")
             await activity.end(nil, dismissalPolicy: .immediate)
         }
 
         for (id, item) in actions.toUpdate {
             guard let activity = seated.first(where: { $0.id == id }) else { continue }
+            print("  updating \(item.state.commitmentTitle) id=\(String(id.prefix(8)))")
             await activity.update(
                 ActivityContent(
                     state: item.state,
@@ -105,6 +111,9 @@ enum LiveActivityRefresher {
                             pushType: nil
                         )
                     }
+                    print(
+                        "  requested \(item.state.commitmentTitle) start=\(String(describing: item.scheduledStart ?? now)) scheduled=\(item.scheduledStart != nil)"
+                    )
                     break
                 } catch let authError as ActivityAuthorizationError
                     where authError == .targetMaximumExceeded || authError == .globalMaximumExceeded
@@ -115,9 +124,15 @@ enum LiveActivityRefresher {
                     guard let candidate = evictablePendings.first,
                         candidate.state.windowStart > (item.scheduledStart ?? now)
                     else {
+                        print(
+                            "  capacity (\(authError)) and no evictable pending later than \(item.state.commitmentTitle) — stopping"
+                        )
                         break requestLoop
                     }
                     evictablePendings.removeFirst()
+                    print(
+                        "  evicting \(candidate.state.commitmentTitle) start=\(candidate.state.windowStart) to seat \(item.state.commitmentTitle)"
+                    )
                     if let pending = seated.first(where: { $0.id == candidate.id }) {
                         await pending.end(nil, dismissalPolicy: .immediate)
                     }
