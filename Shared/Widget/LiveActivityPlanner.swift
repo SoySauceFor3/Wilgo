@@ -39,6 +39,7 @@ struct ReconcileActions {
     var toRequest: [PlannedLiveActivity] = []
     /// Matching pending cards kept as-is. Ordered eviction candidates if capacity later
     /// blocks a more imminent request (see the refresher's request loop).
+    /// This part should not use end-request, as when the app runs in background the LA request is not allowed.
     var keptPendings: [(id: String, state: NowAttributes.ContentState)] = []
 }
 
