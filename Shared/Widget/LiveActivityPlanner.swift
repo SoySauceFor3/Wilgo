@@ -26,7 +26,9 @@ struct ExistingActivity {
 
 /// The reconciliation decision, computed purely so it can be unit-tested.
 /// Note: for pending (not happened yet) LA card, if need editting, we End and then Request;
-/// If nothing changes, we KeptPendings.
+/// If nothing changes, we keep it untouched — no action recorded. An unchanged card must never
+/// be end+re-requested (a background run could end it and then be unable to re-request), and
+/// eviction candidates are read live from ActivityKit by the refresher, not carried here.
 /// In a experiment (commit 39a84f079c91278f71e4bb04376d097f9785a912 and previous), we find out that
 /// update is silently ignored for pending cards.
 struct ReconcileActions {
@@ -37,10 +39,6 @@ struct ReconcileActions {
     var toUpdate: [(id: String, item: PlannedLiveActivity)] = []
     /// Planned cards with no counterpart — request, nearest-first.
     var toRequest: [PlannedLiveActivity] = []
-    /// Matching pending cards kept as-is. Ordered eviction candidates if capacity later
-    /// blocks a more imminent request (see the refresher's request loop).
-    /// This part should not use end-request, as when the app runs in background the LA request is not allowed.
-    var keptPendings: [(id: String, state: NowAttributes.ContentState)] = []
 }
 
 enum LiveActivityPlanner {
@@ -156,7 +154,8 @@ enum LiveActivityPlanner {
     /// 2. **New** — planned but no existing card for its firing → request.
     /// 3. **Overlap** — same firing on both sides:
     ///    - content identical → keep untouched (zero churn on unchanged cards — this is why
-    ///      planned content must be deterministic); pendings become eviction candidates;
+    ///      planned content must be deterministic); kept pendings are the eviction currency,
+    ///      but the refresher reads candidates live from ActivityKit, so nothing is recorded;
     ///    - changed + pending → end + re-request (invisible, and `update()` on a pending card
     ///      is silently ignored — on-device spike, 2026-07-07);
     ///    - changed + started → update in place (visible, so end+recreate would blink).
@@ -178,10 +177,7 @@ enum LiveActivityPlanner {
                 continue
             }
             if item.state == activity.state {
-                // 3a. Overlap, unchanged → keep; pendings are the eviction currency.
-                if activity.isPending {
-                    actions.keptPendings.append((id: activity.id, state: item.state))
-                }
+                // 3a. Overlap, unchanged → keep untouched, no action.
             } else if activity.isPending {
                 // 3b. Overlap, changed while invisible → recreate.
                 actions.toEnd.append(activity.id)

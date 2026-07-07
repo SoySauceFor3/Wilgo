@@ -36,3 +36,14 @@ struct NowAttributes: ActivityAttributes {
         var targetCount: Int?
     }
 }
+
+extension NowAttributes.ContentState {
+    /// Chronological order of the cards' occurrence windows — earlier start first, ties broken
+    /// by earlier end (the same `(start, end)` ordering as `SlotOccurrence`'s `Comparable`).
+    /// Under `max(by:)` this picks the farthest window: latest start, then latest end — i.e.
+    /// the least urgent card, matching the deadline-based `relevanceScore` semantics.
+    func windowPrecedes(_ other: Self) -> Bool {
+        if windowStart != other.windowStart { return windowStart < other.windowStart }
+        return windowEnd < other.windowEnd
+    }
+}

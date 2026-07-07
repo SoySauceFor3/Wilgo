@@ -218,11 +218,10 @@ final class LiveActivityPlannerTests {
             planned: [plannedItem(matching), plannedItem(newState)]
         )
 
+        // The kept STARTED match ("act-1") appears in no bucket.
         #expect(actions.toEnd == ["act-2"])
         #expect(actions.toRequest.map(\.state) == [newState])
         #expect(actions.toUpdate.isEmpty)
-        // A kept STARTED match appears in no bucket — it is not an eviction candidate either.
-        #expect(actions.keptPendings.isEmpty)
     }
 
     @Test("diff with changed content for same started firing updates it in place")
@@ -296,8 +295,10 @@ final class LiveActivityPlannerTests {
         #expect(actions.toRequest.map(\.state) == [new])
     }
 
-    @Test("diff: matching pending activities are reported as eviction candidates")
-    func diffKeptPendings() {
+    @Test("diff: unchanged pending activity is kept untouched — no bucket at all")
+    func diffUnchangedPendingUntouched() {
+        // Load-bearing for background safety: an unchanged pending must never be end+re-requested
+        // (a background run could end it and then be unable to re-request it).
         let s = state(
             title: "A", slotId: UUID(),
             start: Date(timeIntervalSince1970: 1_000_000),
@@ -310,6 +311,6 @@ final class LiveActivityPlannerTests {
 
         #expect(actions.toEnd.isEmpty)
         #expect(actions.toRequest.isEmpty)
-        #expect(actions.keptPendings.map(\.id) == ["act-1"])
+        #expect(actions.toUpdate.isEmpty)
     }
 }

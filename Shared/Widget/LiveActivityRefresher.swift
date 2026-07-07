@@ -31,15 +31,15 @@ enum LiveActivityRefresher {
             planned: planned
         )
         print(
-            "  actions: end=\(actions.toEnd.count) update=\(actions.toUpdate.count) request=\(actions.toRequest.count) keptPending=\(actions.keptPendings.count)"
+            "  actions: end=\(actions.toEnd.count) update=\(actions.toUpdate.count) request=\(actions.toRequest.count)"
         )
 
         // Phase order is load-bearing: ends run first because they free seats the requests
-        // will need; requests run last, nearest-first, evicting kept pendings on capacity.
+        // will need; requests run last, nearest-first, evicting the farthest live pending
+        // on capacity.
         await endOrphans(actions.toEnd, in: seated)
         await updateStartedCards(actions.toUpdate, in: seated)
-        await requestNearestFirst(
-            actions.toRequest, evicting: actions.keptPendings, in: seated, now: now)
+        await requestNearestFirst(actions.toRequest, now: now)
     }
 
     // MARK: - Inputs
@@ -112,20 +112,37 @@ enum LiveActivityRefresher {
     /// Any other error (.visibility from a background wake, .denied) stops the loop without
     /// evicting — ending a pending we cannot replace would only destroy scheduled coverage.
     ///
-    /// The candidate list (`keptPendings`) looks narrow but is provably complete — nothing else
-    /// seated can ever be the right eviction: a *started* card's `windowStart` is in the past, so
-    /// it can never pass the strictly-later guard (and evicting a visible card would be
-    /// user-facing destruction); and anything requested *earlier in this run* is nearer than the
-    /// current item (nearest-first order), so evicting it would trade a nearer card for a farther
-    /// one. Only pendings left over from previous runs can be farther than what we're seating.
+    /// Candidates are read live from `Activity.activities` at each capacity throw — the actual
+    /// seated world, no bookkeeping. The strictly-later guard automatically excludes everything
+    /// that must not be evicted: a *started* card's `windowStart` is in the past (and evicting a
+    /// visible card would be user-facing destruction), and anything requested *earlier in this
+    /// run* is nearer than the current item (nearest-first order). So a passing candidate is
+    /// always a pending left over from a previous run.
+    ///
+    /// `evictedIds` guards termination. In the expected case it changes nothing: `end()` flips
+    /// the candidate out of `.pending` and the filter drops it. But that flip's timing is
+    /// undocumented (ActivityKit state lives in a system daemon and propagates back
+    /// asynchronously — the update-on-pending spike showed this corner misbehaving), and if it
+    /// lagged, the retry would re-pick the same candidate forever: an unbounded loop on the main
+    /// actor that also blocks every future reconcile queued behind this one. Excluding by id
+    /// makes termination provable from our own code — each capacity retry consumes one distinct
+    /// candidate, so retries ≤ pending count, then the guard fails and the loop stops. Worst
+    /// case under a lagging flip is evicting one pending more than needed, which the next
+    /// reconcile re-requests (its firing is still planned): self-healing, unlike a hang.
+    ///
+    /// Termination, exhaustively: every retry-loop pass either succeeds (break), hits a
+    /// non-capacity error (break requestLoop), fails the eviction guard (break requestLoop), or
+    /// grows `evictedIds` by one — so the whole function is bounded by items × pendings
+    /// iterations, with no timing assumptions. (Our own successful requests do add pendings
+    /// mid-loop, but nearest-first order keeps them earlier than the current item, so the
+    /// strictly-later guard can never select them.)
+    ///
+    /// Stale cards are never candidates and never need to be: stale ⟺ window ended (staleDate
+    /// is set to the occurrence end) ⟹ absent from the plan (`end > now` filter) ⟹ orphaned and
+    /// ended in phase 1 — their seats are already free before the first request runs.
     @MainActor
-    private static func requestNearestFirst(
-        _ items: [PlannedLiveActivity],
-        evicting keptPendings: [(id: String, state: NowAttributes.ContentState)],
-        in seated: [Activity<NowAttributes>],
-        now: Date
-    ) async {
-        var evictablePendings = keptPendings.sorted { $0.state.windowStart > $1.state.windowStart }
+    private static func requestNearestFirst(_ items: [PlannedLiveActivity], now: Date) async {
+        var evictedIds: Set<String> = []
         requestLoop: for item in items.sorted(by: {
             ($0.scheduledStart ?? now) < ($1.scheduledStart ?? now)
         }) {
@@ -142,21 +159,22 @@ enum LiveActivityRefresher {
                     // Evict only a pending strictly LESS imminent than what we're requesting —
                     // evicting a nearer one would be self-defeating, and not evicting on ties
                     // prevents equally-urgent cards from oscillating across reconciles.
-                    guard let candidate = evictablePendings.first,
-                        candidate.state.windowStart > (item.scheduledStart ?? now)
+                    let candidate = Activity<NowAttributes>.activities
+                        .filter { $0.activityState == .pending && !evictedIds.contains($0.id) }
+                        .max(by: { $0.content.state.windowPrecedes($1.content.state) })
+                    guard let candidate,
+                        candidate.content.state.windowStart > (item.scheduledStart ?? now)
                     else {
                         print(
                             "  capacity (\(authError)) and no evictable pending later than \(item.state.commitmentTitle) — stopping"
                         )
                         break requestLoop  // break the named outer loop
                     }
-                    evictablePendings.removeFirst()
+                    evictedIds.insert(candidate.id)
                     print(
-                        "  evicting \(candidate.state.commitmentTitle) start=\(candidate.state.windowStart) to seat \(item.state.commitmentTitle)"
+                        "  evicting \(candidate.content.state.commitmentTitle) start=\(candidate.content.state.windowStart) to seat \(item.state.commitmentTitle)"
                     )
-                    if let pending = seated.first(where: { $0.id == candidate.id }) {
-                        await pending.end(nil, dismissalPolicy: .immediate)
-                    }
+                    await candidate.end(nil, dismissalPolicy: .immediate)
                     // retry the same item
                 } catch {
                     print("LiveActivityRefresher.refresh() - request stopped: \(error)")
