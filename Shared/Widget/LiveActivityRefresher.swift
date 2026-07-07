@@ -15,17 +15,8 @@ import SwiftData
 /// task degrades to a janitor that can still *end* stale cards. That is by design for this scope
 /// (see documentation/ScheduledLiveActivity-implementation.md: BG work is deferred).
 enum LiveActivityRefresher {
-    /// TEMPORARY (pending-update spike): when true, reconciles are skipped so the spike's probe
-    /// card is not orphan-ended by the diff. Set only by `PendingUpdateSpike`; remove with it.
-    @MainActor
-    static var spikePaused = false
-
     @MainActor
     static func refresh(context: ModelContext, now: Date? = nil) async {
-        if spikePaused {
-            print("LiveActivityRefresher.refresh() skipped: pending-update spike is running")
-            return
-        }
         let now = now ?? Time.now()
         let commitments = (try? context.fetch(.activeOnly)) ?? []
         let planned = LiveActivityPlanner.plan(commitments: commitments, now: now)

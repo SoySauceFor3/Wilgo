@@ -146,8 +146,5 @@ private struct AppRootView: View {
 
             CheckInUndoBannerOverlay()
         }
-        .task {
-            await PendingUpdateSpike.runIfRequested()
-        }
     }
 }
