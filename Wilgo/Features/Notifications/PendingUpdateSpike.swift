@@ -22,6 +22,14 @@ enum PendingUpdateSpike {
         LiveActivityRefresher.spikePaused = true
         print("PendingUpdateSpike: reconciles paused")
 
+        // Clear every existing Wilgo card first: a full queue (~5) would make the probe's
+        // request throw on capacity, silently turning the run into a test of nothing.
+        let preexisting = Activity<NowAttributes>.activities
+        for activity in preexisting {
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
+        print("PendingUpdateSpike: cleared \(preexisting.count) existing activities")
+
         let start = Date().addingTimeInterval(10 * 60)
         let end = start.addingTimeInterval(30 * 60)
         let oldState = NowAttributes.ContentState(
