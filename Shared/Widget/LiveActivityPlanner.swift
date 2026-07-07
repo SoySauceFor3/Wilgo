@@ -25,6 +25,10 @@ struct ExistingActivity {
 }
 
 /// The reconciliation decision, computed purely so it can be unit-tested.
+/// Note: for pending (not happened yet) LA card, if need editting, we End and then Request;
+/// If nothing changes, we KeptPendings.
+/// In a experiment (commit 39a84f079c91278f71e4bb04376d097f9785a912 and previous), we find out that
+/// update is silently ignored for pending cards.
 struct ReconcileActions {
     /// Orphans (no planned counterpart) — end immediately.
     var toEnd: [String] = []
@@ -57,7 +61,9 @@ enum LiveActivityPlanner {
         let occurrences: [(SlotOccurrence, Commitment)] =
             commitments
             .filter { $0.isActiveForReminders(now: now) }
-            .flatMap { c in c.slotOccurrences(from: now, until: horizon, calendar: calendar).map { ($0, c) } }
+            .flatMap { c in
+                c.slotOccurrences(from: now, until: horizon, calendar: calendar).map { ($0, c) }
+            }
             .filter { $0.0.end > now }  // softFrom lets open occurrences in; drop fully-past ones
             // SlotOccurrence `<` ties on identical windows and Swift's sort is not stable, so a
             // tie straddling the `prefix(maxPlanned)` cutoff would make plan membership depend on
@@ -130,35 +136,63 @@ enum LiveActivityPlanner {
         max(0, 4_000_000_000 - windowEnd.timeIntervalSince1970)
     }
 
-    /// An existing activity whose state exactly equals a planned state is kept (zero churn on
-    /// unchanged cards — this is why planned content must be deterministic). A *started* activity
-    /// matching a planned card's firing identity (`slotId` + `windowStart`) with different content
-    /// is updated in place. Everything else existing is ended; every unmatched planned card is
-    /// requested.
+    /// The card's identity: which firing (slot + day) it represents. The same slot fires every
+    /// day, so `slotId` alone would conflate today's card with tomorrow's — `windowStart` pins
+    /// the day. A passed card is a *different firing* than the slot's next occurrence and must
+    /// never be updated into it.
+    private struct FiringKey: Hashable {
+        let slotId: UUID
+        let windowStart: Date
+
+        init(_ state: NowAttributes.ContentState) {
+            self.slotId = state.slotId
+            self.windowStart = state.windowStart
+        }
+    }
+
+    /// Partition by firing identity, in three steps:
+    /// 1. **Deleted** — exists but its firing is no longer planned → end.
+    /// 2. **New** — planned but no existing card for its firing → request.
+    /// 3. **Overlap** — same firing on both sides:
+    ///    - content identical → keep untouched (zero churn on unchanged cards — this is why
+    ///      planned content must be deterministic); pendings become eviction candidates;
+    ///    - changed + pending → end + re-request (invisible, and `update()` on a pending card
+    ///      is silently ignored — on-device spike, 2026-07-07);
+    ///    - changed + started → update in place (visible, so end+recreate would blink).
     static func diff(
         existing: [ExistingActivity],
         planned: [PlannedLiveActivity]
     ) -> ReconcileActions {
         var actions = ReconcileActions()
-        var remaining = planned
+        // One card per occurrence ⇒ unique keys; keep the first defensively if that ever breaks.
+        var plannedByFiring = Dictionary(
+            planned.map { (FiringKey($0.state), $0) },
+            uniquingKeysWith: { first, _ in first }
+        )
+
         for activity in existing {
-            if let matched = remaining.firstIndex(where: { $0.state == activity.state }) {
-                let item = remaining.remove(at: matched)
+            guard let item = plannedByFiring.removeValue(forKey: FiringKey(activity.state)) else {
+                // 1. Deleted (or a duplicate whose firing was already consumed) → end.
+                actions.toEnd.append(activity.id)
+                continue
+            }
+            if item.state == activity.state {
+                // 3a. Overlap, unchanged → keep; pendings are the eviction currency.
                 if activity.isPending {
                     actions.keptPendings.append((id: activity.id, state: item.state))
                 }
-            } else if !activity.isPending,
-                let sameFiring = remaining.firstIndex(where: {
-                    $0.state.slotId == activity.state.slotId
-                        && $0.state.windowStart == activity.state.windowStart
-                })
-            {
-                actions.toUpdate.append((id: activity.id, item: remaining.remove(at: sameFiring)))
-            } else {
+            } else if activity.isPending {
+                // 3b. Overlap, changed while invisible → recreate.
                 actions.toEnd.append(activity.id)
+                actions.toRequest.append(item)
+            } else {
+                // 3c. Overlap, changed while visible → update in place.
+                actions.toUpdate.append((id: activity.id, item: item))
             }
         }
-        actions.toRequest = remaining
+
+        // 2. New — plan entries whose firing matched nothing existing.
+        actions.toRequest += plannedByFiring.values
         return actions
     }
 }
