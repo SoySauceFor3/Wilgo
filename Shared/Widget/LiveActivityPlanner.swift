@@ -32,7 +32,7 @@ struct ExistingActivity {
 struct ReconcileActions {
     /// Orphans (no planned counterpart) — end immediately.
     var toEnd: [String] = []
-    /// Started activities whose firing is still planned but whose content changed — update
+    /// Active/current LA cards whose firing is still planned but whose content changed — update
     /// in place (`Activity.update` is legal even from the background and does not blink).
     var toUpdate: [(id: String, item: PlannedLiveActivity)] = []
     /// Planned cards with no counterpart — request, nearest-first.

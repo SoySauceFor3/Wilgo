@@ -100,6 +100,16 @@ enum LiveActivityRefresher {
             )
             while true {
                 do {
+                    // Two request paths, mirroring the plan's own split — this is behavior, not
+                    // convenience: only the scheduled overload can make a card appear *later*
+                    // (the system holds it and starts it even if the app is dead — the whole
+                    // point of this design), and Apple makes its alert configuration mandatory
+                    // (an app-scheduled card appearing while the user is outside the app must
+                    // announce itself). The plain overload shows the card *now, silently* —
+                    // right for already-open occurrences, which get (re)created during quiet
+                    // repairs where an alert would ding on every fix. Funneling immediate cards
+                    // through the scheduled overload with a past start date would both force
+                    // that ding and rely on unspecified API behavior.
                     if let start = item.scheduledStart {
                         // Scheduled start: the system starts the card at `start` even if the app
                         // is dead by then. The alert configuration is mandatory for scheduled
