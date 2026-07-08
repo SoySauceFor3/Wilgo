@@ -908,6 +908,16 @@ Original hypothesis: the reconcile-serialization chain made `CheckInIntent.perfo
 
 **Post-mortem — most probable actual cause of the original incident: the ended/dismissed-corpse bug fixed by G1** (`27d024c`). Pre-G1, the diff matched against *all* of `Activity.activities`: after Done ended the old card, its lingering `.dismissed` corpse matched the plan at every subsequent reconcile, so the replacement was never re-requested — explaining "never comes back, even on foreground," which visibility alone never could. (Saturation theory: to be closed by confirming the originally-affected commitment has no per-slot check-in cap.)
 
+### Reading the persisted diagnostics (dogfood log retrieval)
+
+All Live Activity reconcile diagnostics go through `os.Logger(subsystem: "wilgo", category: "LiveActivity")` at `.notice` with public privacy — they persist in the device's system log store even when the app runs unattached. To inspect after the fact:
+
+- **Console.app (browsing):** connect the iPhone → Console.app → select the device in the sidebar → press Start streaming for live, or use the search field with filter `subsystem:wilgo` (add `category:LiveActivity` to narrow). Good for "what happened in the last few minutes."
+- **Full historical dump (Terminal):**
+  1. `sudo log collect --device --last 2d` (adjust `--last`; writes `system_logs.logarchive` to the current directory)
+  2. `log show system_logs.logarchive --predicate 'subsystem == "wilgo"' --info > wilgo.log`
+- **What to look for:** `end-diagnostic` lines (the blink anomaly firing — full-precision window comparison + differing fields), `request stopped:` lines (a request failing in real unattached use — would reopen the F2 question), `evicting` lines (capacity eviction engaging), and each reconcile's `N seated, M planned` block for general health.
+
 **Open anomaly (2026-07-08 09:07:28, under observation):** while the app was active and untouched, a started card was ended + re-requested (visible blink) although a same-printed-time occurrence of its slot was in the plan — an outcome the diff should not produce. A dedicated `end-diagnostic` log line now fires whenever it recurs (full-precision windows + differing state fields); diagnostics were converted to persisted `os.Logger` (subsystem "wilgo") so unattached dogfood runs stay readable via Console.app / `log collect`. Measured device queue cap: **5**.
 
 ### Bug 3 — Only one of several current cards shows (capacity hogging)
