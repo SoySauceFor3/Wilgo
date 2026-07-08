@@ -15,33 +15,37 @@ private extension ModelContext {
 }
 
 enum NowLiveActivityManager {
-    /// Serializes reconciles: `refresh` is @MainActor but suspends at each `await activity.end`,
-    /// and wake paths can fire back-to-back (e.g. the `.inactive` and `.background` scene-phase
-    /// transitions). Two interleaved runs could both request the same card — a duplicate pending
-    /// scheduled activity that wastes a queue slot and can fire a duplicate start alert. Chaining
-    /// each run behind the previous one closes that window.
     @MainActor
     private static var refreshTask: Task<Void, Never>?
 
+    // Serializes runs so no `refresh()` body starts until the previous one has fully finished —
+    // `refresh()` breaks if two runs interleave (see its doc). Two pieces do this:
+    //
+    // 1. The Task bridges sync callers into async `refresh()`, AND its handle reifies the
+    //    in-flight run as a value the next call can wait on. (A bare `await refresh()`
+    //    would leave nothing for the next call to chain behind.)
+    // 2. The read of `previous` and the write of `refreshTask` are synchronous and adjacent —
+    //    no `await` between them — so the swap is an atomic "append myself to the chain" step.
+    //    A later `apply()` is therefore guaranteed to read THIS run as its `previous`; it can't
+    //    slip into a gap and chain behind the wrong predecessor.
     @MainActor
     private static func apply() {
         let previous = refreshTask
-        // Serializes runs so no `refresh()` body starts until the previous one has fully finished —
-        // `refresh()` breaks if two runs interleave (see its doc). Two pieces do this:
-        //
-        // 1. The Task bridges sync callers into async `refresh()`, AND its handle reifies the
-        //    in-flight run as a value the next call can wait on. (A bare `await refresh()` here
-        //    would leave nothing for the next call to chain behind.)
-        // 2. The read of `previous` and the write of `refreshTask` are synchronous and adjacent —
-        //    no `await` between them — so the swap is an atomic "append myself to the chain" step.
-        //    A later `apply()` is therefore guaranteed to read THIS run as its `previous`; it can't
-        //    slip into a gap and chain behind the wrong predecessor.
+
+        // Scheduling note: `Task { ... }` constructs the task and returns its handle synchronously,
+        // so the assignment to `refreshTask` completes before the body runs. The body itself is only
+        // ENQUEUED on the main actor's executor, not run inline — because `apply()` is synchronous
+        // and already on the main actor, the body can't start until the current synchronous work
+        // unwinds and the executor is free. Correctness does not depend on WHEN the body starts,
+        // only on the synchronous read/write in point 2: whenever the body runs, `previous` has
+        // already captured the prior task by value, so `await previous?.value` gates behind it.
         refreshTask = Task { @MainActor in
             // Gate: park this run until the previous run's `refresh()` has fully returned (including
             // all of its internal `await`s), so their bodies never interleave.
             await previous?.value
             await LiveActivityRefresher.refresh(context: ModelContext.wilgoMain)
         }
+        // IF there is statement, it would run before the refreshTask boy executes.
     }
 
     private static let backgroundTaskIdentifier = "wilgo.live-activity-sync"
