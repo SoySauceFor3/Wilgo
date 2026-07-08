@@ -14,10 +14,6 @@ private extension ModelContext {
     }
 }
 
-/// Owns all Live Activity lifecycle operations (start / update / end).
-/// 3. **BGAppRefreshTask** (`registerBackgroundTask` / `scheduleBackgroundTask`):
-///    wakes the app at each slot boundary even when suspended or killed.
-///    Scheduled on every scene-phase change and self-sustaining after each fire.
 enum NowLiveActivityManager {
     /// Serializes reconciles: `refresh` is @MainActor but suspends at each `await activity.end`,
     /// and wake paths can fire back-to-back (e.g. the `.inactive` and `.background` scene-phase
@@ -30,7 +26,19 @@ enum NowLiveActivityManager {
     @MainActor
     private static func apply() {
         let previous = refreshTask
+        // Serializes runs so no `refresh()` body starts until the previous one has fully finished —
+        // `refresh()` breaks if two runs interleave (see its doc). Two pieces do this:
+        //
+        // 1. The Task bridges sync callers into async `refresh()`, AND its handle reifies the
+        //    in-flight run as a value the next call can wait on. (A bare `await refresh()` here
+        //    would leave nothing for the next call to chain behind.)
+        // 2. The read of `previous` and the write of `refreshTask` are synchronous and adjacent —
+        //    no `await` between them — so the swap is an atomic "append myself to the chain" step.
+        //    A later `apply()` is therefore guaranteed to read THIS run as its `previous`; it can't
+        //    slip into a gap and chain behind the wrong predecessor.
         refreshTask = Task { @MainActor in
+            // Gate: park this run until the previous run's `refresh()` has fully returned (including
+            // all of its internal `await`s), so their bodies never interleave.
             await previous?.value
             await LiveActivityRefresher.refresh(context: ModelContext.wilgoMain)
         }
@@ -44,8 +52,8 @@ enum NowLiveActivityManager {
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: backgroundTaskIdentifier,
             using: nil
-        ) { task in
-            guard let refreshTask = task as? BGAppRefreshTask else {
+        ) { task in  // launch handler, use it to report success/failure and to attach an expiration handler.
+            guard let refreshTask = task as? BGAppRefreshTask else {  // type-narrowing guard
                 task.setTaskCompleted(success: false)
                 return
             }

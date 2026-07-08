@@ -24,6 +24,27 @@ enum LiveActivityRefresher {
     private static func logLA(_ message: String) {
         logger.notice("\(message, privacy: .public)")
     }
+    /// NOT safe to run two `refresh()` calls concurrently, even on the main actor.
+    /// Callers must serialize their calls (see `NowLiveActivityManager.apply`).
+    ///
+    /// `refresh()` is read-then-act across suspension points: it snapshots `seated` and `planned`
+    /// up front (synchronously), then acts on that snapshot at the `await` phases below (end /
+    /// update / request). Every `await` releases the main actor, so a second `refresh()` can
+    /// interleave into those gaps and act on a stale snapshot. This breaks in two ways:
+    ///
+    /// 1. Duplicate request. Suppose occurrence X is planned but not yet seated:
+    ///      run A: snapshot (X absent) … await endOrphans … await updateStartedCards …  [suspended]
+    ///      run B:   snapshot (X still absent — A hasn't requested yet) … requests X
+    ///      run A: … requestNearestFirst → requests X again
+    ///    X is now pending twice — wasting one of the scarce queue slots and firing a duplicate
+    ///    start alert.
+    /// 2. Stale reads even after a request. `Activity.request` is async and its result propagates
+    ///    into `Activity<T>.activities` with lag, so a later run's `seatedActivities()` can miss a
+    ///    card an earlier run already created — widening the window in (1) beyond the pure snapshot
+    ///    gap.
+    ///
+    /// Note: cancelling the in-flight run instead of gating wouldn't help — Swift cancellation is
+    /// cooperative and `refresh()` never checks `isCancelled`, so a "cancelled" run keeps going.
     @MainActor
     static func refresh(context: ModelContext, now: Date? = nil) async {
         let now = now ?? Time.now()
