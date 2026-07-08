@@ -902,7 +902,13 @@ The documented end+re-request-on-mismatch trade-off proved visibly annoying in p
 
 ### Bug 2 — Card never returns after Done from the lock screen
 
-The reconcile-serialization chain made `CheckInIntent.perform()` return before the reconcile ran. ActivityKit's "a `LiveActivityIntent` may start Live Activities from the background" grace applies only **while the intent is executing** — the deferred `Activity.request` ran after `perform()` returned and threw `.visibility`; the old card had already been ended. **Fix (Commit F2):** `NowLiveActivityManager.awaitReconcile()` (awaits the chained task) and both intents `await` it inside `perform()` after `refreshAll()`.
+Original hypothesis: the reconcile-serialization chain made `CheckInIntent.perform()` return before the reconcile ran, and ActivityKit's background-request grace applies only while the intent is executing — so the deferred `Activity.request` would throw `.visibility` after the old card had been ended. Proposed fix (F2): intents `await` the reconcile inside `perform()`.
+
+**Verdict (on-device experiment, 2026-07-08): hypothesis REFUTED — F2 not landed.** With the app in confirmed `.background` (`didEnterBackground` logged ~50 s earlier, debugger attached), a lock-screen Snooze's intent-descended reconcile successfully executed a *scheduled* `Activity.request` well after `perform()` returned — no `.visibility` throw. On iOS 26.4, intent-descended background requests work. F2's implementation is parked in the git stash ("F2: intents await reconcile"); revisit only if unattached dogfood ever shows a vanished card after a lock-screen action. (Caveat: the experiment ran debugger-attached; that is the one untested variable.)
+
+**Post-mortem — most probable actual cause of the original incident: the ended/dismissed-corpse bug fixed by G1** (`27d024c`). Pre-G1, the diff matched against *all* of `Activity.activities`: after Done ended the old card, its lingering `.dismissed` corpse matched the plan at every subsequent reconcile, so the replacement was never re-requested — explaining "never comes back, even on foreground," which visibility alone never could. (Saturation theory: to be closed by confirming the originally-affected commitment has no per-slot check-in cap.)
+
+**Open anomaly (2026-07-08 09:07:28, under observation):** while the app was active and untouched, a started card was ended + re-requested (visible blink) although a same-printed-time occurrence of its slot was in the plan — an outcome the diff should not produce. A dedicated `end-diagnostic` log line now fires whenever it recurs (full-precision windows + differing state fields); diagnostics were converted to persisted `os.Logger` (subsystem "wilgo") so unattached dogfood runs stay readable via Console.app / `log collect`. Measured device queue cap: **5**.
 
 ### Bug 3 — Only one of several current cards shows (capacity hogging)
 
