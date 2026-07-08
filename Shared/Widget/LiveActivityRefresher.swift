@@ -1,5 +1,6 @@
 import ActivityKit
 import Foundation
+import OSLog
 import SwiftData
 
 /// Reconciles the set of Wilgo Live Activities (live + pending-scheduled) against the pure plan
@@ -15,6 +16,14 @@ import SwiftData
 /// task degrades to a janitor that can still *end* stale cards. That is by design for this scope
 /// (see documentation/ScheduledLiveActivity-implementation.md: BG work is deferred).
 enum LiveActivityRefresher {
+    /// Persisted diagnostics: `print` only reaches an attached Xcode console, but dogfood runs
+    /// are unattached — `.notice` entries persist in the system log store and can be read after
+    /// the fact via Console.app or `log collect` (filter subsystem "wilgo"). Xcode's console
+    /// shows them live exactly like print did.
+    private static let logger = Logger(subsystem: "wilgo", category: "LiveActivity")
+    private static func logLA(_ message: String) {
+        logger.notice("\(message, privacy: .public)")
+    }
     @MainActor
     static func refresh(context: ModelContext, now: Date? = nil) async {
         let now = now ?? Time.now()
@@ -30,7 +39,7 @@ enum LiveActivityRefresher {
             },
             planned: planned
         )
-        print(
+        logLA(
             "  actions: end=\(actions.toEnd.count) update=\(actions.toUpdate.count) request=\(actions.toRequest.count)"
         )
 
@@ -43,7 +52,7 @@ enum LiveActivityRefresher {
             let s = activity.content.state
             for item in planned where item.state.slotId == s.slotId {
                 let p = item.state
-                print(
+                logLA(
                     "  end-diagnostic \(s.commitmentTitle): windowStart seated=\(s.windowStart.timeIntervalSince1970) planned=\(p.windowStart.timeIntervalSince1970) | windowEnd seated=\(s.windowEnd.timeIntervalSince1970) planned=\(p.windowEnd.timeIntervalSince1970) | stateEqual=\(p == s) title=\(p.commitmentTitle == s.commitmentTitle) slotTime=\(p.slotTimeText == s.slotTimeText) enc=\(p.encouragementText == s.encouragementText) counts=\(p.checkInCount == s.checkInCount && p.targetCount == s.targetCount)"
                 )
             }
@@ -78,17 +87,17 @@ enum LiveActivityRefresher {
     private static func logReconcileInputs(
         seated: [Activity<NowAttributes>], planned: [PlannedLiveActivity], now: Date
     ) {
-        print(
+        logLA(
             "LiveActivityRefresher.refresh() @\(now): \(seated.count) seated, \(planned.count) planned"
         )
         for activity in seated {
             let s = activity.content.state
-            print(
+            logLA(
                 "  seated[\(activity.activityState)] \(s.commitmentTitle) start=\(s.windowStart) end=\(s.windowEnd) id=\(String(activity.id.prefix(8)))"
             )
         }
         for item in planned {
-            print(
+            logLA(
                 "  planned \(item.state.commitmentTitle) start=\(item.state.windowStart) scheduled=\(String(describing: item.scheduledStart != nil))"
             )
         }
@@ -99,7 +108,7 @@ enum LiveActivityRefresher {
     @MainActor
     private static func endOrphans(_ ids: [String], in seated: [Activity<NowAttributes>]) async {
         for activity in seated where ids.contains(activity.id) {
-            print(
+            logLA(
                 "  ending \(activity.content.state.commitmentTitle) id=\(String(activity.id.prefix(8)))"
             )
             await activity.end(nil, dismissalPolicy: .immediate)
@@ -112,7 +121,7 @@ enum LiveActivityRefresher {
     ) async {
         for (id, item) in items {
             guard let activity = seated.first(where: { $0.id == id }) else { continue }
-            print("  updating \(item.state.commitmentTitle) id=\(String(id.prefix(8)))")
+            logLA("  updating \(item.state.commitmentTitle) id=\(String(id.prefix(8)))")
             await activity.update(content(for: item))
         }
     }
@@ -164,7 +173,7 @@ enum LiveActivityRefresher {
             while true {
                 do {
                     try request(item)
-                    print(
+                    logLA(
                         "  requested \(item.state.commitmentTitle) start=\(String(describing: item.scheduledStart ?? now)) scheduled=\(item.scheduledStart != nil)"
                     )
                     break
@@ -180,19 +189,19 @@ enum LiveActivityRefresher {
                     guard let candidate,
                         candidate.content.state.windowStart > (item.scheduledStart ?? now)
                     else {
-                        print(
+                        logLA(
                             "  capacity (\(authError)) and no evictable pending later than \(item.state.commitmentTitle) — stopping"
                         )
                         break requestLoop  // break the named outer loop
                     }
                     evictedIds.insert(candidate.id)
-                    print(
+                    logLA(
                         "  evicting \(candidate.content.state.commitmentTitle) start=\(candidate.content.state.windowStart) to seat \(item.state.commitmentTitle)"
                     )
                     await candidate.end(nil, dismissalPolicy: .immediate)
                     // retry the same item
                 } catch {
-                    print("LiveActivityRefresher.refresh() - request stopped: \(error)")
+                    logLA("LiveActivityRefresher.refresh() - request stopped: \(error)")
                     break requestLoop  // break the named outer loop
                 }
             }
