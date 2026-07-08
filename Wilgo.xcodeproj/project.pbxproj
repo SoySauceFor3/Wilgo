@@ -24,6 +24,8 @@
 		7032547E2FE2F42D0067A19D /* SnoozeIntent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 703254772FE2F42D0067A19D /* SnoozeIntent.swift */; };
 		703254802FE2F8CA0067A19D /* LiveActivityRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7032547F2FE2F8CA0067A19D /* LiveActivityRefresher.swift */; };
 		703254812FE2F8CA0067A19D /* LiveActivityRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7032547F2FE2F8CA0067A19D /* LiveActivityRefresher.swift */; };
+		8AF886EF4B9E4D3591FA0002 /* LiveActivityPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF886EF4B9E4D3591FA0001 /* LiveActivityPlanner.swift */; };
+		8AF886EF4B9E4D3591FA0003 /* LiveActivityPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF886EF4B9E4D3591FA0001 /* LiveActivityPlanner.swift */; };
 		AABB00010001000100010001 /* MemoryProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00000000000000000000 /* MemoryProbe.swift */; };
 /* End PBXBuildFile section */
 
@@ -79,6 +81,7 @@
 		703254762FE2F42D0067A19D /* NowAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NowAttributes.swift; sourceTree = "<group>"; };
 		703254772FE2F42D0067A19D /* SnoozeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnoozeIntent.swift; sourceTree = "<group>"; };
 		7032547F2FE2F8CA0067A19D /* LiveActivityRefresher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityRefresher.swift; sourceTree = "<group>"; };
+		8AF886EF4B9E4D3591FA0001 /* LiveActivityPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityPlanner.swift; sourceTree = "<group>"; };
 		AABB00000000000000000000 /* MemoryProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryProbe.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -257,6 +260,7 @@
 			isa = PBXGroup;
 			children = (
 				7032547F2FE2F8CA0067A19D /* LiveActivityRefresher.swift */,
+				8AF886EF4B9E4D3591FA0001 /* LiveActivityPlanner.swift */,
 				703254752FE2F42D0067A19D /* CheckInIntent.swift */,
 				703254762FE2F42D0067A19D /* NowAttributes.swift */,
 				703254772FE2F42D0067A19D /* SnoozeIntent.swift */,
@@ -454,6 +458,7 @@
 				7032547D2FE2F42D0067A19D /* NowAttributes.swift in Sources */,
 				7032547E2FE2F42D0067A19D /* SnoozeIntent.swift in Sources */,
 				703254802FE2F8CA0067A19D /* LiveActivityRefresher.swift in Sources */,
+				8AF886EF4B9E4D3591FA0002 /* LiveActivityPlanner.swift in Sources */,
 				700D16412F833A60004B6B57 /* AppSettings.swift in Sources */,
 				700D16422F833A60004B6B57 /* InAppScheduler.swift in Sources */,
 				AABB00010001000100010001 /* MemoryProbe.swift in Sources */,
@@ -481,6 +486,7 @@
 				700D18E52F838864004B6B57 /* AppSettings.swift in Sources */,
 				700D166E2F838172004B6B57 /* WilgoConstants.swift in Sources */,
 				703254812FE2F8CA0067A19D /* LiveActivityRefresher.swift in Sources */,
+				8AF886EF4B9E4D3591FA0003 /* LiveActivityPlanner.swift in Sources */,
 				703254792FE2F42D0067A19D /* CheckInIntent.swift in Sources */,
 				7032547A2FE2F42D0067A19D /* NowAttributes.swift in Sources */,
 				7032547B2FE2F42D0067A19D /* SnoozeIntent.swift in Sources */,

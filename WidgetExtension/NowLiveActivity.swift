@@ -8,50 +8,6 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
-// MARK: - Secondary titles (one line)
-
-/// Character budget for the secondary line when not passed explicitly (no font metrics in widgets).
-private enum SecondaryTitlesLineBudget {
-    static let defaultMaxLength = 120
-}
-
-/// Joins non-primary commitment titles with `", "`, fitting as many full titles as possible into
-/// `maxLength` (Swift character count). Appends ` +n more` when some titles are omitted. If a single
-/// title exceeds the budget, it is truncated so the suffix can still appear when needed.
-func formatSecondaryTitlesLine(
-    titles: [String],
-    maxLength: Int = SecondaryTitlesLineBudget.defaultMaxLength
-) -> String {
-    let parts =
-        titles
-        .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-        .filter { !$0.isEmpty }
-    guard !parts.isEmpty, maxLength > 0 else { return "" }
-
-    let n = parts.count
-
-    for k in stride(from: n, through: 1, by: -1) {
-        let head = parts.prefix(k).joined(separator: ", ")
-        let suffix = (k == n) ? "" : " +\(n - k) more"
-
-        if head.count + suffix.count <= maxLength {
-            return head + suffix
-        }
-
-        if k == 1 {
-            let room = maxLength - suffix.count
-            guard room > 0 else { continue }
-            return String(head.prefix(room)) + suffix
-        }
-    }
-
-    let fallback = "+\(n) more"
-    if fallback.count <= maxLength {
-        return fallback
-    }
-    return String(fallback.prefix(maxLength))
-}
-
 // MARK: - Shared chrome
 
 private struct LiveActivitySparkleIcon: View {
@@ -106,40 +62,49 @@ private struct SnoozeCapsuleLink: View {
     }
 }
 
-private struct SecondaryCommitmentsLine: View {
-    let text: String
+private struct CompactTrailingTitle: View {
+    let title: String
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 6) {
-            Image(systemName: "list.bullet")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.tertiary)
-            Text(text)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-        }
+        Text(title)
+            .font(.caption.weight(.medium))
+            .lineLimit(1)
+            .minimumScaleFactor(0.78)
     }
 }
 
-private struct CompactTrailingTitle: View {
-    let title: String
-    let extraCount: Int
+private struct ProgressCountBadge: View {
+    let checkInCount: Int
+    let targetCount: Int
 
     var body: some View {
-        HStack(spacing: 4) {
-            Text(title)
-                .font(.caption.weight(.medium))
-                .lineLimit(1)
-                .minimumScaleFactor(0.78)
-            if extraCount > 0 {
-                Text("+\(extraCount)")
-                    .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 5)
-                    .padding(.vertical, 2)
-                    .background(Capsule(style: .continuous).fill(Color.accentColor.opacity(0.88)))
-                    .accessibilityLabel("\(extraCount) more current")
+        Text("\(checkInCount)/\(targetCount)")
+            .font(.caption2.weight(.bold).monospacedDigit())
+            .foregroundStyle(.tint)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(Capsule(style: .continuous).fill(Color.accentColor.opacity(0.15)))
+            .accessibilityLabel("\(checkInCount) of \(targetCount) done this cycle")
+    }
+}
+
+private struct WindowStatusLine: View {
+    let state: NowAttributes.ContentState
+    let isStale: Bool
+
+    var body: some View {
+        if isStale {
+            Label("Ended", systemImage: "checkmark.circle")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+        } else {
+            HStack(spacing: 6) {
+                Text(timerInterval: state.windowStart...state.windowEnd, countsDown: true)
+                    .font(.caption.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.tint)
+                ProgressView(timerInterval: state.windowStart...state.windowEnd, countsDown: true) {} currentValueLabel: {}
+                .progressViewStyle(.linear)
+                .tint(.accentColor)
             }
         }
     }
@@ -148,21 +113,26 @@ private struct CompactTrailingTitle: View {
 struct NowLiveActivity: Widget {
     var body: some WidgetConfiguration {
         ActivityConfiguration(for: NowAttributes.self) { context in
-            let secondaryLine = formatSecondaryTitlesLine(titles: context.state.secondaryTitles)
-
             HStack(alignment: .top, spacing: 12) {
                 LiveActivitySparkleIcon(diameter: 40)
                 VStack(alignment: .leading, spacing: 6) {
                     HStack(alignment: .top, spacing: 10) {
                         VStack(alignment: .leading, spacing: 3) {
-                            Text(context.state.commitmentTitle)
-                                .font(.headline)
-                                .foregroundStyle(.primary)
-                                .lineLimit(1)
+                            HStack(spacing: 6) {
+                                Text(context.state.commitmentTitle)
+                                    .font(.headline)
+                                    .foregroundStyle(.primary)
+                                    .lineLimit(1)
+                                if let done = context.state.checkInCount,
+                                    let target = context.state.targetCount
+                                {
+                                    ProgressCountBadge(checkInCount: done, targetCount: target)
+                                }
+                            }
                             Text(context.state.slotTimeText)
                                 .font(.caption.weight(.medium))
                                 .foregroundStyle(.secondary)
-                            if let encouragement = context.state.encouragementText {
+                            if let encouragement = context.state.encouragementText, !context.isStale {
                                 Text(encouragement)
                                     .font(.caption)
                                     .foregroundStyle(.yellow)
@@ -171,53 +141,59 @@ struct NowLiveActivity: Widget {
                             }
                         }
                         Spacer(minLength: 8)
-                        HStack(spacing: 6) {
-                            SnoozeCapsuleLink(slotId: context.state.slotId)
-                            DoneCapsuleLink(commitmentId: context.state.commitmentId)
+                        if !context.isStale {
+                            HStack(spacing: 6) {
+                                SnoozeCapsuleLink(slotId: context.state.slotId)
+                                DoneCapsuleLink(commitmentId: context.state.commitmentId)
+                            }
                         }
                     }
-                    if !secondaryLine.isEmpty {
-                        SecondaryCommitmentsLine(text: secondaryLine)
-                    }
+                    WindowStatusLine(state: context.state, isStale: context.isStale)
                 }
             }
             .padding(.vertical, 6)
             .activityBackgroundTint(Color(.systemFill))
             .activitySystemActionForegroundColor(Color.primary)
         } dynamicIsland: { context in
-            let secondaryLine = formatSecondaryTitlesLine(titles: context.state.secondaryTitles)
-            return DynamicIsland {
+            DynamicIsland {
                 DynamicIslandExpandedRegion(.leading) {
                     LiveActivitySparkleIcon(diameter: 28)
                         .padding(.top, 2)
                 }
                 DynamicIslandExpandedRegion(.center) {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(context.state.commitmentTitle)
-                            .font(.subheadline.weight(.semibold))
-                            .lineLimit(1)
+                        HStack(spacing: 6) {
+                            Text(context.state.commitmentTitle)
+                                .font(.subheadline.weight(.semibold))
+                                .lineLimit(1)
+                            if let done = context.state.checkInCount,
+                                let target = context.state.targetCount
+                            {
+                                ProgressCountBadge(checkInCount: done, targetCount: target)
+                            }
+                        }
                         Text(context.state.slotTimeText)
                             .font(.caption2.weight(.medium))
                             .foregroundStyle(.secondary)
-                        if let encouragement = context.state.encouragementText {
+                        if let encouragement = context.state.encouragementText, !context.isStale {
                             Text(encouragement)
                                 .font(.caption2)
                                 .foregroundStyle(.yellow)
                                 .italic()
                                 .lineLimit(1)
                         }
-                        if !secondaryLine.isEmpty {
-                            SecondaryCommitmentsLine(text: secondaryLine)
-                        }
+                        WindowStatusLine(state: context.state, isStale: context.isStale)
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                 }
                 DynamicIslandExpandedRegion(.bottom) {
-                    HStack {
-                        Spacer(minLength: 0)
-                        SnoozeCapsuleLink(slotId: context.state.slotId, compact: true)
-                        DoneCapsuleLink(commitmentId: context.state.commitmentId, compact: true)
-                        Spacer(minLength: 0)
+                    if !context.isStale {
+                        HStack {
+                            Spacer(minLength: 0)
+                            SnoozeCapsuleLink(slotId: context.state.slotId, compact: true)
+                            DoneCapsuleLink(commitmentId: context.state.commitmentId, compact: true)
+                            Spacer(minLength: 0)
+                        }
                     }
                 }
             } compactLeading: {
@@ -225,10 +201,7 @@ struct NowLiveActivity: Widget {
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(.tint)
             } compactTrailing: {
-                CompactTrailingTitle(
-                    title: context.state.commitmentTitle,
-                    extraCount: context.state.secondaryTitles.count
-                )
+                CompactTrailingTitle(title: context.state.commitmentTitle)
             } minimal: {
                 Image(systemName: "sparkles")
                     .font(.caption2)
@@ -247,8 +220,11 @@ private extension NowAttributes.ContentState {
             slotTimeText: "9:00 AM – 11:00 AM",
             commitmentId: UUID(),
             slotId: UUID(),
-            secondaryTitles: ["Walk dog", "Email inbox"],
-            encouragementText: "Just do a little bit"
+            windowStart: Date.now,
+            windowEnd: Date.now.addingTimeInterval(2 * 3600),
+            encouragementText: "Just do a little bit",
+            checkInCount: 1,
+            targetCount: 3
         )
     }
 }
