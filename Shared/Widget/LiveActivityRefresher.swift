@@ -34,6 +34,21 @@ enum LiveActivityRefresher {
             "  actions: end=\(actions.toEnd.count) update=\(actions.toUpdate.count) request=\(actions.toRequest.count)"
         )
 
+        // Diagnostic (anomaly hunt, 2026-07-08 run): a card was ended + re-requested while its
+        // slot still had a same-time planned occurrence — the diff failed to match a firing it
+        // seemingly should have. When that happens again, this prints both sides at full
+        // precision to convict or clear the sub-second-windowStart theory and name the
+        // differing field. Remove with the other diagnostics once the design is validated.
+        for activity in seated where actions.toEnd.contains(activity.id) {
+            let s = activity.content.state
+            for item in planned where item.state.slotId == s.slotId {
+                let p = item.state
+                print(
+                    "  end-diagnostic \(s.commitmentTitle): windowStart seated=\(s.windowStart.timeIntervalSince1970) planned=\(p.windowStart.timeIntervalSince1970) | windowEnd seated=\(s.windowEnd.timeIntervalSince1970) planned=\(p.windowEnd.timeIntervalSince1970) | stateEqual=\(p == s) title=\(p.commitmentTitle == s.commitmentTitle) slotTime=\(p.slotTimeText == s.slotTimeText) enc=\(p.encouragementText == s.encouragementText) counts=\(p.checkInCount == s.checkInCount && p.targetCount == s.targetCount)"
+                )
+            }
+        }
+
         // Phase order is load-bearing: ends run first because they free seats the requests
         // will need; requests run last, nearest-first, evicting the farthest live pending
         // on capacity.
