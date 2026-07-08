@@ -1,6 +1,7 @@
 import ActivityKit
 import BackgroundTasks
 import Foundation
+import OSLog
 import SwiftData
 
 // MARK: - Model access
@@ -29,11 +30,20 @@ enum NowLiveActivityManager {
 
     @MainActor
     private static func apply() {
+        #if PENDING_UPDATE_PROBE
+        // Probe build: suppress ALL reconcile work so PendingUpdateProbe's single card is the only
+        // Live Activity in play and is never ended as an orphan before it fires. See
+        // Shared/Widget/PendingUpdateProbe.swift.
+        Logger(subsystem: "wilgo", category: "LiveActivityProbe")
+            .notice("apply() suppressed by PENDING_UPDATE_PROBE build")
+        return
+        #else
         let previous = refreshTask
         refreshTask = Task { @MainActor in
             await previous?.value
             await LiveActivityRefresher.refresh(context: ModelContext.wilgoMain)
         }
+        #endif
     }
 
     private static let backgroundTaskIdentifier = "wilgo.live-activity-sync"
