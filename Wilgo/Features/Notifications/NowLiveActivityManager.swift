@@ -15,37 +15,21 @@ private extension ModelContext {
 }
 
 enum NowLiveActivityManager {
+    /// Serializes and coalesces reconciles. `LiveActivityRefresher.refresh()` must never run
+    /// concurrently (see its doc: interleaved runs produce duplicate pending activities), and it
+    /// reconciles to *current* state — so when several wake paths fire in a burst (e.g. the
+    /// `.inactive` then `.background` scene-phase transitions), replaying one run per call is
+    /// wasteful. `Coalescer` runs at most one in-flight reconcile plus one follow-up that observes
+    /// the final state.
     @MainActor
-    private static var refreshTask: Task<Void, Never>?
+    private static let coalescer = Coalescer {
+        await LiveActivityRefresher.refresh(context: ModelContext.wilgoMain)
+    }
 
-    // Serializes runs so no `refresh()` body starts until the previous one has fully finished —
-    // `refresh()` breaks if two runs interleave (see its doc). Two pieces do this:
-    //
-    // 1. The Task bridges sync callers into async `refresh()`, AND its handle reifies the
-    //    in-flight run as a value the next call can wait on. (A bare `await refresh()`
-    //    would leave nothing for the next call to chain behind.)
-    // 2. The read of `previous` and the write of `refreshTask` are synchronous and adjacent —
-    //    no `await` between them — so the swap is an atomic "append myself to the chain" step.
-    //    A later `apply()` is therefore guaranteed to read THIS run as its `previous`; it can't
-    //    slip into a gap and chain behind the wrong predecessor.
+    /// Request a reconcile. Non-blocking; folds into the in-flight run if one is active.
     @MainActor
     private static func apply() {
-        let previous = refreshTask
-
-        // Scheduling note: `Task { ... }` constructs the task and returns its handle synchronously,
-        // so the assignment to `refreshTask` completes before the body runs. The body itself is only
-        // ENQUEUED on the main actor's executor, not run inline — because `apply()` is synchronous
-        // and already on the main actor, the body can't start until the current synchronous work
-        // unwinds and the executor is free. Correctness does not depend on WHEN the body starts,
-        // only on the synchronous read/write in point 2: whenever the body runs, `previous` has
-        // already captured the prior task by value, so `await previous?.value` gates behind it.
-        refreshTask = Task { @MainActor in
-            // Gate: park this run until the previous run's `refresh()` has fully returned (including
-            // all of its internal `await`s), so their bodies never interleave.
-            await previous?.value
-            await LiveActivityRefresher.refresh(context: ModelContext.wilgoMain)
-        }
-        // IF there is statement, it would run before the refreshTask boy executes.
+        coalescer.trigger()
     }
 
     private static let backgroundTaskIdentifier = "wilgo.live-activity-sync"
@@ -56,18 +40,26 @@ enum NowLiveActivityManager {
         BGTaskScheduler.shared.register(
             forTaskWithIdentifier: backgroundTaskIdentifier,
             using: nil
-        ) { task in  // launch handler, use it to report success/failure and to attach an expiration handler.
-            guard let refreshTask = task as? BGAppRefreshTask else {  // type-narrowing guard
-                task.setTaskCompleted(success: false)
-                return
-            }
-            Task { @MainActor in
+        ) { task in
+            let work = Task { @MainActor in
                 workAndScheduleNextBGTask()
-                refreshTask.setTaskCompleted(success: true)
+                // Await the reconcile before reporting completion: `setTaskCompleted` lets iOS
+                // suspend the process, and the coalescer's run would otherwise still be in flight.
+                await coalescer.wait()
+                task.setTaskCompleted(success: true)
+            }
+            // If iOS reclaims the wake before the reconcile finishes, cancel and report failure so
+            // the task is retried rather than silently marked done mid-flight.
+            task.expirationHandler = {
+                work.cancel()
+                task.setTaskCompleted(success: false)
             }
         }
     }
 
+    /// Queue the next wake and request a reconcile. Fire-and-forget: the reconcile runs on the
+    /// coalescer. The BG handler additionally `await coalescer.wait()`s before completing so iOS
+    /// can't suspend the process mid-reconcile.
     @MainActor
     static func workAndScheduleNextBGTask() {
         // Re-schedule for the next slot boundary before doing the work so that even
