@@ -129,9 +129,7 @@ enum SlotStartNotificationScheduler {
     {
         let content = UNMutableNotificationContent()
         content.title = "\(commitments.count) commitments starting now"
-        let titles = commitments.map(\.title)
-        let primary = titles.prefix(3).joined(separator: " · ")
-        content.body = titles.count > 3 ? "\(primary) · +\(titles.count - 3) more" : primary
+        content.body = NotificationText.joinedTitles(commitments.map(\.title))
         content.userInfo = ["commitmentIds": commitments.map(\.id.uuidString)]
         return content
     }

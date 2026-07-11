@@ -155,13 +155,7 @@ enum CatchUpReminder {
         }
 
         content.title = "Catch up on \(count) commitments"
-        let titles = commitments.map(\.title)
-        let primary = titles.prefix(3).joined(separator: " · ")
-        if titles.count > 3 {
-            content.body = "\(primary) · +\(titles.count - 3) more"
-        } else {
-            content.body = primary
-        }
+        content.body = NotificationText.joinedTitles(commitments.map(\.title))
         return content
     }
 
