@@ -101,8 +101,6 @@ struct WilgoApp: App {
                 // Sync the Live Activity immediately so it's accurate the moment it becomes visible,
                 // then queue a BGAppRefreshTask to keep it updated while the app stays inactive.
                 Task { await NowLiveActivityManager.workAndScheduleNextBGTask() }
-                // Schedule next BGAppRefresh of slot-start notifications
-                SlotStartNotificationScheduler.scheduleBackgroundTask()
             }
         }
     }

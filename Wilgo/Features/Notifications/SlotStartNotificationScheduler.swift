@@ -2,8 +2,9 @@ import Foundation
 import SwiftData
 import UserNotifications
 
-enum SlotStartNotificationScheduler {
+enum SlotStartNotificationScheduler: BackgroundRefreshScheduler {
     static let backgroundTaskIdentifier = "wilgo.slot-start-scheduler"
+    static var nextWakeEarliestDate: Date { Date().addingTimeInterval(24 * 60 * 60) }
     static let notificationIdentifierPrefix = "wilgo.slot-start."
     static let maxPendingCount = 48
     // Upper bound on how far ahead to enumerate slot starts. Without this, a user
@@ -14,11 +15,10 @@ enum SlotStartNotificationScheduler {
 
     // MARK: - Public entry point
 
-    /// Async so callers that must not outlive the work — the BGAppRefreshTask handler, which may
-    /// only `setTaskCompleted` after the notification store is actually updated — can await it.
-    /// App-alive callers may fire-and-forget with `Task { await refresh() }`.
+    /// Rebuilds the pending slot-start notifications from current commitments.
     @MainActor
-    static func refresh(now: Date = Time.now()) async {
+    static func performWork() async {
+        let now = Time.now()
         let context = ModelContext.wilgoMain
         let commitments = (try? context.fetch(.activeOnly)) ?? []
 
@@ -40,20 +40,6 @@ enum SlotStartNotificationScheduler {
         for request in requests {
             try? await center.add(request)
         }  // add new ones
-    }
-
-    // MARK: - BGAppRefreshTask
-
-    static func registerBackgroundTask() {
-        BGWake.register(backgroundTaskIdentifier) {
-            // Re-schedule before the work so a mid-flight kill still leaves a wake queued.
-            scheduleBackgroundTask()
-            await refresh()
-        }
-    }
-
-    static func scheduleBackgroundTask() {
-        BGWake.submit(backgroundTaskIdentifier, earliestBeginDate: Date().addingTimeInterval(24 * 60 * 60))
     }
 
     // MARK: - Scheduling logic (internal for testing)
