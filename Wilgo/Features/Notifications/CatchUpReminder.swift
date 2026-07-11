@@ -190,7 +190,7 @@ enum CatchUpReminder {
         let content = makeNotificationContent(for: catchUp)
 
         for (index, fireDate) in dates.enumerated() {
-            let components = Calendar.current.dateComponents(
+            let components = Time.calendar.dateComponents(
                 [.year, .month, .day, .hour, .minute, .second],
                 from: fireDate
             )

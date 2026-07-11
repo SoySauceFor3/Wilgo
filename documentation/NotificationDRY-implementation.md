@@ -61,14 +61,13 @@ No SwiftData model changes.
 | ------------------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
 | **New:** `Wilgo/Features/Notifications/BGWake.swift`                                 | BGTask register/handle/submit helper + `BGWakeTask` seam                          |
 | **New:** `Wilgo/Features/Notifications/ModelContext+WilgoMain.swift`                 | `ModelContext.wilgoMain` moved out of NowLiveActivityManager, now internal        |
-| **New:** `Wilgo/Features/Notifications/UNCalendarNotificationTrigger+FireOnce.swift` | `fireOnce(at:)` one-shot trigger builder on `Time.calendar`                       |
+| ~~New: `UNCalendarNotificationTrigger+FireOnce.swift`~~                              | **Dropped during execution** (3Sauce: shallow wrapper / over-abstraction) — Commit 3 became the one-line `Calendar.current` → `Time.calendar` fix |
 | **New:** `Wilgo/Features/Notifications/NotificationText.swift`                       | `joinedTitles(_:visibleCount:)` shared body format                                |
 | `NowLiveActivityManager.swift`                                                       | Adopt BGWake; drop private `wilgoMain` extension; remove stray leftover comment   |
 | `SlotStartNotificationScheduler.swift`                                               | Adopt BGWake, `wilgoMain`, `fireOnce`, `joinedTitles`                             |
 | `CatchUpReminder.swift`                                                              | Adopt BGWake, `wilgoMain` (fix), `fireOnce` (`Time.calendar` fix), `joinedTitles` |
 | `CycleEndNotificationScheduler.swift`                                                | Adopt `wilgoMain` (fix)                                                           |
 | **New:** `WilgoTests/Notifications/BGWakeTests.swift`                                | Completion-race tests via `FakeBGTask`                                            |
-| **New:** `WilgoTests/Notifications/FireOnceTriggerTests.swift`                       | Trigger component/repeat tests                                                    |
 | **New:** `WilgoTests/Notifications/NotificationTextTests.swift`                      | Body-format tests                                                                 |
 
 ---
@@ -452,6 +451,12 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 ---
 
 ### Commit 3 — fireOnce(at:) trigger builder; unify on Time.calendar
+
+> **EXECUTED DIFFERENTLY (2026-07-12, decision by 3Sauce):** the `fireOnce` helper was built,
+> then judged a shallow wrapper (3-line Foundation call, 2 call sites, tests that mostly verify
+> Foundation) and reverted. What landed is only the behavior fix: one line in
+> `CatchUpReminder.scheduleNotificationPost`, `Calendar.current` → `Time.calendar`.
+> The steps below are kept for the record of the original design.
 
 **Files:**
 
