@@ -53,10 +53,6 @@ struct WilgoApp: App {
 
         // Register the per-slot-start notification scheduler. Must come before any submit() call.
         SlotStartNotificationScheduler.registerBackgroundTask()
-
-        MainActor.assumeIsolated {
-            MemoryProbe.startForegroundSampler()
-        }
     }
 
     var body: some Scene {
