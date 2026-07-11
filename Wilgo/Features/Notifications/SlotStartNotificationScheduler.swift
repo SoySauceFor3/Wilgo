@@ -19,7 +19,7 @@ enum SlotStartNotificationScheduler {
     /// App-alive callers may fire-and-forget with `Task { await refresh() }`.
     @MainActor
     static func refresh(now: Date = Time.now()) async {
-        let context = WilgoApp.sharedModelContainer.mainContext
+        let context = ModelContext.wilgoMain
         let commitments = (try? context.fetch(.activeOnly)) ?? []
 
         let grouped = startTimeInRangeToCommitments(for: commitments, from: now)

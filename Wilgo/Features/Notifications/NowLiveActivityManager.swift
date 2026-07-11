@@ -2,17 +2,6 @@ import ActivityKit
 import Foundation
 import SwiftData
 
-// MARK: - Model access
-
-/// Reads use `mainContext` so schedule / Live Activity logic sees the same object graph as `@Query`
-/// and `EditCommitmentView`. A fresh `ModelContext(container)` can observe stale store state until
-/// merge/save completes.
-private extension ModelContext {
-    static var wilgoMain: ModelContext {
-        WilgoApp.sharedModelContainer.mainContext
-    }
-}
-
 enum NowLiveActivityManager {
     @MainActor
     private static var refreshTask: Task<Void, Never>?

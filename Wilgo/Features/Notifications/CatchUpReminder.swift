@@ -62,7 +62,7 @@ enum CatchUpReminder {
         now: Date? = nil
     ) async {
         let now = now ?? Time.now()
-        let context = ModelContext(WilgoApp.sharedModelContainer)
+        let context = ModelContext.wilgoMain
         let commitments = (try? context.fetch(.activeOnly)) ?? []
         // Remind every behind commitment (not just the Stage's catch-up bucket): a behind commitment
         // sitting in Upcoming's top-N still needs catching up. `behindForReminder` reads the
