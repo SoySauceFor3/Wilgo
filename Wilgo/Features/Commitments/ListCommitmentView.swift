@@ -83,7 +83,7 @@ struct ListCommitmentView: View {
         withAnimation {
             commitment.archivedAt = Date()
         }
-        CommitmentChangeRefresher.refreshAll()
+        Task { await CommitmentChangeRefresher.refreshAll() }
     }
 }
 

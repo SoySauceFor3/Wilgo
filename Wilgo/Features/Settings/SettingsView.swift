@@ -76,7 +76,7 @@ struct SettingsView: View {
                             let affected = WeekStartChangeHandler.affectedCommitments(all, newStartsOnMonday: newValue)
                             if affected.isEmpty {
                                 weekStartsOnMonday = newValue
-                                CycleEndNotificationScheduler.refresh()
+                                Task { await CycleEndNotificationScheduler.refresh() }
                             } else {
                                 pendingWeekStart = newValue
                                 pendingAffectedCommitments = affected
@@ -232,7 +232,7 @@ struct SettingsView: View {
         pendingWeekStart = nil
         pendingAffectedCommitments = []
         showWeekStartSheet = false
-        CycleEndNotificationScheduler.refresh()
+        Task { await CycleEndNotificationScheduler.refresh() }
     }
 
     private func hourLabel(_ hour: Int) -> String {

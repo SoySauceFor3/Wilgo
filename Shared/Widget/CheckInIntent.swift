@@ -52,7 +52,8 @@ struct CheckInIntent: LiveActivityIntent {
             // Rebuild every notification surface (Live Activity included) from the single choke point,
             // so surfaces added later are picked up here automatically. Replaces the old Darwin
             // liveActivitySync ping, which was dropped whenever the app was suspended.
-            CommitmentChangeRefresher.refreshAll()
+            // Awaited: perform() keeps the app process alive only until it returns.
+            await CommitmentChangeRefresher.refreshAll()
 
             return .result()
         }

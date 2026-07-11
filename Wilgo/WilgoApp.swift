@@ -73,21 +73,34 @@ struct WilgoApp: App {
         }
         .modelContainer(Self.sharedModelContainer)
         .onChange(of: scenePhase) { _, newPhase in
-            SlotStartNotificationScheduler.refresh()  // Refresh slot-start notifications
+            Task { await SlotStartNotificationScheduler.refresh() }  // Refresh slot-start notifications
 
             if newPhase == .active {
                 // Watchdog: re-queue in case iOS skipped a BGTask fire.
-                NowLiveActivityManager.workAndScheduleNextBGTask()  // Not really necessary because LiveActivity is only needed when scene != .active, just a safe net.
+                Task { await NowLiveActivityManager.workAndScheduleNextBGTask() }  // Not really necessary because LiveActivity is only needed when scene != .active, just a safe net.
                 // Rebuild catch-up chain to reflect any check-ins made via widget/LA while app was inactive.
-                CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()  // This is not necessary, just quality-of-life improvement.
-            } else {
+                Task { await CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask() }  // This is not necessary, just quality-of-life improvement.
+            } else {  // TODO: when the app goes to background, these async (or indirectly async) func might be cut off.
+                // FIX (next commit): take a background-time assertion so iOS grants ~30s of
+                // protected runtime instead of suspending a few seconds after backgrounding:
+                //   let assertion = UIApplication.shared.beginBackgroundTask()  // + expirationHandler that ends it
+                //   Task {
+                //       await CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()
+                //       await CycleEndNotificationScheduler.refresh()
+                //       await NowLiveActivityManager.workAndScheduleNextBGTask()
+                //       UIApplication.shared.endBackgroundTask(assertion)
+                //   }
+                // i.e. fold the fire-and-forget Tasks below into one awaited sequence that ends
+                // the assertion when done (and end it from the expirationHandler as well —
+                // leaking an assertion gets the app killed). scheduleBackgroundTask() is sync
+                // and can stay outside. Requires `import UIKit`.
                 // the app is not active (inactive, or background), use this "last chance" to update and schedule the catch-up reminders.
-                CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()
+                Task { await CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask() }
                 // Re-schedule cycle-end notifications with the latest commitment kinds before going inactive.
-                CycleEndNotificationScheduler.refresh()
+                Task { await CycleEndNotificationScheduler.refresh() }
                 // Sync the Live Activity immediately so it's accurate the moment it becomes visible,
                 // then queue a BGAppRefreshTask to keep it updated while the app stays inactive.
-                NowLiveActivityManager.workAndScheduleNextBGTask()
+                Task { await NowLiveActivityManager.workAndScheduleNextBGTask() }
                 // Schedule next BGAppRefresh of slot-start notifications
                 SlotStartNotificationScheduler.scheduleBackgroundTask()
             }

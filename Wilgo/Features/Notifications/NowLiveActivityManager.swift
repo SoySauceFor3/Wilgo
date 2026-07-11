@@ -57,23 +57,38 @@ enum NowLiveActivityManager {
             forTaskWithIdentifier: backgroundTaskIdentifier,
             using: nil
         ) { task in  // launch handler, use it to report success/failure and to attach an expiration handler.
-            guard let refreshTask = task as? BGAppRefreshTask else {  // type-narrowing guard
-                task.setTaskCompleted(success: false)
-                return
+            let work = Task { @MainActor in
+                // Await the reconcile before reporting completion: `setTaskCompleted` lets iOS
+                // suspend the process, and the chained run would otherwise still be in flight.
+                await workAndScheduleNextBGTask()
+                guard !Task.isCancelled else { return }  // if the task is cancelled (before expiration), check cancelled cooperatively to avoid `task.setTaskCompleted()` twice, which is a violation of the API.
+                task.setTaskCompleted(success: true)
             }
-            Task { @MainActor in
-                workAndScheduleNextBGTask()
-                refreshTask.setTaskCompleted(success: true)
+            // If iOS reclaims the wake before the reconcile finishes, cancel and report failure
+            // so the task is retried rather than silently marked done mid-flight.
+            // task.expirationHandler is BGTask API's deadline callback. A background wake comes
+            // with a limited runtime budget (roughly up to 30 seconds for an app-refresh task,
+            // sometimes less under memory/battery pressure). If your work is still running when
+            // the budget expires, iOS calls your expirationHandler as a final warning.
+            task.expirationHandler = {
+                work.cancel()
+                task.setTaskCompleted(success: false)
             }
         }
     }
 
+    /// Queue the next wake, request a reconcile, and await its completion (the folder-wide
+    /// scheduler contract: returning means the work is done). App-alive callers may
+    /// fire-and-forget with `Task { await ... }`.
     @MainActor
-    static func workAndScheduleNextBGTask() {
+    static func workAndScheduleNextBGTask() async {
         // Re-schedule for the next slot boundary before doing the work so that even
         // if the process is killed mid-flight the next wakeup is already queued.
         NowLiveActivityManager.scheduleBackgroundTask()
         apply()
+        // `refreshTask` is read synchronously right after `apply()` on the main actor, so it is
+        // exactly the run just chained — no later `apply()` can swap the chain head in between.
+        await refreshTask?.value
     }
 
     /// Submit (or replace) a BGAppRefreshTask that wakes the app at the next slot transition.

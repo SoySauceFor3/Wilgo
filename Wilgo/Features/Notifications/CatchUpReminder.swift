@@ -38,7 +38,7 @@ enum CatchUpReminder {
         guard scheduler == nil else { return }  // avoid double-start
         scheduler = InAppScheduler(interval: 60 * 60) {
             Task { @MainActor in
-                CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()
+                await CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()
             }
         }
         scheduler?.start()
@@ -52,23 +52,32 @@ enum CatchUpReminder {
             forTaskWithIdentifier: backgroundTaskIdentifier,
             using: nil
         ) { task in
-            guard let refreshTask = task as? BGAppRefreshTask else {
-                task.setTaskCompleted(success: false)
-                return
+            let work = Task { @MainActor in
+                // Await the update before reporting completion: `setTaskCompleted` lets iOS
+                // suspend the process, and the notification-store update would otherwise still
+                // be in flight.
+                await updateAndScheduleNotificationAndBackgroundTask()
+                guard !Task.isCancelled else { return }  // expiration already completed the task
+                task.setTaskCompleted(success: true)
             }
-            Task { @MainActor in
-                updateAndScheduleNotificationAndBackgroundTask()
-                refreshTask.setTaskCompleted(success: true)
+            // If iOS reclaims the wake before the work finishes, cancel and report failure so
+            // the task is retried rather than silently marked done mid-flight.
+            task.expirationHandler = {
+                work.cancel()
+                task.setTaskCompleted(success: false)
             }
         }
     }
 
     // MARK: - Main entry point
 
+    /// Async so callers that must not outlive the work — the BGAppRefreshTask handler, which may
+    /// only `setTaskCompleted` after the notification store is actually updated — can await it.
+    /// App-alive callers may fire-and-forget with `Task { await ... }`.
     @MainActor
     static func updateAndScheduleNotificationAndBackgroundTask(
         now: Date? = nil
-    ) {
+    ) async {
         let now = now ?? Time.now()
         let context = ModelContext(WilgoApp.sharedModelContainer)
         let commitments = (try? context.fetch(.activeOnly)) ?? []
@@ -85,8 +94,9 @@ enum CatchUpReminder {
         )
 
         updateCatchUpCommitmentsStorage(catchUp: catchUp, now: now)
-        scheduleNotificationPost(for: catchUp, now: now)
+        // Re-schedule before the notification work so a mid-flight kill still leaves a wake queued.
         scheduleBackgroundTask(now: now)
+        await scheduleNotificationPost(for: catchUp, now: now)
     }
 
     // MARK: - Background task scheduling
@@ -176,40 +186,41 @@ enum CatchUpReminder {
 
     // MARK: - Notification scheduling
 
+    @MainActor
     private static func scheduleNotificationPost(
         for catchUp: [CommitmentCharacteristics], now: Date
-    ) {
+    ) async {
         let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
-            guard granted else { return }
+        guard await (try? center.requestAuthorization(options: [.alert, .sound])) == true else {
+            return
+        }
 
-            // Cancel the entire chain (including legacy single-ID).
-            center.removePendingNotificationRequests(withIdentifiers: allNotificationIDs)
+        // Cancel the entire chain (including legacy single-ID).
+        center.removePendingNotificationRequests(withIdentifiers: allNotificationIDs)
 
-            guard !catchUp.isEmpty else { return }
+        guard !catchUp.isEmpty else { return }
 
-            guard
-                let anchorDate = UserDefaults.standard.object(
-                    forKey: lastNewCatchUpCommitmentDateKey) as? Date
-            else { return }
+        guard
+            let anchorDate = UserDefaults.standard.object(
+                forKey: lastNewCatchUpCommitmentDateKey) as? Date
+        else { return }
 
-            let dates = fireDates(from: anchorDate, now: now)
-            let content = makeNotificationContent(for: catchUp)
+        let dates = fireDates(from: anchorDate, now: now)
+        let content = makeNotificationContent(for: catchUp)
 
-            for (index, fireDate) in dates.enumerated() {
-                let components = Calendar.current.dateComponents(
-                    [.year, .month, .day, .hour, .minute, .second],
-                    from: fireDate
-                )
-                let trigger = UNCalendarNotificationTrigger(
-                    dateMatching: components, repeats: false)
-                let request = UNNotificationRequest(
-                    identifier: "\(notificationIDPrefix)\(index)",
-                    content: content,
-                    trigger: trigger
-                )
-                center.add(request)
-            }
+        for (index, fireDate) in dates.enumerated() {
+            let components = Calendar.current.dateComponents(
+                [.year, .month, .day, .hour, .minute, .second],
+                from: fireDate
+            )
+            let trigger = UNCalendarNotificationTrigger(
+                dateMatching: components, repeats: false)
+            let request = UNNotificationRequest(
+                identifier: "\(notificationIDPrefix)\(index)",
+                content: content,
+                trigger: trigger
+            )
+            try? await center.add(request)
         }
     }
 }

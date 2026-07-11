@@ -14,8 +14,12 @@ enum SlotStartNotificationScheduler {
     static let horizonDays = 14
 
     // MARK: - Public entry point
+
+    /// Async so callers that must not outlive the work — the BGAppRefreshTask handler, which may
+    /// only `setTaskCompleted` after the notification store is actually updated — can await it.
+    /// App-alive callers may fire-and-forget with `Task { await refresh() }`.
     @MainActor
-    static func refresh(now: Date = Time.now()) {
+    static func refresh(now: Date = Time.now()) async {
         let context = WilgoApp.sharedModelContainer.mainContext
         let commitments = (try? context.fetch(.activeOnly)) ?? []
 
@@ -27,17 +31,16 @@ enum SlotStartNotificationScheduler {
         }
 
         let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
-            guard granted else { return }
-            center.getPendingNotificationRequests { pending in
-                let oldIDs = pending.map(\.identifier)
-                    .filter { $0.hasPrefix(notificationIdentifierPrefix) }
-                center.removePendingNotificationRequests(withIdentifiers: oldIDs)  // remove old ones
-                for request in requests {
-                    center.add(request)
-                }  // add new ones
-            }
+        guard await (try? center.requestAuthorization(options: [.alert, .sound])) == true else {
+            return
         }
+        let pending = await center.pendingNotificationRequests()
+        let oldIDs = pending.map(\.identifier)
+            .filter { $0.hasPrefix(notificationIdentifierPrefix) }
+        center.removePendingNotificationRequests(withIdentifiers: oldIDs)  // remove old ones
+        for request in requests {
+            try? await center.add(request)
+        }  // add new ones
     }
 
     // MARK: - BGAppRefreshTask
@@ -47,14 +50,21 @@ enum SlotStartNotificationScheduler {
             forTaskWithIdentifier: backgroundTaskIdentifier,
             using: nil
         ) { task in
-            guard let refreshTask = task as? BGAppRefreshTask else {
-                task.setTaskCompleted(success: false)
-                return
-            }
-            Task { @MainActor in
-                refresh()
+            let work = Task { @MainActor in
+                // Re-schedule before the work so a mid-flight kill still leaves a wake queued.
                 scheduleBackgroundTask()
-                refreshTask.setTaskCompleted(success: true)
+                // Await the refresh before reporting completion: `setTaskCompleted` lets iOS
+                // suspend the process, and the notification-store update would otherwise still
+                // be in flight.
+                await refresh()
+                guard !Task.isCancelled else { return }  // expiration already completed the task
+                task.setTaskCompleted(success: true)
+            }
+            // If iOS reclaims the wake before the work finishes, cancel and report failure so
+            // the task is retried rather than silently marked done mid-flight.
+            task.expirationHandler = {
+                work.cancel()
+                task.setTaskCompleted(success: false)
             }
         }
     }

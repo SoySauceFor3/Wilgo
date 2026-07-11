@@ -157,7 +157,7 @@ struct ArchivedCommitmentsActions {
                 commitment.cycle = Cycle.makeDefault(commitment.cycle.kind)
             }
         }
-        CommitmentChangeRefresher.refreshAll()
+        Task { await CommitmentChangeRefresher.refreshAll() }
     }
 
     /// Permanently removes commitments from the store.
@@ -167,7 +167,7 @@ struct ArchivedCommitmentsActions {
                 modelContext.delete(commitment)
             }
         }
-        CommitmentChangeRefresher.refreshAll()
+        Task { await CommitmentChangeRefresher.refreshAll() }
     }
 }
 

@@ -11,12 +11,15 @@ enum CycleEndNotificationScheduler {
 
     // MARK: - Main entry point
 
+    /// Async so callers can await until the notification store is actually updated (the folder-wide
+    /// scheduler contract: returning means the work is done). App-alive callers may fire-and-forget
+    /// with `Task { await refresh() }`.
     @MainActor
-    static func refresh() {
+    static func refresh() async {
         let context = ModelContext(WilgoApp.sharedModelContainer)
         let commitments = (try? context.fetch(.activeOnly)) ?? []
         let activeKinds = Set(commitments.map(\.cycle.kind))
-        scheduleNotifications(for: activeKinds)
+        await scheduleNotifications(for: activeKinds)
     }
 
     // MARK: - Trigger computation
@@ -55,23 +58,24 @@ enum CycleEndNotificationScheduler {
 
     // MARK: - Scheduling
 
-    private static func scheduleNotifications(for activeKinds: Set<CycleKind>) {
+    @MainActor
+    private static func scheduleNotifications(for activeKinds: Set<CycleKind>) async {
         let center = UNUserNotificationCenter.current()
-        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
-            guard granted else { return }
+        guard await (try? center.requestAuthorization(options: [.alert, .sound])) == true else {
+            return
+        }
 
-            // Cancel all owned notifications, then re-schedule only active kinds.
-            center.removePendingNotificationRequests(withIdentifiers: allNotificationIDs)
+        // Cancel all owned notifications, then re-schedule only active kinds.
+        center.removePendingNotificationRequests(withIdentifiers: allNotificationIDs)
 
-            let content = makeContent()
-            for kind in activeKinds {
-                let request = UNNotificationRequest(
-                    identifier: "\(notificationIDPrefix)\(kind.rawValue.lowercased())",
-                    content: content,
-                    trigger: trigger(for: kind)
-                )
-                center.add(request)
-            }
+        let content = makeContent()
+        for kind in activeKinds {
+            let request = UNNotificationRequest(
+                identifier: "\(notificationIDPrefix)\(kind.rawValue.lowercased())",
+                content: content,
+                trigger: trigger(for: kind)
+            )
+            try? await center.add(request)
         }
     }
 }
