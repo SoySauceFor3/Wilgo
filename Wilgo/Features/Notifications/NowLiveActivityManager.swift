@@ -1,5 +1,4 @@
 import ActivityKit
-import BackgroundTasks
 import Foundation
 import SwiftData
 
@@ -45,7 +44,6 @@ enum NowLiveActivityManager {
             await previous?.value
             await LiveActivityRefresher.refresh(context: ModelContext.wilgoMain)
         }
-        // IF there is statement, it would run before the refreshTask boy executes.
     }
 
     private static let backgroundTaskIdentifier = "wilgo.live-activity-sync"
@@ -53,27 +51,8 @@ enum NowLiveActivityManager {
     /// Register the BGAppRefreshTask handler. Must be called before any `submit()` — i.e., before
     /// `scheduleBackgroundTask()`.
     static func registerBackgroundTask() {
-        BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: backgroundTaskIdentifier,
-            using: nil
-        ) { task in  // launch handler, use it to report success/failure and to attach an expiration handler.
-            let work = Task { @MainActor in
-                // Await the reconcile before reporting completion: `setTaskCompleted` lets iOS
-                // suspend the process, and the chained run would otherwise still be in flight.
-                await workAndScheduleNextBGTask()
-                guard !Task.isCancelled else { return }  // if the task is cancelled (before expiration), check cancelled cooperatively to avoid `task.setTaskCompleted()` twice, which is a violation of the API.
-                task.setTaskCompleted(success: true)
-            }
-            // If iOS reclaims the wake before the reconcile finishes, cancel and report failure
-            // so the task is retried rather than silently marked done mid-flight.
-            // task.expirationHandler is BGTask API's deadline callback. A background wake comes
-            // with a limited runtime budget (roughly up to 30 seconds for an app-refresh task,
-            // sometimes less under memory/battery pressure). If your work is still running when
-            // the budget expires, iOS calls your expirationHandler as a final warning.
-            task.expirationHandler = {
-                work.cancel()
-                task.setTaskCompleted(success: false)
-            }
+        BGWake.register(backgroundTaskIdentifier) {
+            await workAndScheduleNextBGTask()
         }
     }
 
@@ -102,8 +81,6 @@ enum NowLiveActivityManager {
         // the app also refreshes at the daily-cycle rollover when no slot transition precedes it.
         let nextDate =
             StageCharacterization.nextStageRefreshTime(commitments: commitments, now: now)
-        let request = BGAppRefreshTaskRequest(identifier: backgroundTaskIdentifier)
-        request.earliestBeginDate = nextDate
-        try? BGTaskScheduler.shared.submit(request)
+        BGWake.submit(backgroundTaskIdentifier, earliestBeginDate: nextDate)
     }
 }

@@ -1,4 +1,3 @@
-import BackgroundTasks
 import Foundation
 import SwiftData
 import UserNotifications
@@ -48,24 +47,8 @@ enum CatchUpReminder {
 
     private static let backgroundTaskIdentifier = "wilgo.catchup-reminder-scheduler"
     static func registerBackgroundTask() {
-        BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: backgroundTaskIdentifier,
-            using: nil
-        ) { task in
-            let work = Task { @MainActor in
-                // Await the update before reporting completion: `setTaskCompleted` lets iOS
-                // suspend the process, and the notification-store update would otherwise still
-                // be in flight.
-                await updateAndScheduleNotificationAndBackgroundTask()
-                guard !Task.isCancelled else { return }  // expiration already completed the task
-                task.setTaskCompleted(success: true)
-            }
-            // If iOS reclaims the wake before the work finishes, cancel and report failure so
-            // the task is retried rather than silently marked done mid-flight.
-            task.expirationHandler = {
-                work.cancel()
-                task.setTaskCompleted(success: false)
-            }
+        BGWake.register(backgroundTaskIdentifier) {
+            await updateAndScheduleNotificationAndBackgroundTask()
         }
     }
 
@@ -105,9 +88,7 @@ enum CatchUpReminder {
     static func scheduleBackgroundTask(
         now _: Date
     ) {
-        let request = BGAppRefreshTaskRequest(identifier: backgroundTaskIdentifier)
-        request.earliestBeginDate = Date().addingTimeInterval(1 * 60 * 60)
-        try? BGTaskScheduler.shared.submit(request)
+        BGWake.submit(backgroundTaskIdentifier, earliestBeginDate: Date().addingTimeInterval(1 * 60 * 60))
     }
 
     // MARK: - UserDefaults storage
