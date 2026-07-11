@@ -8,7 +8,7 @@ enum CommitmentChangeRefresher {
     @MainActor
     static func refreshAll() async {
         await SlotStartNotificationScheduler.refresh()
-        await CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()
+        await CatchUpReminder.refresh()
         await CycleEndNotificationScheduler.refresh()
         await NowLiveActivityManager.workAndScheduleNextBGTask()
         WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)

@@ -2,7 +2,7 @@ import Foundation
 import SwiftData
 import UserNotifications
 
-enum CatchUpReminder {
+enum CatchUpReminder: BackgroundRefreshScheduler {
     // MARK: - Notification IDs
 
     private static let notificationIDPrefix = "wilgo.catchup."
@@ -37,7 +37,7 @@ enum CatchUpReminder {
         guard scheduler == nil else { return }  // avoid double-start
         scheduler = InAppScheduler(interval: 60 * 60) {
             Task { @MainActor in
-                await CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()
+                await CatchUpReminder.refresh()
             }
         }
         scheduler?.start()
@@ -45,23 +45,16 @@ enum CatchUpReminder {
 
     // MARK: - Background task
 
-    private static let backgroundTaskIdentifier = "wilgo.catchup-reminder-scheduler"
-    static func registerBackgroundTask() {
-        BGWake.register(backgroundTaskIdentifier) {
-            await updateAndScheduleNotificationAndBackgroundTask()
-        }
-    }
+    static let backgroundTaskIdentifier = "wilgo.catchup-reminder-scheduler"
+    static var nextWakeEarliestDate: Date { Date().addingTimeInterval(1 * 60 * 60) }
 
     // MARK: - Main entry point
 
-    /// Async so callers that must not outlive the work — the BGAppRefreshTask handler, which may
-    /// only `setTaskCompleted` after the notification store is actually updated — can await it.
-    /// App-alive callers may fire-and-forget with `Task { await ... }`.
+    /// Recomputes the catch-up set, updates the UserDefaults anchor, and rebuilds the
+    /// notification chain. (Wake re-queuing lives in the template's refresh().)
     @MainActor
-    static func updateAndScheduleNotificationAndBackgroundTask(
-        now: Date? = nil
-    ) async {
-        let now = now ?? Time.now()
+    static func performWork() async {
+        let now = Time.now()
         let context = ModelContext.wilgoMain
         let commitments = (try? context.fetch(.activeOnly)) ?? []
         // Remind every behind commitment (not just the Stage's catch-up bucket): a behind commitment
@@ -77,18 +70,7 @@ enum CatchUpReminder {
         )
 
         updateCatchUpCommitmentsStorage(catchUp: catchUp, now: now)
-        // Re-schedule before the notification work so a mid-flight kill still leaves a wake queued.
-        scheduleBackgroundTask(now: now)
         await scheduleNotificationPost(for: catchUp, now: now)
-    }
-
-    // MARK: - Background task scheduling
-
-    /// Queue the next catch-up reminder.
-    static func scheduleBackgroundTask(
-        now _: Date
-    ) {
-        BGWake.submit(backgroundTaskIdentifier, earliestBeginDate: Date().addingTimeInterval(1 * 60 * 60))
     }
 
     // MARK: - UserDefaults storage
