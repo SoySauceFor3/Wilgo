@@ -712,6 +712,236 @@ Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>"
 
 ---
 
+## Phase 2 — BackgroundRefreshScheduler template (added 2026-07-12, pending 3Sauce review)
+
+### Context
+
+3Sauce: the BG-task scheduling convention is confusing to re-read — "I always need quite a bit of time reading the code again the next time I see the code." The Phase-1 helpers removed duplication but the *pattern* (register-before-submit, re-queue-before-work, complete-after-work, scene-phase watchdog) still lives only in scattered comments and three slightly different file layouts.
+
+**Goal:** make the structure literally visible: a template-method protocol that (a) hosts the lifecycle documentation in one place, (b) structurally enforces the re-queue-before-work ordering that is currently copy-pasted discipline, and (c) reduces each scheduler's BG section to three declarations (identifier, wake policy, work).
+
+### Design Decisions (Phase 2)
+
+**Template-method protocol, not a parent class.** The schedulers are `enum` namespaces — no inheritance. A protocol with default implementations gives the template without converting to singleton classes.
+
+**Why this passes the `fireOnce` bar:** unlike `fireOnce` (thin wrapper over standard API), the default `refresh()` encodes an *ordering invariant* — schedule the next wake, then do the work — that previously had to be remembered at three different places (and was, in fact, done in three different places). The protocol is also the single documented home of the mental model, which is the actual pain.
+
+**Unified entry point name: `refresh()`** (judgment call, approved by 3Sauce to decide): matches `CycleEndNotificationScheduler.refresh()` so `CommitmentChangeRefresher.refreshAll()` reads as four identical calls. The per-scheduler work hook is `performWork()`; the wake policy is `nextWakeEarliestDate` (named for `BGAppRefreshTaskRequest.earliestBeginDate` semantics).
+
+**CycleEnd deliberately does NOT conform** — it has no BG task (repeating calendar triggers). Non-conformance now documents that instead of looking accidental.
+
+**Known behavior deltas (accepted):**
+- `SlotStartNotificationScheduler.refresh()` now re-queues its wake on *every* call (previously only on BG fire and app-backgrounding). Harmless: `submit` replaces the pending request and `earliestBeginDate` is only a floor; the scene handler already re-submitted on every backgrounding. The now-redundant explicit `scheduleBackgroundTask()` call in `WilgoApp`'s else-branch is removed.
+- `backgroundTaskIdentifier` on CatchUpReminder / NowLiveActivityManager goes from `private` to internal (protocol witness requirement).
+- Entry-point renames: `updateAndScheduleNotificationAndBackgroundTask()` and `workAndScheduleNextBGTask()` disappear; all callers say `refresh()`.
+
+### Commit 5 — Add BackgroundRefreshScheduler: the documented BG-wake template
+
+**Files:**
+- Create: `Wilgo/Features/Notifications/BackgroundRefreshScheduler.swift`
+- Create: `WilgoTests/Notifications/BackgroundRefreshSchedulerTests.swift`
+
+- [ ] **Step 1: Write the failing test**
+
+```swift
+import Foundation
+import Testing
+@testable import Wilgo
+
+/// Conformer that records the order of template events. `nextWakeEarliestDate` is read
+/// inside `scheduleBackgroundTask()`, so its getter marks the "schedule" step.
+/// The real `BGWake.submit` runs with an unregistered identifier — it throws inside,
+/// which BGWake logs and swallows; expected and harmless in the test host.
+private enum RecordingScheduler: BackgroundRefreshScheduler {
+    @MainActor static var events: [String] = []
+    static let backgroundTaskIdentifier = "wilgo.test.recording"
+    @MainActor static var nextWakeEarliestDate: Date {
+        events.append("schedule")
+        return Date().addingTimeInterval(60)
+    }
+    @MainActor static func performWork() async {
+        events.append("work")
+    }
+}
+
+struct BackgroundRefreshSchedulerTests {
+    @Test("refresh re-queues the next wake BEFORE running the work")
+    @MainActor
+    func refresh_schedulesBeforeWork() async {
+        RecordingScheduler.events = []
+        await RecordingScheduler.refresh()
+        #expect(RecordingScheduler.events == ["schedule", "work"])
+    }
+}
+```
+
+- [ ] **Step 2: Verify red** (SourceKit "cannot find BackgroundRefreshScheduler" or xcodebuild compile failure).
+
+- [ ] **Step 3: Create `Wilgo/Features/Notifications/BackgroundRefreshScheduler.swift`**
+
+```swift
+import Foundation
+
+/// THE background-wake pattern for the notification schedulers. Each conformer owns one
+/// BGAppRefreshTask and one reconcile, wired together by the defaults below — a conformer
+/// declares only its identifier, its wake policy, and its work.
+///
+/// Lifecycle (identical for every conformer):
+/// 1. `WilgoApp.init` calls `registerBackgroundTask()` — must run before any submit.
+/// 2. `refresh()` is the only entry point anyone calls (scene-phase handler, BG fire,
+///    `CommitmentChangeRefresher.refreshAll`, CatchUp's hourly timer). It re-queues the
+///    next wake FIRST — so a mid-flight kill still leaves a wake queued — then runs
+///    `performWork()`. That ordering is the template's enforced invariant.
+/// 3. `BGWake` completes the BGTask only after `refresh()` returns (returning means the
+///    work is done) and reports failure on expiration so iOS retries.
+/// 4. iOS treats `earliestBeginDate` as a floor, not a promise — BG fires are
+///    best-effort. The scene-phase calls double as the watchdog that re-queues wakes
+///    whenever iOS skipped one.
+///
+/// `CycleEndNotificationScheduler` deliberately does NOT conform: it schedules repeating
+/// calendar triggers and needs no background wake.
+protocol BackgroundRefreshScheduler {
+    static var backgroundTaskIdentifier: String { get }
+    /// Wake policy: the earliest instant iOS may launch us next.
+    @MainActor static var nextWakeEarliestDate: Date { get }
+    /// The reconcile itself. Returning means the work is done (BGWake awaits this).
+    @MainActor static func performWork() async
+}
+
+extension BackgroundRefreshScheduler {
+    /// Register the BGAppRefreshTask handler. Must be called before any submit — i.e., from
+    /// `WilgoApp.init`.
+    static func registerBackgroundTask() {
+        BGWake.register(backgroundTaskIdentifier) { await refresh() }
+    }
+
+    /// Submit (or replace) the next wake per `nextWakeEarliestDate`.
+    @MainActor
+    static func scheduleBackgroundTask() {
+        BGWake.submit(backgroundTaskIdentifier, earliestBeginDate: nextWakeEarliestDate)
+    }
+
+    /// The single entry point: re-queue the next wake FIRST (mid-flight kill still leaves
+    /// a wake queued), then reconcile.
+    @MainActor
+    static func refresh() async {
+        scheduleBackgroundTask()
+        await performWork()
+    }
+}
+```
+
+- [ ] **Step 4: Run `-only-testing:WilgoTests/BackgroundRefreshSchedulerTests` — expect PASS.**
+
+- [ ] **Step 5: Commit** (`Add BackgroundRefreshScheduler: documented template for BG-wake schedulers`, both tags + tracking + co-author, as per the footer block above).
+
+### Commit 6 — Adopt in SlotStartNotificationScheduler
+
+**Files:**
+- Modify: `Wilgo/Features/Notifications/SlotStartNotificationScheduler.swift`
+- Modify: `Wilgo/WilgoApp.swift` (remove now-redundant explicit schedule call)
+
+- [ ] **Step 1: Conform and collapse the BG section**
+
+Declaration becomes `enum SlotStartNotificationScheduler: BackgroundRefreshScheduler {`. Delete `registerBackgroundTask()` and `scheduleBackgroundTask()` (protocol defaults). Replace `refresh(now: Date = Time.now())` (no caller passes `now`; tests use the pure helpers) with:
+
+```swift
+    static var nextWakeEarliestDate: Date { Date().addingTimeInterval(24 * 60 * 60) }
+
+    /// Rebuilds the pending slot-start notifications from current commitments.
+    @MainActor
+    static func performWork() async {
+        let now = Time.now()
+        let context = ModelContext.wilgoMain
+        // ... (existing refresh body unchanged, using the local `now`)
+    }
+```
+
+- [ ] **Step 2: WilgoApp** — delete the now-redundant line in the else-branch (`SlotStartNotificationScheduler.scheduleBackgroundTask()` plus its comment); the `Task { await SlotStartNotificationScheduler.refresh() }` call above it already re-queues.
+
+- [ ] **Step 3: Run the Notifications test bundle — PASS. Commit** (`Adopt BackgroundRefreshScheduler in SlotStartNotificationScheduler`).
+
+### Commit 7 — Adopt in CatchUpReminder
+
+**Files:**
+- Modify: `Wilgo/Features/Notifications/CatchUpReminder.swift`
+- Modify: `Wilgo/WilgoApp.swift` (rename 2 call sites + the TODO comment's code sketch)
+- Modify: `Wilgo/Features/Notifications/CommitmentChangeRefresher.swift` (rename 1 call site)
+
+- [ ] **Step 1: Conform and collapse**
+
+`enum CatchUpReminder: BackgroundRefreshScheduler {`; `backgroundTaskIdentifier` loses `private`. Delete `registerBackgroundTask()` and `scheduleBackgroundTask(now:)`. `updateAndScheduleNotificationAndBackgroundTask(now:)` becomes:
+
+```swift
+    static var nextWakeEarliestDate: Date { Date().addingTimeInterval(1 * 60 * 60) }
+
+    /// Recomputes the catch-up set, updates the UserDefaults anchor, and rebuilds the
+    /// notification chain. (Wake re-queuing moved to the template's refresh().)
+    @MainActor
+    static func performWork() async {
+        let now = Time.now()
+        // ... existing body, minus the scheduleBackgroundTask(now:) line ...
+    }
+```
+
+The hourly `InAppScheduler` closure and all callers switch to `await CatchUpReminder.refresh()`.
+
+- [ ] **Step 2: Run the Notifications test bundle — PASS. Commit** (`Adopt BackgroundRefreshScheduler in CatchUpReminder`).
+
+### Commit 8 — Adopt in NowLiveActivityManager; refreshAll reads uniformly
+
+**Files:**
+- Modify: `Wilgo/Features/Notifications/NowLiveActivityManager.swift`
+- Modify: `Wilgo/WilgoApp.swift` (rename 2 call sites)
+- Modify: `Wilgo/Features/Notifications/CommitmentChangeRefresher.swift` (rename 1 call site)
+
+- [ ] **Step 1: Conform and collapse**
+
+`enum NowLiveActivityManager: BackgroundRefreshScheduler {`; identifier loses `private`. Delete `registerBackgroundTask()`, `scheduleBackgroundTask()`, `workAndScheduleNextBGTask()`. Add:
+
+```swift
+    /// Wake at the next slot edge OR cycle boundary (folded by `nextStageRefreshTime`), so
+    /// the app also refreshes at the daily-cycle rollover when no slot transition precedes it.
+    @MainActor
+    static var nextWakeEarliestDate: Date {
+        let now = Time.now()
+        let commitments = (try? ModelContext.wilgoMain.fetch(.activeOnly)) ?? []
+        return StageCharacterization.nextStageRefreshTime(commitments: commitments, now: now)
+    }
+
+    /// Chains a reconcile behind any in-flight one and awaits it (see `apply()` for why
+    /// runs must not interleave).
+    @MainActor
+    static func performWork() async {
+        apply()
+        // `refreshTask` is read synchronously right after `apply()` on the main actor, so it
+        // is exactly the run just chained — no later `apply()` can swap the chain head between.
+        await refreshTask?.value
+    }
+```
+
+`CommitmentChangeRefresher.refreshAll()` ends as four identical `await X.refresh()` lines + widget reload; WilgoApp's two `workAndScheduleNextBGTask()` sites become `refresh()`.
+
+- [ ] **Step 2: Run the Notifications test bundle — PASS.**
+
+- [ ] **Step 3: FULL suite gate: `./test-with-cleanup.sh` — everything passes (modulo the known pre-existing failure).**
+
+- [ ] **Step 4: Commit** (`Adopt BackgroundRefreshScheduler in NowLiveActivityManager; uniform refreshAll`).
+
+### Dependency graph (Phase 2)
+
+```
+Commit 5: protocol + ordering test
+    |
+Commit 6: SlotStart adoption      [sequential — WilgoApp touched by 6,7,8]
+    |
+Commit 7: CatchUp adoption
+    |
+Commit 8: NowLA adoption + uniform refreshAll + full-suite gate
+```
+
+---
+
 ## Critical Files
 
 | File                                                              | Role                                              |
