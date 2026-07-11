@@ -113,7 +113,7 @@ struct WilgoApp: App {
     @MainActor
     private func handleDeepLink(_ url: URL) {
         guard url.scheme == "wilgo" else { return }
-        let context = Self.sharedModelContainer.mainContext
+        let context = ModelContext.wilgoMain
         let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
 
         func queryValue(_ name: String) -> String? {

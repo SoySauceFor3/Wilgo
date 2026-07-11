@@ -32,9 +32,9 @@ struct SnoozeIntent: LiveActivityIntent {
                 return .result()
             }
 
-            // Write through the app's shared mainContext so the post-write refresh — which also reads
-            // mainContext — sees the new snooze immediately, with no cross-container merge lag.
-            let context = WilgoApp.sharedModelContainer.mainContext
+            // Write through the app's canonical context so the post-write refresh — which also reads
+            // it — sees the new snooze immediately, with no cross-container merge lag.
+            let context = ModelContext.wilgoMain
             let descriptor = FetchDescriptor<Slot>(predicate: #Predicate { $0.id == id })
             guard let slot = try context.fetch(descriptor).first else {
                 return .result()
