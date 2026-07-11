@@ -2,7 +2,7 @@ import ActivityKit
 import Foundation
 import SwiftData
 
-enum NowLiveActivityManager {
+enum NowLiveActivityManager: BackgroundRefreshScheduler {
     @MainActor
     private static var refreshTask: Task<Void, Never>?
 
@@ -35,41 +35,24 @@ enum NowLiveActivityManager {
         }
     }
 
-    private static let backgroundTaskIdentifier = "wilgo.live-activity-sync"
+    static let backgroundTaskIdentifier = "wilgo.live-activity-sync"
 
-    /// Register the BGAppRefreshTask handler. Must be called before any `submit()` — i.e., before
-    /// `scheduleBackgroundTask()`.
-    static func registerBackgroundTask() {
-        BGWake.register(backgroundTaskIdentifier) {
-            await workAndScheduleNextBGTask()
-        }
+    /// Wake at the next slot edge OR cycle boundary (folded together by `nextStageRefreshTime`), so
+    /// the app also refreshes at the daily-cycle rollover when no slot transition precedes it.
+    @MainActor
+    static var nextWakeEarliestDate: Date {
+        let now = Time.now()
+        let commitments = (try? ModelContext.wilgoMain.fetch(.activeOnly)) ?? []
+        return StageCharacterization.nextStageRefreshTime(commitments: commitments, now: now)
     }
 
-    /// Queue the next wake, request a reconcile, and await its completion (the folder-wide
-    /// scheduler contract: returning means the work is done). App-alive callers may
-    /// fire-and-forget with `Task { await ... }`.
+    /// Chains a reconcile behind any in-flight one and awaits it (see `apply()` for why runs
+    /// must not interleave).
     @MainActor
-    static func workAndScheduleNextBGTask() async {
-        // Re-schedule for the next slot boundary before doing the work so that even
-        // if the process is killed mid-flight the next wakeup is already queued.
-        NowLiveActivityManager.scheduleBackgroundTask()
+    static func performWork() async {
         apply()
         // `refreshTask` is read synchronously right after `apply()` on the main actor, so it is
         // exactly the run just chained — no later `apply()` can swap the chain head in between.
         await refreshTask?.value
-    }
-
-    /// Submit (or replace) a BGAppRefreshTask that wakes the app at the next slot transition.
-    /// Safe to call repeatedly — BGTaskScheduler replaces any existing request with the same identifier.
-    @MainActor
-    private static func scheduleBackgroundTask() {
-        let now = Time.now()
-        let context = ModelContext.wilgoMain
-        let commitments = (try? context.fetch(.activeOnly)) ?? []
-        // Wake at the next slot edge OR cycle boundary (folded together by `nextStageRefreshTime`), so
-        // the app also refreshes at the daily-cycle rollover when no slot transition precedes it.
-        let nextDate =
-            StageCharacterization.nextStageRefreshTime(commitments: commitments, now: now)
-        BGWake.submit(backgroundTaskIdentifier, earliestBeginDate: nextDate)
     }
 }

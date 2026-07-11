@@ -77,7 +77,7 @@ struct WilgoApp: App {
 
             if newPhase == .active {
                 // Watchdog: re-queue in case iOS skipped a BGTask fire.
-                Task { await NowLiveActivityManager.workAndScheduleNextBGTask() }  // Not really necessary because LiveActivity is only needed when scene != .active, just a safe net.
+                Task { await NowLiveActivityManager.refresh() }  // Not really necessary because LiveActivity is only needed when scene != .active, just a safe net.
                 // Rebuild catch-up chain to reflect any check-ins made via widget/LA while app was inactive.
                 Task { await CatchUpReminder.refresh() }  // This is not necessary, just quality-of-life improvement.
             } else {  // TODO: when the app goes to background, these async (or indirectly async) func might be cut off.
@@ -87,7 +87,7 @@ struct WilgoApp: App {
                 //   Task {
                 //       await CatchUpReminder.refresh()
                 //       await CycleEndNotificationScheduler.refresh()
-                //       await NowLiveActivityManager.workAndScheduleNextBGTask()
+                //       await NowLiveActivityManager.refresh()
                 //       UIApplication.shared.endBackgroundTask(assertion)
                 //   }
                 // i.e. fold the fire-and-forget Tasks below into one awaited sequence that ends
@@ -100,7 +100,7 @@ struct WilgoApp: App {
                 Task { await CycleEndNotificationScheduler.refresh() }
                 // Sync the Live Activity immediately so it's accurate the moment it becomes visible,
                 // then queue a BGAppRefreshTask to keep it updated while the app stays inactive.
-                Task { await NowLiveActivityManager.workAndScheduleNextBGTask() }
+                Task { await NowLiveActivityManager.refresh() }
             }
         }
     }

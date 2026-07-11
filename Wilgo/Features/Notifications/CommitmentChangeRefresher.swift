@@ -10,7 +10,7 @@ enum CommitmentChangeRefresher {
         await SlotStartNotificationScheduler.refresh()
         await CatchUpReminder.refresh()
         await CycleEndNotificationScheduler.refresh()
-        await NowLiveActivityManager.workAndScheduleNextBGTask()
+        await NowLiveActivityManager.refresh()
         WidgetCenter.shared.reloadTimelines(ofKind: WilgoConstants.currentCommitmentWidgetKind)
     }
 }
