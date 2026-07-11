@@ -26,7 +26,6 @@
 		703254812FE2F8CA0067A19D /* LiveActivityRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7032547F2FE2F8CA0067A19D /* LiveActivityRefresher.swift */; };
 		8AF886EF4B9E4D3591FA0002 /* LiveActivityPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF886EF4B9E4D3591FA0001 /* LiveActivityPlanner.swift */; };
 		8AF886EF4B9E4D3591FA0003 /* LiveActivityPlanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8AF886EF4B9E4D3591FA0001 /* LiveActivityPlanner.swift */; };
-		AABB00010001000100010001 /* MemoryProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABB00000000000000000000 /* MemoryProbe.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -82,7 +81,6 @@
 		703254772FE2F42D0067A19D /* SnoozeIntent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnoozeIntent.swift; sourceTree = "<group>"; };
 		7032547F2FE2F8CA0067A19D /* LiveActivityRefresher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityRefresher.swift; sourceTree = "<group>"; };
 		8AF886EF4B9E4D3591FA0001 /* LiveActivityPlanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityPlanner.swift; sourceTree = "<group>"; };
-		AABB00000000000000000000 /* MemoryProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MemoryProbe.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -249,7 +247,6 @@
 				700D160C2F833A60004B6B57 /* AppSettings.swift */,
 				700D160D2F833A60004B6B57 /* InAppScheduler.swift */,
 				700D166D2F838172004B6B57 /* WilgoConstants.swift */,
-				AABB00000000000000000000 /* MemoryProbe.swift */,
 				700D167F2F83854E004B6B57 /* Scheduling */,
 				700D16762F838544004B6B57 /* Models */,
 			);
@@ -461,7 +458,6 @@
 				8AF886EF4B9E4D3591FA0002 /* LiveActivityPlanner.swift in Sources */,
 				700D16412F833A60004B6B57 /* AppSettings.swift in Sources */,
 				700D16422F833A60004B6B57 /* InAppScheduler.swift in Sources */,
-				AABB00010001000100010001 /* MemoryProbe.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
