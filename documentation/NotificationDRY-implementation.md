@@ -942,6 +942,81 @@ Commit 8: NowLA adoption + uniform refreshAll + full-suite gate
 
 ---
 
+## Phase 3 — Background-time assertion for the scene-phase "last chance" refresh (added 2026-07-12, pending 3Sauce review)
+
+### Context
+
+The long-standing TODO at `WilgoApp.swift` (else-branch of the scene-phase handler): when the app leaves `.active`, the fire-and-forget `Task { await X.refresh() }` calls race ordinary suspension — iOS may suspend the process seconds after backgrounding, cutting the refreshes off mid-flight (notification chains half-rebuilt, Live Activity not synced). The queued BG wakes self-heal *eventually*, but the "last chance" update is lost. Deferred until after Phases 1–2 so all entry points share one awaitable shape — they now do.
+
+**Fix:** take a `UIApplication.beginBackgroundTask` assertion (~30s of protected runtime), run the refreshes as ONE awaited sequence, end the assertion when done — and end it from the expiration handler as well (a leaked assertion gets the app killed).
+
+### Design Decisions (Phase 3)
+
+**Reuse `CommitmentChangeRefresher.refreshAll()` as the sequence.** The else-branch currently runs SlotStart (via the handler's top line), CatchUp, CycleEnd, NowLA — which is exactly `refreshAll()` minus the widget reload. Proposing the else-branch become `await CommitmentChangeRefresher.refreshAll()` under the assertion. Behavior delta: adds a widget-timeline reload on every backgrounding — arguably *desirable* (widget is what the user sees next) and cheap. Alternative (if delta unwanted): list the four `refresh()` calls inline without the widget reload.
+
+**SlotStart must be under the assertion too.** The sketch in the TODO listed only CatchUp/CycleEnd/NowLA because SlotStart ran at the top of the handler — but that top-line call has the same cut-off risk on backgrounding.
+
+**No if/else at all (3Sauce's simplification during review).** The `.active` branch was a subset of `refreshAll()` anyway; running the full `refreshAll()` under an assertion on *every* phase change is uniform and harmless: CycleEnd's re-schedule is idempotent, the widget reload is cheap, and holding a background-time assertion while active costs nothing (it only matters during suspension). The watchdog/last-chance distinction becomes one comment instead of two code paths.
+
+**Assertion bookkeeping via a tiny helper.** `beginBackgroundTask`'s identifier must be ended exactly once from whichever fires first (completion or expiration), and a `var` captured by two closures trips concurrency checking. A small `@MainActor` class owns it:
+
+```swift
+/// Ends a UIKit background-time assertion exactly once — from work completion or the
+/// expiration handler, whichever comes first. A leaked assertion gets the app killed.
+@MainActor
+private final class BackgroundAssertion {
+    private var id: UIBackgroundTaskIdentifier = .invalid
+
+    func begin() {
+        id = UIApplication.shared.beginBackgroundTask { [weak self] in
+            // UIKit documents the expiration handler runs on the main thread.
+            MainActor.assumeIsolated { self?.end() }
+        }
+    }
+
+    func end() {
+        guard id != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(id)
+        id = .invalid
+    }
+}
+```
+
+Lives `private` in `WilgoApp.swift` (single caller; promote later if another appears). Requires `import UIKit`.
+
+### Commit 9 — Protect the backgrounding refresh with a background-time assertion
+
+**Files:**
+- Modify: `Wilgo/WilgoApp.swift` only.
+
+- [ ] **Step 1:** Add `import UIKit` and the `BackgroundAssertion` helper above.
+
+- [ ] **Step 2:** Rewrite the scene-phase handler:
+
+```swift
+.onChange(of: scenePhase) { _, _ in
+    // Every phase change refreshes every notification surface: on activation this is the
+    // watchdog for BG wakes iOS skipped; on leaving .active it's the last chance to update
+    // before suspension. The assertion buys ~30s of protected runtime so the refresh isn't
+    // cut off mid-flight when backgrounding (and is harmless while active). It is released
+    // on completion or by its expiration handler, whichever comes first.
+    let assertion = BackgroundAssertion()
+    assertion.begin()
+    Task {
+        await CommitmentChangeRefresher.refreshAll()
+        assertion.end()
+    }
+}
+```
+
+(The old TODO/FIX comment block is deleted — this commit is that fix. The stale sentence about `scheduleBackgroundTask()` goes with it.)
+
+- [ ] **Step 3:** No new unit tests: the change is UIKit-lifecycle glue (`beginBackgroundTask` is untestable in the simulator test host); the schedulers it calls are already covered. **Manual verification (3Sauce):** background the app right after a check-in; confirm via Console (subsystem `wilgo`) that the refresh sequence completes after backgrounding rather than being cut off.
+
+- [ ] **Step 4:** Run the Notifications test bundle + build. Commit (`Protect the backgrounding refresh with a background-time assertion`, footer block as above).
+
+---
+
 ## Critical Files
 
 | File                                                              | Role                                              |

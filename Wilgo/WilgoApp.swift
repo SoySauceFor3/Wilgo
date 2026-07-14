@@ -1,6 +1,6 @@
-import BackgroundTasks
 import SwiftData
 import SwiftUI
+import UIKit
 
 @main
 struct WilgoApp: App {
@@ -72,35 +72,17 @@ struct WilgoApp: App {
                 }
         }
         .modelContainer(Self.sharedModelContainer)
-        .onChange(of: scenePhase) { _, newPhase in
-            Task { await SlotStartNotificationScheduler.refresh() }  // Refresh slot-start notifications
-
-            if newPhase == .active {
-                // Watchdog: re-queue in case iOS skipped a BGTask fire.
-                Task { await NowLiveActivityManager.refresh() }  // Not really necessary because LiveActivity is only needed when scene != .active, just a safe net.
-                // Rebuild catch-up chain to reflect any check-ins made via widget/LA while app was inactive.
-                Task { await CatchUpReminder.refresh() }  // This is not necessary, just quality-of-life improvement.
-            } else {  // TODO: when the app goes to background, these async (or indirectly async) func might be cut off.
-                // FIX (next commit): take a background-time assertion so iOS grants ~30s of
-                // protected runtime instead of suspending a few seconds after backgrounding:
-                //   let assertion = UIApplication.shared.beginBackgroundTask()  // + expirationHandler that ends it
-                //   Task {
-                //       await CatchUpReminder.refresh()
-                //       await CycleEndNotificationScheduler.refresh()
-                //       await NowLiveActivityManager.refresh()
-                //       UIApplication.shared.endBackgroundTask(assertion)
-                //   }
-                // i.e. fold the fire-and-forget Tasks below into one awaited sequence that ends
-                // the assertion when done (and end it from the expirationHandler as well —
-                // leaking an assertion gets the app killed). scheduleBackgroundTask() is sync
-                // and can stay outside. Requires `import UIKit`.
-                // the app is not active (inactive, or background), use this "last chance" to update and schedule the catch-up reminders.
-                Task { await CatchUpReminder.refresh() }
-                // Re-schedule cycle-end notifications with the latest commitment kinds before going inactive.
-                Task { await CycleEndNotificationScheduler.refresh() }
-                // Sync the Live Activity immediately so it's accurate the moment it becomes visible,
-                // then queue a BGAppRefreshTask to keep it updated while the app stays inactive.
-                Task { await NowLiveActivityManager.refresh() }
+        .onChange(of: scenePhase) { _, _ in
+            // Every phase change refreshes every notification surface: on activation this is the
+            // watchdog for BG wakes iOS skipped; on leaving .active it's the last chance to update
+            // before suspension. The assertion buys ~30s of protected runtime so the refresh isn't
+            // cut off mid-flight when backgrounding (and is harmless while active). It is released
+            // on completion or by its expiration handler, whichever comes first.
+            let assertion = BackgroundAssertion()
+            assertion.begin()
+            Task {
+                await CommitmentChangeRefresher.refreshAll()
+                assertion.end()
             }
         }
     }
@@ -131,6 +113,26 @@ struct WilgoApp: App {
         default:
             break
         }
+    }
+}
+
+/// Ends a UIKit background-time assertion exactly once — from work completion or the
+/// expiration handler, whichever comes first. A leaked assertion gets the app killed.
+@MainActor
+private final class BackgroundAssertion {
+    private var id: UIBackgroundTaskIdentifier = .invalid
+
+    func begin() {
+        id = UIApplication.shared.beginBackgroundTask { [weak self] in
+            // UIKit documents the expiration handler runs on the main thread.
+            MainActor.assumeIsolated { self?.end() }
+        }
+    }
+
+    func end() {
+        guard id != .invalid else { return }
+        UIApplication.shared.endBackgroundTask(id)
+        id = .invalid
     }
 }
 
