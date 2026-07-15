@@ -13,7 +13,7 @@ protocol BGWakeTask: AnyObject {
 extension BGTask: BGWakeTask {}
 
 /// One home for the BGAppRefreshTask boilerplate shared by the schedulers in
-/// `Features/Notifications`: registration (a completion-race-safe launch handler with an
+/// `Features/LiveUpdates`: registration (a completion-race-safe launch handler with an
 /// expiration handler) and submission (replace-in-place, failures logged instead of swallowed).
 enum BGWake {
     /// Persisted diagnostics, same rationale as `LiveActivityRefresher.logger`: dogfood runs
