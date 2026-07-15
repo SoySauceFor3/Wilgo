@@ -21,7 +21,15 @@ The work layers on top of the completed `#notification #DRY` workstream (the `Ba
 
 ## Architecture Summary
 
-Introduce `RefreshCoordinator` — a `@MainActor` class started once from `WilgoApp.init`, living at `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift` (alongside `CommitmentChangeRefresher`, which it drives), owning all _automatic_ `refreshAll()` triggers. It answers one question in one place: "when should `refreshAll()` fire without anyone explicitly asking?" It has two independent trigger sources:
+Introduce `RefreshCoordinator` — a `@MainActor` class started once from `WilgoApp.init`, living at `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift` (alongside `CommitmentChangeRefresher`, which it drives), owning all _automatic_ `refreshAll()` triggers. It answers one question in one place: "when should `refreshAll()` fire without anyone explicitly asking?" It has two independent trigger sources.
+
+`RefreshCoordinator` is deliberately **thin wiring**: the two trigger mechanisms are each extracted into their own standalone unit, and the coordinator just constructs them, connects them, and owns the start/stop lifecycle:
+
+- **`BoundaryTimer`** (`Wilgo/Features/LiveUpdates/BoundaryTimer.swift`) — owns the time-boundary mechanism: "fire a callback at the next boundary, then recompute and re-arm." Owns its `Timer` directly; the test seam is a single injected "arm" closure (no protocol — see Design Decisions). Knows nothing about SwiftData.
+- **`ModelContextSaveObserver`** (`Wilgo/Features/LiveUpdates/ModelContextSaveObserver.swift`) — a **generic, Wilgo-agnostic** unit: "watch one `ModelContext` for `didSave` (object-scoped) and run a closure on each save." Knows nothing about timers or `refreshAll`.
+- **`RefreshCoordinator`** — builds both units and wires them: the timer's `onFire` = refresh; the observer's `onSave` = fire-and-forget refresh **and** re-arm the boundary timer. Owns `start()`/`stop()` + the `didStart` idempotency guard.
+
+This keeps each mechanism independently understandable and testable, and stops the `NotificationCenter`/`Timer` machinery from mingling in one confusing class. The two trigger sources:
 
 ### Trigger A — DB change (always-on `didSave` observer)
 
@@ -55,11 +63,23 @@ It schedules a **one-shot** timer to fire _at_ that instant. On fire: `await ref
 
 ## Design Decisions
 
-### One owner type for both triggers
+### One owner, but each trigger mechanism extracted into its own unit
 
-**Decision:** A single `RefreshCoordinator` owns both the `didSave` observer and the boundary timer.
+**Decision:** A single `RefreshCoordinator` is the one place that owns _policy_ ("when should `refreshAll()` fire automatically?") and lifecycle. But the two _mechanisms_ are each extracted into a standalone unit — `BoundaryTimer` (the clock trigger) and `ModelContextSaveObserver` (the DB-save trigger) — and the coordinator is thin wiring over them.
 
-**Why not two separate types?** Both mechanisms answer the _same_ question — "when should `refreshAll()` fire automatically?" — from two signals (a DB write, a clock boundary). One type means one place a future reader looks to understand _all_ automatic-refresh triggers, and one lifecycle to start from `WilgoApp`. The two triggers are not even fully independent: a DB write must _also_ reschedule the boundary timer (see next decision), so they share the recompute-and-reschedule step — one more reason to keep them in one type.
+**Why one owner (not two unrelated top-level types)?** Both triggers answer the same question, from two signals (a DB write, a clock boundary). One owner means one place a future reader looks to understand _all_ automatic-refresh triggers, and one lifecycle to start from `WilgoApp`. The triggers are also coupled: a DB write must _also_ reschedule the boundary timer (see next decision), and that wiring lives in the owner.
+
+**Why extract the mechanisms into units (not inline in the coordinator)?** Inlining put `NotificationCenter`/`didSave` machinery and `Timer` machinery in the same class, which read as an incoherent mix — a reviewer genuinely mistook the observer code for an unrelated bug fix. Splitting them makes each mechanism independently understandable and unit-testable, and keeps `RefreshCoordinator` small enough to hold in your head. `ModelContextSaveObserver` is intentionally **generic** (watch a context, run a closure) — all Wilgo-specific meaning ("refresh + reschedule") lives in the closure the coordinator supplies, so the observer is a dumb, reusable mechanism and the _policy_ stays in one place.
+
+**Risk: over-splitting.** Three types for one feature could fragment the story. **Mitigation:** capped at exactly three (owner + two units); the coordinator staying thin/forwarding is the intended shape, not a smell.
+
+### `BoundaryTimer`'s test seam is an injected closure, not a protocol
+
+**Decision:** `BoundaryTimer` owns its `Timer` directly and exposes ONE injectable closure for the "arm a one-shot fire at this date" step — `arm: (Date, @escaping () async -> Void) -> Void`, defaulting to the real main-run-loop `Timer`. There is **no** `BoundaryScheduler` protocol and **no** `TimerBoundaryScheduler` class.
+
+**Why not the protocol?** The protocol existed only as a test seam (swap the real `Timer` for a fake that fires on command). But it had exactly one production conformer and one test conformer — a protocol earns its keep with multiple real implementations or a complex contract, and this had neither. A single injected closure gives the identical test substitution (the test passes a closure that captures the fire handler and triggers it synchronously) at a fraction of the surface: three types collapse to one. The named-protocol idiom reads marginally more explicitly, but "matches an idiom" isn't "needed here."
+
+**Consequence for tests:** the fake scheduler class in the tests becomes a captured closure + a stored fire handler the test invokes directly. Same assertions (recorded armed dates, drive-the-fire), less scaffolding.
 
 ### A DB write reschedules the boundary timer, not just `refreshAll()`
 
@@ -109,8 +129,10 @@ So the boundary timer's schedule is derived state over the commitment set, and t
 
 | Entity                                                                         | Change                                                                                                                                                                                  |
 | ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **New:** `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift`                 | New `@MainActor` class owning the `didSave` observer + the self-rescheduling boundary timer; both drive `CommitmentChangeRefresher.refreshAll()`.                                       |
-| `Wilgo/WilgoApp.swift`                                                         | Start `RefreshCoordinator` from `init` (replacing the `CatchUpReminder.startHourlyRunWhileActive()` call).                                                                              |
+| **New:** `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift`                 | New `@MainActor` class — thin wiring/lifecycle over a `BoundaryTimer` + a `ModelContextSaveObserver`; both drive `CommitmentChangeRefresher.refreshAll()`.                              |
+| **New:** `Wilgo/Features/LiveUpdates/BoundaryTimer.swift`                      | Time-boundary mechanism (one-shot-then-recompute). Owns its `Timer`; test seam is a single injected "arm" closure (no protocol).                                                       |
+| **New:** `Wilgo/Features/LiveUpdates/ModelContextSaveObserver.swift`          | Extracted, generic SwiftData `didSave` observer (watch a context, run a closure on save; object-scoped). No Wilgo-specific knowledge.                                                  |
+| `Wilgo/WilgoApp.swift`                                                         | Start `RefreshCoordinator` from `init` (replacing the `CatchUpReminder.startHourlyRunWhileActive()` call). Owned as a `private static let` (mirrors `sharedModelContainer`); `start()` is idempotent. |
 | `Wilgo/Features/LiveUpdates/Schedulers/CatchUpReminder.swift`                  | Delete `startHourlyRunWhileActive()`, the `scheduler` property, and the in-app-scheduler comment block. CatchUp keeps its `BackgroundRefreshScheduler` conformance and `performWork()`. |
 | `Wilgo/Features/Commitments/Form/AddCommitmentView.swift`                      | Remove manual `Task { await refreshAll() }` after `save()`.                                                                                                                             |
 | `Wilgo/Features/Commitments/Form/EditCommitmentView.swift`                     | Remove manual `Task { await refreshAll() }` after `save()`.                                                                                                                             |
@@ -125,61 +147,70 @@ So the boundary timer's schedule is derived state over the commitment set, and t
 
 Every commit must leave the app building and add unit tests for the actual code change (per CLAUDE.md). Tests use the required iPhone 17 simulator via `./test-with-cleanup.sh`.
 
-A note on testability: `RefreshCoordinator` should take its dependencies (the refresh action, and a "now"/boundary provider) as injectable seams so the observer and timer logic can be unit-tested without hitting the real `UNUserNotificationCenter`/`ActivityKit`. Mirror the existing seam style (`BGWakeTask`, injected `now:` params). Exact seam shape to be finalized in the writing-plans phase.
+A note on testability: each unit takes its dependencies as injectable seams — `BoundaryTimer` takes a boundary provider, an `onFire`, and an "arm" closure (the timer seam); `ModelContextSaveObserver` takes the observed context, notification center, and an `onSave` closure. `RefreshCoordinator` forwards these through. This lets every unit be tested without real time passing or hitting `UNUserNotificationCenter`/`ActivityKit`. Main-actor-isolated defaults (e.g. `ModelContext.wilgoMain`) are resolved in init bodies from `nil` sentinels, never as default-argument expressions, because `-default-isolation=MainActor` evaluates default args in a nonisolated context.
+
+This plan builds the new structure as **five focused commits**, each self-contained and independently testable. Commits 1 and 2 are pure standalone units (no dependency between them). Commit 3 wires them. Commit 4 activates the wiring in the app and removes the old hourly timer. Commit 5 removes the now-redundant view-site manual calls.
 
 ---
 
-### Phase 1 — Boundary timer (Trigger B)
+#### Commit 1 — `BoundaryTimer` unit (time-boundary mechanism)
 
-Goal: replace CatchUp's hourly `InAppScheduler` with a boundary-driven timer inside a new `RefreshCoordinator`. This is self-contained and independently verifiable.
+**Create:** `Wilgo/Features/LiveUpdates/BoundaryTimer.swift`
 
-#### Commit 1 — Add `RefreshCoordinator` with the self-rescheduling boundary timer
+- `@MainActor final class BoundaryTimer`. Owns the one-shot `Timer` directly (no `BoundaryScheduler` protocol — see the closure-seam decision).
+- `init(nextBoundary: @escaping () -> Date, onFire: @escaping () async -> Void, arm: ((Date, @escaping () async -> Void) -> Void)? = nil)` — `arm` is the injectable timer seam, defaulting (resolved in the body) to a real main-run-loop one-shot `Timer` that clamps past dates to fire ASAP.
+- `schedule()` reads `nextBoundary()` fresh and arms the timer. On fire: run `onFire()`, then `schedule()` again (one-shot-then-recompute, not a fixed interval). `cancel()` invalidates.
+
+**Create:** `WilgoTests/LiveUpdates/BoundaryTimerTests.swift`
+
+- `schedule()` arms to the computed boundary (assert via a test `arm` closure that records the armed `Date`).
+- After a fire, it recomputes to the _next_ boundary — provider returns different Dates on successive calls, proving recompute (not a fixed interval).
+- `onFire` runs when the timer fires (drive the fire synchronously via the captured handler — no real clock, no `Thread.sleep`).
+
+#### Commit 2 — `ModelContextSaveObserver` unit (generic didSave observer)
+
+**Create:** `Wilgo/Features/LiveUpdates/ModelContextSaveObserver.swift`
+
+- Generic, Wilgo-agnostic `@MainActor final class`: `init(context: ModelContext, center: NotificationCenter = .default, onSave: @escaping () -> Void)`.
+- `start()` registers a `ModelContext.didSave` observer scoped via `object: context` (idempotent — no double-register). `stop()`/`deinit` remove it.
+- Runs `onSave` on the main actor (`MainActor.assumeIsolated`, valid because the observed context is a main-actor context saved on the main actor — see Open Question).
+
+**Create:** `WilgoTests/LiveUpdates/ModelContextSaveObserverTests.swift`
+
+- A real `save()` on the observed context runs `onSave`.
+- A save on a DIFFERENT context does NOT run it (object-scoping).
+- `stop()` (and letting it deinit) removes it — a later save is a no-op.
+- `start()` is idempotent (second call does not double-register / double-fire).
+- Async waits use `await Task.yield()` loops, never `Thread.sleep`. Hold a strong ref to the container for the whole test.
+
+#### Commit 3 — `RefreshCoordinator` wiring (owns + connects the two units)
 
 **Create:** `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift`
 
-- `@MainActor` class with a `start()` that schedules a one-shot timer at `StageCharacterization.nextStageRefreshTime(commitments:now:)`.
-- Factor the recompute+reschedule into a named method (e.g. `rescheduleBoundaryTimer()`) so it has a single implementation with two callers: the timer's own fire, and (in Commit 3) the `didSave` observer.
-- On fire: `await CommitmentChangeRefresher.refreshAll()`, then `rescheduleBoundaryTimer()`.
-- Inject the boundary provider and the refresh action for testing.
+- `@MainActor final class` — thin wiring + lifecycle. Builds a `BoundaryTimer` and a `ModelContextSaveObserver` and connects them.
+- Public init resolves production defaults in the body: `refreshAction` → `CommitmentChangeRefresher.refreshAll()`; `nextBoundary` → `defaultNextBoundary()` (folds slot edge + cycle boundary via `StageCharacterization.nextStageRefreshTime` over `wilgoMain`'s active commitments); observed context → `wilgoMain`; center → `.default`. Keep `arm`/`nextBoundary`/`refreshAction`/`observedContext`/`center` injectable for tests.
+- Wiring: timer `onFire` = refresh; observer `onSave` = fire-and-forget `Task { await refreshAction() }` **and** `boundaryTimer.schedule()` (re-arm, because a DB write can move/invalidate the next boundary — pure function of the commitment set).
+- `start()` starts both (idempotent via `didStart`). `stop()` stops both.
 
-**Create:** `WilgoTests/LiveUpdates/RefreshCoordinatorTimerTests.swift`
+**Create:** `WilgoTests/LiveUpdates/RefreshCoordinatorObserverTests.swift`
 
-- Fires the refresh action at the computed boundary (via injected clock/provider).
-- After firing, reschedules to the _next_ boundary (not a fixed interval).
-- Recomputes the boundary from current commitments each cycle (a new commitment shifts the next fire).
+- Integration over the wired whole: a `save()` triggers the refresh action; a `save()` also re-arms the boundary timer to the newly-computed instant; multiple saves each trigger (no-debounce); object-scoping (save on another context doesn't trigger); `stop()` removes the observer.
 
-#### Commit 2 — Wire `RefreshCoordinator` into `WilgoApp`; remove CatchUp's hourly timer
+#### Commit 4 — Wire `RefreshCoordinator` into `WilgoApp`; remove CatchUp's hourly timer
 
-**Modify:** `Wilgo/WilgoApp.swift` — replace `CatchUpReminder.startHourlyRunWhileActive()` with `RefreshCoordinator` start.
-**Modify:** `Wilgo/Features/LiveUpdates/Schedulers/CatchUpReminder.swift` — delete `startHourlyRunWhileActive()`, the `scheduler` property, and the stale in-app-scheduler comment.
-**Delete (if unused):** `Shared/InAppScheduler.swift` — confirm via grep that CatchUp was the sole user.
+**Modify:** `Wilgo/WilgoApp.swift` — own the coordinator as a `private static let` (mirrors `sharedModelContainer`, immune to a re-run `init()`), call `.start()` once from `init()` (start is idempotent). Replaces the `CatchUpReminder.startHourlyRunWhileActive()` call.
+**Modify:** `Wilgo/Features/LiveUpdates/Schedulers/CatchUpReminder.swift` — delete `startHourlyRunWhileActive()`, the `scheduler` property, and the stale in-app-scheduler comment. CatchUp keeps its `BackgroundRefreshScheduler` conformance + `performWork()`.
+**Delete:** `Shared/InAppScheduler.swift` — CatchUp was the sole user (grep-confirmed). Remove its references from `project.pbxproj` (`Shared/` is not a folder-synced group).
 
-**Manual verification:** Launch on iPhone 17 sim. Confirm the app builds/runs and that surfaces still refresh when a slot boundary is crossed while foregrounded (watch Console subsystem `wilgo`). This depends on Commit 1.
+**Manual verification:** Launch on iPhone 17 sim. Confirm the app builds/runs and that surfaces refresh when a slot boundary is crossed while foregrounded (Console subsystem `wilgo`).
 
----
-
-### Phase 2 — DB-change observer (Trigger A)
-
-Goal: add the always-on `didSave` observer and remove the view-site manual calls. Depends on Commit 1 (the `RefreshCoordinator` type existing).
-
-#### Commit 3 — Add the `didSave` observer to `RefreshCoordinator`
-
-**Modify:** `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift` — observe `ModelContext.didSave` for `wilgoMain`; on save, do both: fire-and-forget `Task { await refreshAll() }` **and** call `rescheduleBoundaryTimer()` (from Commit 1) so the next boundary reflects the new commitment set. No debounce.
-
-**Create/extend:** `WilgoTests/LiveUpdates/RefreshCoordinatorObserverTests.swift`
-
-- A `save()` on the observed context triggers the refresh action.
-- A `save()` also reschedules the boundary timer — after a save that changes the injected `nextStageRefreshTime`, the timer is re-armed for the new instant (assert via the injected provider/seam).
-- Multiple saves each trigger (documents the no-debounce v1 behavior).
-- (If feasible with a seam) the observer is scoped to the intended context.
-
-#### Commit 4 — Remove manual `refreshAll()` from the 5 view sites
+#### Commit 5 — Remove manual `refreshAll()` from the 5 view sites
 
 **Modify:** `AddCommitmentView.swift`, `EditCommitmentView.swift`, `ListCommitmentView.swift`, `ArchivedCommitmentsView.swift` (×2) — delete the `Task { await refreshAll() }` after `save()`.
-**No change (beneficiary):** `FinishedCycleReportView.swift` has a `save()` but _no_ `refreshAll()` call today — it is the currently-missing-refresh gap. Nothing to remove; the observer now covers it automatically. This commit is what closes that gap.
+**No change (beneficiary):** `FinishedCycleReportView.swift` has a `save()` but _no_ `refreshAll()` call today — the currently-missing-refresh gap. Nothing to remove; the observer now covers it automatically. This commit closes that gap.
 **Keep untouched:** `CheckInIntent.swift`, `SnoozeIntent.swift` — their explicit awaited `refreshAll()` stays (process-lifetime).
 
-**Manual verification:** Launch on iPhone 17 sim. Add/edit/archive a commitment and check in via widget/LA; confirm every surface refreshes exactly as before (Console subsystem `wilgo`). Confirm a finished-cycle save now refreshes (previously missed).
+**Manual verification:** Launch on iPhone 17 sim. Add/edit/archive a commitment and check in via widget/LA; confirm every surface refreshes exactly as before. Confirm a finished-cycle save now refreshes (previously missed).
 
 ---
 
@@ -187,21 +218,33 @@ Goal: add the always-on `didSave` observer and remove the view-site manual calls
 
 | File                                                          | Role                                                |
 | ------------------------------------------------------------- | --------------------------------------------------- |
-| `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift` (new)   | Owns both automatic triggers                        |
-| `Wilgo/WilgoApp.swift`                                        | Starts the coordinator; drops CatchUp hourly start  |
-| `Wilgo/Features/LiveUpdates/Schedulers/CatchUpReminder.swift` | Loses its in-app hourly timer                       |
+| `Wilgo/Features/LiveUpdates/BoundaryTimer.swift` (new)        | Time-boundary trigger unit (Commit 1)               |
+| `Wilgo/Features/LiveUpdates/ModelContextSaveObserver.swift` (new) | Generic `didSave` observer unit (Commit 2)      |
+| `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift` (new)   | Thin wiring/lifecycle over the two units (Commit 3) |
+| `Wilgo/WilgoApp.swift`                                        | Starts the coordinator; drops CatchUp hourly start (Commit 4) |
+| `Wilgo/Features/LiveUpdates/Schedulers/CatchUpReminder.swift` | Loses its in-app hourly timer (Commit 4)            |
 | `Shared/Scheduling/StageCharacterization.swift`               | Provides `nextStageRefreshTime` (reused, unchanged) |
-| `Shared/InAppScheduler.swift`                                 | Deleted once unused                                 |
+| `Shared/InAppScheduler.swift`                                 | Deleted (Commit 4)                                  |
 
 ### Dependency Graph
 
 ```
-Commit 1: RefreshCoordinator + boundary timer
-    |
-    +-- Commit 2: wire into WilgoApp, drop CatchUp hourly   [after 1]
-    +-- Commit 3: add didSave observer                      [after 1, parallel to 2]
-            |
-            +-- Commit 4: remove view-site manual calls     [after 3]
+Commit 1: BoundaryTimer unit ──┐
+                               ├─→ Commit 3: RefreshCoordinator wiring
+Commit 2: SaveObserver unit ───┘         |
+                                         +─→ Commit 4: wire into WilgoApp, drop CatchUp hourly
+                                                 |
+                                                 +─→ Commit 5: remove view-site manual calls
 ```
 
-Commits 2 and 3 are independent after Commit 1. Commit 4 depends on Commit 3.
+Commits 1 and 2 are independent. Commit 3 depends on both. Commit 4 depends on 3. Commit 5 depends on 4 (the observer must be live before the manual calls are removed).
+
+---
+
+## Open Questions / Risks (for review)
+
+### `ModelContextSaveObserver` uses `MainActor.assumeIsolated` in the notification callback
+
+The observer's `didSave` handler runs `onSave` inside `MainActor.assumeIsolated { }`. This is correct **only** under the invariant that the observed `ModelContext` is a main-actor context saved on the main actor (true for `wilgoMain`, which is `mainContext`, and for the in-memory test contexts). The invariant is **not enforced by the API** — the init accepts any `ModelContext`. If the observer were ever reused for a context saved off the main actor, `assumeIsolated` would trap at runtime.
+
+For this workstream it's safe (we only ever observe `wilgoMain`). Options if we want to harden it later: (a) make the contract explicit in the type name/docs, (b) hop via `Task { @MainActor in … }` instead of asserting (trades the synchronous re-arm for an async one), or (c) leave as-is. **Decision deferred to 3Sauce's review** — flagging rather than silently choosing.
