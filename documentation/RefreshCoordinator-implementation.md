@@ -1,6 +1,6 @@
 # RefreshCoordinator — Implementation Plan
 
-**PRD:** [Notifications, LA and widget refresh timings clean up](https://app.notion.com/p/Notifications-LA-and-widget-refresh-timings-clean-up-39d4b58e32c38097a527fd74a1626ce2?source=copy_link)
+**PRD: NA**  
 **Tracking:** [Notifications, LA and widget refresh timings clean up](https://app.notion.com/p/Notifications-LA-and-widget-refresh-timings-clean-up-39d4b58e32c38097a527fd74a1626ce2?source=copy_link)
 **Tag:** #refreshCoordinator
 
@@ -8,44 +8,48 @@
 
 ## Context
 
-`CommitmentChangeRefresher.refreshAll()` is the single choke point that rebuilds every user-facing surface (catch-up notifications, slot-start notifications, cycle-end notifications, the Now Live Activity, and the widget timeline). Today it is *triggered* by two ad-hoc mechanisms:
+`CommitmentChangeRefresher.refreshAll()` is the single choke point that rebuilds every user-facing surface (catch-up notifications, slot-start notifications, cycle-end notifications, the Now Live Activity, and the widget timeline). Today it is _triggered_ by two ad-hoc mechanisms:
 
-1. **Manual calls after a DB write.** Views and Intents each remember to call `refreshAll()` after `save()`. This is sprinkled across ~7 sites and is a DRY hazard — at least one save site (`FinishedCycleReportView`) already *forgets* to refresh, and any future save site can silently do the same.
-
-2. **A fixed hourly timer.** `CatchUpReminder.startHourlyRunWhileActive()` runs an `InAppScheduler(interval: 1h)` that calls `CatchUpReminder.refresh()` (only CatchUp — not the full `refreshAll()`). This exists because *time passing* changes reality without any DB write: a slot opens/closes, a cycle rolls over, and a commitment silently becomes "behind." The hourly cadence is both too coarse (fires ~24×/day when nothing crossed) and off-boundary (a slot that starts at 2:05 isn't reflected until 3:00).
+1. **Manual calls after a DB write.** Views and Intents each remember to call `refreshAll()` after `save()`. This is sprinkled across ~7 sites and is a DRY hazard — at least one save site (`FinishedCycleReportView`) already _forgets_ to refresh, and any future save site can silently do the same.
+2. **A fixed hourly timer.** `CatchUpReminder.startHourlyRunWhileActive()` runs an `InAppScheduler(interval: 1h)` that calls `CatchUpReminder.refresh()` (only CatchUp — not the full `refreshAll()`). This exists because _time passing_ changes reality without any DB write: a slot opens/closes, a cycle rolls over, and a commitment silently becomes "behind." The hourly cadence is both too coarse (fires ~24×/day when nothing crossed) and off-boundary (a slot that starts at 2:05 isn't reflected until 3:00).
 
 This workstream unifies both triggers behind one owner so that `refreshAll()` runs **whenever reality changes** — either a meaningful DB write, or the crossing of a scheduled time boundary — with no per-call-site discipline.
 
-The work layers on top of the completed `#notification #DRY` workstream (the `BackgroundRefreshScheduler` template and `refreshAll()` aggregator). It is a new *trigger* capability, not a change to the refresh *plumbing*.
+The work layers on top of the completed `#notification #DRY` workstream (the `BackgroundRefreshScheduler` template and `refreshAll()` aggregator). It is a new _trigger_ capability, not a change to the refresh _plumbing_.
 
 ---
 
 ## Architecture Summary
 
-Introduce **`RefreshCoordinator`** — a `@MainActor` class started once from `WilgoApp.init`, living at `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift` (alongside `CommitmentChangeRefresher`, which it drives), owning all *automatic* `refreshAll()` triggers. It answers one question in one place: "when should `refreshAll()` fire without anyone explicitly asking?" It has two independent trigger sources:
+Introduce `RefreshCoordinator` — a `@MainActor` class started once from `WilgoApp.init`, living at `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift` (alongside `CommitmentChangeRefresher`, which it drives), owning all _automatic_ `refreshAll()` triggers. It answers one question in one place: "when should `refreshAll()` fire without anyone explicitly asking?" It has two independent trigger sources:
 
 ### Trigger A — DB change (always-on `didSave` observer)
 
-`RefreshCoordinator` observes `ModelContext.didSave` notifications for the app's canonical context (`ModelContext.wilgoMain`). On any save it fires a fire-and-forget `Task { await CommitmentChangeRefresher.refreshAll() }`.
+`RefreshCoordinator` observes `ModelContext.didSave` notifications for the app's canonical context (`ModelContext.wilgoMain`). On any save it does **two** things:
 
-Because Intents run **in the app process and save through `wilgoMain`** (see `CheckInIntent.perform()` / `SnoozeIntent`), the observer sees Intent saves too — the observer is genuinely "always on," not foreground-only.
+1. fires a fire-and-forget `Task { await CommitmentChangeRefresher.refreshAll() }`, and
+2. **reschedules the boundary timer** (Trigger B), because a DB write can change what the next boundary _is_.
 
-This lets us **delete the manual `refreshAll()` call from the 5 view sites** and **automatically cover the currently-missing `FinishedCycleReport` save**. Intents, however, **keep** their explicit awaited `refreshAll()` — see Design Decisions.
+Point 2 is essential: `nextStageRefreshTime` is a pure function of the current commitment set, so a save that adds/edits/deletes a commitment or slot can move the next boundary earlier (a new 14:30 slot when the timer was set for 18:00 → the edge would be missed) or invalidate it (deleting the commitment that owned the next edge → the timer is scheduled for an instant that no longer matters). The boundary timer's schedule is _derived state over the commitment set_; the observer is exactly the thing that detects that set changing, so it must invalidate-and-recompute the schedule. This reuses the timer's own recompute-and-reschedule step — one method, two callers (the timer's own fire, and the observer).
+
+Because Intents run **in the app process and save through** `wilgoMain` (see `CheckInIntent.perform()` / `SnoozeIntent`), the observer sees Intent saves too — the observer is genuinely "always on," not foreground-only.
+
+This lets us **delete the manual** `refreshAll()` **call from the 5 view sites** and **automatically cover the currently-missing** `FinishedCycleReport` **save**. Intents, however, **keep** their explicit awaited `refreshAll()` — see Design Decisions.
 
 No debounce in v1 (see Design Decisions). `refreshAll()` is idempotent, so extra fires are wasted work, never incorrectness.
 
 ### Trigger B — time boundary (self-rescheduling boundary timer)
 
-`RefreshCoordinator` computes the next meaningful time boundary via the *existing* `StageCharacterization.nextStageRefreshTime(commitments:now:)` — the earlier of the next slot-window edge and the next cycle/midnight boundary. This is the *same* policy `NowLiveActivityManager` already uses for its background wake (`nextWakeEarliestDate`).
+`RefreshCoordinator` computes the next meaningful time boundary via the _existing_ `StageCharacterization.nextStageRefreshTime(commitments:now:)` — the earlier of the next slot-window edge and the next cycle/midnight boundary. This is the _same_ policy `NowLiveActivityManager` already uses for its background wake (`nextWakeEarliestDate`).
 
-It schedules a **one-shot** timer to fire *at* that instant. On fire: `await refreshAll()`, then recompute the next boundary and reschedule. This replaces `CatchUpReminder.startHourlyRunWhileActive()` and its `InAppScheduler` usage entirely — firing precisely *at* boundaries instead of hourly.
+It schedules a **one-shot** timer to fire _at_ that instant. On fire: `await refreshAll()`, then recompute the next boundary and reschedule. This replaces `CatchUpReminder.startHourlyRunWhileActive()` and its `InAppScheduler` usage entirely — firing precisely _at_ boundaries instead of hourly.
 
 ### What is deliberately untouched
 
 - **BGTask background wakes** (`BackgroundRefreshScheduler.refresh()` machinery) — unchanged.
-- **The scene-phase `refreshAll()` in `WilgoApp`** — remains the watchdog for BG wakes iOS skipped, and the last refresh before suspension. `RefreshCoordinator`'s in-app timer complements it (fine-grained, while active); scene-phase covers activation/backgrounding.
-- **`CommitmentChangeRefresher.refreshAll()` itself** — unchanged; still the single choke point.
-- **Intent `refreshAll()` calls** — kept (process-lifetime requirement).
+- **The scene-phase** `refreshAll()` **in** `WilgoApp` — remains the watchdog for BG wakes iOS skipped, and the last refresh before suspension. `RefreshCoordinator`'s in-app timer complements it (fine-grained, while active); scene-phase covers activation/backgrounding.
+- `CommitmentChangeRefresher.refreshAll()` **itself** — unchanged; still the single choke point.
+- **Intent** `refreshAll()` **calls** — kept (process-lifetime requirement).
 
 ---
 
@@ -55,13 +59,25 @@ It schedules a **one-shot** timer to fire *at* that instant. On fire: `await ref
 
 **Decision:** A single `RefreshCoordinator` owns both the `didSave` observer and the boundary timer.
 
-**Why not two separate types?** Both mechanisms answer the *same* question — "when should `refreshAll()` fire automatically?" — from two signals (a DB write, a clock boundary). One type means one place a future reader looks to understand *all* automatic-refresh triggers, and one lifecycle to start from `WilgoApp`. The two mechanisms share no tricky state, so splitting them would buy no isolation while fragmenting the story.
+**Why not two separate types?** Both mechanisms answer the _same_ question — "when should `refreshAll()` fire automatically?" — from two signals (a DB write, a clock boundary). One type means one place a future reader looks to understand _all_ automatic-refresh triggers, and one lifecycle to start from `WilgoApp`. The two triggers are not even fully independent: a DB write must _also_ reschedule the boundary timer (see next decision), so they share the recompute-and-reschedule step — one more reason to keep them in one type.
+
+### A DB write reschedules the boundary timer, not just `refreshAll()`
+
+**Decision:** The `didSave` observer does two things per save: fire `refreshAll()` **and** recompute+reschedule the boundary timer.
+
+**Why?** `StageCharacterization.nextStageRefreshTime(commitments:now:)` is a pure function of the current commitment set. If a save changes that set, the already-scheduled fire instant can be wrong:
+- **Too late:** adding a commitment whose next slot edge is _before_ the currently-scheduled fire would miss that edge until the old (later) fire.
+- **Stale:** deleting/archiving/editing the commitment that owned the next edge leaves the timer aimed at an instant that no longer matters (harmless no-op, but the _real_ next boundary isn't scheduled).
+
+So the boundary timer's schedule is derived state over the commitment set, and the observer is the signal that the set changed. Recompute is the timer's existing fire-path operation; the observer simply invokes it too.
+
+**Why no feedback loop?** `refreshAll()` rebuilds notification/LA/widget surfaces but does **not** write to the SwiftData store, so it never re-triggers `didSave`. The observer → refresh/reschedule path terminates.
 
 ### Intents keep their explicit awaited `refreshAll()`; the observer replaces only the view calls
 
 **Decision:** The `didSave` observer replaces the fire-and-forget `refreshAll()` in the **5 view sites** (`AddCommitmentView`, `EditCommitmentView`, `ListCommitmentView`, `ArchivedCommitmentsView`, `FinishedCycleReportView`). **Intents** (`CheckInIntent`, `SnoozeIntent`) **keep** their explicit `await CommitmentChangeRefresher.refreshAll()`.
 
-**Why not route Intents through the observer too?** An Intent's `perform()` keeps the app process alive **only until it returns**. The refresh *must* be awaited inside `perform()` or iOS tears the process down mid-refresh. The observer reacts via a detached `Task`, which `perform()` has no clean way to await without inventing a rendezvous mechanism (a continuation the observer signals) — real complexity added solely to remove two already-correct, already-explicit lines. View saves have no such lifetime constraint (the foreground process isn't going anywhere), so fire-and-forget via the observer is safe there.
+**Why not route Intents through the observer too?** An Intent's `perform()` keeps the app process alive **only until it returns**. The refresh _must_ be awaited inside `perform()` or iOS tears the process down mid-refresh. The observer reacts via a detached `Task`, which `perform()` has no clean way to await without inventing a rendezvous mechanism (a continuation the observer signals) — real complexity added solely to remove two already-correct, already-explicit lines. View saves have no such lifetime constraint (the foreground process isn't going anywhere), so fire-and-forget via the observer is safe there.
 
 **Risk: double-refresh on Intent saves.** With no debounce, an Intent save triggers **two** `refreshAll()` runs — the awaited explicit one, plus the observer's fire-and-forget one. **Mitigation:** both are idempotent, so this is correct-but-wasteful, not buggy. It is exactly the kind of redundancy the deferred debounce (below) would collapse. Accepted for v1.
 
@@ -77,7 +93,7 @@ It schedules a **one-shot** timer to fire *at* that instant. On fire: `await ref
 
 **Decision:** Compute the next fire instant with `StageCharacterization.nextStageRefreshTime(commitments:now:)` rather than a new boundary calculation.
 
-**Why not a fresh calculation?** That function already folds "next slot edge" and "next cycle/midnight boundary" into a single `Date`, is already unit-tested, and is already the wake policy `NowLiveActivityManager` uses for its BG task. Reusing it keeps the in-app timer and the background wake anchored to the *same* definition of "next boundary," so foreground and background stay consistent.
+**Why not a fresh calculation?** That function already folds "next slot edge" and "next cycle/midnight boundary" into a single `Date`, is already unit-tested, and is already the wake policy `NowLiveActivityManager` uses for its BG task. Reusing it keeps the in-app timer and the background wake anchored to the _same_ definition of "next boundary," so foreground and background stay consistent.
 
 **Risk: the psychDay approximation.** `nextStageRefreshTime` approximates the true cycle end with "the next midnight," so the timer may fire once/day at midnight as a harmless no-op recompute. **Mitigation:** none needed — this is an intentional simplicity trade documented on the function itself; a no-op `refreshAll()` at midnight is cheap and idempotent.
 
@@ -85,23 +101,23 @@ It schedules a **one-shot** timer to fire *at* that instant. On fire: `await ref
 
 **Decision:** The boundary timer is a **one-shot** that reschedules itself after each fire (recomputing `nextStageRefreshTime`), rather than `InAppScheduler`'s repeating fixed-interval `Timer`.
 
-**Why?** The next boundary is not a fixed interval — it depends on the current commitments and the current time. A repeating timer can't express "fire at the next edge, whatever it is." One-shot-then-recompute is the only shape that fires *at* boundaries.
+**Why?** The next boundary is not a fixed interval — it depends on the current commitments and the current time. A repeating timer can't express "fire at the next edge, whatever it is." One-shot-then-recompute is the only shape that fires _at_ boundaries.
 
 ---
 
 ## Major Model Changes
 
-| Entity | Change |
-| ------ | ------ |
-| **New:** `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift` | New `@MainActor` class owning the `didSave` observer + the self-rescheduling boundary timer; both drive `CommitmentChangeRefresher.refreshAll()`. |
-| `Wilgo/WilgoApp.swift` | Start `RefreshCoordinator` from `init` (replacing the `CatchUpReminder.startHourlyRunWhileActive()` call). |
-| `Wilgo/Features/LiveUpdates/Schedulers/CatchUpReminder.swift` | Delete `startHourlyRunWhileActive()`, the `scheduler` property, and the in-app-scheduler comment block. CatchUp keeps its `BackgroundRefreshScheduler` conformance and `performWork()`. |
-| `Wilgo/Features/Commitments/Form/AddCommitmentView.swift` | Remove manual `Task { await refreshAll() }` after `save()`. |
-| `Wilgo/Features/Commitments/Form/EditCommitmentView.swift` | Remove manual `Task { await refreshAll() }` after `save()`. |
-| `Wilgo/Features/Commitments/ListCommitmentView.swift` | Remove manual `Task { await refreshAll() }` after `save()`. |
-| `Wilgo/Features/Commitments/ArchivedCommitmentsView.swift` | Remove the 2 manual `Task { await refreshAll() }` calls after `save()`. |
-| `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportView.swift` | No code change — it saves but never called `refreshAll()` (the missing-refresh gap). The observer now covers it automatically. |
-| `Shared/InAppScheduler.swift` | Becomes unused after CatchUp drops it. **Delete** if no other references remain (grep confirms CatchUp is the sole user). |
+| Entity                                                                         | Change                                                                                                                                                                                  |
+| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **New:** `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift`                 | New `@MainActor` class owning the `didSave` observer + the self-rescheduling boundary timer; both drive `CommitmentChangeRefresher.refreshAll()`.                                       |
+| `Wilgo/WilgoApp.swift`                                                         | Start `RefreshCoordinator` from `init` (replacing the `CatchUpReminder.startHourlyRunWhileActive()` call).                                                                              |
+| `Wilgo/Features/LiveUpdates/Schedulers/CatchUpReminder.swift`                  | Delete `startHourlyRunWhileActive()`, the `scheduler` property, and the in-app-scheduler comment block. CatchUp keeps its `BackgroundRefreshScheduler` conformance and `performWork()`. |
+| `Wilgo/Features/Commitments/Form/AddCommitmentView.swift`                      | Remove manual `Task { await refreshAll() }` after `save()`.                                                                                                                             |
+| `Wilgo/Features/Commitments/Form/EditCommitmentView.swift`                     | Remove manual `Task { await refreshAll() }` after `save()`.                                                                                                                             |
+| `Wilgo/Features/Commitments/ListCommitmentView.swift`                          | Remove manual `Task { await refreshAll() }` after `save()`.                                                                                                                             |
+| `Wilgo/Features/Commitments/ArchivedCommitmentsView.swift`                     | Remove the 2 manual `Task { await refreshAll() }` calls after `save()`.                                                                                                                 |
+| `Wilgo/Features/Commitments/FinishedCycleReport/FinishedCycleReportView.swift` | No code change — it saves but never called `refreshAll()` (the missing-refresh gap). The observer now covers it automatically.                                                          |
+| `Shared/InAppScheduler.swift`                                                  | Becomes unused after CatchUp drops it. **Delete** if no other references remain (grep confirms CatchUp is the sole user).                                                               |
 
 ---
 
@@ -120,13 +136,16 @@ Goal: replace CatchUp's hourly `InAppScheduler` with a boundary-driven timer ins
 #### Commit 1 — Add `RefreshCoordinator` with the self-rescheduling boundary timer
 
 **Create:** `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift`
+
 - `@MainActor` class with a `start()` that schedules a one-shot timer at `StageCharacterization.nextStageRefreshTime(commitments:now:)`.
-- On fire: `await CommitmentChangeRefresher.refreshAll()`, recompute next boundary, reschedule.
+- Factor the recompute+reschedule into a named method (e.g. `rescheduleBoundaryTimer()`) so it has a single implementation with two callers: the timer's own fire, and (in Commit 3) the `didSave` observer.
+- On fire: `await CommitmentChangeRefresher.refreshAll()`, then `rescheduleBoundaryTimer()`.
 - Inject the boundary provider and the refresh action for testing.
 
 **Create:** `WilgoTests/LiveUpdates/RefreshCoordinatorTimerTests.swift`
+
 - Fires the refresh action at the computed boundary (via injected clock/provider).
-- After firing, reschedules to the *next* boundary (not a fixed interval).
+- After firing, reschedules to the _next_ boundary (not a fixed interval).
 - Recomputes the boundary from current commitments each cycle (a new commitment shifts the next fire).
 
 #### Commit 2 — Wire `RefreshCoordinator` into `WilgoApp`; remove CatchUp's hourly timer
@@ -145,17 +164,19 @@ Goal: add the always-on `didSave` observer and remove the view-site manual calls
 
 #### Commit 3 — Add the `didSave` observer to `RefreshCoordinator`
 
-**Modify:** `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift` — observe `ModelContext.didSave` for `wilgoMain`; on save, fire-and-forget `Task { await refreshAll() }`. No debounce.
+**Modify:** `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift` — observe `ModelContext.didSave` for `wilgoMain`; on save, do both: fire-and-forget `Task { await refreshAll() }` **and** call `rescheduleBoundaryTimer()` (from Commit 1) so the next boundary reflects the new commitment set. No debounce.
 
 **Create/extend:** `WilgoTests/LiveUpdates/RefreshCoordinatorObserverTests.swift`
+
 - A `save()` on the observed context triggers the refresh action.
+- A `save()` also reschedules the boundary timer — after a save that changes the injected `nextStageRefreshTime`, the timer is re-armed for the new instant (assert via the injected provider/seam).
 - Multiple saves each trigger (documents the no-debounce v1 behavior).
 - (If feasible with a seam) the observer is scoped to the intended context.
 
 #### Commit 4 — Remove manual `refreshAll()` from the 5 view sites
 
 **Modify:** `AddCommitmentView.swift`, `EditCommitmentView.swift`, `ListCommitmentView.swift`, `ArchivedCommitmentsView.swift` (×2) — delete the `Task { await refreshAll() }` after `save()`.
-**No change (beneficiary):** `FinishedCycleReportView.swift` has a `save()` but *no* `refreshAll()` call today — it is the currently-missing-refresh gap. Nothing to remove; the observer now covers it automatically. This commit is what closes that gap.
+**No change (beneficiary):** `FinishedCycleReportView.swift` has a `save()` but _no_ `refreshAll()` call today — it is the currently-missing-refresh gap. Nothing to remove; the observer now covers it automatically. This commit is what closes that gap.
 **Keep untouched:** `CheckInIntent.swift`, `SnoozeIntent.swift` — their explicit awaited `refreshAll()` stays (process-lifetime).
 
 **Manual verification:** Launch on iPhone 17 sim. Add/edit/archive a commitment and check in via widget/LA; confirm every surface refreshes exactly as before (Console subsystem `wilgo`). Confirm a finished-cycle save now refreshes (previously missed).
@@ -164,13 +185,13 @@ Goal: add the always-on `didSave` observer and remove the view-site manual calls
 
 ## Critical Files
 
-| File | Role |
-| ---- | ---- |
-| `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift` (new) | Owns both automatic triggers |
-| `Wilgo/WilgoApp.swift` | Starts the coordinator; drops CatchUp hourly start |
-| `Wilgo/Features/LiveUpdates/Schedulers/CatchUpReminder.swift` | Loses its in-app hourly timer |
-| `Shared/Scheduling/StageCharacterization.swift` | Provides `nextStageRefreshTime` (reused, unchanged) |
-| `Shared/InAppScheduler.swift` | Deleted once unused |
+| File                                                          | Role                                                |
+| ------------------------------------------------------------- | --------------------------------------------------- |
+| `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift` (new)   | Owns both automatic triggers                        |
+| `Wilgo/WilgoApp.swift`                                        | Starts the coordinator; drops CatchUp hourly start  |
+| `Wilgo/Features/LiveUpdates/Schedulers/CatchUpReminder.swift` | Loses its in-app hourly timer                       |
+| `Shared/Scheduling/StageCharacterization.swift`               | Provides `nextStageRefreshTime` (reused, unchanged) |
+| `Shared/InAppScheduler.swift`                                 | Deleted once unused                                 |
 
 ### Dependency Graph
 
