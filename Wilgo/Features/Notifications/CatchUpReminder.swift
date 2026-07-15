@@ -1,9 +1,8 @@
-import BackgroundTasks
 import Foundation
 import SwiftData
 import UserNotifications
 
-enum CatchUpReminder {
+enum CatchUpReminder: BackgroundRefreshScheduler {
     // MARK: - Notification IDs
 
     private static let notificationIDPrefix = "wilgo.catchup."
@@ -38,7 +37,7 @@ enum CatchUpReminder {
         guard scheduler == nil else { return }  // avoid double-start
         scheduler = InAppScheduler(interval: 60 * 60) {
             Task { @MainActor in
-                await CatchUpReminder.updateAndScheduleNotificationAndBackgroundTask()
+                await CatchUpReminder.refresh()
             }
         }
         scheduler?.start()
@@ -46,40 +45,17 @@ enum CatchUpReminder {
 
     // MARK: - Background task
 
-    private static let backgroundTaskIdentifier = "wilgo.catchup-reminder-scheduler"
-    static func registerBackgroundTask() {
-        BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: backgroundTaskIdentifier,
-            using: nil
-        ) { task in
-            let work = Task { @MainActor in
-                // Await the update before reporting completion: `setTaskCompleted` lets iOS
-                // suspend the process, and the notification-store update would otherwise still
-                // be in flight.
-                await updateAndScheduleNotificationAndBackgroundTask()
-                guard !Task.isCancelled else { return }  // expiration already completed the task
-                task.setTaskCompleted(success: true)
-            }
-            // If iOS reclaims the wake before the work finishes, cancel and report failure so
-            // the task is retried rather than silently marked done mid-flight.
-            task.expirationHandler = {
-                work.cancel()
-                task.setTaskCompleted(success: false)
-            }
-        }
-    }
+    static let backgroundTaskIdentifier = "wilgo.catchup-reminder-scheduler"
+    static var nextWakeEarliestDate: Date { Date().addingTimeInterval(1 * 60 * 60) }
 
     // MARK: - Main entry point
 
-    /// Async so callers that must not outlive the work — the BGAppRefreshTask handler, which may
-    /// only `setTaskCompleted` after the notification store is actually updated — can await it.
-    /// App-alive callers may fire-and-forget with `Task { await ... }`.
+    /// Recomputes the catch-up set, updates the UserDefaults anchor, and rebuilds the
+    /// notification chain. (Wake re-queuing lives in the template's refresh().)
     @MainActor
-    static func updateAndScheduleNotificationAndBackgroundTask(
-        now: Date? = nil
-    ) async {
-        let now = now ?? Time.now()
-        let context = ModelContext(WilgoApp.sharedModelContainer)
+    static func performWork() async {
+        let now = Time.now()
+        let context = ModelContext.wilgoMain
         let commitments = (try? context.fetch(.activeOnly)) ?? []
         // Remind every behind commitment (not just the Stage's catch-up bucket): a behind commitment
         // sitting in Upcoming's top-N still needs catching up. `behindForReminder` reads the
@@ -94,20 +70,7 @@ enum CatchUpReminder {
         )
 
         updateCatchUpCommitmentsStorage(catchUp: catchUp, now: now)
-        // Re-schedule before the notification work so a mid-flight kill still leaves a wake queued.
-        scheduleBackgroundTask(now: now)
         await scheduleNotificationPost(for: catchUp, now: now)
-    }
-
-    // MARK: - Background task scheduling
-
-    /// Queue the next catch-up reminder.
-    static func scheduleBackgroundTask(
-        now _: Date
-    ) {
-        let request = BGAppRefreshTaskRequest(identifier: backgroundTaskIdentifier)
-        request.earliestBeginDate = Date().addingTimeInterval(1 * 60 * 60)
-        try? BGTaskScheduler.shared.submit(request)
     }
 
     // MARK: - UserDefaults storage
@@ -174,13 +137,7 @@ enum CatchUpReminder {
         }
 
         content.title = "Catch up on \(count) commitments"
-        let titles = commitments.map(\.title)
-        let primary = titles.prefix(3).joined(separator: " · ")
-        if titles.count > 3 {
-            content.body = "\(primary) · +\(titles.count - 3) more"
-        } else {
-            content.body = primary
-        }
+        content.body = NotificationText.joinedTitles(commitments.map(\.title))
         return content
     }
 
@@ -209,7 +166,7 @@ enum CatchUpReminder {
         let content = makeNotificationContent(for: catchUp)
 
         for (index, fireDate) in dates.enumerated() {
-            let components = Calendar.current.dateComponents(
+            let components = Time.calendar.dateComponents(
                 [.year, .month, .day, .hour, .minute, .second],
                 from: fireDate
             )

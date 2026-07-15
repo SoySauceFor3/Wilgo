@@ -16,7 +16,7 @@ enum CycleEndNotificationScheduler {
     /// with `Task { await refresh() }`.
     @MainActor
     static func refresh() async {
-        let context = ModelContext(WilgoApp.sharedModelContainer)
+        let context = ModelContext.wilgoMain
         let commitments = (try? context.fetch(.activeOnly)) ?? []
         let activeKinds = Set(commitments.map(\.cycle.kind))
         await scheduleNotifications(for: activeKinds)

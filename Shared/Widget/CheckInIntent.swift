@@ -37,9 +37,9 @@ struct CheckInIntent: LiveActivityIntent {
                 return .result()
             }
 
-            // Write through the app's shared mainContext so the post-write refresh — which also reads
-            // mainContext — sees the new check-in immediately, with no cross-container merge lag.
-            let context = WilgoApp.sharedModelContainer.mainContext
+            // Write through the app's canonical context so the post-write refresh — which also reads
+            // it — sees the new check-in immediately, with no cross-container merge lag.
+            let context = ModelContext.wilgoMain
             let descriptor = FetchDescriptor<Commitment>(predicate: #Predicate { $0.id == id })
             guard let commitment = try context.fetch(descriptor).first else {
                 return .result()

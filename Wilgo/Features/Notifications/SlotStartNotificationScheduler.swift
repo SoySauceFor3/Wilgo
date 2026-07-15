@@ -1,10 +1,10 @@
-import BackgroundTasks
 import Foundation
 import SwiftData
 import UserNotifications
 
-enum SlotStartNotificationScheduler {
+enum SlotStartNotificationScheduler: BackgroundRefreshScheduler {
     static let backgroundTaskIdentifier = "wilgo.slot-start-scheduler"
+    static var nextWakeEarliestDate: Date { Date().addingTimeInterval(24 * 60 * 60) }
     static let notificationIdentifierPrefix = "wilgo.slot-start."
     static let maxPendingCount = 48
     // Upper bound on how far ahead to enumerate slot starts. Without this, a user
@@ -15,12 +15,11 @@ enum SlotStartNotificationScheduler {
 
     // MARK: - Public entry point
 
-    /// Async so callers that must not outlive the work — the BGAppRefreshTask handler, which may
-    /// only `setTaskCompleted` after the notification store is actually updated — can await it.
-    /// App-alive callers may fire-and-forget with `Task { await refresh() }`.
+    /// Rebuilds the pending slot-start notifications from current commitments.
     @MainActor
-    static func refresh(now: Date = Time.now()) async {
-        let context = WilgoApp.sharedModelContainer.mainContext
+    static func performWork() async {
+        let now = Time.now()
+        let context = ModelContext.wilgoMain
         let commitments = (try? context.fetch(.activeOnly)) ?? []
 
         let grouped = startTimeInRangeToCommitments(for: commitments, from: now)
@@ -41,38 +40,6 @@ enum SlotStartNotificationScheduler {
         for request in requests {
             try? await center.add(request)
         }  // add new ones
-    }
-
-    // MARK: - BGAppRefreshTask
-
-    static func registerBackgroundTask() {
-        BGTaskScheduler.shared.register(
-            forTaskWithIdentifier: backgroundTaskIdentifier,
-            using: nil
-        ) { task in
-            let work = Task { @MainActor in
-                // Re-schedule before the work so a mid-flight kill still leaves a wake queued.
-                scheduleBackgroundTask()
-                // Await the refresh before reporting completion: `setTaskCompleted` lets iOS
-                // suspend the process, and the notification-store update would otherwise still
-                // be in flight.
-                await refresh()
-                guard !Task.isCancelled else { return }  // expiration already completed the task
-                task.setTaskCompleted(success: true)
-            }
-            // If iOS reclaims the wake before the work finishes, cancel and report failure so
-            // the task is retried rather than silently marked done mid-flight.
-            task.expirationHandler = {
-                work.cancel()
-                task.setTaskCompleted(success: false)
-            }
-        }
-    }
-
-    static func scheduleBackgroundTask() {
-        let request = BGAppRefreshTaskRequest(identifier: backgroundTaskIdentifier)
-        request.earliestBeginDate = Date().addingTimeInterval(24 * 60 * 60)
-        try? BGTaskScheduler.shared.submit(request)
     }
 
     // MARK: - Scheduling logic (internal for testing)
@@ -148,9 +115,7 @@ enum SlotStartNotificationScheduler {
     {
         let content = UNMutableNotificationContent()
         content.title = "\(commitments.count) commitments starting now"
-        let titles = commitments.map(\.title)
-        let primary = titles.prefix(3).joined(separator: " · ")
-        content.body = titles.count > 3 ? "\(primary) · +\(titles.count - 3) more" : primary
+        content.body = NotificationText.joinedTitles(commitments.map(\.title))
         content.userInfo = ["commitmentIds": commitments.map(\.id.uuidString)]
         return content
     }
