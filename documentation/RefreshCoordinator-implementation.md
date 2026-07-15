@@ -22,7 +22,7 @@ The work layers on top of the completed `#notification #DRY` workstream (the `Ba
 
 ## Architecture Summary
 
-Introduce **`RefreshCoordinator`** — a `@MainActor` class started once from `WilgoApp.init`, owning all *automatic* `refreshAll()` triggers. It answers one question in one place: "when should `refreshAll()` fire without anyone explicitly asking?" It has two independent trigger sources:
+Introduce **`RefreshCoordinator`** — a `@MainActor` class started once from `WilgoApp.init`, living at `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift` (alongside `CommitmentChangeRefresher`, which it drives), owning all *automatic* `refreshAll()` triggers. It answers one question in one place: "when should `refreshAll()` fire without anyone explicitly asking?" It has two independent trigger sources:
 
 ### Trigger A — DB change (always-on `didSave` observer)
 
@@ -93,9 +93,9 @@ It schedules a **one-shot** timer to fire *at* that instant. On fire: `await ref
 
 | Entity | Change |
 | ------ | ------ |
-| **New:** `Wilgo/Features/Notifications/RefreshCoordinator.swift` | New `@MainActor` class owning the `didSave` observer + the self-rescheduling boundary timer; both drive `CommitmentChangeRefresher.refreshAll()`. |
+| **New:** `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift` | New `@MainActor` class owning the `didSave` observer + the self-rescheduling boundary timer; both drive `CommitmentChangeRefresher.refreshAll()`. |
 | `Wilgo/WilgoApp.swift` | Start `RefreshCoordinator` from `init` (replacing the `CatchUpReminder.startHourlyRunWhileActive()` call). |
-| `Wilgo/Features/Notifications/CatchUpReminder.swift` | Delete `startHourlyRunWhileActive()`, the `scheduler` property, and the in-app-scheduler comment block. CatchUp keeps its `BackgroundRefreshScheduler` conformance and `performWork()`. |
+| `Wilgo/Features/LiveUpdates/Schedulers/CatchUpReminder.swift` | Delete `startHourlyRunWhileActive()`, the `scheduler` property, and the in-app-scheduler comment block. CatchUp keeps its `BackgroundRefreshScheduler` conformance and `performWork()`. |
 | `Wilgo/Features/Commitments/Form/AddCommitmentView.swift` | Remove manual `Task { await refreshAll() }` after `save()`. |
 | `Wilgo/Features/Commitments/Form/EditCommitmentView.swift` | Remove manual `Task { await refreshAll() }` after `save()`. |
 | `Wilgo/Features/Commitments/ListCommitmentView.swift` | Remove manual `Task { await refreshAll() }` after `save()`. |
@@ -119,12 +119,12 @@ Goal: replace CatchUp's hourly `InAppScheduler` with a boundary-driven timer ins
 
 #### Commit 1 — Add `RefreshCoordinator` with the self-rescheduling boundary timer
 
-**Create:** `Wilgo/Features/Notifications/RefreshCoordinator.swift`
+**Create:** `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift`
 - `@MainActor` class with a `start()` that schedules a one-shot timer at `StageCharacterization.nextStageRefreshTime(commitments:now:)`.
 - On fire: `await CommitmentChangeRefresher.refreshAll()`, recompute next boundary, reschedule.
 - Inject the boundary provider and the refresh action for testing.
 
-**Create:** `WilgoTests/Notifications/RefreshCoordinatorTimerTests.swift`
+**Create:** `WilgoTests/LiveUpdates/RefreshCoordinatorTimerTests.swift`
 - Fires the refresh action at the computed boundary (via injected clock/provider).
 - After firing, reschedules to the *next* boundary (not a fixed interval).
 - Recomputes the boundary from current commitments each cycle (a new commitment shifts the next fire).
@@ -132,7 +132,7 @@ Goal: replace CatchUp's hourly `InAppScheduler` with a boundary-driven timer ins
 #### Commit 2 — Wire `RefreshCoordinator` into `WilgoApp`; remove CatchUp's hourly timer
 
 **Modify:** `Wilgo/WilgoApp.swift` — replace `CatchUpReminder.startHourlyRunWhileActive()` with `RefreshCoordinator` start.
-**Modify:** `Wilgo/Features/Notifications/CatchUpReminder.swift` — delete `startHourlyRunWhileActive()`, the `scheduler` property, and the stale in-app-scheduler comment.
+**Modify:** `Wilgo/Features/LiveUpdates/Schedulers/CatchUpReminder.swift` — delete `startHourlyRunWhileActive()`, the `scheduler` property, and the stale in-app-scheduler comment.
 **Delete (if unused):** `Shared/InAppScheduler.swift` — confirm via grep that CatchUp was the sole user.
 
 **Manual verification:** Launch on iPhone 17 sim. Confirm the app builds/runs and that surfaces still refresh when a slot boundary is crossed while foregrounded (watch Console subsystem `wilgo`). This depends on Commit 1.
@@ -145,9 +145,9 @@ Goal: add the always-on `didSave` observer and remove the view-site manual calls
 
 #### Commit 3 — Add the `didSave` observer to `RefreshCoordinator`
 
-**Modify:** `Wilgo/Features/Notifications/RefreshCoordinator.swift` — observe `ModelContext.didSave` for `wilgoMain`; on save, fire-and-forget `Task { await refreshAll() }`. No debounce.
+**Modify:** `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift` — observe `ModelContext.didSave` for `wilgoMain`; on save, fire-and-forget `Task { await refreshAll() }`. No debounce.
 
-**Create/extend:** `WilgoTests/Notifications/RefreshCoordinatorObserverTests.swift`
+**Create/extend:** `WilgoTests/LiveUpdates/RefreshCoordinatorObserverTests.swift`
 - A `save()` on the observed context triggers the refresh action.
 - Multiple saves each trigger (documents the no-debounce v1 behavior).
 - (If feasible with a seam) the observer is scoped to the intended context.
@@ -166,9 +166,9 @@ Goal: add the always-on `didSave` observer and remove the view-site manual calls
 
 | File | Role |
 | ---- | ---- |
-| `Wilgo/Features/Notifications/RefreshCoordinator.swift` (new) | Owns both automatic triggers |
+| `Wilgo/Features/LiveUpdates/RefreshCoordinator.swift` (new) | Owns both automatic triggers |
 | `Wilgo/WilgoApp.swift` | Starts the coordinator; drops CatchUp hourly start |
-| `Wilgo/Features/Notifications/CatchUpReminder.swift` | Loses its in-app hourly timer |
+| `Wilgo/Features/LiveUpdates/Schedulers/CatchUpReminder.swift` | Loses its in-app hourly timer |
 | `Shared/Scheduling/StageCharacterization.swift` | Provides `nextStageRefreshTime` (reused, unchanged) |
 | `Shared/InAppScheduler.swift` | Deleted once unused |
 
