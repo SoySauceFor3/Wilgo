@@ -157,7 +157,9 @@ struct ArchivedCommitmentsActions {
                 commitment.cycle = Cycle.makeDefault(commitment.cycle.kind)
             }
         }
-        Task { await CommitmentChangeRefresher.refreshAll() }
+        // Save explicitly so didSave fires NOW → RefreshCoordinator's observer rebuilds the surfaces
+        // immediately. Without it, autosave fires didSave ~15s later (measured). Same save, made prompt.
+        try? modelContext.save()
     }
 
     /// Permanently removes commitments from the store.
@@ -167,7 +169,9 @@ struct ArchivedCommitmentsActions {
                 modelContext.delete(commitment)
             }
         }
-        Task { await CommitmentChangeRefresher.refreshAll() }
+        // Save explicitly so didSave fires NOW → RefreshCoordinator's observer rebuilds the surfaces
+        // immediately. Without it, autosave fires didSave ~15s later (measured). Same save, made prompt.
+        try? modelContext.save()
     }
 }
 

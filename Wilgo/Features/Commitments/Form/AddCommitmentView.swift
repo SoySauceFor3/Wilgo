@@ -38,7 +38,6 @@ struct AddCommitmentView: View {
     private func persistCommitment() {
         draft.insertCommitment(in: modelContext)
         try? modelContext.save()
-        Task { await CommitmentChangeRefresher.refreshAll() }
         dismiss()
     }
 }

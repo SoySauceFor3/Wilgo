@@ -38,15 +38,25 @@ struct WilgoApp: App {
         }
     }()
 
+    /// Process-wide owner of the automatic-refresh coordinator, mirroring `sharedModelContainer`.
+    /// A `static let` guarantees exactly one instance that lives for the whole process, so it's
+    /// immune to SwiftUI re-creating the `App` struct (which can call `init()` more than once).
+    /// `start()` is idempotent, so a repeated `init()` never arms a second timer or observer.
+    private static let refreshCoordinator = RefreshCoordinator()
+
     @Environment(\.scenePhase) private var scenePhase
     @StateObject private var checkInUndoManager = CheckInUndoManager()
     @State private var deepLinkedCommitment: Commitment?
     @State private var ptBadgeState = PTBadgeState()
 
     init() {
+        // Fire refreshAll() automatically at meaningful time boundaries (next slot edge / cycle
+        // boundary) and on every DB write. Replaces CatchUp's old fixed-hourly in-app timer.
+        // Idempotent, so it's safe even if SwiftUI runs init() more than once.
+        Self.refreshCoordinator.start()
+
         // Set up CatchUpReminderService.
         CatchUpReminder.registerBackgroundTask()
-        CatchUpReminder.startHourlyRunWhileActive()
 
         // Register the Live Activity background sync task. Must come before any submit() call.
         NowLiveActivityManager.registerBackgroundTask()

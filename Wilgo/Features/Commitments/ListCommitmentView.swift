@@ -2,6 +2,7 @@ import SwiftData
 import SwiftUI
 
 struct ListCommitmentView: View {
+    @Environment(\.modelContext) private var modelContext
     @Query(filter: Commitment.activePredicate,
            sort: \Commitment.createdAt, order: .forward)
     private var commitments: [Commitment]
@@ -83,7 +84,11 @@ struct ListCommitmentView: View {
         withAnimation {
             commitment.archivedAt = Date()
         }
-        Task { await CommitmentChangeRefresher.refreshAll() }
+        // Save explicitly so didSave fires NOW — RefreshCoordinator's observer then rebuilds the
+        // notification/LA/widget surfaces immediately. Without this, autosave still fires didSave, but
+        // ~15s later (measured), leaving those surfaces stale in the meantime. Same save either way;
+        // this only makes it prompt.
+        try? modelContext.save()
     }
 }
 

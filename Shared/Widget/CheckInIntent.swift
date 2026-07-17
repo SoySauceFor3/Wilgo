@@ -52,7 +52,14 @@ struct CheckInIntent: LiveActivityIntent {
             // Rebuild every notification surface (Live Activity included) from the single choke point,
             // so surfaces added later are picked up here automatically. Replaces the old Darwin
             // liveActivitySync ping, which was dropped whenever the app was suspended.
-            // Awaited: perform() keeps the app process alive only until it returns.
+            //
+            // Awaited — and kept even though RefreshCoordinator's didSave observer ALSO fires on the
+            // save() above. The observer's refresh is a fire-and-forget Task, which is fine in the
+            // foreground but risky here: perform() keeps the app process alive only until it returns,
+            // and iOS may spin the app up JUST to run this Intent, then suspend/kill it the instant
+            // perform() returns — cutting off a detached Task mid-refresh. This awaited call guarantees
+            // the refresh completes before we return. The resulting double refresh (observer + this)
+            // is harmless: refreshAll() is idempotent.
             await CommitmentChangeRefresher.refreshAll()
 
             return .result()

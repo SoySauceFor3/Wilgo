@@ -8,7 +8,6 @@
 
 /* Begin PBXBuildFile section */
 		700D16412F833A60004B6B57 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700D160C2F833A60004B6B57 /* AppSettings.swift */; };
-		700D16422F833A60004B6B57 /* InAppScheduler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700D160D2F833A60004B6B57 /* InAppScheduler.swift */; };
 		700D166E2F838172004B6B57 /* WilgoConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700D166D2F838172004B6B57 /* WilgoConstants.swift */; };
 		700D166F2F838172004B6B57 /* WilgoConstants.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700D166D2F838172004B6B57 /* WilgoConstants.swift */; };
 		700D18E52F838864004B6B57 /* AppSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 700D160C2F833A60004B6B57 /* AppSettings.swift */; };
@@ -64,7 +63,6 @@
 
 /* Begin PBXFileReference section */
 		700D160C2F833A60004B6B57 /* AppSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppSettings.swift; sourceTree = "<group>"; };
-		700D160D2F833A60004B6B57 /* InAppScheduler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InAppScheduler.swift; sourceTree = "<group>"; };
 		700D166D2F838172004B6B57 /* WilgoConstants.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WilgoConstants.swift; sourceTree = "<group>"; };
 		701EBD952F4CDF320060F5B6 /* Wilgo.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Wilgo.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		701EBDA62F4CDF360060F5B6 /* WilgoTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = WilgoTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -239,7 +237,6 @@
 			children = (
 				703254782FE2F42D0067A19D /* Widget */,
 				700D160C2F833A60004B6B57 /* AppSettings.swift */,
-				700D160D2F833A60004B6B57 /* InAppScheduler.swift */,
 				700D166D2F838172004B6B57 /* WilgoConstants.swift */,
 				700D167F2F83854E004B6B57 /* Scheduling */,
 				700D16762F838544004B6B57 /* Models */,
@@ -447,7 +444,6 @@
 				7032547D2FE2F42D0067A19D /* NowAttributes.swift in Sources */,
 				7032547E2FE2F42D0067A19D /* SnoozeIntent.swift in Sources */,
 				700D16412F833A60004B6B57 /* AppSettings.swift in Sources */,
-				700D16422F833A60004B6B57 /* InAppScheduler.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
