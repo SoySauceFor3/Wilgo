@@ -52,7 +52,6 @@ struct EditCommitmentView: View {
     private func saveChanges() {
         draft.apply(to: commitment, in: modelContext)
         try? modelContext.save()
-        Task { await CommitmentChangeRefresher.refreshAll() }
         dismiss()
     }
 }

@@ -109,6 +109,16 @@ So the boundary timer's schedule is derived state over the commitment set, and t
 
 **Risk: performance under save-bursts.** **Mitigation:** if profiling shows redundant `refreshAll()` runs are a real cost, add a short-window debounce (e.g. coalesce saves within ~300ms into one refresh) as a follow-up. This is explicitly deferred, not forgotten.
 
+### Mutation sites `save()` explicitly so the observer refreshes promptly
+
+**Decision:** Every view mutation site calls `try? modelContext.save()` after mutating. The observer then fires on that `didSave` and rebuilds the surfaces immediately. Add/Edit already did this; Commit 5 adds it to the three sites that previously only mutated + relied on autosave (archive in `ListCommitmentView`, unarchive + delete in `ArchivedCommitmentsView`). `ListCommitmentView` gains an `@Environment(\.modelContext)` for this.
+
+**Why not just rely on autosave?** We tried that first — remove the manual `refreshAll()` and let SwiftData's autosave post `didSave` on its own. **On-device measurement refuted it:** after an archive, `didSave` did not fire for **~15 seconds** (autosave batches; its interval is undocumented and not tunable). An explicit-save site (editing a slot) refreshed **instantly** by contrast. 15s of stale notifications/LA/widget after an archive is perceptible and avoidable, so we save explicitly.
+
+Note this is **the same save either way** — autosave would have persisted these changes regardless; the explicit call only moves the persist (and thus the `didSave`) to _now_ instead of ~15s later. So there is **no extra DB work and no performance cost** — a single-object archive/delete save is cheap, and Add/Edit have always saved on every create/edit without issue.
+
+**On discipline (accepted trade-off).** Requiring `save()` at each mutation site is still a remembered step — but a much _softer_ one than before. The observer already eliminated the dangerous discipline (forget `refreshAll()` → surfaces stay **permanently** stale). What remains is only "remember to `save()` so `didSave` fires _promptly_"; if a future site forgets, autosave still fires `didSave` ~15s later, so a forgotten `save()` is a **latency** bug, not a **correctness** bug. That benign fallback is the safety net that makes the residual discipline low-stakes. Fully eliminating it would require turning autosave off and routing all writes through one `save()`-ing method (repository/wrapper) — a large change that fights SwiftData's "mutate models directly" grain, not worth it for a latency-only concern. A `saveChanges()` helper was considered but rejected: it DRYs the _how_, not the _whether_, and would create two conventions unless the whole app were swept.
+
 ### Boundary timer reuses `nextStageRefreshTime`
 
 **Decision:** Compute the next fire instant with `StageCharacterization.nextStageRefreshTime(commitments:now:)` rather than a new boundary calculation.
@@ -206,9 +216,9 @@ This plan builds the new structure as **five focused commits**, each self-contai
 
 #### Commit 5 — Remove manual `refreshAll()` from the 5 view sites
 
-**Modify:** `AddCommitmentView.swift`, `EditCommitmentView.swift`, `ListCommitmentView.swift`, `ArchivedCommitmentsView.swift` (×2) — delete the `Task { await refreshAll() }` after `save()`.
+**Modify:** `AddCommitmentView.swift`, `EditCommitmentView.swift`, `ListCommitmentView.swift`, `ArchivedCommitmentsView.swift` (×2) — delete the `Task { await refreshAll() }` after the mutation. The three archive/unarchive/delete sites, which previously only mutated + relied on autosave, now call `try? modelContext.save()` so `didSave` fires promptly (see the "Mutation sites `save()` explicitly" decision — on-device showed autosave lagged ~15s). `ListCommitmentView` gains an `@Environment(\.modelContext)` for this. Add/Edit already `save()` explicitly.
 **No change (beneficiary):** `FinishedCycleReportView.swift` has a `save()` but _no_ `refreshAll()` call today — the currently-missing-refresh gap. Nothing to remove; the observer now covers it automatically. This commit closes that gap.
-**Keep untouched:** `CheckInIntent.swift`, `SnoozeIntent.swift` — their explicit awaited `refreshAll()` stays (process-lifetime).
+**Keep, with a clarifying comment:** `CheckInIntent.swift`, `SnoozeIntent.swift` — their explicit awaited `refreshAll()` stays. The observer also fires on their `save()`, but the observer's refresh is fire-and-forget and could be cut off when the Intent's `perform()` returns and iOS suspends the app; the awaited explicit call guarantees completion (harmless double refresh — `refreshAll()` is idempotent).
 
 **Manual verification:** Launch on iPhone 17 sim. Add/edit/archive a commitment and check in via widget/LA; confirm every surface refreshes exactly as before. Confirm a finished-cycle save now refreshes (previously missed).
 
