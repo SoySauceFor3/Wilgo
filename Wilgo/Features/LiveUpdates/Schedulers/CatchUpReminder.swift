@@ -27,22 +27,6 @@ enum CatchUpReminder: BackgroundRefreshScheduler {
         672,  // 4 weeks
     ]
 
-    // MARK: - In-app scheduler
-
-    // scheduler to make the "real work" run once a hour as long as the app is active.
-    // if the app get's inactive/background, if during the hour-long gap, nothing changes.
-    // if the app get's inactive/background when the timer fires, that time's handler exeuction will be missed.
-    private static var scheduler: InAppScheduler?
-    static func startHourlyRunWhileActive() {
-        guard scheduler == nil else { return }  // avoid double-start
-        scheduler = InAppScheduler(interval: 60 * 60) {
-            Task { @MainActor in
-                await CatchUpReminder.refresh()
-            }
-        }
-        scheduler?.start()
-    }
-
     // MARK: - Background task
 
     static let backgroundTaskIdentifier = "wilgo.catchup-reminder-scheduler"
