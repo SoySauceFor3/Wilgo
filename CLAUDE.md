@@ -18,7 +18,7 @@ First focus on planing the feature's expected behavor, UI/UX, PRD like elements.
 
 ### 2. Implementation plan
 
-Second, you plan on implementation in a seperate file (most of time in `./documentation/`).
+Second, you plan on implementation in a seperate file (default in `./documentation/`).
 
 To help you better understand what i want, please refer to the template at ./documentation/TEMPLATE.md
 
