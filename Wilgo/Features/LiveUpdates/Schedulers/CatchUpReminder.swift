@@ -38,6 +38,15 @@ enum CatchUpReminder: BackgroundRefreshScheduler {
     /// notification chain. (Wake re-queuing lives in the template's refresh().)
     @MainActor
     static func performWork() async {
+        // Removing pending requests needs no authorization (only adding does), so the gate
+        // clears our owned pending notifications directly and returns before ever touching
+        // authorization — a disabled category still gets cleared even if never authorized.
+        guard AppSettings.catchUpRemindersEnabled else {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(
+                withIdentifiers: allNotificationIDs)
+            return
+        }
+
         let now = Time.now()
         let context = ModelContext.wilgoMain
         let commitments = (try? context.fetch(.activeOnly)) ?? []
