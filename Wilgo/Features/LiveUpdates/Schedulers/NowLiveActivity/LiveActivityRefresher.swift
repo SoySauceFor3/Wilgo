@@ -87,6 +87,21 @@ enum LiveActivityRefresher {
         await requestNearestFirst(actions.toRequest, now: now)
     }
 
+    /// Ends every seated Wilgo card (pending AND live) unconditionally — the disabled-toggle path.
+    /// When `AppSettings.nowLiveActivityEnabled` is false, the manager routes here instead of
+    /// `refresh(context:)` so no card is reconciled against the plan; all seated cards are torn down,
+    /// mirroring the `endOrphans` phase. The `context` parameter mirrors `refresh(context:)`'s
+    /// signature for call-site uniformity even though it is unused here.
+    @MainActor
+    static func endAll(context _: ModelContext) async {
+        for activity in seatedActivities() {
+            logLA(
+                "  endAll ending \(activity.content.state.commitmentTitle) id=\(String(activity.id.prefix(8)))"
+            )
+            await activity.end(nil, dismissalPolicy: .immediate)
+        }
+    }
+
     // MARK: - Inputs
 
     /// Only these states occupy one of the scarce activity slots and can display content.

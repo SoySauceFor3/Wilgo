@@ -40,7 +40,11 @@ enum NowLiveActivityManager: BackgroundRefreshScheduler {
             // Gate: park this run until the previous run's `refresh()` has fully returned (including
             // all of its internal `await`s), so their bodies never interleave.
             await previous?.value
-            await LiveActivityRefresher.refresh(context: ModelContext.wilgoMain)
+            if AppSettings.nowLiveActivityEnabled {
+                await LiveActivityRefresher.refresh(context: ModelContext.wilgoMain)
+            } else {
+                await LiveActivityRefresher.endAll(context: ModelContext.wilgoMain)
+            }
         }
         await refreshTask?.value
     }
