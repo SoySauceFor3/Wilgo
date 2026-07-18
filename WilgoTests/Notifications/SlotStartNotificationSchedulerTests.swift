@@ -236,4 +236,43 @@ final class SlotStartNotificationSchedulerTests {
 
         #expect(result.isEmpty)
     }
+
+    // MARK: - AppSettings gate
+
+    /// `performWork()` gates all scheduling on `AppSettings.slotStartNotificationsEnabled`
+    /// before it ever touches `UNUserNotificationCenter`, so it cannot be exercised end-to-end
+    /// without mocking the system notification center (disallowed). The testable seam is the
+    /// gate condition itself: confirms the toggle the scheduler reads defaults to enabled and
+    /// correctly reports disabled when the user has opted out, which is what `performWork()`
+    /// branches on.
+    private func withStored(_ key: String, _ value: Bool?, _ body: () -> Void) {
+        let original = UserDefaults.standard.object(forKey: key)
+        defer {
+            if let original {
+                UserDefaults.standard.set(original, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+        if let value {
+            UserDefaults.standard.set(value, forKey: key)
+        } else {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+        body()
+    }
+
+    @Test("performWork's gate: slotStartNotificationsEnabled defaults to true (no opt-out)")
+    func gate_defaultsToEnabled() {
+        withStored(AppSettings.slotStartNotificationsEnabledKey, nil) {
+            #expect(AppSettings.slotStartNotificationsEnabled == true)
+        }
+    }
+
+    @Test("performWork's gate: slotStartNotificationsEnabled false when user disables the toggle")
+    func gate_disabledWhenToggledOff() {
+        withStored(AppSettings.slotStartNotificationsEnabledKey, false) {
+            #expect(AppSettings.slotStartNotificationsEnabled == false)
+        }
+    }
 }
