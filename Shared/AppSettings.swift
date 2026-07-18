@@ -49,6 +49,27 @@ enum AppSettings {
     static var includeActiveSlotsInCatchUp: Bool {
         UserDefaults.standard.bool(forKey: includeActiveSlotsInCatchUpReminderKey)
     }
+
+    /// Whether slot-start notifications are enabled. Default: true.
+    static let slotStartNotificationsEnabledKey = "slotStartNotificationsEnabled"
+    static var slotStartNotificationsEnabled: Bool { enabledDefaultingTrue(slotStartNotificationsEnabledKey) }
+
+    /// Whether catch-up reminder notifications are enabled. Default: true.
+    static let catchUpRemindersEnabledKey = "catchUpRemindersEnabled"
+    static var catchUpRemindersEnabled: Bool { enabledDefaultingTrue(catchUpRemindersEnabledKey) }
+
+    /// Whether cycle-end notifications are enabled. Default: true.
+    static let cycleEndNotificationsEnabledKey = "cycleEndNotificationsEnabled"
+    static var cycleEndNotificationsEnabled: Bool { enabledDefaultingTrue(cycleEndNotificationsEnabledKey) }
+
+    /// Whether the "Now" Live Activity is enabled. Default: true.
+    static let nowLiveActivityEnabledKey = "nowLiveActivityEnabled"
+    static var nowLiveActivityEnabled: Bool { enabledDefaultingTrue(nowLiveActivityEnabledKey) }
+
+    /// Reads a Bool that defaults to `true` (enabled) when the key is absent.
+    private static func enabledDefaultingTrue(_ key: String) -> Bool {
+        UserDefaults.standard.object(forKey: key) == nil ? true : UserDefaults.standard.bool(forKey: key)
+    }
 }
 
 #if DEBUG

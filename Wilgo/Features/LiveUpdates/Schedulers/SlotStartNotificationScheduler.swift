@@ -18,6 +18,14 @@ enum SlotStartNotificationScheduler: BackgroundRefreshScheduler {
     /// Rebuilds the pending slot-start notifications from current commitments.
     @MainActor
     static func performWork() async {
+        // Removing pending requests needs no authorization (only adding does), so the gate
+        // clears our owned pending notifications directly and returns before ever touching
+        // authorization — a disabled category still gets cleared even if never authorized.
+        guard AppSettings.slotStartNotificationsEnabled else {
+            await removeOwnedPending()
+            return
+        }
+
         let now = Time.now()
         let context = ModelContext.wilgoMain
         let commitments = (try? context.fetch(.activeOnly)) ?? []
@@ -33,13 +41,21 @@ enum SlotStartNotificationScheduler: BackgroundRefreshScheduler {
         guard await (try? center.requestAuthorization(options: [.alert, .sound])) == true else {
             return
         }
-        let pending = await center.pendingNotificationRequests()
-        let oldIDs = pending.map(\.identifier)
-            .filter { $0.hasPrefix(notificationIdentifierPrefix) }
-        center.removePendingNotificationRequests(withIdentifiers: oldIDs)  // remove old ones
+        await removeOwnedPending()  // remove old ones
         for request in requests {
             try? await center.add(request)
         }  // add new ones
+    }
+
+    /// Removes all pending notification requests owned by this scheduler (identified by
+    /// `notificationIdentifierPrefix`). Safe to call without authorization.
+    @MainActor
+    private static func removeOwnedPending() async {
+        let center = UNUserNotificationCenter.current()
+        let pending = await center.pendingNotificationRequests()
+        let ownedIDs = pending.map(\.identifier)
+            .filter { $0.hasPrefix(notificationIdentifierPrefix) }
+        center.removePendingNotificationRequests(withIdentifiers: ownedIDs)
     }
 
     // MARK: - Scheduling logic (internal for testing)

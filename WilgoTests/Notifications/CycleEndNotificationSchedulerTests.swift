@@ -3,6 +3,7 @@ import Testing
 import UserNotifications
 @testable import Wilgo
 
+@Suite(.serialized)
 struct CycleEndNotificationSchedulerTests {
     // MARK: - trigger(for:)
 
@@ -32,5 +33,43 @@ struct CycleEndNotificationSchedulerTests {
         #expect(trigger.dateComponents.hour == 0)
         #expect(trigger.dateComponents.day == 1)
         #expect(trigger.dateComponents.weekday == nil)
+    }
+
+    // MARK: - AppSettings gate
+
+    /// `refresh()` gates all scheduling on `AppSettings.cycleEndNotificationsEnabled` before it
+    /// ever touches `UNUserNotificationCenter`, so it cannot be exercised end-to-end without
+    /// mocking the system notification center (disallowed). The testable seam is the gate
+    /// condition itself: confirms the toggle the scheduler reads defaults to enabled and
+    /// correctly reports disabled when the user has opted out, which is what `refresh()` branches on.
+    private func withStored(_ key: String, _ value: Bool?, _ body: () -> Void) {
+        let original = UserDefaults.standard.object(forKey: key)
+        defer {
+            if let original {
+                UserDefaults.standard.set(original, forKey: key)
+            } else {
+                UserDefaults.standard.removeObject(forKey: key)
+            }
+        }
+        if let value {
+            UserDefaults.standard.set(value, forKey: key)
+        } else {
+            UserDefaults.standard.removeObject(forKey: key)
+        }
+        body()
+    }
+
+    @Test("refresh's gate: cycleEndNotificationsEnabled defaults to true (no opt-out)")
+    func gate_defaultsToEnabled() {
+        withStored(AppSettings.cycleEndNotificationsEnabledKey, nil) {
+            #expect(AppSettings.cycleEndNotificationsEnabled == true)
+        }
+    }
+
+    @Test("refresh's gate: cycleEndNotificationsEnabled false when user disables the toggle")
+    func gate_disabledWhenToggledOff() {
+        withStored(AppSettings.cycleEndNotificationsEnabledKey, false) {
+            #expect(AppSettings.cycleEndNotificationsEnabled == false)
+        }
     }
 }

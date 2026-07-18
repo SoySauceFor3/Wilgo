@@ -16,6 +16,11 @@ enum CycleEndNotificationScheduler {
     /// with `Task { await refresh() }`.
     @MainActor
     static func refresh() async {
+        guard AppSettings.cycleEndNotificationsEnabled else {
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: allNotificationIDs)
+            return
+        }
+
         let context = ModelContext.wilgoMain
         let commitments = (try? context.fetch(.activeOnly)) ?? []
         let activeKinds = Set(commitments.map(\.cycle.kind))

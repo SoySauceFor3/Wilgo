@@ -36,7 +36,7 @@ Always
 
 this is a big chunk and it's very important, so we have a dedicated section here.
 
-1. If there is UI change, make it happen as early as possible, so I can manually verify the other changes that depend on the data change only accessible from the UI (from a user perspective).
+1. The UI related code should be prioritized, so I can manually verify the other changes that depend on the data change only accessible from the UI (from a user perspective).
 2. declare the dependency between commits, so parallel sub-agent can work.
 3. You can make branches and commitment chains as needed.
 4. make each individual commit

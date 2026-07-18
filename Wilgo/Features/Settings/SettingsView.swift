@@ -21,6 +21,18 @@ struct SettingsView: View {
     @AppStorage(AppSettings.includeActiveSlotsInCatchUpReminderKey)
     private var includeActiveSlotsInCatchUp: Bool = false
 
+    @AppStorage(AppSettings.slotStartNotificationsEnabledKey)
+    private var slotStartNotificationsEnabled: Bool = true
+
+    @AppStorage(AppSettings.catchUpRemindersEnabledKey)
+    private var catchUpRemindersEnabled: Bool = true
+
+    @AppStorage(AppSettings.cycleEndNotificationsEnabledKey)
+    private var cycleEndNotificationsEnabled: Bool = true
+
+    @AppStorage(AppSettings.nowLiveActivityEnabledKey)
+    private var nowLiveActivityEnabled: Bool = true
+
     @Environment(\.modelContext) private var modelContext
 
     @State private var pendingWeekStart: Bool? = nil
@@ -124,6 +136,41 @@ struct SettingsView: View {
                     Text("Catch-up reminders")
                 } footer: {
                     Text("When on, you'll also be reminded to catch up on a commitment whose slot is open right now. Off by default — those are already on your Stage.")
+                }
+
+                Section {
+                    Toggle("Slot-start notifications", isOn: Binding(
+                        get: { slotStartNotificationsEnabled },
+                        set: { newValue in
+                            slotStartNotificationsEnabled = newValue
+                            Task { await SlotStartNotificationScheduler.refresh() }
+                        }
+                    ))
+                    Toggle("Catch-up reminders", isOn: Binding(
+                        get: { catchUpRemindersEnabled },
+                        set: { newValue in
+                            catchUpRemindersEnabled = newValue
+                            Task { await CatchUpReminder.refresh() }
+                        }
+                    ))
+                    Toggle("Cycle-end notifications", isOn: Binding(
+                        get: { cycleEndNotificationsEnabled },
+                        set: { newValue in
+                            cycleEndNotificationsEnabled = newValue
+                            Task { await CycleEndNotificationScheduler.refresh() }
+                        }
+                    ))
+                    Toggle("Now Live Activity", isOn: Binding(
+                        get: { nowLiveActivityEnabled },
+                        set: { newValue in
+                            nowLiveActivityEnabled = newValue
+                            Task { await NowLiveActivityManager.refresh() }
+                        }
+                    ))
+                } header: {
+                    Text("Notifications & Live Activity")
+                } footer: {
+                    Text("Turn a category off to cancel all of its pending and active alerts. Turn it back on to reschedule.")
                 }
 
                 Section("Tags") {
