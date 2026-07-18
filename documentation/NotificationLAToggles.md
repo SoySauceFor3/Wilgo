@@ -72,6 +72,33 @@ busy loop (iOS grants BG wakes as discrete, throttled events).
 the cost is trivial and it keeps the gate confined to `performWork()` with zero changes to the
 wake-policy getters or the documented invariant.
 
+#### Why we keep the BG re-queue unconditional when a category is OFF (the reasoning, in full)
+
+An iOS `BGAppRefreshTask` is a **one-shot**: each granted wake consumes the single pending request,
+and iOS will only launch us again if a *new* request is queued. The only reliable place to queue that
+next request is while we are currently awake and running — so every wake must "re-arm" the chain
+(call `scheduleBackgroundTask()`) or background updates for that category go **dark** until the next
+foreground launch. `refresh()` therefore re-arms FIRST, unconditionally, then runs `performWork()`:
+even if iOS kills the app mid-`performWork()` (background execution is hostile — the app can be
+suspended/killed at any `await`), the next wake is already queued, so the chain survives. That is the
+"crash-safety invariant."
+
+We deliberately do **not** add an "if disabled, skip the re-queue" branch, even though it would
+eliminate the no-op wakes and could be written correctly today. Two reasons:
+
+1. **It couples today's correctness to a hidden contract.** If OFF skipped re-arming, then the *only*
+   thing that re-arms the chain is the Settings toggle-on handler calling `refresh()`. "Toggle on
+   works" would secretly depend on "every re-enable path remembered to call `refresh()`."
+2. **The future failure is silent and permanent.** If any later re-enable path (a debug menu, an
+   onboarding step, a migration) flips the flag but forgets to call `refresh()`, the chain stays dark
+   forever — no crash, no error, notifications just quietly never return. That is the worst kind of
+   bug.
+
+Keeping the re-queue unconditional means the flag can **never** disarm the chain: the category always
+wakes, and the flag only decides whether that wake *does anything*. Each wake re-reads the flag fresh,
+so the behavior is self-correcting regardless of how the flag was last changed. The cost — a few
+cheap no-op wakes per day — is a small, bounded price for removing an entire class of future footguns.
+
 ### 4. Toggle-on = just re-run `refresh()` (no re-firing of missed notifications)
 
 **Decision:** re-enabling calls the category's `refresh()`. Its existing cancel-then-rebuild body
