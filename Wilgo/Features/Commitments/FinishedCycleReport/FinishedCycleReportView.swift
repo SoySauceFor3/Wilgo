@@ -16,7 +16,7 @@ struct FinishedCycleReportView: View {
     /// re-renders as backfills mutate the live report.
     @State private var cardStates: [String: FCRCycleCardState] = [:]
 
-    /// PT assigned to each failed cycle, keyed by `CycleReport.id`.
+    /// PT assigned to each PT-requiring cycle (Move on / Punished), keyed by `CycleReport.id`.
     @State private var assignedPTs: [String: PositivityToken] = [:]
 
     /// The `CycleReport.id` the shared mint sheet should attach its minted PT to.
@@ -204,7 +204,8 @@ struct FinishedCycleReportView: View {
         }
     }
 
-    /// Mint a new PT inline and assign it to the given failed cycle.
+    /// Mint a new PT and assign it to the given PT-requiring cycle (mint is only
+    /// reachable from a card whose outcome `requiresPT`).
     private func mintAndAssign(reason: String, to cycleID: String) {
         let token = PositivityToken(reason: reason)
         modelContext.insert(token)

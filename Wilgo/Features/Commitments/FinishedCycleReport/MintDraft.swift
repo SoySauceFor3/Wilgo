@@ -34,8 +34,9 @@ struct MintDraft: Equatable {
     }
 
     /// Whitespace-only drafts count as blank (save is disabled for these).
+    /// Defined via `trimmedReason` so the two can never disagree.
     var isBlank: Bool {
-        text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        trimmedReason == nil
     }
 
     /// The trimmed text to persist, or `nil` when the draft is blank.
