@@ -105,17 +105,35 @@ existing case plus its display string, not a new concept.
 - **Rename** `case letGo` → `case moveOn`.
 - **Remove** `case other`.
 
-`CycleOutcome` is `String`-backed and `Codable`, persisted on `CycleRecord`.
-This is a **persisted enum change** requiring migration handling:
+`CycleOutcome` is `String`-backed and persisted on `CycleRecord`. Removing the
+`letGo`/`other` cases is a **persisted enum change**: existing on-disk rows carry
+raw values (`"letGo"`, `"other"`) that no longer map to a case.
 
-- Existing records with `outcome == "letGo"` → map to `.moveOn`.
-- Existing records with `outcome == "other"` → map to `.moveOn` (the new
-  catch-all). Their existing `reflectionText` is preserved.
+**Migration decision (2026-07-20):** a **one-time wipe** of all `CycleRecord`
+rows, guarded by a `UserDefaults` flag. Rationale: FCR/`CycleRecord` is
+unreleased to `main` (branch `RedoFCR`), so 3Sauce is fine starting the cycle
+history fresh. This sidesteps the SwiftData hazard that loading a row with an
+unknown enum raw value can crash on fetch — a *read*-based migration hits a
+chicken-and-egg problem (you must materialize the dead enum to fix it), whereas a
+batch delete operates without materializing `outcome`.
 
-Migration approach to be finalized in the implementation plan (candidates:
-custom decoding that maps legacy raw values, or a lightweight data migration
-pass). The safe default: decode-time mapping of legacy raw strings so no data
-rewrite is strictly required.
+- On launch, if a `UserDefaults` flag (e.g. `didWipeLegacyCycleRecords_v2`) is
+  unset: `try context.delete(model: CycleRecord.self)`, then set the flag. Runs
+  once per install.
+- Side effect (acceptable/intended): deleting CycleRecords nullifies
+  `PositivityToken.consumedByCycleRecord`, so any consumed PTs return to the
+  wins journal as free tokens. Commitments are untouched (we delete only
+  CycleRecords).
+- The `CycleOutcome` `Codable` decoder that maps legacy raws is therefore **not**
+  the migration mechanism (SwiftData does not route loads through `Codable`); it
+  is at most harmless insurance for any JSON path. Once the wipe ships, no legacy
+  raws survive.
+
+**Rejected alternatives:** launch-time read-migration loop (can crash on the
+fetch it needs); `SchemaMigrationPlan` custom stage (correct but introduces
+versioned-schema infra this repo has none of — overkill for unreleased data);
+raw-`String`-column + computed enum (safe and simple, but 3Sauce preferred a
+clean wipe over carrying a lazy-mapping property forever).
 
 `CycleRecordBuilder` / `FCRPTAssignment` gating updates so PT is only assigned
 to cycles whose selected label requires one (Move on, Punished), rather than
@@ -318,12 +336,12 @@ never build the inline textbox just to delete it.
 
 ---
 
-### Phase 1 — Enum + requirement matrix (foundation)
+### Phase 1 — Enum + requirement matrix + legacy wipe (foundation)
 
-Goal: the `CycleOutcome` shape and the matrix source-of-truth, with migration
-decode. Everything else depends on this.
+Goal: the `CycleOutcome` shape, the matrix source-of-truth, and a guarded
+one-time wipe of legacy `CycleRecord` rows. Everything else depends on this.
 
-#### Commit 1 — model: add Intended, rename Let go→Move on, drop Other; add requirement matrix + legacy decode
+#### Commit 1 — model: add Intended, rename Let go→Move on, drop Other; add requirement matrix + decoder (DONE: `3ab6574`)
 
 **Modify:** `Shared/Models/CycleRecord.swift`
 
@@ -363,7 +381,57 @@ Tests:
   round-trip.
 - Decoding an unknown raw value throws.
 
+Note (post-implementation): the `Codable` decoder is **insurance only** — SwiftData
+does not route model loads through `Codable`, so legacy on-disk raws are handled
+by the wipe in Commit 1b, not this decoder.
+
 **Dependencies:** none. Blocks all other commits.
+
+---
+
+#### Commit 1b — migration: one-time guarded wipe of legacy CycleRecord rows
+
+**Why:** existing on-disk `CycleRecord` rows carry `outcome` raws `"letGo"` /
+`"other"` that no longer map to a case; SwiftData can crash when it materializes
+such a row on fetch. FCR/`CycleRecord` is unreleased to `main`, so we start the
+cycle history fresh with a one-time wipe rather than a read-migration (which
+would hit the fetch it needs to fix). Decided 2026-07-20.
+
+**Modify:** `Wilgo/WilgoApp.swift` (or a small dedicated helper it calls once at
+container setup / first `.onAppear`):
+
+- Guard on a `UserDefaults` flag, e.g. `didWipeLegacyCycleRecords_v2`.
+- If unset: on the main context, `try context.delete(model: CycleRecord.self)`
+  and `try context.save()`, then set the flag `true`.
+- Runs exactly once per install; a no-op on every subsequent launch.
+- Do this **before** any view fetches `CycleRecord` (so no legacy row is
+  materialized first). Prefer running it as part of `sharedModelContainer`
+  construction or the earliest app lifecycle hook.
+
+**Side effects (intended):** deleting CycleRecords nullifies
+`PositivityToken.consumedByCycleRecord`, returning consumed PTs to the journal as
+free tokens. Commitments are untouched (only CycleRecords deleted). Per-commitment
+"Past Cycles" history resets to empty.
+
+**Create:** `WilgoTests/CycleRecord/LegacyCycleRecordWipeTests.swift`
+
+- With the flag unset, a container seeded with CycleRecords ends up with zero
+  CycleRecords after the wipe runs, and the flag is set.
+- With the flag already set, seeded CycleRecords are **preserved** (wipe is a
+  no-op) — proves it doesn't nuke future records.
+- A consumed `PositivityToken` becomes free (`consumedByCycleRecord == nil`)
+  after its CycleRecord is wiped.
+- (Factor the wipe into a testable function taking a `ModelContext` +
+  `UserDefaults` so it runs against an in-memory container with an isolated
+  `UserDefaults(suiteName:)`.)
+
+**Manual verification (critical):** On a device/simulator that already has legacy
+CycleRecords (letGo/other): launch the new build. App must **not crash**; the
+FCR/Past Cycles history is empty; commitments still present; the wins journal
+shows any previously-consumed PTs back as free.
+
+**Dependencies:** Commit 1. Blocks nothing structurally, but should land before
+on-device testing of later commits (otherwise legacy rows may crash the app).
 
 ---
 
@@ -587,17 +655,20 @@ the carry-over semantics).
 ### Dependency Graph
 
 ```
-Commit 1: model — enum + matrix + legacy decode
+Commit 1: model — enum + matrix + decoder
     |
-    +-- Commit 2: ui — labels/PT/reflection/popover + shared mint sheet SHELL   [after 1]
+    +-- Commit 1b: migration — guarded one-time wipe of legacy CycleRecords   [after 1]
+    +-- Commit 2:  ui — labels/PT/reflection/popover + shared mint sheet SHELL [after 1]
     |       |
-    |       +-- Commit 3: feat — single shared mint draft (carry-over/consume)  [after 2]
+    |       +-- Commit 3: feat — single shared mint draft (carry-over/consume) [after 2]
     |               |
-    |               +-- Commit 4: logic — PT assign/release/reconcile by matrix  [after 3]
-    +-- Commit 5: chore — remaining Let go/Other references                      [after 1]
+    |               +-- Commit 4: logic — PT assign/release/reconcile by matrix [after 3]
+    +-- Commit 5:  chore — remaining Let go/Other references                    [after 1]
 ```
 
-Commit 5 is independent after Commit 1. Commit 2 → 3 → 4 is a chain:
+Commit 1b and Commit 5 are independent after Commit 1 (1b should land before
+on-device testing so legacy rows don't crash the app). Commit 2 → 3 → 4 is a
+chain:
 Commit 2 builds the card UI directly on a shared mint-sheet **shell** (no
 throwaway inline box); Commit 3 makes the sheet's draft a single shared
 carry-over value; Commit 4's release/reconcile logic drives that shared sheet
