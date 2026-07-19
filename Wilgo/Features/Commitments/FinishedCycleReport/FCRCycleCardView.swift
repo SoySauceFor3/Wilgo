@@ -219,7 +219,7 @@ struct FCRCycleCardView: View {
         }
     }
 
-    static let selectableOutcomes: [CycleOutcome] = [.excused, .punished, .letGo, .other]
+    static let selectableOutcomes: [CycleOutcome] = [.excused, .punished, .moveOn]
 
     @ViewBuilder
     private var ptRow: some View {
@@ -350,8 +350,8 @@ extension CycleOutcome {
         case .passed: return "Passed"
         case .excused: return "Excused"
         case .punished: return "Punished"
-        case .letGo: return "Let go"
-        case .other: return "Other"
+        case .moveOn: return "Move on"
+        case .intended: return "Intended"
         }
     }
 
@@ -360,8 +360,8 @@ extension CycleOutcome {
         case .passed: return .green
         case .excused: return .blue
         case .punished: return .red
-        case .letGo: return .yellow
-        case .other: return .teal
+        case .moveOn: return .yellow
+        case .intended: return .teal
         }
     }
 }

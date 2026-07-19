@@ -169,7 +169,7 @@ struct CycleRecordModelTests {
             cycleEnd: makeCycleEnd(),
             targetCount: 3,
             checkInCount: 0,
-            outcome: .letGo,
+            outcome: .moveOn,
             reflectionText: "Moving on.",
             emojiReactions: [],
             consumedPT: nil
@@ -260,7 +260,7 @@ struct CycleRecordModelTests {
     // MARK: - CycleOutcome Codable round-trip
 
     @Test func cycleOutcomeRoundTrips() throws {
-        let outcomes: [CycleOutcome] = [.passed, .excused, .punished, .letGo, .other]
+        let outcomes: [CycleOutcome] = [.passed, .excused, .punished, .moveOn, .intended]
         for outcome in outcomes {
             let data = try JSONEncoder().encode(outcome)
             let decoded = try JSONDecoder().decode(CycleOutcome.self, from: data)

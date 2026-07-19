@@ -49,7 +49,7 @@ struct FCRCycleCardStateTests {
         #expect(state.isComplete == true)
     }
 
-    // MARK: - Reflection only required for .other
+    // MARK: - Reflection only required for .moveOn
 
     @Test func excusedCompleteWithoutReflection() {
         var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
@@ -60,33 +60,26 @@ struct FCRCycleCardStateTests {
         #expect(state.isComplete == true)
     }
 
-    @Test func letGoCompleteWithoutReflection() {
+    @Test func moveOnRequiresReflection() {
         var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
-        state.outcome = .letGo
-        state.hasAssignedPT = true
-        #expect(state.isComplete == true)
-    }
-
-    @Test func otherRequiresReflection() {
-        var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
-        state.outcome = .other
+        state.outcome = .moveOn
         state.hasAssignedPT = true
         state.reflectionText = ""
         #expect(state.isReflectionRequired == true)
         #expect(state.isComplete == false)
     }
 
-    @Test func otherCompleteWithReflection() {
+    @Test func moveOnCompleteWithReflection() {
         var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
-        state.outcome = .other
+        state.outcome = .moveOn
         state.hasAssignedPT = true
         state.reflectionText = "Some special situation"
         #expect(state.isComplete == true)
     }
 
-    @Test func otherIncompleteWithWhitespaceOnlyReflection() {
+    @Test func moveOnIncompleteWithWhitespaceOnlyReflection() {
         var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
-        state.outcome = .other
+        state.outcome = .moveOn
         state.hasAssignedPT = true
         state.reflectionText = "   \n  "
         #expect(state.isComplete == false)

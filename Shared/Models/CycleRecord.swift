@@ -5,8 +5,27 @@ enum CycleOutcome: String, Codable {
     case passed
     case excused
     case punished
-    case letGo
-    case other
+    case moveOn
+    case intended
+
+    /// A Positivity Token (a wins-journal entry) is required to close the cycle.
+    var requiresPT: Bool { self == .moveOn || self == .punished }
+    /// A written reflection is required to close the cycle.
+    var requiresReflection: Bool { self == .moveOn }
+
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        switch raw {
+        case "letGo", "other": self = .moveOn // legacy → new catch-all
+        default:
+            guard let v = CycleOutcome(rawValue: raw) else {
+                throw DecodingError.dataCorrupted(.init(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "Unknown CycleOutcome raw value: \(raw)"))
+            }
+            self = v
+        }
+    }
 }
 
 @Model
