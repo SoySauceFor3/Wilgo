@@ -19,6 +19,14 @@ struct FinishedCycleReportView: View {
     /// PT assigned to each failed cycle, keyed by `CycleReport.id`.
     @State private var assignedPTs: [String: PositivityToken] = [:]
 
+    /// The `CycleReport.id` the shared mint sheet should attach its minted PT to.
+    /// Non-nil ⇒ the sheet is presented. A card's `onRequestMint` sets this.
+    @State private var mintTarget: String?
+
+    /// Draft text for the shared mint sheet. Reset each time the sheet opens.
+    /// NOTE: single-shared-draft carry-over / consume-on-save is a later commit.
+    @State private var mintDraftText = ""
+
     private var report: [CommitmentReport] {
         CycleReportBuilder.build(
             commitments: commitments,
@@ -49,7 +57,10 @@ struct FinishedCycleReportView: View {
                                     for: pair.commitment,
                                     currentCycleEnd: pair.cycle.cycleEndPsychDay
                                 ),
-                                onMintPT: { reason in mintAndAssign(reason: reason, to: pair.cycle.id) }
+                                onRequestMint: {
+                                    mintDraftText = ""
+                                    mintTarget = pair.cycle.id
+                                }
                             )
                         }
                     }
@@ -78,6 +89,9 @@ struct FinishedCycleReportView: View {
             }
             .overlay(alignment: .bottom) {
                 CheckInUndoBannerOverlay()
+            }
+            .sheet(item: mintTargetBinding) { target in
+                mintSheet(for: target.id)
             }
             .onAppear(perform: reconcileStates)
             .onChange(of: report.map { $0.cycles.map(\.id) }) { _, _ in
@@ -181,6 +195,60 @@ struct FinishedCycleReportView: View {
         syncAssignmentFlags()
     }
 
+    // MARK: - Shared mint sheet
+
+    /// Bridges the `String?` `mintTarget` to `.sheet(item:)`, which needs an
+    /// Identifiable. Non-nil target ⇒ sheet presented; dismiss ⇒ target cleared.
+    private var mintTargetBinding: Binding<MintTarget?> {
+        Binding(
+            get: { mintTarget.map(MintTarget.init(id:)) },
+            set: { mintTarget = $0?.id }
+        )
+    }
+
+    /// The shared "mint a PT" sheet. Text entry lives here in the parent; on save
+    /// it mints and assigns to the requesting card, then dismisses.
+    /// NOTE: draft carry-over / consume-on-save is a later commit — this is a
+    /// clean, functional shell with a per-open local draft.
+    private func mintSheet(for cycleID: String) -> some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Saved to your wins journal")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                TextField("Something good happened…", text: $mintDraftText, axis: .vertical)
+                    .lineLimit(3...6)
+                    .textFieldStyle(.roundedBorder)
+                Button {
+                    let trimmed = mintDraftText.trimmingCharacters(in: .whitespacesAndNewlines)
+                    guard !trimmed.isEmpty else { return }
+                    mintAndAssign(reason: trimmed, to: cycleID)
+                    mintTarget = nil
+                } label: {
+                    Text("Save & use as PT")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.blue)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+                .disabled(mintDraftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                Spacer()
+            }
+            .padding(16)
+            .navigationTitle("✨ One good thing")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { mintTarget = nil }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
     /// Persist one CycleRecord per cycle when the report is closed via Done.
     private func persistRecords() {
         for (commitment, cycle) in allCycles {
@@ -195,6 +263,11 @@ struct FinishedCycleReportView: View {
         }
         try? modelContext.save()
     }
+}
+
+/// Identifiable wrapper so a `CycleReport.id` string can drive `.sheet(item:)`.
+private struct MintTarget: Identifiable {
+    let id: String
 }
 
 // MARK: - Preview helpers

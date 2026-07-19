@@ -18,8 +18,8 @@ struct FCRCompletionTests {
 
     @Test func cannotCloseWhenAFailedCardIsIncomplete() {
         var failed = FCRCycleCardState(targetCount: 3, checkInCount: 0)
-        failed.outcome = .excused
-        // missing reflection + PT
+        failed.outcome = .moveOn
+        // .moveOn requires reflection + PT; both missing → incomplete
         let states = [
             FCRCycleCardState(targetCount: 3, checkInCount: 3),
             failed,

@@ -44,21 +44,25 @@ struct FCRCycleCardState {
 
     /// Whether this card is ready for the FCR to close.
     /// Passed cycles are always complete (no required action).
-    /// Failed cycles require a label and an assigned PT. A reflection note is
-    /// only required when the label is `.moveOn` (the catch-all that's meaningless
-    /// without explanation); the other labels are self-explanatory.
+    /// Failed cycles require a label; a reflection and/or PT are then required
+    /// per the outcome's `requiresReflection`/`requiresPT` (the single source of
+    /// truth). Labels that require neither close on the label alone.
     var isComplete: Bool {
         if isPassed { return true }
         guard let outcome else { return false }
-        if outcome == .moveOn, reflectionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        if outcome.requiresReflection,
+           reflectionText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
             return false
         }
-        return hasAssignedPT
+        if outcome.requiresPT, !hasAssignedPT {
+            return false
+        }
+        return true
     }
 
     /// Whether the reflection note is required given the current label.
     var isReflectionRequired: Bool {
-        !isPassed && outcome == .moveOn
+        !isPassed && (outcome?.requiresReflection ?? false)
     }
 
     private mutating func clearFailureFields() {

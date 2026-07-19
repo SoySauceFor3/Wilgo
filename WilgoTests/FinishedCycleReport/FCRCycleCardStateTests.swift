@@ -18,7 +18,14 @@ struct FCRCycleCardStateTests {
         #expect(state.isPassed == false)
     }
 
-    // MARK: - Completion gating (failed cycles need label + reflection + PT)
+    // MARK: - Completion gating (matrix-driven via CycleOutcome props)
+    //
+    // | Label    | Reflection | PT       |
+    // |----------|------------|----------|
+    // | Intended | optional   | none     |
+    // | Excused  | optional   | none     |
+    // | Move on  | REQUIRED   | required |
+    // | Punished | optional   | required |
 
     @Test func passedCycleIsAlwaysComplete() {
         // Passed cycles need no action — complete immediately
@@ -34,33 +41,29 @@ struct FCRCycleCardStateTests {
         #expect(state.isComplete == false)
     }
 
-    @Test func failedCycleIncompleteWithoutPT() {
+    // MARK: Intended / Excused — no PT, no reflection required
+
+    @Test func intendedCompleteWithNoPTNoReflection() {
         var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
-        state.outcome = .excused
-        state.reflectionText = "I was sick"
+        state.outcome = .intended
         state.hasAssignedPT = false
-        #expect(state.isComplete == false)
-    }
-
-    @Test func failedCycleCompleteWithLabelAndPT() {
-        var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
-        state.outcome = .punished
-        state.hasAssignedPT = true
-        #expect(state.isComplete == true)
-    }
-
-    // MARK: - Reflection only required for .moveOn
-
-    @Test func excusedCompleteWithoutReflection() {
-        var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
-        state.outcome = .excused
-        state.hasAssignedPT = true
         state.reflectionText = ""
         #expect(state.isReflectionRequired == false)
         #expect(state.isComplete == true)
     }
 
-    @Test func moveOnRequiresReflection() {
+    @Test func excusedCompleteWithNoPTNoReflection() {
+        var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
+        state.outcome = .excused
+        state.hasAssignedPT = false
+        state.reflectionText = ""
+        #expect(state.isReflectionRequired == false)
+        #expect(state.isComplete == true)
+    }
+
+    // MARK: Move on — reflection REQUIRED and PT required
+
+    @Test func moveOnIncompleteWithoutReflection() {
         var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
         state.outcome = .moveOn
         state.hasAssignedPT = true
@@ -69,11 +72,19 @@ struct FCRCycleCardStateTests {
         #expect(state.isComplete == false)
     }
 
-    @Test func moveOnCompleteWithReflection() {
+    @Test func moveOnIncompleteWithoutPT() {
         var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
         state.outcome = .moveOn
+        state.reflectionText = "No reason, moving on"
+        state.hasAssignedPT = false
+        #expect(state.isComplete == false)
+    }
+
+    @Test func moveOnCompleteWithReflectionAndPT() {
+        var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
+        state.outcome = .moveOn
+        state.reflectionText = "No reason, moving on"
         state.hasAssignedPT = true
-        state.reflectionText = "Some special situation"
         #expect(state.isComplete == true)
     }
 
@@ -83,6 +94,25 @@ struct FCRCycleCardStateTests {
         state.hasAssignedPT = true
         state.reflectionText = "   \n  "
         #expect(state.isComplete == false)
+    }
+
+    // MARK: Punished — PT required, reflection optional
+
+    @Test func punishedIncompleteWithoutPT() {
+        var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
+        state.outcome = .punished
+        state.reflectionText = "I ran an extra mile"
+        state.hasAssignedPT = false
+        #expect(state.isComplete == false)
+    }
+
+    @Test func punishedCompleteWithPTEvenWithoutReflection() {
+        var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
+        state.outcome = .punished
+        state.hasAssignedPT = true
+        state.reflectionText = ""
+        #expect(state.isReflectionRequired == false)
+        #expect(state.isComplete == true)
     }
 
     // MARK: - Auto-flip clears purposeful-stop fields
