@@ -389,6 +389,30 @@ by the wipe in Commit 1b, not this decoder.
 
 ---
 
+#### Commit 1a — fix: latent cascade bug (deleting a CycleRecord deleted its Commitment)
+
+**Discovered while building Commit 1b's wipe** (its regression test caught it):
+`CycleRecord.commitment` was declared `@Relationship(deleteRule: .cascade)`, and
+its code comment misdescribed the effect. A `.cascade` rule on the *child→parent*
+side means **deleting a CycleRecord deletes its Commitment** — so the Commit 1b
+wipe (`delete(model: CycleRecord.self)`) would have deleted **every commitment
+that had a cycle record**. This is a pre-existing latent bug, not introduced by
+this feature, but the wipe would have triggered it catastrophically.
+
+**Modify:** `Shared/Models/CycleRecord.swift` — change `commitment`'s rule from
+`.cascade` to `.noAction`; keep `commitment` non-optional (a record always has a
+commitment; `.noAction` is safe because the CycleRecord — the referrer — is the
+thing being deleted, leaving no dangling reference). Correct the misleading
+comment. `Commitment.cycleRecords` (`.cascade`, inverse) is **unchanged** — that
+direction is intended.
+
+**Test:** deleting a CycleRecord leaves its Commitment intact (direct regression
+guard); the existing Commitment→CycleRecords cascade still holds.
+
+**Dependencies:** Commit 1. Must land **before** Commit 1b.
+
+---
+
 #### Commit 1b — migration: one-time guarded wipe of legacy CycleRecord rows
 
 **Why:** existing on-disk `CycleRecord` rows carry `outcome` raws `"letGo"` /
