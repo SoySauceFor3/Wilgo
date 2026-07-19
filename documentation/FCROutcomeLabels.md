@@ -654,12 +654,19 @@ the carry-over semantics).
 
 #### Commit 5 — chore: update remaining Let go/Other references (past cycles display, tests)
 
-**Modify (verify during execution):**
-`Wilgo/.../SingleCommitment/PastCyclesFormatting.swift`,
-`CommitmentDetailView.swift` if they switch over outcomes.
-**Modify:** `WilgoTests/Commitment/PastCyclesFormattingTests.swift`,
-`WilgoTests/CycleRecord/CycleRecordModelTests.swift` — replace any `.letGo` /
-`.other` usages with `.moveOn` / `.intended`.
+**OUTCOME: no-op — absorbed by Commit 1.** During execution, Commit 1's
+implementer did a broad mechanical sweep of all `.letGo`/`.other` case usages and
+display strings across the app and tests. Verification confirmed:
+- `PastCyclesFormatting.swift` / `CommitmentDetailView.swift` use
+  `record.outcome?.displayName` and `.passed` generically — they pick up the new
+  labels via the shared `displayName` extension with no code change needed.
+- The only remaining `letGo`/`other` string references are the **intentional**
+  legacy-decode mapping in `CycleRecord.swift` (`case "letGo", "other"`) and its
+  tests in `CycleOutcomeMatrixTests.swift`.
+- No `.letGo`/`.other` case usages remain anywhere; no "Let go"/"Other" UI
+  strings remain.
+
+Nothing to commit for Commit 5.
 
 **Dependencies:** Commit 1.
 
