@@ -63,14 +63,6 @@ struct WilgoApp: App {
 
         // Register the per-slot-start notification scheduler. Must come before any submit() call.
         SlotStartNotificationScheduler.registerBackgroundTask()
-
-        // One-time wipe of legacy CycleRecord rows whose removed `outcome` raw values
-        // ("letGo"/"other") can crash SwiftData on fetch. Runs here, before AppRootView /
-        // FinishedCycleReportModifier can fetch any CycleRecord. init() runs on the main
-        // actor, and `mainContext` is the same main-actor context those views fetch from.
-        MainActor.assumeIsolated {
-            LegacyCycleRecordWipe.runIfNeeded(context: Self.sharedModelContainer.mainContext)
-        }
     }
 
     var body: some Scene {
