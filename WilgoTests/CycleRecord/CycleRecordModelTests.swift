@@ -184,6 +184,37 @@ struct CycleRecordModelTests {
         #expect(remainingRecords.isEmpty)
     }
 
+    // MARK: - Deleting a CycleRecord must NOT delete its Commitment (.noAction)
+
+    @Test func deletingCycleRecordDoesNotDeleteCommitment() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        let commitment = makeCommitment(in: ctx)
+
+        let record = CycleRecord(
+            commitment: commitment,
+            snapshotTitle: "Leetcode",
+            cycleStart: makeCycleStart(),
+            cycleEnd: makeCycleEnd(),
+            targetCount: 3,
+            checkInCount: 0,
+            outcome: .moveOn,
+            reflectionText: "Moving on.",
+            emojiReactions: [],
+            consumedPT: nil
+        )
+        ctx.insert(record)
+        try ctx.save()
+
+        ctx.delete(record)
+        try ctx.save()
+
+        let remainingRecords = try ctx.fetch(FetchDescriptor<CycleRecord>())
+        let remainingCommitments = try ctx.fetch(FetchDescriptor<Commitment>())
+        #expect(remainingRecords.isEmpty)
+        #expect(remainingCommitments.count == 1)
+    }
+
     // MARK: - PT relationship
 
     @Test func deletingCycleRecordNullifiesPTRelationship() throws {

@@ -33,8 +33,9 @@ final class CycleRecord {
     @Attribute(.unique)
     var id: UUID
 
-    // Cascade — deleting a Commitment deletes all its CycleRecords
-    @Relationship(deleteRule: .cascade)
+    // noAction — deleting a CycleRecord must NOT delete its Commitment.
+    // (The Commitment→CycleRecords cascade lives on Commitment.cycleRecords.)
+    @Relationship(deleteRule: .noAction)
     var commitment: Commitment
 
     // Snapshot of the commitment at the time of the cycle record
