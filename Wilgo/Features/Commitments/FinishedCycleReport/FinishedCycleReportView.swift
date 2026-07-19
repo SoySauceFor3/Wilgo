@@ -101,6 +101,9 @@ struct FinishedCycleReportView: View {
             .onChange(of: checkInCountSignature) { _, _ in
                 reconcileStates()
             }
+            .onChange(of: outcomeSignature) { _, _ in
+                reconcileStates()
+            }
             .onAppear {
                 if report.isEmpty {
                     onFinished()
@@ -114,6 +117,13 @@ struct FinishedCycleReportView: View {
     /// (e.g. after backfill), so card states re-sync their counts.
     private var checkInCountSignature: [Int] {
         allCycles.map(\.cycle.actualCheckIns)
+    }
+
+    /// A signature that changes whenever any cycle's outcome label changes, so
+    /// PT assignments release/acquire correctly (a label can toggle a cycle
+    /// between needs-PT and no-PT).
+    private var outcomeSignature: [String] {
+        allCycles.map { cardStates[$0.cycle.id]?.outcome?.rawValue ?? "" }
     }
 
     private func stateBinding(for cycle: CycleReport) -> Binding<FCRCycleCardState>? {
@@ -146,17 +156,23 @@ struct FinishedCycleReportView: View {
         for key in cardStates.keys where !liveIDs.contains(key) {
             cardStates[key] = nil
         }
-        // Release PT assignments for cycles that are no longer failed
-        // (e.g. flipped to passed via backfill).
-        for (cycleID, _) in assignedPTs where !failedCycleIDs.contains(cycleID) {
+        // Release PT assignments for cycles that no longer REQUIRE a PT — covers
+        // both "flipped to passed" and "label changed to a no-PT outcome"
+        // (Intended/Excused). Releasing only clears the assignment; it never
+        // deletes the token. An auto-assigned free token simply returns to
+        // `freeTokens`; a minted token stays inserted & unconsumed in the
+        // context, persisting as a re-assignable wins-journal entry.
+        for (cycleID, _) in assignedPTs where !ptRequiringCycleIDs.contains(cycleID) {
             assignedPTs[cycleID] = nil
         }
         reconcilePTAssignments()
     }
 
-    private var failedCycleIDs: [String] {
+    /// Failed cycles whose current outcome requires a PT (Move on / Punished).
+    /// These are the only cycles eligible for auto-assignment.
+    private var ptRequiringCycleIDs: [String] {
         allCycles
-            .filter { !(cardStates[$0.cycle.id]?.isPassed ?? true) }
+            .filter { cardStates[$0.cycle.id]?.outcome?.requiresPT == true }
             .map(\.cycle.id)
     }
 
@@ -167,10 +183,10 @@ struct FinishedCycleReportView: View {
         return allTokens.filter { $0.consumedByCycleRecord == nil && !assignedIDs.contains($0.id) }
     }
 
-    /// Auto-assign free tokens to failed cycles, then sync `hasAssignedPT`.
+    /// Auto-assign free tokens to PT-requiring cycles, then sync `hasAssignedPT`.
     private func reconcilePTAssignments() {
         assignedPTs = FCRPTAssignment.autoAssign(
-            failedCycleIDs: failedCycleIDs,
+            eligibleCycleIDs: ptRequiringCycleIDs,
             freeTokens: freeTokens,
             alreadyAssigned: assignedPTs
         )
