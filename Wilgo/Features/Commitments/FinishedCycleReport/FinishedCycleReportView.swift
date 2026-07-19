@@ -23,9 +23,9 @@ struct FinishedCycleReportView: View {
     /// Non-nil ⇒ the sheet is presented. A card's `onRequestMint` sets this.
     @State private var mintTarget: String?
 
-    /// Draft text for the shared mint sheet. Reset each time the sheet opens.
-    /// NOTE: single-shared-draft carry-over / consume-on-save is a later commit.
-    @State private var mintDraftText = ""
+    /// The single shared mint draft for the whole report. Carries across cards,
+    /// is preserved on non-save dismiss, and is consumed on save. See `MintDraft`.
+    @State private var mintDraft = MintDraft()
 
     private var report: [CommitmentReport] {
         CycleReportBuilder.build(
@@ -58,7 +58,8 @@ struct FinishedCycleReportView: View {
                                     currentCycleEnd: pair.cycle.cycleEndPsychDay
                                 ),
                                 onRequestMint: {
-                                    mintDraftText = ""
+                                    // Carry-over: do NOT reset the draft on open.
+                                    mintDraft.onOpen()
                                     mintTarget = pair.cycle.id
                                 }
                             )
@@ -206,23 +207,26 @@ struct FinishedCycleReportView: View {
         )
     }
 
-    /// The shared "mint a PT" sheet. Text entry lives here in the parent; on save
-    /// it mints and assigns to the requesting card, then dismisses.
-    /// NOTE: draft carry-over / consume-on-save is a later commit — this is a
-    /// clean, functional shell with a per-open local draft.
+    /// The shared "mint a PT" sheet. Text entry lives here in the parent, backed
+    /// by the single shared `mintDraft`: it carries over across cards, is
+    /// preserved on Cancel / swipe-down, and is consumed on save.
     private func mintSheet(for cycleID: String) -> some View {
         NavigationStack {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Saved to your wins journal")
                     .font(.footnote)
                     .foregroundStyle(.secondary)
-                TextField("Something good happened…", text: $mintDraftText, axis: .vertical)
-                    .lineLimit(3...6)
-                    .textFieldStyle(.roundedBorder)
+                TextField(
+                    "Something good happened…",
+                    text: Binding(get: { mintDraft.text }, set: { mintDraft.edit($0) }),
+                    axis: .vertical
+                )
+                .lineLimit(3...6)
+                .textFieldStyle(.roundedBorder)
                 Button {
-                    let trimmed = mintDraftText.trimmingCharacters(in: .whitespacesAndNewlines)
-                    guard !trimmed.isEmpty else { return }
-                    mintAndAssign(reason: trimmed, to: cycleID)
+                    guard let reason = mintDraft.trimmedReason else { return }
+                    mintAndAssign(reason: reason, to: cycleID)
+                    mintDraft.consumeOnSave()
                     mintTarget = nil
                 } label: {
                     Text("Save & use as PT")
@@ -234,7 +238,7 @@ struct FinishedCycleReportView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 10))
                 }
                 .buttonStyle(.plain)
-                .disabled(mintDraftText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(mintDraft.isBlank)
                 Spacer()
             }
             .padding(16)
