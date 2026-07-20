@@ -256,9 +256,9 @@ struct FinishedCycleReportView: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(mintDraft.isBlank)
-                Spacer()
             }
             .padding(16)
+            .frame(maxHeight: .infinity, alignment: .top)
             .navigationTitle("✨ One good thing")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -267,7 +267,9 @@ struct FinishedCycleReportView: View {
                 }
             }
         }
-        .presentationDetents([.medium])
+        // Size the sheet to its content instead of a fixed half-screen `.medium`,
+        // which left a large blank area below the short form.
+        .presentationDetents([.height(260)])
     }
 
     /// Persist one CycleRecord per cycle when the report is closed via Done.
