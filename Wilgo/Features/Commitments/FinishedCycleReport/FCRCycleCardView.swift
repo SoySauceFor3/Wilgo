@@ -3,11 +3,11 @@ import SwiftUI
 
 /// A single cycle card in the redesigned Finished Cycle Report.
 ///
-/// Stub (Phase 3A): renders the collapsed/expanded states, the history
-/// expansion (reusing `CommitmentHeatmapInfoCard`), backfill (reusing
-/// `BackfillSheet`), the purposeful-stop fields for failed cycles, and the
-/// celebration row for passed cycles. The PT gate is stubbed ("Needed") and
-/// wired for real in Phase 4A. Persistence happens in Phase 4B.
+/// Renders the collapsed/expanded states, the history expansion (reusing
+/// `CommitmentHeatmapInfoCard`), backfill (reusing `BackfillSheet`), the
+/// purposeful-stop fields for failed cycles (outcome pills + per-outcome
+/// reflection/PT requirements), and the celebration row for passed cycles.
+/// The "+ Mint one now" button opens the parent's shared mint sheet.
 struct FCRCycleCardView: View {
     let cycle: CycleReport
     let commitment: Commitment

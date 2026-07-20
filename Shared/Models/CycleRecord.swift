@@ -16,7 +16,7 @@ enum CycleOutcome: String, Codable {
     init(from decoder: Decoder) throws {
         let raw = try decoder.singleValueContainer().decode(String.self)
         switch raw {
-        case "letGo", "other": self = .moveOn // legacy → new catch-all
+        case "letGo", "other": self = .moveOn // legacy cases folded into Move on
         default:
             guard let v = CycleOutcome(rawValue: raw) else {
                 throw DecodingError.dataCorrupted(.init(
