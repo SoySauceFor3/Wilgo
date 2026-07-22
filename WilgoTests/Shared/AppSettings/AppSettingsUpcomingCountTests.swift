@@ -4,6 +4,7 @@ import Testing
 
 /// Exercises `AppSettings.upcomingCommitmentCount`, which reads `UserDefaults.standard`.
 /// Serialized + each test restores the key so they don't pollute one another or the app.
+extension AppSettingsSuite {
 @Suite(.serialized)
 struct AppSettingsUpcomingCountTests {
     private let key = AppSettings.upcomingCommitmentCountKey
@@ -52,4 +53,5 @@ struct AppSettingsUpcomingCountTests {
             #expect(AppSettings.upcomingCommitmentCount == 0)
         }
     }
+}
 }

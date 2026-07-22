@@ -5,6 +5,7 @@ import Testing
 /// Exercises the four category-enabled flags on `AppSettings`, all of which read `UserDefaults.standard`
 /// and default to `true` when absent. Serialized + each test restores the key so they don't pollute
 /// one another or the app.
+extension AppSettingsSuite {
 @Suite(.serialized)
 struct AppSettingsCategoryTogglesTests {
     private func withStored(_ key: String, _ value: Bool?, _ body: () -> Void) {
@@ -115,4 +116,5 @@ struct AppSettingsCategoryTogglesTests {
             #expect(AppSettings.nowLiveActivityEnabled == false)
         }
     }
+}
 }

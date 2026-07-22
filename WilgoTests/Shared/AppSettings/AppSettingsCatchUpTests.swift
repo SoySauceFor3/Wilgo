@@ -4,6 +4,7 @@ import Testing
 
 /// Exercises `AppSettings.includeActiveSlotsInCatchUp`, which reads `UserDefaults.standard`.
 /// Serialized + each test restores the key so they don't pollute one another or the app.
+extension AppSettingsSuite {
 @Suite(.serialized)
 struct AppSettingsCatchUpTests {
     private let key = AppSettings.includeActiveSlotsInCatchUpReminderKey
@@ -45,4 +46,5 @@ struct AppSettingsCatchUpTests {
             #expect(AppSettings.includeActiveSlotsInCatchUp == false)
         }
     }
+}
 }
