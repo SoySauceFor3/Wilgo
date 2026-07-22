@@ -5,8 +5,27 @@ enum CycleOutcome: String, Codable {
     case passed
     case excused
     case punished
-    case letGo
-    case other
+    case moveOn
+    case intended
+
+    /// A Positivity Token (a wins-journal entry) is required to close the cycle.
+    var requiresPT: Bool { self == .moveOn || self == .punished }
+    /// A written reflection is required to close the cycle.
+    var requiresReflection: Bool { self == .moveOn }
+
+    init(from decoder: Decoder) throws {
+        let raw = try decoder.singleValueContainer().decode(String.self)
+        switch raw {
+        case "letGo", "other": self = .moveOn // legacy cases folded into Move on
+        default:
+            guard let v = CycleOutcome(rawValue: raw) else {
+                throw DecodingError.dataCorrupted(.init(
+                    codingPath: decoder.codingPath,
+                    debugDescription: "Unknown CycleOutcome raw value: \(raw)"))
+            }
+            self = v
+        }
+    }
 }
 
 @Model
@@ -14,8 +33,9 @@ final class CycleRecord {
     @Attribute(.unique)
     var id: UUID
 
-    // Cascade — deleting a Commitment deletes all its CycleRecords
-    @Relationship(deleteRule: .cascade)
+    // noAction — deleting a CycleRecord must NOT delete its Commitment.
+    // (The Commitment→CycleRecords cascade lives on Commitment.cycleRecords.)
+    @Relationship(deleteRule: .noAction)
     var commitment: Commitment
 
     // Snapshot of the commitment at the time of the cycle record

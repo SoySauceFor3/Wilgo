@@ -29,6 +29,9 @@ enum CycleRecordBuilder {
                 recordedAt: recordedAt
             )
         } else {
+            // Only outcomes that require a PT (Move on, Punished) consume one.
+            // Intended/Excused must never consume a PT even if one is passed in.
+            let pt = (state.outcome?.requiresPT == true) ? consumedPT : nil
             return CycleRecord(
                 commitment: commitment,
                 snapshotTitle: commitment.title,
@@ -39,7 +42,7 @@ enum CycleRecordBuilder {
                 outcome: state.outcome,
                 reflectionText: state.reflectionText,
                 emojiReactions: [],
-                consumedPT: consumedPT,
+                consumedPT: pt,
                 recordedAt: recordedAt
             )
         }

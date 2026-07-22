@@ -169,7 +169,7 @@ struct CycleRecordModelTests {
             cycleEnd: makeCycleEnd(),
             targetCount: 3,
             checkInCount: 0,
-            outcome: .letGo,
+            outcome: .moveOn,
             reflectionText: "Moving on.",
             emojiReactions: [],
             consumedPT: nil
@@ -182,6 +182,37 @@ struct CycleRecordModelTests {
 
         let remainingRecords = try ctx.fetch(FetchDescriptor<CycleRecord>())
         #expect(remainingRecords.isEmpty)
+    }
+
+    // MARK: - Deleting a CycleRecord must NOT delete its Commitment (.noAction)
+
+    @Test func deletingCycleRecordDoesNotDeleteCommitment() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        let commitment = makeCommitment(in: ctx)
+
+        let record = CycleRecord(
+            commitment: commitment,
+            snapshotTitle: "Leetcode",
+            cycleStart: makeCycleStart(),
+            cycleEnd: makeCycleEnd(),
+            targetCount: 3,
+            checkInCount: 0,
+            outcome: .moveOn,
+            reflectionText: "Moving on.",
+            emojiReactions: [],
+            consumedPT: nil
+        )
+        ctx.insert(record)
+        try ctx.save()
+
+        ctx.delete(record)
+        try ctx.save()
+
+        let remainingRecords = try ctx.fetch(FetchDescriptor<CycleRecord>())
+        let remainingCommitments = try ctx.fetch(FetchDescriptor<Commitment>())
+        #expect(remainingRecords.isEmpty)
+        #expect(remainingCommitments.count == 1)
     }
 
     // MARK: - PT relationship
@@ -260,7 +291,7 @@ struct CycleRecordModelTests {
     // MARK: - CycleOutcome Codable round-trip
 
     @Test func cycleOutcomeRoundTrips() throws {
-        let outcomes: [CycleOutcome] = [.passed, .excused, .punished, .letGo, .other]
+        let outcomes: [CycleOutcome] = [.passed, .excused, .punished, .moveOn, .intended]
         for outcome in outcomes {
             let data = try JSONEncoder().encode(outcome)
             let decoded = try JSONDecoder().decode(CycleOutcome.self, from: data)

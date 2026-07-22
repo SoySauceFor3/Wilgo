@@ -49,7 +49,8 @@ struct CycleRecordBuilderTests {
         #expect(record.checkInCount == 4)
     }
 
-    @Test func failedCycleRecordsOutcomeReflectionAndPT() {
+    @Test func failedPTRequiringCycleAttachesPT() {
+        // Move on requires a PT, so a passed-in token is attached.
         let commitment = makeCommitment("Leetcode", target: 3)
         let start = Date()
         let end = start.addingTimeInterval(86400 * 7)
@@ -57,9 +58,73 @@ struct CycleRecordBuilderTests {
         let pt = PositivityToken(reason: "Cooked all week")
 
         var state = FCRCycleCardState(targetCount: 3, checkInCount: 1)
+        state.outcome = .moveOn
+        state.reflectionText = "Moving on"
+        state.hasAssignedPT = true
+
+        let record = CycleRecordBuilder.makeRecord(
+            commitment: commitment, cycle: cycle, state: state, consumedPT: pt
+        )
+
+        #expect(record.outcome == .moveOn)
+        #expect(record.reflectionText == "Moving on")
+        #expect(record.consumedPT?.reason == "Cooked all week")
+        #expect(record.emojiReactions.isEmpty)
+        #expect(record.checkInCount == 1)
+    }
+
+    @Test func failedPunishedCycleAttachesPT() {
+        // Punished also requires a PT.
+        let commitment = makeCommitment("Leetcode", target: 3)
+        let start = Date()
+        let end = start.addingTimeInterval(86400 * 7)
+        let cycle = makeCycle(start: start, end: end, target: 3, actual: 0)
+        let pt = PositivityToken(reason: "Went for a run")
+
+        var state = FCRCycleCardState(targetCount: 3, checkInCount: 0)
+        state.outcome = .punished
+        state.hasAssignedPT = true
+
+        let record = CycleRecordBuilder.makeRecord(
+            commitment: commitment, cycle: cycle, state: state, consumedPT: pt
+        )
+
+        #expect(record.outcome == .punished)
+        #expect(record.consumedPT?.reason == "Went for a run")
+    }
+
+    @Test func failedIntendedCycleDoesNotConsumePT() {
+        // Intended does NOT require a PT — even if one is passed in it must not
+        // be consumed.
+        let commitment = makeCommitment("Leetcode", target: 3)
+        let start = Date()
+        let end = start.addingTimeInterval(86400 * 7)
+        let cycle = makeCycle(start: start, end: end, target: 3, actual: 1)
+        let pt = PositivityToken(reason: "stray token")
+
+        var state = FCRCycleCardState(targetCount: 3, checkInCount: 1)
+        state.outcome = .intended
+
+        let record = CycleRecordBuilder.makeRecord(
+            commitment: commitment, cycle: cycle, state: state, consumedPT: pt
+        )
+
+        #expect(record.outcome == .intended)
+        #expect(record.consumedPT == nil)
+        #expect(record.emojiReactions.isEmpty)
+    }
+
+    @Test func failedExcusedCycleDoesNotConsumePT() {
+        // Excused does NOT require a PT.
+        let commitment = makeCommitment("Leetcode", target: 3)
+        let start = Date()
+        let end = start.addingTimeInterval(86400 * 7)
+        let cycle = makeCycle(start: start, end: end, target: 3, actual: 1)
+        let pt = PositivityToken(reason: "stray token")
+
+        var state = FCRCycleCardState(targetCount: 3, checkInCount: 1)
         state.outcome = .excused
         state.reflectionText = "Was sick"
-        state.hasAssignedPT = true
 
         let record = CycleRecordBuilder.makeRecord(
             commitment: commitment, cycle: cycle, state: state, consumedPT: pt
@@ -67,9 +132,7 @@ struct CycleRecordBuilderTests {
 
         #expect(record.outcome == .excused)
         #expect(record.reflectionText == "Was sick")
-        #expect(record.consumedPT?.reason == "Cooked all week")
-        #expect(record.emojiReactions.isEmpty)
-        #expect(record.checkInCount == 1)
+        #expect(record.consumedPT == nil)
     }
 
     @Test func snapshotTitleCapturedAtBuildTime() {

@@ -16,8 +16,16 @@ struct FinishedCycleReportView: View {
     /// re-renders as backfills mutate the live report.
     @State private var cardStates: [String: FCRCycleCardState] = [:]
 
-    /// PT assigned to each failed cycle, keyed by `CycleReport.id`.
+    /// PT assigned to each PT-requiring cycle (Move on / Punished), keyed by `CycleReport.id`.
     @State private var assignedPTs: [String: PositivityToken] = [:]
+
+    /// The `CycleReport.id` the shared mint sheet should attach its minted PT to.
+    /// Non-nil ⇒ the sheet is presented. A card's `onRequestMint` sets this.
+    @State private var mintTarget: String?
+
+    /// The single shared mint draft for the whole report. Carries across cards,
+    /// is preserved on non-save dismiss, and is consumed on save. See `MintDraft`.
+    @State private var mintDraft = MintDraft()
 
     private var report: [CommitmentReport] {
         CycleReportBuilder.build(
@@ -49,7 +57,11 @@ struct FinishedCycleReportView: View {
                                     for: pair.commitment,
                                     currentCycleEnd: pair.cycle.cycleEndPsychDay
                                 ),
-                                onMintPT: { reason in mintAndAssign(reason: reason, to: pair.cycle.id) }
+                                onRequestMint: {
+                                    // Carry-over: do NOT reset the draft on open.
+                                    mintDraft.onOpen()
+                                    mintTarget = pair.cycle.id
+                                }
                             )
                         }
                     }
@@ -79,11 +91,17 @@ struct FinishedCycleReportView: View {
             .overlay(alignment: .bottom) {
                 CheckInUndoBannerOverlay()
             }
+            .sheet(item: mintTargetBinding) { target in
+                mintSheet(for: target.id)
+            }
             .onAppear(perform: reconcileStates)
             .onChange(of: report.map { $0.cycles.map(\.id) }) { _, _ in
                 reconcileStates()
             }
             .onChange(of: checkInCountSignature) { _, _ in
+                reconcileStates()
+            }
+            .onChange(of: outcomeSignature) { _, _ in
                 reconcileStates()
             }
             .onAppear {
@@ -99,6 +117,13 @@ struct FinishedCycleReportView: View {
     /// (e.g. after backfill), so card states re-sync their counts.
     private var checkInCountSignature: [Int] {
         allCycles.map(\.cycle.actualCheckIns)
+    }
+
+    /// A signature that changes whenever any cycle's outcome label changes, so
+    /// PT assignments release/acquire correctly (a label can toggle a cycle
+    /// between needs-PT and no-PT).
+    private var outcomeSignature: [String] {
+        allCycles.map { cardStates[$0.cycle.id]?.outcome?.rawValue ?? "" }
     }
 
     private func stateBinding(for cycle: CycleReport) -> Binding<FCRCycleCardState>? {
@@ -131,17 +156,23 @@ struct FinishedCycleReportView: View {
         for key in cardStates.keys where !liveIDs.contains(key) {
             cardStates[key] = nil
         }
-        // Release PT assignments for cycles that are no longer failed
-        // (e.g. flipped to passed via backfill).
-        for (cycleID, _) in assignedPTs where !failedCycleIDs.contains(cycleID) {
+        // Release PT assignments for cycles that no longer REQUIRE a PT — covers
+        // both "flipped to passed" and "label changed to a no-PT outcome"
+        // (Intended/Excused). Releasing only clears the assignment; it never
+        // deletes the token. An auto-assigned free token simply returns to
+        // `freeTokens`; a minted token stays inserted & unconsumed in the
+        // context, persisting as a re-assignable wins-journal entry.
+        for (cycleID, _) in assignedPTs where !ptRequiringCycleIDs.contains(cycleID) {
             assignedPTs[cycleID] = nil
         }
         reconcilePTAssignments()
     }
 
-    private var failedCycleIDs: [String] {
+    /// Failed cycles whose current outcome requires a PT (Move on / Punished).
+    /// These are the only cycles eligible for auto-assignment.
+    private var ptRequiringCycleIDs: [String] {
         allCycles
-            .filter { !(cardStates[$0.cycle.id]?.isPassed ?? true) }
+            .filter { cardStates[$0.cycle.id]?.outcome?.requiresPT == true }
             .map(\.cycle.id)
     }
 
@@ -152,10 +183,10 @@ struct FinishedCycleReportView: View {
         return allTokens.filter { $0.consumedByCycleRecord == nil && !assignedIDs.contains($0.id) }
     }
 
-    /// Auto-assign free tokens to failed cycles, then sync `hasAssignedPT`.
+    /// Auto-assign free tokens to PT-requiring cycles, then sync `hasAssignedPT`.
     private func reconcilePTAssignments() {
         assignedPTs = FCRPTAssignment.autoAssign(
-            failedCycleIDs: failedCycleIDs,
+            eligibleCycleIDs: ptRequiringCycleIDs,
             freeTokens: freeTokens,
             alreadyAssigned: assignedPTs
         )
@@ -173,12 +204,72 @@ struct FinishedCycleReportView: View {
         }
     }
 
-    /// Mint a new PT inline and assign it to the given failed cycle.
+    /// Mint a new PT and assign it to the given PT-requiring cycle (mint is only
+    /// reachable from a card whose outcome `requiresPT`).
     private func mintAndAssign(reason: String, to cycleID: String) {
         let token = PositivityToken(reason: reason)
         modelContext.insert(token)
         assignedPTs[cycleID] = token
         syncAssignmentFlags()
+    }
+
+    // MARK: - Shared mint sheet
+
+    /// Bridges the `String?` `mintTarget` to `.sheet(item:)`, which needs an
+    /// Identifiable. Non-nil target ⇒ sheet presented; dismiss ⇒ target cleared.
+    private var mintTargetBinding: Binding<MintTarget?> {
+        Binding(
+            get: { mintTarget.map(MintTarget.init(id:)) },
+            set: { mintTarget = $0?.id }
+        )
+    }
+
+    /// The shared "mint a PT" sheet. Text entry lives here in the parent, backed
+    /// by the single shared `mintDraft`: it carries over across cards, is
+    /// preserved on Cancel / swipe-down, and is consumed on save.
+    private func mintSheet(for cycleID: String) -> some View {
+        NavigationStack {
+            VStack(alignment: .leading, spacing: 12) {
+                Text("Saved to your wins journal")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                TextField(
+                    "Something good happened…",
+                    text: Binding(get: { mintDraft.text }, set: { mintDraft.edit($0) }),
+                    axis: .vertical
+                )
+                .lineLimit(3...6)
+                .textFieldStyle(.roundedBorder)
+                Button {
+                    guard let reason = mintDraft.trimmedReason else { return }
+                    mintAndAssign(reason: reason, to: cycleID)
+                    mintDraft.consumeOnSave()
+                    mintTarget = nil
+                } label: {
+                    Text("Save & use as PT")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(Color.blue)
+                        .foregroundStyle(.white)
+                        .clipShape(RoundedRectangle(cornerRadius: 10))
+                }
+                .buttonStyle(.plain)
+                .disabled(mintDraft.isBlank)
+            }
+            .padding(16)
+            .frame(maxHeight: .infinity, alignment: .top)
+            .navigationTitle("✨ One good thing")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") { mintTarget = nil }
+                }
+            }
+        }
+        // Size the sheet to its content instead of a fixed half-screen `.medium`,
+        // which left a large blank area below the short form.
+        .presentationDetents([.height(260)])
     }
 
     /// Persist one CycleRecord per cycle when the report is closed via Done.
@@ -195,6 +286,11 @@ struct FinishedCycleReportView: View {
         }
         try? modelContext.save()
     }
+}
+
+/// Identifiable wrapper so a `CycleReport.id` string can drive `.sheet(item:)`.
+private struct MintTarget: Identifiable {
+    let id: String
 }
 
 // MARK: - Preview helpers

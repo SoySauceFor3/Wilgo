@@ -3,11 +3,11 @@ import SwiftUI
 
 /// A single cycle card in the redesigned Finished Cycle Report.
 ///
-/// Stub (Phase 3A): renders the collapsed/expanded states, the history
-/// expansion (reusing `CommitmentHeatmapInfoCard`), backfill (reusing
-/// `BackfillSheet`), the purposeful-stop fields for failed cycles, and the
-/// celebration row for passed cycles. The PT gate is stubbed ("Needed") and
-/// wired for real in Phase 4A. Persistence happens in Phase 4B.
+/// Renders the collapsed/expanded states, the history expansion (reusing
+/// `CommitmentHeatmapInfoCard`), backfill (reusing `BackfillSheet`), the
+/// purposeful-stop fields for failed cycles (outcome pills + per-outcome
+/// reflection/PT requirements), and the celebration row for passed cycles.
+/// The "+ Mint one now" button opens the parent's shared mint sheet.
 struct FCRCycleCardView: View {
     let cycle: CycleReport
     let commitment: Commitment
@@ -18,28 +18,28 @@ struct FCRCycleCardView: View {
     /// Streak summary line (e.g. "4 consecutive failed weeks"), nil if none.
     var streakSummary: String?
 
-    /// Called when the user mints a PT inline to cover this failed cycle.
-    /// The parent creates+inserts the token, links it, and updates assignment.
-    var onMintPT: ((String) -> Void)?
+    /// Called when the user taps "+ Mint one now" to ask the parent to open the
+    /// shared mint sheet for THIS card. The parent owns the sheet, the draft
+    /// text, and the actual mint-and-assign.
+    var onRequestMint: (() -> Void)?
 
     @State private var isExpanded: Bool
     @State private var isHistoryShown = false
     @State private var showingBackfill = false
-    @State private var isMinting = false
-    @State private var mintText = ""
+    @State private var showingHelp = false
 
     init(
         cycle: CycleReport,
         commitment: Commitment,
         state: Binding<FCRCycleCardState>,
         streakSummary: String? = nil,
-        onMintPT: ((String) -> Void)? = nil
+        onRequestMint: (() -> Void)? = nil
     ) {
         self.cycle = cycle
         self.commitment = commitment
         _state = state
         self.streakSummary = streakSummary
-        self.onMintPT = onMintPT
+        self.onRequestMint = onRequestMint
         // Passed cycles start collapsed (no required action); failed start expanded.
         _isExpanded = State(initialValue: !state.wrappedValue.isPassed)
     }
@@ -176,9 +176,22 @@ struct FCRCycleCardView: View {
     private var purposefulStopSection: some View {
         VStack(alignment: .leading, spacing: 12) {
             VStack(alignment: .leading, spacing: 8) {
-                Text("HOW ARE YOU CLOSING THIS?")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.secondary)
+                HStack(spacing: 4) {
+                    Text("HOW ARE YOU CLOSING THIS?")
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.secondary)
+                    Button {
+                        showingHelp = true
+                    } label: {
+                        Image(systemName: "questionmark.circle")
+                            .imageScale(.small)
+                            .foregroundStyle(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .popover(isPresented: $showingHelp) {
+                        labelHelpPopover
+                    }
+                }
                 labelPills
             }
             VStack(alignment: .leading, spacing: 8) {
@@ -186,14 +199,40 @@ struct FCRCycleCardView: View {
                     .font(.caption2.weight(.bold))
                     .foregroundStyle(state.isReflectionRequired ? .orange : .secondary)
                 TextField(
-                    state.isReflectionRequired ? "Required for \u{201C}Other\u{201D}" : "Optional note",
+                    state.isReflectionRequired ? "Why did you miss? (required)" : "Optional note",
                     text: $state.reflectionText,
                     axis: .vertical
                 )
                 .lineLimit(2...4)
                 .textFieldStyle(.roundedBorder)
             }
-            ptRow
+            if state.outcome?.requiresPT == true {
+                ptRow
+            }
+        }
+    }
+
+    private var labelHelpPopover: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            helpRow(.intended, "You meant for this to fail (e.g. a test run). Nothing required.")
+            helpRow(.excused, "A real reason got in the way. Nothing required.")
+            helpRow(.moveOn, "No reason, no penalty. Jot down why, then move on. (note required)")
+            helpRow(.punished, "You took a consequence for the miss. Add a win to balance it. (PT required)")
+        }
+        .padding(16)
+        .frame(maxWidth: 320)
+        .presentationCompactAdaptation(.popover)
+    }
+
+    private func helpRow(_ outcome: CycleOutcome, _ explanation: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(outcome.displayName)
+                .font(.caption.weight(.bold))
+                .foregroundStyle(outcome.tint)
+            Text(explanation)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -219,9 +258,8 @@ struct FCRCycleCardView: View {
         }
     }
 
-    static let selectableOutcomes: [CycleOutcome] = [.excused, .punished, .letGo, .other]
+    static let selectableOutcomes: [CycleOutcome] = [.intended, .excused, .moveOn, .punished]
 
-    @ViewBuilder
     private var ptRow: some View {
         HStack {
             Label("Positivity Token", systemImage: "sparkles")
@@ -232,16 +270,12 @@ struct FCRCycleCardView: View {
                 statusChip("Covered", color: .green)
             } else {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) { isMinting.toggle() }
+                    onRequestMint?()
                 } label: {
-                    statusChip(isMinting ? "Needed" : "+ Mint one now", color: isMinting ? .red : .blue)
+                    statusChip("+ Mint one now", color: .blue)
                 }
                 .buttonStyle(.plain)
             }
-        }
-
-        if isMinting, !state.hasAssignedPT {
-            mintSheet
         }
     }
 
@@ -253,39 +287,6 @@ struct FCRCycleCardView: View {
             .background(color.opacity(0.18))
             .foregroundStyle(color)
             .clipShape(Capsule())
-    }
-
-    private var mintSheet: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text("✨ One good thing")
-                .font(.caption.weight(.semibold))
-            Text("Saved to your wins journal")
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-            TextField("Something good happened…", text: $mintText, axis: .vertical)
-                .lineLimit(2...4)
-                .textFieldStyle(.roundedBorder)
-            Button {
-                let trimmed = mintText.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard !trimmed.isEmpty else { return }
-                onMintPT?(trimmed)
-                mintText = ""
-                isMinting = false
-            } label: {
-                Text("Save & use as PT")
-                    .font(.caption.weight(.semibold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 8)
-                    .background(Color.blue)
-                    .foregroundStyle(.white)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            .buttonStyle(.plain)
-            .disabled(mintText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-        }
-        .padding(10)
-        .background(Color(.tertiarySystemFill))
-        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
 
     // MARK: - Celebration (passed)
@@ -350,8 +351,8 @@ extension CycleOutcome {
         case .passed: return "Passed"
         case .excused: return "Excused"
         case .punished: return "Punished"
-        case .letGo: return "Let go"
-        case .other: return "Other"
+        case .moveOn: return "Move on"
+        case .intended: return "Intended"
         }
     }
 
@@ -360,8 +361,8 @@ extension CycleOutcome {
         case .passed: return .green
         case .excused: return .blue
         case .punished: return .red
-        case .letGo: return .yellow
-        case .other: return .teal
+        case .moveOn: return .yellow
+        case .intended: return .gray
         }
     }
 }
