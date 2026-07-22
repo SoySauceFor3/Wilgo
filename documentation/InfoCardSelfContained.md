@@ -36,12 +36,13 @@ Make `CommitmentHeatmapInfoCard` **self-contained**: it takes `commitment` + a d
 - **Self-backfill:** the card gains `@State private var showingBackfill` and its own `.sheet { BackfillSheet(...) }`. The `onAddCheckIn` param is removed.
 - **Dismiss:** the card exposes `onDismiss: (() -> Void)?` instead of a `Binding<PeriodData?>`, fully severing its dependency on `PeriodData`. Heatmap passes `{ selectedPeriod = nil }`; FCR passes `nil`.
 
-Derived fields (all computed in `body` from `commitment` + `range` + `heatmapKind`):
+Derived fields (all computed in `body` from `commitment` + `range` + `rangeKind`):
 
 | Field | Derivation |
 | --- | --- |
 | check-ins | `commitment.checkInsInRange(startPsychDay: range.lowerBound, endPsychDay: range.upperBound)` |
-| goal | `Heatmap.expectedGoalPerPeriod(target: commitment.target, cycleKind: commitment.cycle.kind, periodKind: heatmapKind)` |
+| goal | `Heatmap.expectedGoalPerPeriod(target: commitment.target, cycleKind: commitment.cycle.kind, periodKind: rangeKind)` |
+| targetKind | `commitment.cycle.kind` (was a param; now derived internally) |
 | isBeforeCreation | `range.upperBound < Time.startOfDay(for: commitment.createdAt)` |
 | isCurrent / isFuture | date math on `range` vs `Time.startOfDay(for: Time.now())` |
 
@@ -51,13 +52,15 @@ Derived fields (all computed in `body` from `commitment` + `range` + `heatmapKin
 CommitmentHeatmapInfoCard(
     commitment: Commitment,
     range: Range<Date>,          // [startPsychDay, endPsychDay)
-    heatmapKind: CycleKind,
-    targetKind: CycleKind,
+    rangeKind: CycleKind,        // period granularity — how to read the range (day/week/month)
     onDismiss: (() -> Void)? = nil
 )
 ```
 
-Removed params: `period`, `selectedPeriod`, `onDelete`, `onAddCheckIn`.
+Removed params: `period`, `selectedPeriod`, `onDelete`, `onAddCheckIn`, `targetKind`.
+Renamed: `heatmapKind` → `rangeKind` (the second caller, FCR, isn't a heatmap; the field describes how to interpret `range`).
+
+**Why both `range` and `rangeKind`?** They answer different questions and neither derives from the other: `range` is *which* dates (`[start, end)`); `rangeKind` is *how to read* them — label format ("Wed, Apr 7" vs "Apr 1 – Apr 7" vs "April 2026"), per-row timestamp format, and the `periodKind` for goal derivation. A 1-day `range` could be a daily cell or a 1-day custom weekly cycle; a ~30-day `range` could be monthly or a long custom cycle. Length alone can't recover the kind, so it's a genuine separate input.
 
 ---
 
@@ -119,26 +122,26 @@ One atomic refactor. The new card signature is source-incompatible with both exi
 - Replace stored props `period`, `selectedPeriod`, `onDelete`, `onAddCheckIn` with:
   - `let commitment: Commitment`
   - `let range: Range<Date>`
-  - `let heatmapKind: CycleKind`
-  - `let targetKind: CycleKind`
+  - `let rangeKind: CycleKind`  (was `heatmapKind`)
   - `var onDismiss: (() -> Void)? = nil`
+- `targetKind` is **not** a param — add `private var targetKind: CycleKind { commitment.cycle.kind }`.
 - Add `@Environment(\.modelContext) private var modelContext`.
 - Add `@State private var showingBackfill = false`.
 - Add derived computed props: `liveCheckIns`, `goal`, `isBeforeCreation`, `isCurrent`, `isFuture` (per the table above).
 - `body` renders from `liveCheckIns`/derived props instead of `period.*`. Tap-to-dismiss calls `onDismiss?()`.
 - `handleDeleteTap` confirm branch calls `CheckIn.delete(checkIn, from: modelContext)` then clears `pendingDeleteID`.
 - "Add check-in" button sets `showingBackfill = true`; attach `.sheet(isPresented: $showingBackfill) { BackfillSheet(commitment: commitment, dateRange: range.lowerBound...min(range.upperBound.addingTimeInterval(-1), .now)) .presentationDetents([.medium]).presentationDragIndicator(.visible) }`.
-- `periodLabel`/`checkInTimestamp` switch on `heatmapKind` using `range` bounds instead of `period.*`.
+- `periodLabel`/`checkInTimestamp` switch on `rangeKind` using `range` bounds instead of `period.*`. The `goal` visibility guard becomes `targetKind == rangeKind`.
 - Rewrite `#Preview`s to the new signature (drop the `PeriodData`-wrapper previews; use the in-memory container factory to supply a live `commitment` + a range).
 
 **Modify:** [`Wilgo/Features/Commitments/SingleCommitment/Heatmap/View.swift`](../Wilgo/Features/Commitments/SingleCommitment/Heatmap/View.swift)
 
-- At the info-card call: pass `commitment: commitment`, `range: selected.periodStartPsychDay..<selected.periodEndPsychDay`, `heatmapKind:`, `targetKind: context.target.kind`, `onDismiss: { selectedPeriod = nil }`.
+- At the info-card call: pass `commitment: commitment`, `range: selected.periodStartPsychDay..<selected.periodEndPsychDay`, `rangeKind: heatmapKind`, `onDismiss: { selectedPeriod = nil }`. (The heatmap's local `heatmapKind` state supplies `rangeKind`; `targetKind` is no longer passed.)
 - Remove the `onDelete`/`onAddCheckIn` closures and the `backfillPeriod` state + its `.sheet` (now owned by the card).
 
 **Modify:** [`Wilgo/Features/Commitments/FinishedCycleReport/FCRCycleCardView.swift`](../Wilgo/Features/Commitments/FinishedCycleReport/FCRCycleCardView.swift)
 
-- `historySection`: pass `commitment: commitment`, `range: cycle.cycleStartPsychDay..<cycle.cycleEndPsychDay`, `heatmapKind: commitment.cycle.kind`, `targetKind: commitment.cycle.kind`, `onDismiss: nil`.
+- `historySection`: pass `commitment: commitment`, `range: cycle.cycleStartPsychDay..<cycle.cycleEndPsychDay`, `rangeKind: commitment.cycle.kind`, `onDismiss: nil`.
 - Remove `showingBackfill` state, the `.sheet(isPresented: $showingBackfill)` modifier, and `cycleRange` (now unused). Delete now works and refreshes live.
 
 #### Tests
@@ -149,7 +152,7 @@ Existing tests already cover the core mechanics and **survive unchanged** (they 
 
 **Add** to a new file `WilgoTests/CheckIn/InfoCardDerivationTests.swift` (co-located with the existing InfoCard/Heatmap tests; in-memory `ModelContainer`, strong container reference held for the whole test per repo rule) — the *new* derivation logic only:
 - `liveCheckIns` (i.e. `commitment.checkInsInRange(range)`) returns exactly the check-ins whose `psychDay` is in `[range.lowerBound, range.upperBound)`, sorted by `createdAt`.
-- `goal` matches `Heatmap.expectedGoalPerPeriod(target:cycleKind:periodKind:)` for representative (targetKind, heatmapKind) pairs, incl. the `nil` cases.
+- `goal` matches `Heatmap.expectedGoalPerPeriod(target:cycleKind:periodKind:)` for representative (targetKind, rangeKind) pairs, incl. the `nil` cases.
 - `isBeforeCreation` = `range.upperBound < startOfDay(createdAt)` — true just-before, false just-after the creation boundary.
 
 > The derivation is thin (all delegates to existing tested helpers). If any piece is awkward to reach, extract a minimal `static`/free helper local to `InfoCardView.swift` so it's testable without rendering the view — but prefer testing the underlying helpers (`checkInsInRange`, `expectedGoalPerPeriod`) directly, since that's all the card calls.
