@@ -66,7 +66,7 @@ final class CheckInUndoManager: ObservableObject {
         notices.append(notice)
         print("Enqueued notice: \(notice.title)")
         let duration = autoDismissDuration
-        let task = Task { [weak self] in  // runs immediately
+        let task = Task { [weak self] in  // runs almost immediately
             try? await Task.sleep(
                 nanoseconds: UInt64(duration * 1_000_000_000)
             )
