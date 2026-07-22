@@ -32,7 +32,7 @@ private func applyMove(
 
 // MARK: - Tests
 
-@Suite(.serialized)
+@Suite
 @MainActor
 struct TagSettingsTests {
     // MARK: Reorder: move last to first

@@ -21,7 +21,7 @@ private func date(
 }
 
 extension FinishedCycleReportSuite {
-@Suite(.serialized)
+@Suite
 struct FinishedCycleReportBuilderTests: ~Copyable {
     @Test("build returns one cycle with correct check-in count")
     @MainActor

@@ -22,7 +22,7 @@ private func makeWeeklyCommitment(anchoredOn anchor: Date) -> Commitment {
     )
 }
 
-@Suite(.serialized)
+@Suite
 struct WeekStartChangeHandlerTests {
     // MARK: affectedCommitments
 

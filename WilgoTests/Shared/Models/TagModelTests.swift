@@ -21,7 +21,7 @@ private func makeCommitment(title: String = "Test") -> Commitment {
 
 // MARK: - Tests
 
-@Suite(.serialized)
+@Suite
 @MainActor
 struct TagModelTests {
     // MARK: Tag persistence

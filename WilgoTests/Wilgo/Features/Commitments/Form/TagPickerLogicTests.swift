@@ -9,7 +9,7 @@ import Testing
 
 // MARK: - Tests
 
-@Suite(.serialized)
+@Suite
 @MainActor
 struct TagPickerLogicTests {
     // MARK: displayOrder for first tag

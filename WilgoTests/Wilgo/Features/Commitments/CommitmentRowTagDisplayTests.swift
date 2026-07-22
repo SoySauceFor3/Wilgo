@@ -18,7 +18,7 @@ private func makeCommitment(title: String = "Test") -> Commitment {
 
 // MARK: - Tests
 
-@Suite(.serialized)
+@Suite
 @MainActor
 struct CommitmentRowTagDisplayTests {
     @Test("Commitment with no tags has empty tags array")

@@ -54,7 +54,7 @@ private func makeSlotAndInsert(
 
 // MARK: - Tests
 
-@Suite(.serialized)
+@Suite
 struct SlotSnoozeCreateTests: ~Copyable {
     // MARK: Happy path
 

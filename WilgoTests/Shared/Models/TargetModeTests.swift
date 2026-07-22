@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import Wilgo
 
-@Suite(.serialized)
+@Suite
 struct TargetModeTests {
     @Test("configured mode exposes stored mode explicitly")
     func configuredModeExposesStoredMode() {

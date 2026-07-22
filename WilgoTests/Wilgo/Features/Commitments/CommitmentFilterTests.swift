@@ -32,7 +32,7 @@ private func makeCommitment(title: String = "Test") -> Commitment {
 
 // MARK: - Tests
 
-@Suite(.serialized)
+@Suite
 @MainActor
 struct CommitmentFilterTests {
     // MARK: OR logic — single tag filter
