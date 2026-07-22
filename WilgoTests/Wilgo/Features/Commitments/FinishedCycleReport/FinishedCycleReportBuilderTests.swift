@@ -20,6 +20,7 @@ private func date(
     return Calendar.current.date(from: comps)!
 }
 
+extension FinishedCycleReportSuite {
 @Suite(.serialized)
 struct FinishedCycleReportBuilderTests: ~Copyable {
     @Test("build returns one cycle with correct check-in count")
@@ -146,4 +147,5 @@ struct FinishedCycleReportBuilderTests: ~Copyable {
         )
         #expect(report.isEmpty)
     }
+}
 }

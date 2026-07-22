@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import Wilgo
 
+extension FinishedCycleReportSuite {
 @MainActor
 struct StreakSummaryTests {
     // `outcomes` is most-recent-first. Index 0 is the cycle being reported (always
@@ -85,4 +86,5 @@ struct StreakSummaryTests {
     @Test func emptyHistoryReturnsNil() {
         #expect(StreakSummary.summarize(recentOutcomes: []) == nil)
     }
+}
 }

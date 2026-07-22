@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import Wilgo
 
+extension PositivityTokenSuite {
 @MainActor
 struct PositivityTokenGroupingTests {
     private func token(_ reason: String, _ comps: DateComponents) -> PositivityToken {
@@ -46,4 +47,5 @@ struct PositivityTokenGroupingTests {
         let sections = PositivityTokenGrouping.sections(from: [t])
         #expect(sections.first?.title == "June 2026")
     }
+}
 }

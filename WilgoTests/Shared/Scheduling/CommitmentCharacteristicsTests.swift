@@ -6,6 +6,7 @@ import Testing
 /// Covers `StageCharacterization.characteristics(of:now:)` — the per-commitment characterization that
 /// every Stage surface is built from. One commitment in → its facts (isCurrent, isBehind,
 /// nearestUsable, nearestUsableInCurrentCycle, counts).
+extension SchedulingSuite {
 @Suite(.serialized)
 final class CommitmentCharacteristicsTests {
     private func tod(hour: Int, minute: Int = 0) -> Date {
@@ -197,4 +198,5 @@ final class CommitmentCharacteristicsTests {
         #expect(snap.checkInCount == 2)
         #expect(snap.targetCount == 5)
     }
+}
 }

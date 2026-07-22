@@ -7,6 +7,7 @@ import Testing
 /// knows its slot + psychDay). Replaces the time-parameterized `Slot.isSnoozed(at:)`. Cases that
 /// only existed because the old API took an arbitrary time (wrong time-of-day / wrong recurrence
 /// day → false) are moot here: a `SlotOccurrence` cannot be built for a day the slot does not fire.
+extension SlotOccurrenceSuite {
 @Suite(.serialized)
 final class SlotOccurrenceSnoozeTests {
     // MARK: - Helpers
@@ -107,4 +108,5 @@ final class SlotOccurrenceSnoozeTests {
         let occ = try #require(slot.occurrence(on: date(2025, 12, 31)))
         #expect(occ.isSnoozed == true)
     }
+}
 }

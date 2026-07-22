@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import Wilgo
 
+extension FinishedCycleReportSuite {
 @MainActor
 struct FCRCycleCardStateTests {
     // MARK: - Passed vs failed (derived from counts)
@@ -184,4 +185,5 @@ struct FCRCycleCardStateTests {
         #expect(state.reactionCount("🔥") == 1)
         #expect(state.reactionCount("💪") == 1)
     }
+}
 }

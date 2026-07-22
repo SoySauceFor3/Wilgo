@@ -4,6 +4,7 @@ import Testing
 import UserNotifications
 @testable import Wilgo
 
+extension LiveUpdatesSuite.SchedulersSuite {
 @Suite(.serialized)
 final class SlotStartNotificationSchedulerTests {
     // MARK: - Helpers
@@ -275,4 +276,5 @@ final class SlotStartNotificationSchedulerTests {
             #expect(AppSettings.slotStartNotificationsEnabled == false)
         }
     }
+}
 }

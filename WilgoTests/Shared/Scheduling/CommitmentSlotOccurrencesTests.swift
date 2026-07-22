@@ -3,6 +3,7 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
+extension SchedulingSuite {
 @Suite(.serialized)
 final class CommitmentSlotOccurrencesTests {
     // MARK: - Helpers
@@ -125,4 +126,5 @@ final class CommitmentSlotOccurrencesTests {
         #expect(
             c.slotOccurrences(from: from, until: to, softFrom: false, onlyUsable: false) == [occ])
     }
+}
 }

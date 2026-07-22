@@ -31,6 +31,7 @@ private func date(
     return Calendar.current.date(from: comps)!
 }
 
+extension SlotSuite {
 enum SlotTests {
     // MARK: - SlotRecurrence.matches
 
@@ -490,4 +491,5 @@ enum SlotTests {
             #expect(slot.remainingFraction(at: timeOfDay(hour: 1, minute: 0)) == 0.0)
         }
     }
+}
 }

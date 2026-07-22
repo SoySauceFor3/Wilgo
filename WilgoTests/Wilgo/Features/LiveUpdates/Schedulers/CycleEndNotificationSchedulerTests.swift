@@ -3,6 +3,7 @@ import Testing
 import UserNotifications
 @testable import Wilgo
 
+extension LiveUpdatesSuite.SchedulersSuite {
 @Suite(.serialized)
 struct CycleEndNotificationSchedulerTests {
     // MARK: - trigger(for:)
@@ -72,4 +73,5 @@ struct CycleEndNotificationSchedulerTests {
             #expect(AppSettings.cycleEndNotificationsEnabled == false)
         }
     }
+}
 }

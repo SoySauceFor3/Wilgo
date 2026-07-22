@@ -6,6 +6,7 @@ import Testing
 /// Unit tests for the pure planning half of the scheduled-Live-Activity design.
 /// The ActivityKit side (request/end) cannot run in the test host; it is covered by
 /// on-device manual verification (see the implementation plan).
+extension LiveUpdatesSuite.SchedulersSuite.NowLiveActivitySuite {
 @Suite(.serialized)
 final class LiveActivityPlannerTests {
     private func tod(hour: Int, minute: Int = 0) -> Date {
@@ -313,4 +314,5 @@ final class LiveActivityPlannerTests {
         #expect(actions.toRequest.isEmpty)
         #expect(actions.toUpdate.isEmpty)
     }
+}
 }

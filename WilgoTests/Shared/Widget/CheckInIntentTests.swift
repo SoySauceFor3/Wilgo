@@ -6,6 +6,7 @@ import Testing
 /// The `perform()` body talks to the real App Group store and ActivityKit, so the
 /// check-in-persists + Live-Activity-advances behavior is covered by on-device manual
 /// verification (see the implementation plan), not here.
+extension WidgetSuite {
 struct CheckInIntentTests {
     @Test("convenience init round-trips commitmentId and source into the LiveActivityIntent parameters")
     func init_roundTripsParameters() {
@@ -21,4 +22,5 @@ struct CheckInIntentTests {
         #expect(intent.commitmentId == "")
         #expect(intent.sourceRaw == CheckInSource.widget.rawValue)
     }
+}
 }

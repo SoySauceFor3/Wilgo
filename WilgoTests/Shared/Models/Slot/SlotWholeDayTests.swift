@@ -22,6 +22,7 @@ private func wholeDaySlot(recurrence: SlotRecurrence = .everyDay) -> Slot {
     return Slot(start: ref, end: ref, recurrence: recurrence)
 }
 
+extension SlotSuite {
 struct SlotWholeDayTests {
     // MARK: - isWholeDay
 
@@ -61,4 +62,5 @@ struct SlotWholeDayTests {
         #expect(slot.timeOfDayText != "Whole day")
         #expect(slot.timeOfDayText.contains("–"))
     }
+}
 }

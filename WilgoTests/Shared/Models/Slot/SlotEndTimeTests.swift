@@ -3,6 +3,7 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
+extension SlotSuite {
 struct SlotEndTimeTests {
     private func tod(hour: Int, minute: Int = 0) -> Date {
         var c = DateComponents()
@@ -101,4 +102,5 @@ struct SlotEndTimeTests {
         let occurrence = try #require(slot.occurrence(on: day))
         #expect(slot.endTime(onDayStarting: day) == occurrence.end)
     }
+}
 }

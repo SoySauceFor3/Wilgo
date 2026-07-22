@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import Wilgo
 
+extension LiveUpdatesSuite.SchedulersSuite {
 @Suite(.serialized)
 final class CatchUpReminderTests {
     // MARK: - Helpers
@@ -136,4 +137,5 @@ final class CatchUpReminderTests {
             #expect(AppSettings.catchUpRemindersEnabled == false)
         }
     }
+}
 }

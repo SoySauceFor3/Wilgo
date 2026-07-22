@@ -9,6 +9,7 @@ import Testing
 /// covered by `CommitmentNearestSlotTests` (which looks *forward*): whole-day & cross-midnight
 /// carry-over (an occurrence that started the *previous* day but is still open now), and the
 /// out-of-window check-in not saturating an active slot.
+extension SchedulingSuite {
 @Suite(.serialized)
 final class CommitmentRemainingUsableTests {
     private func tod(hour: Int, minute: Int = 0) -> Date {
@@ -129,4 +130,5 @@ final class CommitmentRemainingUsableTests {
         // Saturated (cap 1, one in-window check-in) → no remaining usable occurrence this cycle.
         #expect(c.remainingUsableOccurrencesInCycle(now: now).isEmpty)
     }
+}
 }

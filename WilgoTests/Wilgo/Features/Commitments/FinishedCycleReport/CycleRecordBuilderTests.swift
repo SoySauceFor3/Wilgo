@@ -3,6 +3,7 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
+extension FinishedCycleReportSuite {
 @MainActor
 struct CycleRecordBuilderTests {
     private func makeCommitment(_ title: String, target: Int) -> Commitment {
@@ -179,4 +180,5 @@ struct CycleRecordBuilderTests {
         // PT now reports consumed via the inverse relationship
         #expect(pt.consumedByCycleRecord != nil)
     }
+}
 }

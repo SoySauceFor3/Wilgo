@@ -7,6 +7,7 @@ import Testing
 /// nearest usable slot that drives Stage's Upcoming. Key properties: it is the `min`
 /// over slots, it crosses cycle boundaries (no midnight cliff), and saturation is judged
 /// against each occurrence's OWN cycle.
+extension SchedulingSuite {
 @Suite(.serialized)
 final class CommitmentNearestSlotTests {
     // MARK: - Helpers
@@ -202,4 +203,5 @@ final class CommitmentNearestSlotTests {
 
         #expect(c.nearestUsableUpcomingOccurrence(now: now) == nil)
     }
+}
 }

@@ -3,6 +3,7 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
+extension LiveUpdatesSuite.RefreshCoordinationSuite {
 @Suite(.serialized)
 @MainActor
 final class RefreshCoordinatorObserverTests {
@@ -179,4 +180,5 @@ final class RefreshCoordinatorObserverTests {
         await waitUntil(maxYields: 20) { refreshCount > 0 }
         #expect(refreshCount == 0)
     }
+}
 }

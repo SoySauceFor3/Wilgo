@@ -5,6 +5,7 @@ import Testing
 
 /// Saturation as a property of a concrete `SlotOccurrence` (parameter-free: the occurrence
 /// already carries its slot + window). Replaces the time-parameterized `Slot.isSaturated(at:)`.
+extension SlotOccurrenceSuite {
 @Suite(.serialized)
 final class SlotOccurrenceSaturationTests {
     // MARK: - Helpers
@@ -124,4 +125,5 @@ final class SlotOccurrenceSaturationTests {
         let occ = try #require(slot.occurrence(on: date(2025, 12, 31)))
         #expect(occ.isSaturated(checkIns: [postMidnight]) == true)
     }
+}
 }

@@ -6,6 +6,7 @@ import Testing
 /// Reminders-disabled is encoded as `isActiveForReminders == false` — the single gate every Stage
 /// surface filters on before characterizing. (Replaces the old `.disabled` slotKind, which no longer
 /// exists after the characterization/placement refactor.)
+extension SchedulingSuite {
 @Suite(.serialized)
 final class CommitmentRemindersDisableTests {
     private func tod(hour: Int) -> Date {
@@ -80,4 +81,5 @@ final class CommitmentRemindersDisableTests {
         #expect(placed.map(\.commitment.title) == ["Draw"])  // only the enabled one
         #expect(placed.allSatisfy { $0.commitment.id == on.id })
     }
+}
 }

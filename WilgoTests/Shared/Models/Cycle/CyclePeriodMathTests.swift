@@ -15,6 +15,7 @@ private func date(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 
     return Calendar.current.date(from: comps)!
 }
 
+extension CycleSuite {
 enum CyclePeriodMathTests {
     // MARK: - Cycle.clampedMonthDay
 
@@ -267,4 +268,5 @@ enum CyclePeriodMathTests {
             #expect(diff == 1)
         }
     }
+}
 }

@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import Wilgo
 
+extension FinishedCycleReportSuite {
 struct MintDraftTests {
     @Test func newDraftIsBlank() {
         let draft = MintDraft()
@@ -60,4 +61,5 @@ struct MintDraftTests {
         #expect(draft.isBlank)
         #expect(draft.trimmedReason == nil)
     }
+}
 }

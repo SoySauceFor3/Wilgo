@@ -3,5 +3,7 @@
 // See PositivityTokenModelTests for minting behaviour tests.
 import Testing
 
+extension PositivityTokenSuite {
 @MainActor
 struct PositivityTokenMintingTests {}
+}

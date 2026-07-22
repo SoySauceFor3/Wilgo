@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import Wilgo
 
+extension FinishedCycleReportSuite {
 @MainActor
 struct FCRCompletionTests {
     @Test func canCloseWhenNoCards() {
@@ -38,4 +39,5 @@ struct FCRCompletionTests {
         ]
         #expect(FCRCompletion.canClose(states: states) == true)
     }
+}
 }

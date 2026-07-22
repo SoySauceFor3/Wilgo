@@ -6,6 +6,7 @@ import Testing
 /// Tests the single reminders gate (`Commitment.isActiveForReminders`: reminders-enabled +
 /// goal-met∕continue rule) and that placement (`stageBuckets` over the filtered characteristics)
 /// honors it — so Stage, the Live Activity, and the widget all agree.
+extension SchedulingSuite {
 @Suite(.serialized)
 final class IsActiveForRemindersTests {
     // Whole-day slot (start == end == midnight) is always inside its window regardless of wall clock.
@@ -157,4 +158,5 @@ final class IsActiveForRemindersTests {
 
         #expect(placed([c], now: now).isEmpty)
     }
+}
 }

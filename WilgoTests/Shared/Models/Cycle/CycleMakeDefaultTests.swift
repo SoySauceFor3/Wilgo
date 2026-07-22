@@ -21,6 +21,7 @@ private func weekday(of date: Date) -> Int {
 
 // MARK: - Tests
 
+extension CycleSuite {
 @Suite(.serialized)
 struct CycleMakeDefaultTests {
     // MARK: Daily
@@ -155,4 +156,5 @@ struct CycleMakeDefaultTests {
         let cycle = Cycle.makeDefault(.weekly, on: wednesday)
         #expect(cycle.startDayOfCycle(including: wednesday) == monday)
     }
+}
 }

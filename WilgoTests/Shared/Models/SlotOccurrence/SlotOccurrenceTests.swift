@@ -3,6 +3,7 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
+extension SlotOccurrenceSuite {
 @Suite(.serialized)
 final class SlotOccurrenceTests {
     // MARK: - Helpers
@@ -154,4 +155,5 @@ final class SlotOccurrenceTests {
         #expect(occA == occB)
         #expect(occA != occC)
     }
+}
 }

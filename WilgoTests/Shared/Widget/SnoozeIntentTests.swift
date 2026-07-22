@@ -6,6 +6,7 @@ import Testing
 /// The `perform()` body talks to the real App Group store and ActivityKit, so the
 /// snooze-persists + Live-Activity-refreshes behavior is covered by on-device manual
 /// verification (see the implementation plan), not here.
+extension WidgetSuite {
 struct SnoozeIntentTests {
     @Test("convenience init round-trips slotId into the LiveActivityIntent parameter")
     func init_roundTripsSlotId() {
@@ -19,4 +20,5 @@ struct SnoozeIntentTests {
         let intent = SnoozeIntent()
         #expect(intent.slotId == "")
     }
+}
 }

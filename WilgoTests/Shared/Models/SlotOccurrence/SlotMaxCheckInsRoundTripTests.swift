@@ -3,6 +3,7 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
+extension SlotOccurrenceSuite {
 @Suite(.serialized)
 final class SlotMaxCheckInsRoundTripTests {
     private func tod(hour: Int) -> Date {
@@ -38,4 +39,5 @@ final class SlotMaxCheckInsRoundTripTests {
         let fetched = try #require(ctx.fetch(FetchDescriptor<Slot>()).first)
         #expect(fetched.maxCheckIns == 1)
     }
+}
 }

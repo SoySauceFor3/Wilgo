@@ -3,6 +3,7 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
+extension PositivityTokenSuite {
 @MainActor
 struct PositivityTokenModelTests {
     // MARK: - Basic persistence
@@ -142,4 +143,5 @@ struct PositivityTokenModelTests {
         let fetched = try ctx.fetch(FetchDescriptor<PositivityToken>())
         #expect(fetched.count == 5)
     }
+}
 }

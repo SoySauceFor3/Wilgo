@@ -5,6 +5,7 @@ import Testing
 
 /// `SlotOccurrence.isUsable(checkIns:)` = not snoozed AND not saturated. Verifies the
 /// composition: each suppressor alone makes it unusable, and a clean occurrence is usable.
+extension SlotOccurrenceSuite {
 @Suite(.serialized)
 final class SlotOccurrenceUsableTests {
     // MARK: - Helpers
@@ -84,4 +85,5 @@ final class SlotOccurrenceUsableTests {
         let occ = try #require(slot.occurrence(on: date(2026, 3, 5)))
         #expect(occ.isUsable(checkIns: [ci]) == false)
     }
+}
 }

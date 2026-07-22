@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import Wilgo
 
+extension FinishedCycleReportSuite {
 struct FinishedCycleReportPresentationStateTests {
     @Test("prepare stores report request without presenting or advancing watermark")
     func prepareStoresRequestWithoutPresentingOrAdvancingWatermark() {
@@ -59,4 +60,5 @@ struct FinishedCycleReportPresentationStateTests {
         components.second = 0
         return Calendar.current.date(from: components)!
     }
+}
 }

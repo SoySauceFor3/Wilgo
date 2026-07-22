@@ -3,6 +3,7 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
+extension FinishedCycleReportSuite {
 @MainActor
 struct FCRPTAssignmentTests {
     private func freeToken(_ reason: String, _ created: Date) -> PositivityToken {
@@ -122,4 +123,5 @@ struct FCRPTAssignmentTests {
         #expect(result["b"]?.reason == "shared")
         #expect(result["a"] == nil)
     }
+}
 }

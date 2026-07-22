@@ -31,6 +31,7 @@ private func date(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 
 
 /// `Slot.occurrences(from:until:softFrom:softUntil:)` — pure per-slot enumeration over a datetime
 /// window. No container/commitment needed: the method is deliberately independent of check-ins.
+extension SlotSuite {
 struct SlotOccurrencesTests {
     // MARK: - Basic windowing
 
@@ -190,8 +191,10 @@ struct SlotOccurrencesTests {
         #expect(slot.occurrences(from: from, until: until).isEmpty)
     }
 }
+}
 
 /// `SlotOccurrence: Comparable` — chronological `<` by `(start, end)`, distinct from identity `==`.
+extension SlotSuite {
 struct SlotOccurrenceComparableTests {
     private let day = date(year: 2026, month: 3, day: 5)
 
@@ -234,4 +237,5 @@ struct SlotOccurrenceComparableTests {
         #expect(!(a < t) && !(t < a))  // tie under <
         #expect(a != t)  // but distinct firings
     }
+}
 }

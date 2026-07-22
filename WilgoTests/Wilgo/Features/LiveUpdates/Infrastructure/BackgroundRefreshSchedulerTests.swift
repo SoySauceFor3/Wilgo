@@ -18,6 +18,7 @@ private enum RecordingScheduler: BackgroundRefreshScheduler {
     }
 }
 
+extension LiveUpdatesSuite.InfrastructureSuite {
 struct BackgroundRefreshSchedulerTests {
     @Test("refresh re-queues the next wake BEFORE running the work")
     @MainActor
@@ -26,4 +27,5 @@ struct BackgroundRefreshSchedulerTests {
         await RecordingScheduler.refresh()
         #expect(RecordingScheduler.events == ["schedule", "work"])
     }
+}
 }

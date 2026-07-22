@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import Wilgo
 
+extension CycleSuite {
 struct CycleOutcomeMatrixTests {
     // MARK: - requiresPT
 
@@ -61,4 +62,5 @@ struct CycleOutcomeMatrixTests {
             try JSONDecoder().decode(CycleOutcome.self, from: Data("\"bogus\"".utf8))
         }
     }
+}
 }

@@ -34,6 +34,7 @@ private func date(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 
 /// container/commitment needed. These tests exercise the primitive directly; the Stage layers
 /// (`StageCharacterization.nextTransitionTime`, `nextStageRefreshTime`) are thin fan-outs over it and
 /// are tested at their own level only for what they add (the min across commitments, the psychDay fold).
+extension SlotSuite {
 struct SlotNextWindowEdgeTests {
     // Anchor day: Thu Mar 5 2026.
     private let mar5 = date(year: 2026, month: 3, day: 5)
@@ -187,4 +188,5 @@ struct SlotNextWindowEdgeTests {
         slot.end = timeOfDay(hour: 10)
         #expect(slot.nextWindowEdge(after: instant) == date(year: 2026, month: 3, day: 5, hour: 10))
     }
+}
 }

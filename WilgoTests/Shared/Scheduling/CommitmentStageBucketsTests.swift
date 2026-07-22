@@ -8,6 +8,7 @@ import Testing
 /// active filtering, the closest-N Upcoming cap, Upcoming-takes-priority over Catch-up,
 /// overflow demotion of behind commitments to Catch-up, and the per-commitment Upcoming
 /// metadata (`nearestUsableInCurrentCycle`, `currentCycleRemainingCount`, `behindCount`).
+extension SchedulingSuite {
 @Suite(.serialized)
 final class CommitmentStageBucketsTests {
     // MARK: - Helpers
@@ -450,4 +451,5 @@ final class CommitmentStageBucketsTests {
         #expect(cs.first?.isBehind == false)
         #expect(StageCharacterization.behindForReminder(characteristics: cs).isEmpty)
     }
+}
 }

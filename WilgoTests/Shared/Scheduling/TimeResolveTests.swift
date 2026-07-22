@@ -22,6 +22,7 @@ private func timeOfDay(hour: Int, minute: Int = 0) -> Date {
     date(year: 2000, month: 1, day: 1, hour: hour, minute: minute)
 }
 
+extension SchedulingSuite {
 struct TimeResolveTests {
     @Test("morning time lands on the same calendar day")
     func morningLandsSameday() {
@@ -57,4 +58,5 @@ struct TimeResolveTests {
         let result = Time.resolve(timeOfDay: timeOfDay(hour: 23), on: day)
         #expect(result == date(year: 2026, month: 1, day: 1, hour: 23))
     }
+}
 }

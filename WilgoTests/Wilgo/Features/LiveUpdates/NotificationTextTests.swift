@@ -1,6 +1,7 @@
 import Testing
 @testable import Wilgo
 
+extension LiveUpdatesSuite {
 struct NotificationTextTests {
     @Test("empty list produces empty string")
     func joinedTitles_empty() {
@@ -21,4 +22,5 @@ struct NotificationTextTests {
     func joinedTitles_overflow() {
         #expect(NotificationText.joinedTitles(["A", "B", "C", "D", "E"]) == "A · B · C · +2 more")
     }
+}
 }

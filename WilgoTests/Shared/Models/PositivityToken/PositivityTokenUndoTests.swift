@@ -3,6 +3,7 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
+extension PositivityTokenSuite {
 @MainActor
 struct PositivityTokenUndoTests {
     // Verifies the NEW behavior: production undo closures only delete the check-in.
@@ -119,4 +120,5 @@ struct PositivityTokenUndoTests {
             remaining.isEmpty,
             "When PT is explicitly deleted (old behavior), it's gone — this is the bug we fixed")
     }
+}
 }

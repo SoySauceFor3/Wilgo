@@ -13,6 +13,7 @@ private final class FakeBGTask: BGWakeTask {
     }
 }
 
+extension LiveUpdatesSuite.InfrastructureSuite {
 struct BGWakeTests {
     @Test("reports success exactly once, only after the work has completed")
     @MainActor
@@ -52,4 +53,5 @@ struct BGWakeTests {
         // Exactly one completion (the failure) — the cancelled work must not add a second.
         #expect(task.completions == [false])
     }
+}
 }

@@ -3,6 +3,7 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
+extension LiveUpdatesSuite.RefreshCoordinationSuite {
 @Suite(.serialized)
 @MainActor
 final class ModelContextSaveObserverTests {
@@ -139,4 +140,5 @@ final class ModelContextSaveObserverTests {
 
         #expect(saveCount == saveTarget)
     }
+}
 }

@@ -3,6 +3,7 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
+extension SchedulingSuite {
 @Suite(.serialized)
 final class CommitmentGoalProgressTests {
     private func tod(hour: Int) -> Date {
@@ -184,4 +185,5 @@ final class CommitmentGoalProgressTests {
         #expect(week2.leftToDo == 1)
         #expect(week2.isMet == false)
     }
+}
 }

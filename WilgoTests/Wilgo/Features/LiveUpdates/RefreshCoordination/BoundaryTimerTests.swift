@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import Wilgo
 
+extension LiveUpdatesSuite.RefreshCoordinationSuite {
 @Suite(.serialized)
 @MainActor
 final class BoundaryTimerTests {
@@ -118,4 +119,5 @@ final class BoundaryTimerTests {
 
         #expect(fake.cancelCount == 1)
     }
+}
 }
