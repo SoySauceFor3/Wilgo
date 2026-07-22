@@ -96,27 +96,17 @@ struct WilgoApp: App {
     // MARK: - Deep link handling
 
     /// Handles deep links for opening commitments and other deeplink actions.
+    /// URL parsing lives in `DeepLinkRouter` (pure, unit-tested); this method only turns a
+    /// parsed intent into navigation via SwiftData fetch + view state.
     @MainActor
     private func handleDeepLink(_ url: URL) {
-        guard url.scheme == "wilgo" else { return }
-        let context = ModelContext.wilgoMain
-        let queryItems = URLComponents(url: url, resolvingAgainstBaseURL: false)?.queryItems
-
-        func queryValue(_ name: String) -> String? {
-            queryItems?.first(where: { $0.name == name })?.value
-        }
-
-        switch url.host {
-        case "commitment":
-            guard
-                let idStr = queryValue("id"),
-                let commitmentUUID = UUID(uuidString: idStr)
-            else { return }
+        switch DeepLinkRouter.parse(url) {
+        case let .commitment(id):
             let descriptor = FetchDescriptor<Commitment>(
-                predicate: #Predicate { $0.id == commitmentUUID })
-            deepLinkedCommitment = (try? context.fetch(descriptor))?.first
+                predicate: #Predicate { $0.id == id })
+            deepLinkedCommitment = (try? ModelContext.wilgoMain.fetch(descriptor))?.first
 
-        default:
+        case nil:
             break
         }
     }
