@@ -4,7 +4,7 @@ import UserNotifications
 @testable import Wilgo
 
 extension LiveUpdatesSuite.SchedulersSuite {
-@Suite(.serialized)
+@Suite
 struct CycleEndNotificationSchedulerTests {
     // MARK: - trigger(for:)
 
@@ -18,14 +18,13 @@ struct CycleEndNotificationSchedulerTests {
     }
 
     @Test func trigger_weekly_firesMondayMidnight() {
-        UserDefaults.standard.set(true, forKey: AppSettings.weekStartsOnMondayKey)
-        defer { UserDefaults.standard.removeObject(forKey: AppSettings.weekStartsOnMondayKey) }
-
-        let trigger = CycleEndNotificationScheduler.trigger(for: .weekly)
-        #expect(trigger.repeats == true)
-        #expect(trigger.dateComponents.hour == 0)
-        #expect(trigger.dateComponents.weekday == 2) // 2 = Monday
-        #expect(trigger.dateComponents.day == nil)
+        withIsolatedAppSettings([AppSettings.weekStartsOnMondayKey: true]) { _ in
+            let trigger = CycleEndNotificationScheduler.trigger(for: .weekly)
+            #expect(trigger.repeats == true)
+            #expect(trigger.dateComponents.hour == 0)
+            #expect(trigger.dateComponents.weekday == 2) // 2 = Monday
+            #expect(trigger.dateComponents.day == nil)
+        }
     }
 
     @Test func trigger_monthly_firesFirstOfMonth() {
@@ -44,20 +43,7 @@ struct CycleEndNotificationSchedulerTests {
     /// condition itself: confirms the toggle the scheduler reads defaults to enabled and
     /// correctly reports disabled when the user has opted out, which is what `refresh()` branches on.
     private func withStored(_ key: String, _ value: Bool?, _ body: () -> Void) {
-        let original = UserDefaults.standard.object(forKey: key)
-        defer {
-            if let original {
-                UserDefaults.standard.set(original, forKey: key)
-            } else {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
-        if let value {
-            UserDefaults.standard.set(value, forKey: key)
-        } else {
-            UserDefaults.standard.removeObject(forKey: key)
-        }
-        body()
+        withIsolatedAppSettings(value.map { [key: $0] } ?? [:]) { _ in body() }
     }
 
     @Test("refresh's gate: cycleEndNotificationsEnabled defaults to true (no opt-out)")

@@ -22,7 +22,7 @@ private func weekday(of date: Date) -> Int {
 // MARK: - Tests
 
 extension CycleSuite {
-@Suite(.serialized)
+@Suite
 struct CycleMakeDefaultTests {
     // MARK: Daily
 
@@ -37,44 +37,44 @@ struct CycleMakeDefaultTests {
 
     @Test("weekly: Monday input returns that same Monday")
     func weeklyOnMondayReturnsSameDay() {
-        UserDefaults.standard.set(true, forKey: AppSettings.weekStartsOnMondayKey)
-        defer { UserDefaults.standard.removeObject(forKey: AppSettings.weekStartsOnMondayKey) }
-        let monday = date(year: 2026, month: 3, day: 30)  // 2026-03-30 is a Monday
-        #expect(weekday(of: monday) == 2)  // sanity check
-        let cycle = Cycle.makeDefault(.weekly, on: monday)
-        #expect(cycle.startDayOfCycle(including: monday) == monday)
+        withIsolatedAppSettings([AppSettings.weekStartsOnMondayKey: true]) { _ in
+            let monday = date(year: 2026, month: 3, day: 30)  // 2026-03-30 is a Monday
+            #expect(weekday(of: monday) == 2)  // sanity check
+            let cycle = Cycle.makeDefault(.weekly, on: monday)
+            #expect(cycle.startDayOfCycle(including: monday) == monday)
+        }
     }
 
     @Test("weekly: Wednesday input returns prior Monday")
     func weeklyOnWednesdayReturnsPriorMonday() {
-        UserDefaults.standard.set(true, forKey: AppSettings.weekStartsOnMondayKey)
-        defer { UserDefaults.standard.removeObject(forKey: AppSettings.weekStartsOnMondayKey) }
-        let wednesday = date(year: 2026, month: 4, day: 1)  // Wed
-        let monday = date(year: 2026, month: 3, day: 30)  // Mon 2 days prior
-        let cycle = Cycle.makeDefault(.weekly, on: wednesday)
-        #expect(cycle.startDayOfCycle(including: wednesday) == monday)
+        withIsolatedAppSettings([AppSettings.weekStartsOnMondayKey: true]) { _ in
+            let wednesday = date(year: 2026, month: 4, day: 1)  // Wed
+            let monday = date(year: 2026, month: 3, day: 30)  // Mon 2 days prior
+            let cycle = Cycle.makeDefault(.weekly, on: wednesday)
+            #expect(cycle.startDayOfCycle(including: wednesday) == monday)
+        }
     }
 
     @Test("weekly: Sunday input returns prior Monday (6 days back)")
     func weeklyOnSundayReturnsPriorMonday() {
-        UserDefaults.standard.set(true, forKey: AppSettings.weekStartsOnMondayKey)
-        defer { UserDefaults.standard.removeObject(forKey: AppSettings.weekStartsOnMondayKey) }
-        let sunday = date(year: 2026, month: 4, day: 5)  // Sun
-        let monday = date(year: 2026, month: 3, day: 30)  // Mon 6 days prior
-        let cycle = Cycle.makeDefault(.weekly, on: sunday)
-        #expect(cycle.startDayOfCycle(including: sunday) == monday)
+        withIsolatedAppSettings([AppSettings.weekStartsOnMondayKey: true]) { _ in
+            let sunday = date(year: 2026, month: 4, day: 5)  // Sun
+            let monday = date(year: 2026, month: 3, day: 30)  // Mon 6 days prior
+            let cycle = Cycle.makeDefault(.weekly, on: sunday)
+            #expect(cycle.startDayOfCycle(including: sunday) == monday)
+        }
     }
 
     @Test("weekly: cycle always spans Mon–Sun")
     func weeklyCycleSpansMonToSun() {
-        UserDefaults.standard.set(true, forKey: AppSettings.weekStartsOnMondayKey)
-        defer { UserDefaults.standard.removeObject(forKey: AppSettings.weekStartsOnMondayKey) }
-        let thursday = date(year: 2026, month: 4, day: 2)
-        let expectedStart = date(year: 2026, month: 3, day: 30)  // Mon
-        let expectedEnd = date(year: 2026, month: 4, day: 6)  // following Mon (exclusive)
-        let cycle = Cycle.makeDefault(.weekly, on: thursday)
-        #expect(cycle.startDayOfCycle(including: thursday) == expectedStart)
-        #expect(cycle.endDayOfCycle(including: thursday) == expectedEnd)
+        withIsolatedAppSettings([AppSettings.weekStartsOnMondayKey: true]) { _ in
+            let thursday = date(year: 2026, month: 4, day: 2)
+            let expectedStart = date(year: 2026, month: 3, day: 30)  // Mon
+            let expectedEnd = date(year: 2026, month: 4, day: 6)  // following Mon (exclusive)
+            let cycle = Cycle.makeDefault(.weekly, on: thursday)
+            #expect(cycle.startDayOfCycle(including: thursday) == expectedStart)
+            #expect(cycle.endDayOfCycle(including: thursday) == expectedEnd)
+        }
     }
 
     // MARK: Monthly — various month days
@@ -116,45 +116,43 @@ struct CycleMakeDefaultTests {
 
     @Test("weekly: Sunday-start: Monday input returns prior Sunday")
     func weeklyOnMondayReturnsPriorSundayWhenSettingIsSunday() {
-        UserDefaults.standard.set(false, forKey: AppSettings.weekStartsOnMondayKey)
-        defer { UserDefaults.standard.removeObject(forKey: AppSettings.weekStartsOnMondayKey) }
-
-        let monday = date(year: 2026, month: 3, day: 30)  // Monday
-        let sunday = date(year: 2026, month: 3, day: 29)  // Prior Sunday
-        let cycle = Cycle.makeDefault(.weekly, on: monday)
-        #expect(cycle.startDayOfCycle(including: monday) == sunday)
+        withIsolatedAppSettings([AppSettings.weekStartsOnMondayKey: false]) { _ in
+            let monday = date(year: 2026, month: 3, day: 30)  // Monday
+            let sunday = date(year: 2026, month: 3, day: 29)  // Prior Sunday
+            let cycle = Cycle.makeDefault(.weekly, on: monday)
+            #expect(cycle.startDayOfCycle(including: monday) == sunday)
+        }
     }
 
     @Test("weekly: Sunday-start: Wednesday input returns prior Sunday")
     func weeklyOnWednesdayReturnsPriorSundayWhenSettingIsSunday() {
-        UserDefaults.standard.set(false, forKey: AppSettings.weekStartsOnMondayKey)
-        defer { UserDefaults.standard.removeObject(forKey: AppSettings.weekStartsOnMondayKey) }
-
-        let wednesday = date(year: 2026, month: 4, day: 1)
-        let sunday = date(year: 2026, month: 3, day: 29)
-        let cycle = Cycle.makeDefault(.weekly, on: wednesday)
-        #expect(cycle.startDayOfCycle(including: wednesday) == sunday)
+        withIsolatedAppSettings([AppSettings.weekStartsOnMondayKey: false]) { _ in
+            let wednesday = date(year: 2026, month: 4, day: 1)
+            let sunday = date(year: 2026, month: 3, day: 29)
+            let cycle = Cycle.makeDefault(.weekly, on: wednesday)
+            #expect(cycle.startDayOfCycle(including: wednesday) == sunday)
+        }
     }
 
     @Test("weekly: Monday-start still works when setting explicitly true")
     func weeklyExplicitMondayStartReturnsMonday() {
-        UserDefaults.standard.set(true, forKey: AppSettings.weekStartsOnMondayKey)
-        defer { UserDefaults.standard.removeObject(forKey: AppSettings.weekStartsOnMondayKey) }
-
-        let wednesday = date(year: 2026, month: 4, day: 1)
-        let monday = date(year: 2026, month: 3, day: 30)
-        let cycle = Cycle.makeDefault(.weekly, on: wednesday)
-        #expect(cycle.startDayOfCycle(including: wednesday) == monday)
+        withIsolatedAppSettings([AppSettings.weekStartsOnMondayKey: true]) { _ in
+            let wednesday = date(year: 2026, month: 4, day: 1)
+            let monday = date(year: 2026, month: 3, day: 30)
+            let cycle = Cycle.makeDefault(.weekly, on: wednesday)
+            #expect(cycle.startDayOfCycle(including: wednesday) == monday)
+        }
     }
 
     @Test("weekly: default (key absent) behaves as Monday-start")
     func weeklyDefaultWithNoKeyIsMonday() {
-        UserDefaults.standard.removeObject(forKey: AppSettings.weekStartsOnMondayKey)
-
-        let wednesday = date(year: 2026, month: 4, day: 1)
-        let monday = date(year: 2026, month: 3, day: 30)
-        let cycle = Cycle.makeDefault(.weekly, on: wednesday)
-        #expect(cycle.startDayOfCycle(including: wednesday) == monday)
+        withIsolatedAppSettings { _ in
+            // key absent in the isolated store → default Monday-start
+            let wednesday = date(year: 2026, month: 4, day: 1)
+            let monday = date(year: 2026, month: 3, day: 30)
+            let cycle = Cycle.makeDefault(.weekly, on: wednesday)
+            #expect(cycle.startDayOfCycle(including: wednesday) == monday)
+        }
     }
 }
 }

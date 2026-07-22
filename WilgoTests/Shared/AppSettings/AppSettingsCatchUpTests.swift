@@ -2,28 +2,16 @@ import Foundation
 import Testing
 @testable import Wilgo
 
-/// Exercises `AppSettings.includeActiveSlotsInCatchUp`, which reads `UserDefaults.standard`.
-/// Serialized + each test restores the key so they don't pollute one another or the app.
+/// Exercises `AppSettings.includeActiveSlotsInCatchUp`, which reads through `AppSettings.store`.
+/// Each test runs against an isolated `AppSettings.store` (via `withStored`), so keys
+/// never leak into `UserDefaults.standard` or race other suites on the parallel runner.
 extension AppSettingsSuite {
-@Suite(.serialized)
+@Suite
 struct AppSettingsCatchUpTests {
     private let key = AppSettings.includeActiveSlotsInCatchUpReminderKey
 
     private func withStored(_ value: Bool?, _ body: () -> Void) {
-        let original = UserDefaults.standard.object(forKey: key)
-        defer {
-            if let original {
-                UserDefaults.standard.set(original, forKey: key)
-            } else {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
-        if let value {
-            UserDefaults.standard.set(value, forKey: key)
-        } else {
-            UserDefaults.standard.removeObject(forKey: key)
-        }
-        body()
+        withIsolatedAppSettings(value.map { [key: $0] } ?? [:]) { _ in body() }
     }
 
     @Test("absent key → defaults to false (exclude active slots)")

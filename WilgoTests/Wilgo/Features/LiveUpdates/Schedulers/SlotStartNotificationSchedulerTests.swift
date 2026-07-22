@@ -247,20 +247,7 @@ final class SlotStartNotificationSchedulerTests {
     /// correctly reports disabled when the user has opted out, which is what `performWork()`
     /// branches on.
     private func withStored(_ key: String, _ value: Bool?, _ body: () -> Void) {
-        let original = UserDefaults.standard.object(forKey: key)
-        defer {
-            if let original {
-                UserDefaults.standard.set(original, forKey: key)
-            } else {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
-        if let value {
-            UserDefaults.standard.set(value, forKey: key)
-        } else {
-            UserDefaults.standard.removeObject(forKey: key)
-        }
-        body()
+        withIsolatedAppSettings(value.map { [key: $0] } ?? [:]) { _ in body() }
     }
 
     @Test("performWork's gate: slotStartNotificationsEnabled defaults to true (no opt-out)")

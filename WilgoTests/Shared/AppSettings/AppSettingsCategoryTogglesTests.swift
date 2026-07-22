@@ -2,27 +2,14 @@ import Foundation
 import Testing
 @testable import Wilgo
 
-/// Exercises the four category-enabled flags on `AppSettings`, all of which read `UserDefaults.standard`
-/// and default to `true` when absent. Serialized + each test restores the key so they don't pollute
-/// one another or the app.
+/// Exercises the four category-enabled flags on `AppSettings`, all of which read through `AppSettings.store`
+/// and default to `true` when absent. Each test runs against an isolated `AppSettings.store`
+/// (via `withStored`), so keys never leak into `UserDefaults.standard` or race other suites.
 extension AppSettingsSuite {
-@Suite(.serialized)
+@Suite
 struct AppSettingsCategoryTogglesTests {
     private func withStored(_ key: String, _ value: Bool?, _ body: () -> Void) {
-        let original = UserDefaults.standard.object(forKey: key)
-        defer {
-            if let original {
-                UserDefaults.standard.set(original, forKey: key)
-            } else {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-        }
-        if let value {
-            UserDefaults.standard.set(value, forKey: key)
-        } else {
-            UserDefaults.standard.removeObject(forKey: key)
-        }
-        body()
+        withIsolatedAppSettings(value.map { [key: $0] } ?? [:]) { _ in body() }
     }
 
     // MARK: - slotStartNotificationsEnabled
