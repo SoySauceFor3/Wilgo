@@ -122,16 +122,6 @@ final class IsActiveForRemindersTests {
 
         #expect(placed([a], now: Date()).map(\.commitment.title) == ["A"])
     }
-
-    private func tod(hour: Int) -> Date {
-        var c = DateComponents()
-        c.year = 2000
-        c.month = 1
-        c.day = 1
-        c.hour = hour
-        return Calendar.current.date(from: c)!
-    }
-
     /// Goal-met commitment with a slot that starts later today (so without the gate it would land in
     /// Upcoming). The gate must still exclude it from every bucket.
     @Test("placement excludes a goal-met commitment with a later-today slot")
@@ -139,7 +129,7 @@ final class IsActiveForRemindersTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         // now = 06:00, slot starts 14:00 → later today → would be Upcoming.
-        let slot = Slot(start: tod(hour: 14), end: tod(hour: 15))
+        let slot = Slot(start: timeOfDay(hour: 14), end: timeOfDay(hour: 15))
         ctx.insert(slot)
         let now = Calendar.current.startOfDay(for: Date()).addingTimeInterval(6 * 3600)
         let anchor = Calendar.current.startOfDay(for: now)

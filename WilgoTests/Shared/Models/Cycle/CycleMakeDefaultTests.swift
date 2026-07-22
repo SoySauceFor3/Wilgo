@@ -3,18 +3,6 @@ import Testing
 @testable import Wilgo
 
 // MARK: - Helpers
-
-private func date(year: Int, month: Int, day: Int) -> Date {
-    var comps = DateComponents()
-    comps.year = year
-    comps.month = month
-    comps.day = day
-    comps.hour = 0
-    comps.minute = 0
-    comps.second = 0
-    return Calendar.current.date(from: comps)!
-}
-
 private func weekday(of date: Date) -> Int {
     Calendar.current.component(.weekday, from: date)  // 1=Sun, 2=Mon, …, 7=Sat
 }
@@ -28,7 +16,7 @@ struct CycleMakeDefaultTests {
 
     @Test("daily: anchor is the given psych-day")
     func dailyAnchorIsGivenDay() {
-        let wednesday = date(year: 2026, month: 4, day: 1)
+        let wednesday = testDate(year: 2026, month: 4, day: 1)
         let cycle = Cycle.makeDefault(.daily, on: wednesday)
         #expect(cycle.startDayOfCycle(including: wednesday) == wednesday)
     }
@@ -38,7 +26,7 @@ struct CycleMakeDefaultTests {
     @Test("weekly: Monday input returns that same Monday")
     func weeklyOnMondayReturnsSameDay() {
         withIsolatedAppSettings([AppSettings.weekStartsOnMondayKey: true]) { _ in
-            let monday = date(year: 2026, month: 3, day: 30)  // 2026-03-30 is a Monday
+            let monday = testDate(year: 2026, month: 3, day: 30)  // 2026-03-30 is a Monday
             #expect(weekday(of: monday) == 2)  // sanity check
             let cycle = Cycle.makeDefault(.weekly, on: monday)
             #expect(cycle.startDayOfCycle(including: monday) == monday)
@@ -48,8 +36,8 @@ struct CycleMakeDefaultTests {
     @Test("weekly: Wednesday input returns prior Monday")
     func weeklyOnWednesdayReturnsPriorMonday() {
         withIsolatedAppSettings([AppSettings.weekStartsOnMondayKey: true]) { _ in
-            let wednesday = date(year: 2026, month: 4, day: 1)  // Wed
-            let monday = date(year: 2026, month: 3, day: 30)  // Mon 2 days prior
+            let wednesday = testDate(year: 2026, month: 4, day: 1)  // Wed
+            let monday = testDate(year: 2026, month: 3, day: 30)  // Mon 2 days prior
             let cycle = Cycle.makeDefault(.weekly, on: wednesday)
             #expect(cycle.startDayOfCycle(including: wednesday) == monday)
         }
@@ -58,8 +46,8 @@ struct CycleMakeDefaultTests {
     @Test("weekly: Sunday input returns prior Monday (6 days back)")
     func weeklyOnSundayReturnsPriorMonday() {
         withIsolatedAppSettings([AppSettings.weekStartsOnMondayKey: true]) { _ in
-            let sunday = date(year: 2026, month: 4, day: 5)  // Sun
-            let monday = date(year: 2026, month: 3, day: 30)  // Mon 6 days prior
+            let sunday = testDate(year: 2026, month: 4, day: 5)  // Sun
+            let monday = testDate(year: 2026, month: 3, day: 30)  // Mon 6 days prior
             let cycle = Cycle.makeDefault(.weekly, on: sunday)
             #expect(cycle.startDayOfCycle(including: sunday) == monday)
         }
@@ -68,9 +56,9 @@ struct CycleMakeDefaultTests {
     @Test("weekly: cycle always spans Mon–Sun")
     func weeklyCycleSpansMonToSun() {
         withIsolatedAppSettings([AppSettings.weekStartsOnMondayKey: true]) { _ in
-            let thursday = date(year: 2026, month: 4, day: 2)
-            let expectedStart = date(year: 2026, month: 3, day: 30)  // Mon
-            let expectedEnd = date(year: 2026, month: 4, day: 6)  // following Mon (exclusive)
+            let thursday = testDate(year: 2026, month: 4, day: 2)
+            let expectedStart = testDate(year: 2026, month: 3, day: 30)  // Mon
+            let expectedEnd = testDate(year: 2026, month: 4, day: 6)  // following Mon (exclusive)
             let cycle = Cycle.makeDefault(.weekly, on: thursday)
             #expect(cycle.startDayOfCycle(including: thursday) == expectedStart)
             #expect(cycle.endDayOfCycle(including: thursday) == expectedEnd)
@@ -81,32 +69,32 @@ struct CycleMakeDefaultTests {
 
     @Test("monthly: 1st of month returns same day")
     func monthlyOnFirstReturnsSameDay() {
-        let first = date(year: 2026, month: 4, day: 1)
+        let first = testDate(year: 2026, month: 4, day: 1)
         let cycle = Cycle.makeDefault(.monthly, on: first)
         #expect(cycle.startDayOfCycle(including: first) == first)
     }
 
     @Test("monthly: mid-month input returns 1st of that month")
     func monthlyOnMidMonthReturnsFirst() {
-        let midMonth = date(year: 2026, month: 4, day: 15)
-        let firstOfApril = date(year: 2026, month: 4, day: 1)
+        let midMonth = testDate(year: 2026, month: 4, day: 15)
+        let firstOfApril = testDate(year: 2026, month: 4, day: 1)
         let cycle = Cycle.makeDefault(.monthly, on: midMonth)
         #expect(cycle.startDayOfCycle(including: midMonth) == firstOfApril)
     }
 
     @Test("monthly: last day of month returns 1st of that month")
     func monthlyOnLastDayReturnsFirst() {
-        let lastOfJan = date(year: 2026, month: 1, day: 31)
-        let firstOfJan = date(year: 2026, month: 1, day: 1)
+        let lastOfJan = testDate(year: 2026, month: 1, day: 31)
+        let firstOfJan = testDate(year: 2026, month: 1, day: 1)
         let cycle = Cycle.makeDefault(.monthly, on: lastOfJan)
         #expect(cycle.startDayOfCycle(including: lastOfJan) == firstOfJan)
     }
 
     @Test("monthly: cycle end is 1st of next month")
     func monthlyCycleEndIsFirstOfNextMonth() {
-        let midApril = date(year: 2026, month: 4, day: 10)
-        let firstOfApril = date(year: 2026, month: 4, day: 1)
-        let firstOfMay = date(year: 2026, month: 5, day: 1)
+        let midApril = testDate(year: 2026, month: 4, day: 10)
+        let firstOfApril = testDate(year: 2026, month: 4, day: 1)
+        let firstOfMay = testDate(year: 2026, month: 5, day: 1)
         let cycle = Cycle.makeDefault(.monthly, on: midApril)
         #expect(cycle.startDayOfCycle(including: midApril) == firstOfApril)
         #expect(cycle.endDayOfCycle(including: midApril) == firstOfMay)
@@ -117,8 +105,8 @@ struct CycleMakeDefaultTests {
     @Test("weekly: Sunday-start: Monday input returns prior Sunday")
     func weeklyOnMondayReturnsPriorSundayWhenSettingIsSunday() {
         withIsolatedAppSettings([AppSettings.weekStartsOnMondayKey: false]) { _ in
-            let monday = date(year: 2026, month: 3, day: 30)  // Monday
-            let sunday = date(year: 2026, month: 3, day: 29)  // Prior Sunday
+            let monday = testDate(year: 2026, month: 3, day: 30)  // Monday
+            let sunday = testDate(year: 2026, month: 3, day: 29)  // Prior Sunday
             let cycle = Cycle.makeDefault(.weekly, on: monday)
             #expect(cycle.startDayOfCycle(including: monday) == sunday)
         }
@@ -127,8 +115,8 @@ struct CycleMakeDefaultTests {
     @Test("weekly: Sunday-start: Wednesday input returns prior Sunday")
     func weeklyOnWednesdayReturnsPriorSundayWhenSettingIsSunday() {
         withIsolatedAppSettings([AppSettings.weekStartsOnMondayKey: false]) { _ in
-            let wednesday = date(year: 2026, month: 4, day: 1)
-            let sunday = date(year: 2026, month: 3, day: 29)
+            let wednesday = testDate(year: 2026, month: 4, day: 1)
+            let sunday = testDate(year: 2026, month: 3, day: 29)
             let cycle = Cycle.makeDefault(.weekly, on: wednesday)
             #expect(cycle.startDayOfCycle(including: wednesday) == sunday)
         }
@@ -137,8 +125,8 @@ struct CycleMakeDefaultTests {
     @Test("weekly: Monday-start still works when setting explicitly true")
     func weeklyExplicitMondayStartReturnsMonday() {
         withIsolatedAppSettings([AppSettings.weekStartsOnMondayKey: true]) { _ in
-            let wednesday = date(year: 2026, month: 4, day: 1)
-            let monday = date(year: 2026, month: 3, day: 30)
+            let wednesday = testDate(year: 2026, month: 4, day: 1)
+            let monday = testDate(year: 2026, month: 3, day: 30)
             let cycle = Cycle.makeDefault(.weekly, on: wednesday)
             #expect(cycle.startDayOfCycle(including: wednesday) == monday)
         }
@@ -148,8 +136,8 @@ struct CycleMakeDefaultTests {
     func weeklyDefaultWithNoKeyIsMonday() {
         withIsolatedAppSettings { _ in
             // key absent in the isolated store → default Monday-start
-            let wednesday = date(year: 2026, month: 4, day: 1)
-            let monday = date(year: 2026, month: 3, day: 30)
+            let wednesday = testDate(year: 2026, month: 4, day: 1)
+            let monday = testDate(year: 2026, month: 3, day: 30)
             let cycle = Cycle.makeDefault(.weekly, on: wednesday)
             #expect(cycle.startDayOfCycle(including: wednesday) == monday)
         }

@@ -2,35 +2,6 @@ import Foundation
 import Testing
 @testable import Wilgo
 
-// MARK: - Helpers
-
-/// A time-of-day reference date. Only hour and minute are meaningful — the same
-/// semantics Slot uses for its start/end fields.
-private func timeOfDay(hour: Int, minute: Int = 0) -> Date {
-    var comps = DateComponents()
-    comps.year = 2000
-    comps.month = 1
-    comps.day = 1
-    comps.hour = hour
-    comps.minute = minute
-    comps.second = 0
-    return Calendar.current.date(from: comps)!
-}
-
-/// Returns a Date for the given year/month/day (optionally with time).
-private func date(
-    year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 0
-) -> Date {
-    var comps = DateComponents()
-    comps.year = year
-    comps.month = month
-    comps.day = day
-    comps.hour = hour
-    comps.minute = minute
-    comps.second = 0
-    return Calendar.current.date(from: comps)!
-}
-
 extension SlotSuite {
 enum SlotTests {
     // MARK: - SlotRecurrence.matches
@@ -41,34 +12,34 @@ enum SlotTests {
         @Test("everyDay matches any date")
         func everyDay_matchesAny() {
             let rule = SlotRecurrence.everyDay
-            #expect(rule.matches(date: date(year: 2026, month: 4, day: 25), calendar: calendar))
-            #expect(rule.matches(date: date(year: 2026, month: 1, day: 1), calendar: calendar))
+            #expect(rule.matches(date: testDate(year: 2026, month: 4, day: 25), calendar: calendar))
+            #expect(rule.matches(date: testDate(year: 2026, month: 1, day: 1), calendar: calendar))
         }
 
         @Test("specificWeekdays matches correct weekday")
         func specificWeekdays_matchesCorrect() {
             // 2026-04-25 is a Saturday (weekday 7)
             let rule = SlotRecurrence.specificWeekdays([7])
-            #expect(rule.matches(date: date(year: 2026, month: 4, day: 25), calendar: calendar))
+            #expect(rule.matches(date: testDate(year: 2026, month: 4, day: 25), calendar: calendar))
         }
 
         @Test("specificWeekdays rejects wrong weekday")
         func specificWeekdays_rejectsWrong() {
             // 2026-04-25 is Saturday (7), rule is Monday only (2)
             let rule = SlotRecurrence.specificWeekdays([2])
-            #expect(!rule.matches(date: date(year: 2026, month: 4, day: 25), calendar: calendar))
+            #expect(!rule.matches(date: testDate(year: 2026, month: 4, day: 25), calendar: calendar))
         }
 
         @Test("specificMonthDays matches correct day")
         func specificMonthDays_matchesCorrect() {
             let rule = SlotRecurrence.specificMonthDays([25])
-            #expect(rule.matches(date: date(year: 2026, month: 4, day: 25), calendar: calendar))
+            #expect(rule.matches(date: testDate(year: 2026, month: 4, day: 25), calendar: calendar))
         }
 
         @Test("specificMonthDays rejects wrong day")
         func specificMonthDays_rejectsWrong() {
             let rule = SlotRecurrence.specificMonthDays([1, 15])
-            #expect(!rule.matches(date: date(year: 2026, month: 4, day: 25), calendar: calendar))
+            #expect(!rule.matches(date: testDate(year: 2026, month: 4, day: 25), calendar: calendar))
         }
 
         @Test("matches ignores time-of-day component")
@@ -77,7 +48,7 @@ enum SlotTests {
             let rule = SlotRecurrence.specificWeekdays([7])
             #expect(
                 rule.matches(
-                    date: date(year: 2026, month: 4, day: 25, hour: 14, minute: 30),
+                    date: testDate(year: 2026, month: 4, day: 25, hour: 14, minute: 30),
                     calendar: calendar
                 ))
         }
@@ -156,7 +127,7 @@ enum SlotTests {
                 // 09:30 on Saturday 2026-04-25 — inside window, correct weekday.
                 #expect(
                     slot.isScheduled(
-                        on: date(year: 2026, month: 4, day: 25, hour: 9, minute: 30),
+                        on: testDate(year: 2026, month: 4, day: 25, hour: 9, minute: 30),
                         calendar: calendar))
             }
 
@@ -170,7 +141,7 @@ enum SlotTests {
                 // 09:30 on Sunday 2026-04-26 — inside window, wrong weekday.
                 #expect(
                     !slot.isScheduled(
-                        on: date(year: 2026, month: 4, day: 26, hour: 9, minute: 30),
+                        on: testDate(year: 2026, month: 4, day: 26, hour: 9, minute: 30),
                         calendar: calendar))
             }
 
@@ -184,7 +155,7 @@ enum SlotTests {
                 // 23:30 on Saturday 2026-04-25 — pre-midnight, anchor = Saturday.
                 #expect(
                     slot.isScheduled(
-                        on: date(year: 2026, month: 4, day: 25, hour: 23, minute: 30),
+                        on: testDate(year: 2026, month: 4, day: 25, hour: 23, minute: 30),
                         calendar: calendar))
             }
 
@@ -200,7 +171,7 @@ enum SlotTests {
                 // 00:30 on Sunday 2026-04-26 — post-midnight, anchor = Saturday 2026-04-25.
                 #expect(
                     slot.isScheduled(
-                        on: date(year: 2026, month: 4, day: 26, hour: 0, minute: 30),
+                        on: testDate(year: 2026, month: 4, day: 26, hour: 0, minute: 30),
                         calendar: calendar))
             }
 
@@ -214,7 +185,7 @@ enum SlotTests {
                 // 23:30 on Sunday 2026-04-26 — pre-midnight, anchor = Sunday, not Saturday.
                 #expect(
                     !slot.isScheduled(
-                        on: date(year: 2026, month: 4, day: 26, hour: 23, minute: 30),
+                        on: testDate(year: 2026, month: 4, day: 26, hour: 23, minute: 30),
                         calendar: calendar))
             }
         }
@@ -234,7 +205,7 @@ enum SlotTests {
                 // 09:30 on 2026-04-25 — inside window, day 25.
                 #expect(
                     slot.isScheduled(
-                        on: date(year: 2026, month: 4, day: 25, hour: 9, minute: 30),
+                        on: testDate(year: 2026, month: 4, day: 25, hour: 9, minute: 30),
                         calendar: calendar))
             }
 
@@ -248,7 +219,7 @@ enum SlotTests {
                 // 09:30 on 2026-04-26 — inside window, day 26 ≠ 25.
                 #expect(
                     !slot.isScheduled(
-                        on: date(year: 2026, month: 4, day: 26, hour: 9, minute: 30),
+                        on: testDate(year: 2026, month: 4, day: 26, hour: 9, minute: 30),
                         calendar: calendar))
             }
 
@@ -264,7 +235,7 @@ enum SlotTests {
                 // 00:30 on 2026-04-26 — post-midnight, anchor = 2026-04-25 (day 25).
                 #expect(
                     slot.isScheduled(
-                        on: date(year: 2026, month: 4, day: 26, hour: 0, minute: 30),
+                        on: testDate(year: 2026, month: 4, day: 26, hour: 0, minute: 30),
                         calendar: calendar))
             }
 
@@ -280,7 +251,7 @@ enum SlotTests {
                 // 00:30 on 2026-04-27 — post-midnight, anchor = 2026-04-26 (day 26 ≠ 25).
                 #expect(
                     !slot.isScheduled(
-                        on: date(year: 2026, month: 4, day: 27, hour: 0, minute: 30),
+                        on: testDate(year: 2026, month: 4, day: 27, hour: 0, minute: 30),
                         calendar: calendar))
             }
         }
@@ -308,15 +279,15 @@ enum SlotTests {
             let slot = wholeDaySlot()
             #expect(
                 slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 25, hour: 0, minute: 0), calendar: calendar)
+                    on: testDate(year: 2026, month: 4, day: 25, hour: 0, minute: 0), calendar: calendar)
             )
             #expect(
                 slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 25, hour: 12, minute: 0), calendar: calendar
+                    on: testDate(year: 2026, month: 4, day: 25, hour: 12, minute: 0), calendar: calendar
                 ))
             #expect(
                 slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 25, hour: 23, minute: 59),
+                    on: testDate(year: 2026, month: 4, day: 25, hour: 23, minute: 59),
                     calendar: calendar))
         }
 
@@ -327,23 +298,23 @@ enum SlotTests {
             let slot = wholeDaySlot(recurrence: .specificWeekdays([7]))  // Saturday
             #expect(
                 slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 25, hour: 0, minute: 0), calendar: calendar)
+                    on: testDate(year: 2026, month: 4, day: 25, hour: 0, minute: 0), calendar: calendar)
             )
             #expect(
                 slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 25, hour: 14, minute: 0), calendar: calendar
+                    on: testDate(year: 2026, month: 4, day: 25, hour: 14, minute: 0), calendar: calendar
                 ))
             #expect(
                 slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 25, hour: 23, minute: 59),
+                    on: testDate(year: 2026, month: 4, day: 25, hour: 23, minute: 59),
                     calendar: calendar))
             #expect(
                 !slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 26, hour: 9, minute: 0), calendar: calendar)
+                    on: testDate(year: 2026, month: 4, day: 26, hour: 9, minute: 0), calendar: calendar)
             )  // Sunday
             #expect(
                 !slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 27, hour: 9, minute: 0), calendar: calendar)
+                    on: testDate(year: 2026, month: 4, day: 27, hour: 9, minute: 0), calendar: calendar)
             )  // Monday
         }
 
@@ -360,7 +331,7 @@ enum SlotTests {
             // 4am on Monday 2026-04-27: post-midnight portion → anchor = Sunday 2026-04-26 (weekday 1 ≠ 2).
             #expect(
                 !slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 27, hour: 4, minute: 0), calendar: calendar)
+                    on: testDate(year: 2026, month: 4, day: 27, hour: 4, minute: 0), calendar: calendar)
             )
         }
 
@@ -371,7 +342,7 @@ enum SlotTests {
             // 6am on Monday 2026-04-27: pre-midnight portion (6am >= 5am) → anchor = Monday 2026-04-27 (weekday 2 ✓).
             #expect(
                 slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 27, hour: 6, minute: 0), calendar: calendar)
+                    on: testDate(year: 2026, month: 4, day: 27, hour: 6, minute: 0), calendar: calendar)
             )
         }
 
@@ -384,7 +355,7 @@ enum SlotTests {
             // 4am on 2026-04-01: post-midnight portion → anchor = 2026-03-31 (day 31 ≠ 1).
             #expect(
                 !slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 1, hour: 4, minute: 0), calendar: calendar))
+                    on: testDate(year: 2026, month: 4, day: 1, hour: 4, minute: 0), calendar: calendar))
         }
 
         @Test("5am–5am slot: 6am on day-1 anchors to day-1 — scheduled for day-1-only rule")
@@ -394,7 +365,7 @@ enum SlotTests {
             // 6am on 2026-04-01: pre-midnight portion (6am >= 5am) → anchor = 2026-04-01 (day 1 ✓).
             #expect(
                 slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 1, hour: 6, minute: 0), calendar: calendar))
+                    on: testDate(year: 2026, month: 4, day: 1, hour: 6, minute: 0), calendar: calendar))
         }
 
         @Test("specificWeekdays whole-day slot with multiple weekdays")
@@ -402,15 +373,15 @@ enum SlotTests {
             let slot = wholeDaySlot(recurrence: .specificWeekdays([7, 1]))  // Saturday + Sunday
             #expect(
                 slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 25, hour: 10, minute: 0), calendar: calendar
+                    on: testDate(year: 2026, month: 4, day: 25, hour: 10, minute: 0), calendar: calendar
                 ))  // Saturday
             #expect(
                 slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 26, hour: 10, minute: 0), calendar: calendar
+                    on: testDate(year: 2026, month: 4, day: 26, hour: 10, minute: 0), calendar: calendar
                 ))  // Sunday
             #expect(
                 !slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 27, hour: 10, minute: 0), calendar: calendar
+                    on: testDate(year: 2026, month: 4, day: 27, hour: 10, minute: 0), calendar: calendar
                 ))  // Monday
         }
 
@@ -421,23 +392,23 @@ enum SlotTests {
             let slot = wholeDaySlot(recurrence: .specificMonthDays([25]))
             #expect(
                 slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 25, hour: 0, minute: 0), calendar: calendar)
+                    on: testDate(year: 2026, month: 4, day: 25, hour: 0, minute: 0), calendar: calendar)
             )
             #expect(
                 slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 25, hour: 12, minute: 0), calendar: calendar
+                    on: testDate(year: 2026, month: 4, day: 25, hour: 12, minute: 0), calendar: calendar
                 ))
             #expect(
                 slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 25, hour: 23, minute: 59),
+                    on: testDate(year: 2026, month: 4, day: 25, hour: 23, minute: 59),
                     calendar: calendar))
             #expect(
                 !slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 24, hour: 9, minute: 0), calendar: calendar)
+                    on: testDate(year: 2026, month: 4, day: 24, hour: 9, minute: 0), calendar: calendar)
             )
             #expect(
                 !slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 26, hour: 9, minute: 0), calendar: calendar)
+                    on: testDate(year: 2026, month: 4, day: 26, hour: 9, minute: 0), calendar: calendar)
             )
         }
 
@@ -446,15 +417,15 @@ enum SlotTests {
             let slot = wholeDaySlot(recurrence: .specificMonthDays([1, 25]))
             #expect(
                 slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 1, hour: 10, minute: 0), calendar: calendar)
+                    on: testDate(year: 2026, month: 4, day: 1, hour: 10, minute: 0), calendar: calendar)
             )
             #expect(
                 slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 25, hour: 10, minute: 0), calendar: calendar
+                    on: testDate(year: 2026, month: 4, day: 25, hour: 10, minute: 0), calendar: calendar
                 ))
             #expect(
                 !slot.isScheduled(
-                    on: date(year: 2026, month: 4, day: 15, hour: 10, minute: 0), calendar: calendar
+                    on: testDate(year: 2026, month: 4, day: 15, hour: 10, minute: 0), calendar: calendar
                 ))
         }
     }

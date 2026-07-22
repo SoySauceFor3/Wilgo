@@ -6,20 +6,6 @@ extension LiveUpdatesSuite.SchedulersSuite {
 @Suite(.serialized)
 final class CatchUpReminderTests {
     // MARK: - Helpers
-
-    private func date(
-        year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 0
-    ) -> Date {
-        var c = DateComponents()
-        c.year = year
-        c.month = month
-        c.day = day
-        c.hour = hour
-        c.minute = minute
-        c.second = 0
-        return Calendar.current.date(from: c)!
-    }
-
     // MARK: - catchUpOffsetHours shape
 
     @Test("offset sequence has exactly 10 entries")
@@ -54,7 +40,7 @@ final class CatchUpReminderTests {
 
     @Test("all offsets in the future are returned when anchor == now")
     func fireDates_allFuture_whenAnchorEqualsNow() {
-        let anchor = date(year: 2026, month: 1, day: 1, hour: 0)
+        let anchor = testDate(year: 2026, month: 1, day: 1, hour: 0)
         let now = anchor
 
         let result = CatchUpReminder.fireDates(from: anchor, now: now)
@@ -65,9 +51,9 @@ final class CatchUpReminderTests {
 
     @Test("dates in the past are excluded")
     func fireDates_pastDatesExcluded() {
-        let anchor = date(year: 2026, month: 1, day: 1, hour: 0)
+        let anchor = testDate(year: 2026, month: 1, day: 1, hour: 0)
         // now is 3 hours after anchor — offsets 1h and 3h are in the past
-        let now = date(year: 2026, month: 1, day: 1, hour: 3)
+        let now = testDate(year: 2026, month: 1, day: 1, hour: 3)
 
         let result = CatchUpReminder.fireDates(from: anchor, now: now)
 
@@ -77,9 +63,9 @@ final class CatchUpReminderTests {
 
     @Test("returns empty when all offsets are in the past")
     func fireDates_allPast_returnsEmpty() {
-        let anchor = date(year: 2026, month: 1, day: 1, hour: 0)
+        let anchor = testDate(year: 2026, month: 1, day: 1, hour: 0)
         // now is beyond the last offset (672h = 28 days)
-        let now = date(year: 2026, month: 3, day: 1)
+        let now = testDate(year: 2026, month: 3, day: 1)
 
         let result = CatchUpReminder.fireDates(from: anchor, now: now)
 
@@ -88,8 +74,8 @@ final class CatchUpReminderTests {
 
     @Test("each returned date corresponds to the correct offset from anchor")
     func fireDates_datesMatchOffsets() {
-        let anchor = date(year: 2026, month: 1, day: 1, hour: 0)
-        let now = date(year: 2025, month: 12, day: 31)  // all offsets in future
+        let anchor = testDate(year: 2026, month: 1, day: 1, hour: 0)
+        let now = testDate(year: 2025, month: 12, day: 31)  // all offsets in future
 
         let result = CatchUpReminder.fireDates(from: anchor, now: now)
 

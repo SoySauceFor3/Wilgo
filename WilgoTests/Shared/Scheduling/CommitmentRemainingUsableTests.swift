@@ -12,28 +12,6 @@ import Testing
 extension SchedulingSuite {
 @Suite(.serialized)
 final class CommitmentRemainingUsableTests {
-    private func tod(hour: Int, minute: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = 2000
-        c.month = 1
-        c.day = 1
-        c.hour = hour
-        c.minute = minute
-        c.second = 0
-        return Calendar.current.date(from: c)!
-    }
-
-    private func date(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = year
-        c.month = month
-        c.day = day
-        c.hour = hour
-        c.minute = minute
-        c.second = 0
-        return Calendar.current.date(from: c)!
-    }
-
     @MainActor
     private func addCheckIn(to c: Commitment, at date: Date, in ctx: ModelContext) {
         let checkIn = CheckIn(commitment: c, createdAt: date)
@@ -48,10 +26,10 @@ final class CommitmentRemainingUsableTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         // start == end == 5am → a whole-day slot whose window runs 5am → next-day 5am.
-        let slot = Slot(start: tod(hour: 5), end: tod(hour: 5), recurrence: .everyDay)
+        let slot = Slot(start: timeOfDay(hour: 5), end: timeOfDay(hour: 5), recurrence: .everyDay)
         let c = Commitment(
             title: "Whole day",
-            cycle: Cycle(kind: .daily, referencePsychDay: date(year: 2026, month: 1, day: 1)),
+            cycle: Cycle(kind: .daily, referencePsychDay: testDate(year: 2026, month: 1, day: 1)),
             slots: [slot],
             target: Target(count: 1)
         )
@@ -59,20 +37,20 @@ final class CommitmentRemainingUsableTests {
         ctx.insert(slot)
 
         // now = Mar 5, 1am → inside the occurrence that opened Mar 4 5am and closes Mar 5 5am.
-        let remaining = c.remainingUsableOccurrencesInCycle(now: date(year: 2026, month: 3, day: 5, hour: 1))
+        let remaining = c.remainingUsableOccurrencesInCycle(now: testDate(year: 2026, month: 3, day: 5, hour: 1))
 
-        #expect(remaining.first?.start == date(year: 2026, month: 3, day: 4, hour: 5))
-        #expect(remaining.first?.end == date(year: 2026, month: 3, day: 5, hour: 5))
+        #expect(remaining.first?.start == testDate(year: 2026, month: 3, day: 4, hour: 5))
+        #expect(remaining.first?.end == testDate(year: 2026, month: 3, day: 5, hour: 5))
     }
 
     @Test("23–2 cross-midnight daily slot: at 1am the open occurrence started the previous day")
     @MainActor func crossMidnightCarryOver() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let slot = Slot(start: tod(hour: 23), end: tod(hour: 2), recurrence: .everyDay)
+        let slot = Slot(start: timeOfDay(hour: 23), end: timeOfDay(hour: 2), recurrence: .everyDay)
         let c = Commitment(
             title: "Night",
-            cycle: Cycle(kind: .daily, referencePsychDay: date(year: 2026, month: 1, day: 1)),
+            cycle: Cycle(kind: .daily, referencePsychDay: testDate(year: 2026, month: 1, day: 1)),
             slots: [slot],
             target: Target(count: 1)
         )
@@ -80,10 +58,10 @@ final class CommitmentRemainingUsableTests {
         ctx.insert(slot)
 
         // now = Mar 5, 1am → inside the occurrence that opened Mar 4 23:00 and closes Mar 5 02:00.
-        let remaining = c.remainingUsableOccurrencesInCycle(now: date(year: 2026, month: 3, day: 5, hour: 1))
+        let remaining = c.remainingUsableOccurrencesInCycle(now: testDate(year: 2026, month: 3, day: 5, hour: 1))
 
-        #expect(remaining.first?.start == date(year: 2026, month: 3, day: 4, hour: 23))
-        #expect(remaining.first?.end == date(year: 2026, month: 3, day: 5, hour: 2))
+        #expect(remaining.first?.start == testDate(year: 2026, month: 3, day: 4, hour: 23))
+        #expect(remaining.first?.end == testDate(year: 2026, month: 3, day: 5, hour: 2))
     }
 
     // MARK: - Saturation window boundary
@@ -92,41 +70,41 @@ final class CommitmentRemainingUsableTests {
     @MainActor func outOfWindowCheckInDoesNotSaturate() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let slot = Slot(start: tod(hour: 9), end: tod(hour: 11), maxCheckIns: 1)
+        let slot = Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11), maxCheckIns: 1)
         let c = Commitment(
             title: "Draw",
-            cycle: Cycle(kind: .daily, referencePsychDay: date(year: 2026, month: 1, day: 1)),
+            cycle: Cycle(kind: .daily, referencePsychDay: testDate(year: 2026, month: 1, day: 1)),
             slots: [slot],
             target: Target(count: 3)
         )
         ctx.insert(c)
         ctx.insert(slot)
         // A check-in at 8am is OUTSIDE the 9–11 window → must not saturate it.
-        addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 8), in: ctx)
+        addCheckIn(to: c, at: testDate(year: 2026, month: 3, day: 5, hour: 8), in: ctx)
 
-        let now = date(year: 2026, month: 3, day: 5, hour: 10)  // inside the slot
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 10)  // inside the slot
         let remaining = c.remainingUsableOccurrencesInCycle(now: now)
 
         // The 9–11 occurrence is still usable (not saturated by the out-of-window check-in).
-        #expect(remaining.first?.start == date(year: 2026, month: 3, day: 5, hour: 9))
+        #expect(remaining.first?.start == testDate(year: 2026, month: 3, day: 5, hour: 9))
     }
 
     @Test("in-window check-in saturates a cap=1 slot → occurrence excluded")
     @MainActor func inWindowCheckInSaturates() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let slot = Slot(start: tod(hour: 9), end: tod(hour: 11), maxCheckIns: 1)
+        let slot = Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11), maxCheckIns: 1)
         let c = Commitment(
             title: "Draw",
-            cycle: Cycle(kind: .daily, referencePsychDay: date(year: 2026, month: 1, day: 1)),
+            cycle: Cycle(kind: .daily, referencePsychDay: testDate(year: 2026, month: 1, day: 1)),
             slots: [slot],
             target: Target(count: 3)
         )
         ctx.insert(c)
         ctx.insert(slot)
-        addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 9, minute: 30), in: ctx)
+        addCheckIn(to: c, at: testDate(year: 2026, month: 3, day: 5, hour: 9, minute: 30), in: ctx)
 
-        let now = date(year: 2026, month: 3, day: 5, hour: 10)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 10)
         // Saturated (cap 1, one in-window check-in) → no remaining usable occurrence this cycle.
         #expect(c.remainingUsableOccurrencesInCycle(now: now).isEmpty)
     }

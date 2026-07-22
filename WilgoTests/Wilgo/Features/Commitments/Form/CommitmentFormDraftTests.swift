@@ -5,15 +5,6 @@ import Testing
 
 @Suite(.serialized)
 final class CommitmentFormDraftTests {
-    private func date(hour: Int) -> Date {
-        var components = DateComponents()
-        components.year = 2000
-        components.month = 1
-        components.day = 1
-        components.hour = hour
-        return Calendar.current.date(from: components)!
-    }
-
     @Test("draft creates normalized commitment and slots")
     @MainActor func createsNormalizedCommitment() throws {
         let container = try makeTestContainer()
@@ -27,8 +18,8 @@ final class CommitmentFormDraftTests {
         draft.target = Target(count: 2)
         draft.slotWindows = [
             SlotDraft(
-                start: date(hour: 9),
-                end: date(hour: 10),
+                start: timeOfDay(hour: 9),
+                end: timeOfDay(hour: 10),
                 recurrence: .specificWeekdays([2, 4]),
                 maxCheckIns: 3
             )
@@ -55,7 +46,7 @@ final class CommitmentFormDraftTests {
     @MainActor func appliesEditAndPreservesSlotsWhenRemindersDisabled() throws {
         let container = try makeTestContainer()
         let context = container.mainContext
-        let originalSlot = Slot(start: date(hour: 8), end: date(hour: 9), maxCheckIns: 1)
+        let originalSlot = Slot(start: timeOfDay(hour: 8), end: timeOfDay(hour: 9), maxCheckIns: 1)
         let commitment = Commitment(
             title: "Read",
             cycle: Cycle.makeDefault(.daily),

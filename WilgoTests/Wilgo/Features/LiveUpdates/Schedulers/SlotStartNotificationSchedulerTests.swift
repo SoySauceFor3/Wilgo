@@ -8,29 +8,6 @@ extension LiveUpdatesSuite.SchedulersSuite {
 @Suite(.serialized)
 final class SlotStartNotificationSchedulerTests {
     // MARK: - Helpers
-
-    private func tod(hour: Int, minute: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = 2000
-        c.month = 1
-        c.day = 1
-        c.hour = hour
-        c.minute = minute
-        c.second = 0
-        return Calendar.current.date(from: c)!
-    }
-
-    private func date(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = year
-        c.month = month
-        c.day = day
-        c.hour = hour
-        c.minute = minute
-        c.second = 0
-        return Calendar.current.date(from: c)!
-    }
-
     @MainActor
     private func makeCommitment(
         slots slotDefs: [(start: Int, end: Int)],
@@ -38,8 +15,8 @@ final class SlotStartNotificationSchedulerTests {
         isRemindersEnabled: Bool = true,
         in ctx: ModelContext
     ) -> Commitment {
-        let anchor = date(year: 2026, month: 1, day: 1)
-        let slots = slotDefs.map { Slot(start: tod(hour: $0.start), end: tod(hour: $0.end)) }
+        let anchor = testDate(year: 2026, month: 1, day: 1)
+        let slots = slotDefs.map { Slot(start: timeOfDay(hour: $0.start), end: timeOfDay(hour: $0.end)) }
         let c = Commitment(
             title: "Test",
             cycle: Cycle(kind: .daily, referencePsychDay: anchor),
@@ -67,12 +44,12 @@ final class SlotStartNotificationSchedulerTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], in: ctx)
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let result = SlotStartNotificationScheduler.startTimeInRangeToCommitments(
             for: [c], from: now)
 
-        let expected = date(year: 2026, month: 3, day: 5, hour: 9)
+        let expected = testDate(year: 2026, month: 3, day: 5, hour: 9)
         #expect(result[expected] != nil)
         #expect(result[expected]?.count == 1)
     }
@@ -84,12 +61,12 @@ final class SlotStartNotificationSchedulerTests {
         let ctx = container.mainContext
         let c1 = makeCommitment(slots: [(9, 11)], in: ctx)
         let c2 = makeCommitment(slots: [(9, 11)], in: ctx)
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let result = SlotStartNotificationScheduler.startTimeInRangeToCommitments(
             for: [c1, c2], from: now)
 
-        let expected = date(year: 2026, month: 3, day: 5, hour: 9)
+        let expected = testDate(year: 2026, month: 3, day: 5, hour: 9)
         #expect(result[expected]?.count == 2)
     }
 
@@ -98,7 +75,7 @@ final class SlotStartNotificationSchedulerTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], isRemindersEnabled: false, in: ctx)
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let result = SlotStartNotificationScheduler.startTimeInRangeToCommitments(
             for: [c], from: now)
@@ -112,8 +89,8 @@ final class SlotStartNotificationSchedulerTests {
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], targetCount: 1, in: ctx)
         // One check-in satisfies the daily target of 1
-        addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 8), in: ctx)
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+        addCheckIn(to: c, at: testDate(year: 2026, month: 3, day: 5, hour: 8), in: ctx)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let result = SlotStartNotificationScheduler.startTimeInRangeToCommitments(
             for: [c], from: now)
@@ -127,8 +104,8 @@ final class SlotStartNotificationSchedulerTests {
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], in: ctx)
         // horizon is before any slot starts
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
-        let tinyHorizon = date(year: 2026, month: 3, day: 5, hour: 8)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
+        let tinyHorizon = testDate(year: 2026, month: 3, day: 5, hour: 8)
 
         let result = SlotStartNotificationScheduler.startTimeInRangeToCommitments(
             for: [c], from: now, horizon: tinyHorizon)
@@ -143,7 +120,7 @@ final class SlotStartNotificationSchedulerTests {
         // 4 slots/day × 14 days >> 48
         let c = makeCommitment(
             slots: [(8, 9), (11, 12), (13, 14), (18, 19)], targetCount: 99, in: ctx)
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let result = SlotStartNotificationScheduler.startTimeInRangeToCommitments(
             for: [c], from: now)
@@ -159,7 +136,7 @@ final class SlotStartNotificationSchedulerTests {
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], in: ctx)
         c.title = "Morning Run"
-        let fireDate = date(year: 2026, month: 3, day: 5, hour: 9)
+        let fireDate = testDate(year: 2026, month: 3, day: 5, hour: 9)
 
         let request = SlotStartNotificationScheduler.makeRequest(for: [c], at: fireDate)
 
@@ -172,7 +149,7 @@ final class SlotStartNotificationSchedulerTests {
         let ctx = container.mainContext
         let c1 = makeCommitment(slots: [(9, 11)], in: ctx)
         let c2 = makeCommitment(slots: [(9, 11)], in: ctx)
-        let fireDate = date(year: 2026, month: 3, day: 5, hour: 9)
+        let fireDate = testDate(year: 2026, month: 3, day: 5, hour: 9)
 
         let request = SlotStartNotificationScheduler.makeRequest(for: [c1, c2], at: fireDate)
 
@@ -185,7 +162,7 @@ final class SlotStartNotificationSchedulerTests {
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], in: ctx)
         c.encouragements = ["You got this!"]
-        let fireDate = date(year: 2026, month: 3, day: 5, hour: 9)
+        let fireDate = testDate(year: 2026, month: 3, day: 5, hour: 9)
 
         let request = SlotStartNotificationScheduler.makeRequest(for: [c], at: fireDate)
 
@@ -197,7 +174,7 @@ final class SlotStartNotificationSchedulerTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], in: ctx)
-        let fireDate = date(year: 2026, month: 3, day: 5, hour: 9)
+        let fireDate = testDate(year: 2026, month: 3, day: 5, hour: 9)
 
         let request = SlotStartNotificationScheduler.makeRequest(for: [c], at: fireDate)
 
@@ -212,13 +189,13 @@ final class SlotStartNotificationSchedulerTests {
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], targetCount: 1, in: ctx)
         c.continueRemindersAfterGoalMet = true
-        addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 8), in: ctx)
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+        addCheckIn(to: c, at: testDate(year: 2026, month: 3, day: 5, hour: 8), in: ctx)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let result = SlotStartNotificationScheduler.startTimeInRangeToCommitments(
             for: [c], from: now)
 
-        let expected = date(year: 2026, month: 3, day: 5, hour: 9)
+        let expected = testDate(year: 2026, month: 3, day: 5, hour: 9)
         #expect(result[expected] != nil)
         #expect(result[expected]?.count == 1)
     }
@@ -229,8 +206,8 @@ final class SlotStartNotificationSchedulerTests {
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11)], targetCount: 1, in: ctx)
         c.continueRemindersAfterGoalMet = false
-        addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 8), in: ctx)
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+        addCheckIn(to: c, at: testDate(year: 2026, month: 3, day: 5, hour: 8), in: ctx)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let result = SlotStartNotificationScheduler.startTimeInRangeToCommitments(
             for: [c], from: now)

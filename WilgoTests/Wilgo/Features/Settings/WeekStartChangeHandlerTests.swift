@@ -2,17 +2,6 @@ import Foundation
 import Testing
 @testable import Wilgo
 
-private func date(year: Int, month: Int, day: Int) -> Date {
-    var c = DateComponents()
-    c.year = year
-    c.month = month
-    c.day = day
-    c.hour = 0
-    c.minute = 0
-    c.second = 0
-    return Calendar.current.date(from: c)!
-}
-
 private func makeWeeklyCommitment(anchoredOn anchor: Date) -> Commitment {
     Commitment(
         title: "Test",
@@ -28,7 +17,7 @@ struct WeekStartChangeHandlerTests {
 
     @Test("affectedCommitments: Mon-anchored commitment is affected when switching to Sunday")
     func monAnchoredAffectedWhenSwitchingToSunday() {
-        let monday = date(year: 2026, month: 3, day: 30)
+        let monday = testDate(year: 2026, month: 3, day: 30)
         let c = makeWeeklyCommitment(anchoredOn: monday)
         let affected = WeekStartChangeHandler.affectedCommitments([c], newStartsOnMonday: false)
         #expect(affected.count == 1)
@@ -36,7 +25,7 @@ struct WeekStartChangeHandlerTests {
 
     @Test("affectedCommitments: Sun-anchored commitment is not affected when switching to Sunday")
     func sunAnchoredNotAffectedWhenSwitchingToSunday() {
-        let sunday = date(year: 2026, month: 3, day: 29)
+        let sunday = testDate(year: 2026, month: 3, day: 29)
         let c = makeWeeklyCommitment(anchoredOn: sunday)
         let affected = WeekStartChangeHandler.affectedCommitments([c], newStartsOnMonday: false)
         #expect(affected.isEmpty)
@@ -44,7 +33,7 @@ struct WeekStartChangeHandlerTests {
 
     @Test("affectedCommitments: daily commitment is never affected")
     func dailyCommitmentNotAffected() {
-        let today = date(year: 2026, month: 3, day: 30)
+        let today = testDate(year: 2026, month: 3, day: 30)
         let c = Commitment(
             title: "Daily",
             cycle: Cycle(kind: .daily, referencePsychDay: today),
@@ -59,8 +48,8 @@ struct WeekStartChangeHandlerTests {
 
     @Test("newCurrentCycleStart: Thursday → prior Sunday when switching to Sunday-start")
     func cycleStartThursdayToSunday() {
-        let thursday = date(year: 2026, month: 4, day: 2)
-        let expectedSunday = date(year: 2026, month: 3, day: 29)
+        let thursday = testDate(year: 2026, month: 4, day: 2)
+        let expectedSunday = testDate(year: 2026, month: 3, day: 29)
         let start = WeekStartChangeHandler.newCurrentCycleStart(
             newStartsOnMonday: false, today: thursday)
         #expect(start == expectedSunday)
@@ -68,14 +57,14 @@ struct WeekStartChangeHandlerTests {
 
     @Test("newCurrentCycleEnd: 7 days after start")
     func cycleEndIsSevenDaysAfterStart() throws {
-        let thursday = date(year: 2026, month: 4, day: 2)
+        let thursday = testDate(year: 2026, month: 4, day: 2)
         let start = WeekStartChangeHandler.newCurrentCycleStart(
             newStartsOnMonday: false, today: thursday)
         let end = WeekStartChangeHandler.newCurrentCycleEnd(
             newStartsOnMonday: false, today: thursday)
         let diff = try #require(Calendar.current.dateComponents([.day], from: start, to: end).day)
         #expect(diff == 7)
-        let expectedEnd = date(year: 2026, month: 4, day: 5)
+        let expectedEnd = testDate(year: 2026, month: 4, day: 5)
         #expect(end == expectedEnd)
     }
 
@@ -83,7 +72,7 @@ struct WeekStartChangeHandlerTests {
 
     @Test("newCurrentCycleStart: on Sunday itself returns that same Sunday when switching to Sunday-start")
     func cycleStartOnBoundaryDay() {
-        let sunday = date(year: 2026, month: 3, day: 29)
+        let sunday = testDate(year: 2026, month: 3, day: 29)
         let start = WeekStartChangeHandler.newCurrentCycleStart(
             newStartsOnMonday: false, today: sunday)
         #expect(start == sunday)
@@ -91,10 +80,10 @@ struct WeekStartChangeHandlerTests {
 
     @Test("apply: re-anchors commitment to new cycle start")
     func applyReanchorsCommitment() {
-        let monday = date(year: 2026, month: 3, day: 30)
+        let monday = testDate(year: 2026, month: 3, day: 30)
         let c = makeWeeklyCommitment(anchoredOn: monday)
-        let thursday = date(year: 2026, month: 4, day: 2)
-        let expectedSunday = date(year: 2026, month: 3, day: 29)
+        let thursday = testDate(year: 2026, month: 4, day: 2)
+        let expectedSunday = testDate(year: 2026, month: 3, day: 29)
 
         WeekStartChangeHandler.apply(
             to: [c], newStartsOnMonday: false, today: thursday)
@@ -104,9 +93,9 @@ struct WeekStartChangeHandlerTests {
 
     @Test("apply: target mode remains unchanged")
     func applyDoesNotChangeTargetMode() {
-        let monday = date(year: 2026, month: 3, day: 30)
+        let monday = testDate(year: 2026, month: 3, day: 30)
         let c = makeWeeklyCommitment(anchoredOn: monday)
-        let thursday = date(year: 2026, month: 4, day: 2)
+        let thursday = testDate(year: 2026, month: 4, day: 2)
 
         WeekStartChangeHandler.apply(
             to: [c], newStartsOnMonday: false, today: thursday)

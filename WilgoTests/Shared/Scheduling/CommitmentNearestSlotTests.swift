@@ -11,29 +11,6 @@ extension SchedulingSuite {
 @Suite(.serialized)
 final class CommitmentNearestSlotTests {
     // MARK: - Helpers
-
-    private func tod(hour: Int, minute: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = 2000
-        c.month = 1
-        c.day = 1
-        c.hour = hour
-        c.minute = minute
-        c.second = 0
-        return Calendar.current.date(from: c)!
-    }
-
-    private func date(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = year
-        c.month = month
-        c.day = day
-        c.hour = hour
-        c.minute = minute
-        c.second = 0
-        return Calendar.current.date(from: c)!
-    }
-
     @MainActor
     private func makeCommitment(
         slots slotDefs: [(start: Int, end: Int, maxCheckIns: Int?)],
@@ -42,9 +19,9 @@ final class CommitmentNearestSlotTests {
         continueAfterGoalMet: Bool = false,
         in ctx: ModelContext
     ) -> Commitment {
-        let anchor = date(year: 2026, month: 1, day: 1)
+        let anchor = testDate(year: 2026, month: 1, day: 1)
         let slots = slotDefs.map {
-            Slot(start: tod(hour: $0.start), end: tod(hour: $0.end), maxCheckIns: $0.maxCheckIns)
+            Slot(start: timeOfDay(hour: $0.start), end: timeOfDay(hour: $0.end), maxCheckIns: $0.maxCheckIns)
         }
         let c = Commitment(
             title: "Draw",
@@ -76,23 +53,23 @@ final class CommitmentNearestSlotTests {
     @MainActor func futureToday_returned() throws {
         let container = try makeTestContainer()
         let c = makeCommitment(slots: [(9, 11, nil)], in: container.mainContext)
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let occ = c.nearestUsableUpcomingOccurrence(now: now)
 
-        #expect(occ?.start == date(year: 2026, month: 3, day: 5, hour: 9))
+        #expect(occ?.start == testDate(year: 2026, month: 3, day: 5, hour: 9))
     }
 
     @Test("min across multiple slots returns the soonest")
     @MainActor func minAcrossSlots() throws {
         let container = try makeTestContainer()
         let c = makeCommitment(slots: [(18, 20, nil), (9, 11, nil)], in: container.mainContext)
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let occ = c.nearestUsableUpcomingOccurrence(now: now)
 
         // 9am is sooner than 6pm.
-        #expect(occ?.start == date(year: 2026, month: 3, day: 5, hour: 9))
+        #expect(occ?.start == testDate(year: 2026, month: 3, day: 5, hour: 9))
     }
 
     @Test("no cliff: at 11pm the nearest usable slot is tomorrow's 7am (next cycle)")
@@ -100,11 +77,11 @@ final class CommitmentNearestSlotTests {
         let container = try makeTestContainer()
         let c = makeCommitment(slots: [(7, 9, nil)], in: container.mainContext)
         // 11pm today — today's 7am slot has long passed; nearest is tomorrow 7am (next daily cycle).
-        let now = date(year: 2026, month: 3, day: 5, hour: 23)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 23)
 
         let occ = c.nearestUsableUpcomingOccurrence(now: now)
 
-        #expect(occ?.start == date(year: 2026, month: 3, day: 6, hour: 7))
+        #expect(occ?.start == testDate(year: 2026, month: 3, day: 6, hour: 7))
     }
 
     @Test("snoozed today's occurrence falls through to the next day")
@@ -114,12 +91,12 @@ final class CommitmentNearestSlotTests {
         let c = makeCommitment(slots: [(9, 11, nil)], in: ctx)
         let slot = try #require(c.slots.first)
         // Snooze the 5th's 9am occurrence; nearest usable should be the 6th's 9am.
-        addSnooze(to: slot, at: date(year: 2026, month: 3, day: 5, hour: 9), in: ctx)
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+        addSnooze(to: slot, at: testDate(year: 2026, month: 3, day: 5, hour: 9), in: ctx)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let occ = c.nearestUsableUpcomingOccurrence(now: now)
 
-        #expect(occ?.start == date(year: 2026, month: 3, day: 6, hour: 9))
+        #expect(occ?.start == testDate(year: 2026, month: 3, day: 6, hour: 9))
     }
 
     @Test("saturated current occurrence falls through to the next day")
@@ -128,14 +105,14 @@ final class CommitmentNearestSlotTests {
         let ctx = container.mainContext
         let c = makeCommitment(slots: [(9, 11, 1)], in: ctx)  // capacity 1
         // A check-in inside the 5th's 9-11 window saturates that occurrence.
-        addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 9, minute: 30), in: ctx)
+        addCheckIn(to: c, at: testDate(year: 2026, month: 3, day: 5, hour: 9, minute: 30), in: ctx)
         // now is before the slot start so the occurrence is still "upcoming" but saturated.
-        let now = date(year: 2026, month: 3, day: 5, hour: 8)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 8)
 
         let occ = c.nearestUsableUpcomingOccurrence(now: now)
 
         // 5th is saturated → nearest usable is the 6th's 9am (fresh, empty window).
-        #expect(occ?.start == date(year: 2026, month: 3, day: 6, hour: 9))
+        #expect(occ?.start == testDate(year: 2026, month: 3, day: 6, hour: 9))
     }
 
     @Test("cross-cycle saturation: a check-in in the current cycle does NOT saturate a future-cycle occurrence")
@@ -145,14 +122,14 @@ final class CommitmentNearestSlotTests {
         // Daily cycle, capacity 1. A check-in saturates only its own day's occurrence.
         let c = makeCommitment(slots: [(9, 11, 1)], in: ctx)
         // Saturate the 5th's occurrence.
-        addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 9, minute: 30), in: ctx)
-        let now = date(year: 2026, month: 3, day: 5, hour: 8)
+        addCheckIn(to: c, at: testDate(year: 2026, month: 3, day: 5, hour: 9, minute: 30), in: ctx)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 8)
 
         let occ = c.nearestUsableUpcomingOccurrence(now: now)
 
         // The 6th's occurrence is in a DIFFERENT daily cycle; the 5th's check-in must not count
         // against it. So the 6th's 9am is usable and returned.
-        #expect(occ?.start == date(year: 2026, month: 3, day: 6, hour: 9))
+        #expect(occ?.start == testDate(year: 2026, month: 3, day: 6, hour: 9))
     }
 
     @Test("goal met + continue: still searches from now, surfacing the current cycle's slot")
@@ -164,14 +141,14 @@ final class CommitmentNearestSlotTests {
         let c = makeCommitment(
             slots: [(9, 11, nil)], targetCount: 1, continueAfterGoalMet: true, in: ctx
         )
-        addCheckIn(to: c, at: date(year: 2026, month: 3, day: 5, hour: 9, minute: 30), in: ctx)
+        addCheckIn(to: c, at: testDate(year: 2026, month: 3, day: 5, hour: 9, minute: 30), in: ctx)
         // now is 7am; today's 9am slot is still upcoming. Goal met + continue → keep showing the
         // current cycle, so the search starts at `now` and returns TODAY's 9am.
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let occ = c.nearestUsableUpcomingOccurrence(now: now)
 
-        #expect(occ?.start == date(year: 2026, month: 3, day: 5, hour: 9))
+        #expect(occ?.start == testDate(year: 2026, month: 3, day: 5, hour: 9))
     }
 
     @Test("specificWeekdays recurrence: nextMatch jumps to the next matching weekday")
@@ -183,11 +160,11 @@ final class CommitmentNearestSlotTests {
         // Restrict to Mondays only (Calendar weekday 2).
         slot.recurrence = .specificWeekdays([2])
         // 2026-03-05 is a Thursday; the next Monday is 2026-03-09.
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let occ = c.nearestUsableUpcomingOccurrence(now: now)
 
-        #expect(occ?.start == date(year: 2026, month: 3, day: 9, hour: 9))
+        #expect(occ?.start == testDate(year: 2026, month: 3, day: 9, hour: 9))
     }
 
     @Test("no usable upcoming occurrence on any slot → nil")
@@ -199,7 +176,7 @@ final class CommitmentNearestSlotTests {
         // the lookahead is saturated. Simpler: capacity 0 means unlimited (not saturated), so use
         // a snooze-blanket approach is also awkward. Use the cleanest available: no slots.
         let c = makeCommitment(slots: [], in: ctx)
-        let now = date(year: 2026, month: 3, day: 5, hour: 7)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         #expect(c.nearestUsableUpcomingOccurrence(now: now) == nil)
     }

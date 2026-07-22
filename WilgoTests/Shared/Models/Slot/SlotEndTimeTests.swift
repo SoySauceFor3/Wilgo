@@ -5,36 +5,14 @@ import Testing
 
 extension SlotSuite {
 struct SlotEndTimeTests {
-    private func tod(hour: Int, minute: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = 2000
-        c.month = 1
-        c.day = 1
-        c.hour = hour
-        c.minute = minute
-        c.second = 0
-        return Calendar.current.date(from: c)!
-    }
-
-    private func date(year: Int, month: Int, day: Int, hour: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = year
-        c.month = month
-        c.day = day
-        c.hour = hour
-        c.minute = 0
-        c.second = 0
-        return Calendar.current.date(from: c)!
-    }
-
     @Test("normal slot: end is on the same day")
     @MainActor func normalSlot_endSameDay() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let slot = Slot(start: tod(hour: 9), end: tod(hour: 11))
+        let slot = Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))
         ctx.insert(slot)
 
-        let day = date(year: 2026, month: 4, day: 24)
+        let day = testDate(year: 2026, month: 4, day: 24)
         let end = slot.endTime(onDayStarting: day)
 
         let cal = Calendar.current
@@ -48,10 +26,10 @@ struct SlotEndTimeTests {
     @MainActor func normalSlot_withMinutes() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let slot = Slot(start: tod(hour: 9, minute: 15), end: tod(hour: 10, minute: 45))
+        let slot = Slot(start: timeOfDay(hour: 9, minute: 15), end: timeOfDay(hour: 10, minute: 45))
         ctx.insert(slot)
 
-        let day = date(year: 2026, month: 4, day: 24)
+        let day = testDate(year: 2026, month: 4, day: 24)
         let end = slot.endTime(onDayStarting: day)
 
         let cal = Calendar.current
@@ -64,10 +42,10 @@ struct SlotEndTimeTests {
     @MainActor func crossMidnight_endNextDay() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let slot = Slot(start: tod(hour: 23), end: tod(hour: 1))
+        let slot = Slot(start: timeOfDay(hour: 23), end: timeOfDay(hour: 1))
         ctx.insert(slot)
 
-        let day = date(year: 2026, month: 4, day: 24)
+        let day = testDate(year: 2026, month: 4, day: 24)
         let end = slot.endTime(onDayStarting: day)
 
         let cal = Calendar.current
@@ -80,10 +58,10 @@ struct SlotEndTimeTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         // isWholeDay = start time == end time
-        let slot = Slot(start: tod(hour: 9), end: tod(hour: 9))
+        let slot = Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 9))
         ctx.insert(slot)
 
-        let day = date(year: 2026, month: 4, day: 24)
+        let day = testDate(year: 2026, month: 4, day: 24)
         let end = slot.endTime(onDayStarting: day)
 
         let cal = Calendar.current
@@ -95,10 +73,10 @@ struct SlotEndTimeTests {
     @MainActor func matchesOccurrence() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let slot = Slot(start: tod(hour: 23), end: tod(hour: 1))
+        let slot = Slot(start: timeOfDay(hour: 23), end: timeOfDay(hour: 1))
         ctx.insert(slot)
 
-        let day = date(year: 2026, month: 4, day: 24)
+        let day = testDate(year: 2026, month: 4, day: 24)
         let occurrence = try #require(slot.occurrence(on: day))
         #expect(slot.endTime(onDayStarting: day) == occurrence.end)
     }

@@ -6,20 +6,11 @@ import Testing
 extension SlotOccurrenceSuite {
 @Suite(.serialized)
 final class SlotMaxCheckInsRoundTripTests {
-    private func tod(hour: Int) -> Date {
-        var c = DateComponents()
-        c.year = 2000
-        c.month = 1
-        c.day = 1
-        c.hour = hour
-        return Calendar.current.date(from: c)!
-    }
-
     @Test("Slot persists nil maxCheckIns by default")
     @MainActor func defaultIsNil() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let slot = Slot(start: tod(hour: 9), end: tod(hour: 11))
+        let slot = Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))
         ctx.insert(slot)
         try ctx.save()
 
@@ -31,7 +22,7 @@ final class SlotMaxCheckInsRoundTripTests {
     @MainActor func roundTripsExplicitValue() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let slot = Slot(start: tod(hour: 9), end: tod(hour: 11))
+        let slot = Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))
         slot.maxCheckIns = 1
         ctx.insert(slot)
         try ctx.save()

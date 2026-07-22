@@ -9,36 +9,13 @@ extension SlotOccurrenceSuite {
 @Suite(.serialized)
 final class SlotOccurrenceUsableTests {
     // MARK: - Helpers
-
-    private func tod(hour: Int, minute: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = 2000
-        c.month = 1
-        c.day = 1
-        c.hour = hour
-        c.minute = minute
-        c.second = 0
-        return Calendar.current.date(from: c)!
-    }
-
-    private func date(_ y: Int, _ m: Int, _ d: Int, _ h: Int = 0, _ min: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = y
-        c.month = m
-        c.day = d
-        c.hour = h
-        c.minute = min
-        c.second = 0
-        return Calendar.current.date(from: c)!
-    }
-
     @MainActor
     private func makeCommitmentAndSlot(cap: Int?, in ctx: ModelContext) -> (Commitment, Slot) {
-        let slot = Slot(start: tod(hour: 9), end: tod(hour: 11))
+        let slot = Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))
         slot.maxCheckIns = cap
         let commitment = Commitment(
             title: "T",
-            cycle: Cycle(kind: .daily, referencePsychDay: date(2026, 1, 1)),
+            cycle: Cycle(kind: .daily, referencePsychDay: testDate(year: 2026, month: 1, day: 1)),
             slots: [slot],
             target: Target(count: 5)
         )
@@ -55,7 +32,7 @@ final class SlotOccurrenceUsableTests {
         let ctx = container.mainContext
         let (_, slot) = makeCommitmentAndSlot(cap: nil, in: ctx)
 
-        let occ = try #require(slot.occurrence(on: date(2026, 3, 5)))
+        let occ = try #require(slot.occurrence(on: testDate(year: 2026, month: 3, day: 5)))
         #expect(occ.isUsable(checkIns: []) == true)
     }
 
@@ -66,10 +43,10 @@ final class SlotOccurrenceUsableTests {
         let (_, slot) = makeCommitmentAndSlot(cap: nil, in: ctx)
 
         let snooze = SlotSnooze(
-            slot: slot, psychDay: date(2026, 3, 5), snoozedAt: date(2026, 3, 5, 10))
+            slot: slot, psychDay: testDate(year: 2026, month: 3, day: 5), snoozedAt: testDate(year: 2026, month: 3, day: 5, hour: 10))
         ctx.insert(snooze)
 
-        let occ = try #require(slot.occurrence(on: date(2026, 3, 5)))
+        let occ = try #require(slot.occurrence(on: testDate(year: 2026, month: 3, day: 5)))
         #expect(occ.isUsable(checkIns: []) == false)
     }
 
@@ -79,10 +56,10 @@ final class SlotOccurrenceUsableTests {
         let ctx = container.mainContext
         let (commitment, slot) = makeCommitmentAndSlot(cap: 1, in: ctx)
 
-        let ci = CheckIn(commitment: commitment, createdAt: date(2026, 3, 5, 10))
+        let ci = CheckIn(commitment: commitment, createdAt: testDate(year: 2026, month: 3, day: 5, hour: 10))
         ctx.insert(ci)
 
-        let occ = try #require(slot.occurrence(on: date(2026, 3, 5)))
+        let occ = try #require(slot.occurrence(on: testDate(year: 2026, month: 3, day: 5)))
         #expect(occ.isUsable(checkIns: [ci]) == false)
     }
 }

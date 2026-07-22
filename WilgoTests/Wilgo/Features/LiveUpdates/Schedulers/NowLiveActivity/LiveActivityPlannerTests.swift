@@ -9,25 +9,6 @@ import Testing
 extension LiveUpdatesSuite.SchedulersSuite.NowLiveActivitySuite {
 @Suite(.serialized)
 final class LiveActivityPlannerTests {
-    private func tod(hour: Int, minute: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = 2000
-        c.month = 1
-        c.day = 1
-        c.hour = hour
-        c.minute = minute
-        return Calendar.current.date(from: c)!
-    }
-
-    private func date(year: Int, month: Int, day: Int, hour: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = year
-        c.month = month
-        c.day = day
-        c.hour = hour
-        return Calendar.current.date(from: c)!
-    }
-
     @MainActor
     private func makeCommitment(
         title: String,
@@ -35,7 +16,7 @@ final class LiveActivityPlannerTests {
         encouragements: [String] = [],
         in ctx: ModelContext
     ) -> Commitment {
-        let anchor = date(year: 2026, month: 1, day: 1)
+        let anchor = testDate(year: 2026, month: 1, day: 1)
         let c = Commitment(
             title: title,
             cycle: Cycle(kind: .daily, referencePsychDay: anchor),
@@ -56,16 +37,16 @@ final class LiveActivityPlannerTests {
         let container = try makeTestContainer()
         let c = makeCommitment(
             title: "Draw",
-            slots: [Slot(start: tod(hour: 9), end: tod(hour: 11))],
+            slots: [Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))],
             in: container.mainContext)
-        let now = date(year: 2026, month: 3, day: 5, hour: 10)  // inside today's 9–11
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 10)  // inside today's 9–11
 
         let planned = LiveActivityPlanner.plan(commitments: [c], now: now)
 
         #expect(planned.count >= 2)
         #expect(planned[0].scheduledStart == nil)  // today's open occurrence
-        #expect(planned[0].staleDate == date(year: 2026, month: 3, day: 5, hour: 11))
-        #expect(planned[1].scheduledStart == date(year: 2026, month: 3, day: 6, hour: 9))
+        #expect(planned[0].staleDate == testDate(year: 2026, month: 3, day: 5, hour: 11))
+        #expect(planned[1].scheduledStart == testDate(year: 2026, month: 3, day: 6, hour: 9))
         #expect(planned[0].state.encouragementText == nil)  // no encouragements configured
     }
 
@@ -74,9 +55,9 @@ final class LiveActivityPlannerTests {
         let container = try makeTestContainer()
         let c = makeCommitment(
             title: "Draw",
-            slots: [Slot(start: tod(hour: 9), end: tod(hour: 11))],  // daily → 14 in horizon
+            slots: [Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))],  // daily → 14 in horizon
             in: container.mainContext)
-        let now = date(year: 2026, month: 3, day: 5, hour: 8)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 8)
 
         let planned = LiveActivityPlanner.plan(commitments: [c], now: now)
 
@@ -91,10 +72,10 @@ final class LiveActivityPlannerTests {
         let container = try makeTestContainer()
         let c = makeCommitment(
             title: "Draw",
-            slots: [Slot(start: tod(hour: 9), end: tod(hour: 11))],
+            slots: [Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))],
             in: container.mainContext)
         c.isRemindersEnabled = false
-        let now = date(year: 2026, month: 3, day: 5, hour: 8)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 8)
 
         #expect(LiveActivityPlanner.plan(commitments: [c], now: now).isEmpty)
     }
@@ -105,11 +86,11 @@ final class LiveActivityPlannerTests {
         let ctx = container.mainContext
         let a = makeCommitment(
             title: "Ends sooner",
-            slots: [Slot(start: tod(hour: 9), end: tod(hour: 10))], in: ctx)
+            slots: [Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 10))], in: ctx)
         let b = makeCommitment(
             title: "Ends later",
-            slots: [Slot(start: tod(hour: 9), end: tod(hour: 12))], in: ctx)
-        let now = date(year: 2026, month: 3, day: 5, hour: 9).addingTimeInterval(30 * 60)
+            slots: [Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 12))], in: ctx)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 9).addingTimeInterval(30 * 60)
 
         let planned = LiveActivityPlanner.plan(commitments: [a, b], now: now)
         let sooner = try #require(planned.first { $0.state.commitmentTitle == "Ends sooner" })
@@ -117,8 +98,8 @@ final class LiveActivityPlannerTests {
 
         #expect(sooner.state.commitmentId == a.id)
         #expect(sooner.state.slotId == a.slots[0].id)
-        #expect(sooner.state.windowStart == date(year: 2026, month: 3, day: 5, hour: 9))
-        #expect(sooner.state.windowEnd == date(year: 2026, month: 3, day: 5, hour: 10))
+        #expect(sooner.state.windowStart == testDate(year: 2026, month: 3, day: 5, hour: 9))
+        #expect(sooner.state.windowEnd == testDate(year: 2026, month: 3, day: 5, hour: 10))
         #expect(sooner.relevanceScore > later.relevanceScore)
     }
 
@@ -127,10 +108,10 @@ final class LiveActivityPlannerTests {
         let container = try makeTestContainer()
         let c = makeCommitment(
             title: "Draw",
-            slots: [Slot(start: tod(hour: 9), end: tod(hour: 11))],
+            slots: [Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))],
             encouragements: ["a", "b", "c"],
             in: container.mainContext)
-        let now = date(year: 2026, month: 3, day: 5, hour: 10)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 10)
 
         let first = LiveActivityPlanner.plan(commitments: [c], now: now)
         let second = LiveActivityPlanner.plan(commitments: [c], now: now)
@@ -146,12 +127,12 @@ final class LiveActivityPlannerTests {
         let ctx = container.mainContext
         let c = makeCommitment(
             title: "Draw",
-            slots: [Slot(start: tod(hour: 9), end: tod(hour: 11))],
+            slots: [Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))],
             in: ctx)
         c.target = Target(count: 3)
-        let now = date(year: 2026, month: 3, day: 5, hour: 10)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 10)
         CheckIn.insert(
-            commitment: c, createdAt: date(year: 2026, month: 3, day: 5, hour: 9), into: ctx)
+            commitment: c, createdAt: testDate(year: 2026, month: 3, day: 5, hour: 9), into: ctx)
 
         let planned = LiveActivityPlanner.plan(commitments: [c], now: now)
         #expect(planned[0].state.checkInCount == 1)  // today's open occurrence, 1 of 3 done
@@ -161,7 +142,7 @@ final class LiveActivityPlannerTests {
 
         let noTarget = makeCommitment(
             title: "NoTarget",
-            slots: [Slot(start: tod(hour: 9), end: tod(hour: 11))],
+            slots: [Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))],
             in: ctx)
         noTarget.target = Target(count: 1, mode: .disabled)
         let plannedNoTarget = LiveActivityPlanner.plan(commitments: [noTarget], now: now)
@@ -190,10 +171,10 @@ final class LiveActivityPlannerTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         let a = makeCommitment(
-            title: "A", slots: [Slot(start: tod(hour: 9), end: tod(hour: 11))], in: ctx)
+            title: "A", slots: [Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))], in: ctx)
         let b = makeCommitment(
-            title: "B", slots: [Slot(start: tod(hour: 9), end: tod(hour: 11))], in: ctx)
-        let now = date(year: 2026, month: 3, day: 5, hour: 8)
+            title: "B", slots: [Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))], in: ctx)
+        let now = testDate(year: 2026, month: 3, day: 5, hour: 8)
 
         let forward = LiveActivityPlanner.plan(commitments: [a, b], now: now)
         let reversed = LiveActivityPlanner.plan(commitments: [b, a], now: now)

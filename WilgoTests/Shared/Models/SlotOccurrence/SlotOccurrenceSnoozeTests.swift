@@ -11,39 +11,16 @@ extension SlotOccurrenceSuite {
 @Suite(.serialized)
 final class SlotOccurrenceSnoozeTests {
     // MARK: - Helpers
-
-    private func tod(hour: Int, minute: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = 2000
-        c.month = 1
-        c.day = 1
-        c.hour = hour
-        c.minute = minute
-        c.second = 0
-        return Calendar.current.date(from: c)!
-    }
-
-    private func date(_ y: Int, _ m: Int, _ d: Int, _ h: Int = 0, _ min: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = y
-        c.month = m
-        c.day = d
-        c.hour = h
-        c.minute = min
-        c.second = 0
-        return Calendar.current.date(from: c)!
-    }
-
     @MainActor
     private func makeSlot(
         startHour: Int, endHour: Int,
         recurrence: SlotRecurrence = .everyDay,
         in ctx: ModelContext
     ) -> Slot {
-        let slot = Slot(start: tod(hour: startHour), end: tod(hour: endHour), recurrence: recurrence)
+        let slot = Slot(start: timeOfDay(hour: startHour), end: timeOfDay(hour: endHour), recurrence: recurrence)
         let commitment = Commitment(
             title: "Test",
-            cycle: Cycle(kind: .daily, referencePsychDay: date(2026, 1, 1)),
+            cycle: Cycle(kind: .daily, referencePsychDay: testDate(year: 2026, month: 1, day: 1)),
             slots: [slot],
             target: Target(count: 1)
         )
@@ -60,7 +37,7 @@ final class SlotOccurrenceSnoozeTests {
         let ctx = container.mainContext
         let slot = makeSlot(startHour: 9, endHour: 11, in: ctx)
 
-        let occ = try #require(slot.occurrence(on: date(2026, 3, 5)))
+        let occ = try #require(slot.occurrence(on: testDate(year: 2026, month: 3, day: 5)))
         #expect(occ.isSnoozed == false)
     }
 
@@ -71,10 +48,10 @@ final class SlotOccurrenceSnoozeTests {
         let slot = makeSlot(startHour: 9, endHour: 11, in: ctx)
 
         let snooze = SlotSnooze(
-            slot: slot, psychDay: date(2026, 3, 5), snoozedAt: date(2026, 3, 5, 10))
+            slot: slot, psychDay: testDate(year: 2026, month: 3, day: 5), snoozedAt: testDate(year: 2026, month: 3, day: 5, hour: 10))
         ctx.insert(snooze)
 
-        let occ = try #require(slot.occurrence(on: date(2026, 3, 5)))
+        let occ = try #require(slot.occurrence(on: testDate(year: 2026, month: 3, day: 5)))
         #expect(occ.isSnoozed == true)
     }
 
@@ -86,10 +63,10 @@ final class SlotOccurrenceSnoozeTests {
 
         // Stale snooze recorded for the 4th.
         let stale = SlotSnooze(
-            slot: slot, psychDay: date(2026, 3, 4), snoozedAt: date(2026, 3, 4, 10))
+            slot: slot, psychDay: testDate(year: 2026, month: 3, day: 4), snoozedAt: testDate(year: 2026, month: 3, day: 4, hour: 10))
         ctx.insert(stale)
 
-        let occ = try #require(slot.occurrence(on: date(2026, 3, 5)))
+        let occ = try #require(slot.occurrence(on: testDate(year: 2026, month: 3, day: 5)))
         #expect(occ.isSnoozed == false)
     }
 
@@ -102,10 +79,10 @@ final class SlotOccurrenceSnoozeTests {
 
         // Snooze is anchored to the firing's start day (Dec 31), per slot.snooze(at:in:).
         let snooze = SlotSnooze(
-            slot: slot, psychDay: date(2025, 12, 31), snoozedAt: date(2026, 1, 1, 0, 30))
+            slot: slot, psychDay: testDate(year: 2025, month: 12, day: 31), snoozedAt: testDate(year: 2026, month: 1, day: 1, hour: 0, minute: 30))
         ctx.insert(snooze)
 
-        let occ = try #require(slot.occurrence(on: date(2025, 12, 31)))
+        let occ = try #require(slot.occurrence(on: testDate(year: 2025, month: 12, day: 31)))
         #expect(occ.isSnoozed == true)
     }
 }

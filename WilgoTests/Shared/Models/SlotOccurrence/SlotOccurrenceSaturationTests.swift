@@ -9,40 +9,17 @@ extension SlotOccurrenceSuite {
 @Suite(.serialized)
 final class SlotOccurrenceSaturationTests {
     // MARK: - Helpers
-
-    private func tod(hour: Int, minute: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = 2000
-        c.month = 1
-        c.day = 1
-        c.hour = hour
-        c.minute = minute
-        c.second = 0
-        return Calendar.current.date(from: c)!
-    }
-
-    private func date(_ y: Int, _ m: Int, _ d: Int, _ h: Int = 0, _ min: Int = 0) -> Date {
-        var c = DateComponents()
-        c.year = y
-        c.month = m
-        c.day = d
-        c.hour = h
-        c.minute = min
-        c.second = 0
-        return Calendar.current.date(from: c)!
-    }
-
     @MainActor
     private func makeCommitmentAndSlot(
         cap: Int?,
         start: Int = 9, end: Int = 11,
         in ctx: ModelContext
     ) -> (Commitment, Slot) {
-        let slot = Slot(start: tod(hour: start), end: tod(hour: end))
+        let slot = Slot(start: timeOfDay(hour: start), end: timeOfDay(hour: end))
         slot.maxCheckIns = cap
         let commitment = Commitment(
             title: "T",
-            cycle: Cycle(kind: .daily, referencePsychDay: date(2026, 1, 1)),
+            cycle: Cycle(kind: .daily, referencePsychDay: testDate(year: 2026, month: 1, day: 1)),
             slots: [slot],
             target: Target(count: 5)
         )
@@ -59,10 +36,10 @@ final class SlotOccurrenceSaturationTests {
         let ctx = container.mainContext
         let (commitment, slot) = makeCommitmentAndSlot(cap: nil, in: ctx)
 
-        let ci = CheckIn(commitment: commitment, createdAt: date(2026, 3, 5, 10))
+        let ci = CheckIn(commitment: commitment, createdAt: testDate(year: 2026, month: 3, day: 5, hour: 10))
         ctx.insert(ci)
 
-        let occ = try #require(slot.occurrence(on: date(2026, 3, 5)))
+        let occ = try #require(slot.occurrence(on: testDate(year: 2026, month: 3, day: 5)))
         #expect(occ.isSaturated(checkIns: [ci]) == false)
     }
 
@@ -75,13 +52,13 @@ final class SlotOccurrenceSaturationTests {
         // cap=1: a single in-window check-in would saturate. We provide only OUT-of-window ones.
         let (commitment, slot) = makeCommitmentAndSlot(cap: 1, start: 9, end: 11, in: ctx)
 
-        let before = CheckIn(commitment: commitment, createdAt: date(2026, 3, 5, 8, 59))  // before start
-        let atEnd = CheckIn(commitment: commitment, createdAt: date(2026, 3, 5, 11))  // == end (exclusive)
-        let after = CheckIn(commitment: commitment, createdAt: date(2026, 3, 5, 12))  // after end
-        let yesterday = CheckIn(commitment: commitment, createdAt: date(2026, 3, 4, 10))  // other day
+        let before = CheckIn(commitment: commitment, createdAt: testDate(year: 2026, month: 3, day: 5, hour: 8, minute: 59))  // before start
+        let atEnd = CheckIn(commitment: commitment, createdAt: testDate(year: 2026, month: 3, day: 5, hour: 11))  // == end (exclusive)
+        let after = CheckIn(commitment: commitment, createdAt: testDate(year: 2026, month: 3, day: 5, hour: 12))  // after end
+        let yesterday = CheckIn(commitment: commitment, createdAt: testDate(year: 2026, month: 3, day: 4, hour: 10))  // other day
         [before, atEnd, after, yesterday].forEach { ctx.insert($0) }
 
-        let occ = try #require(slot.occurrence(on: date(2026, 3, 5)))
+        let occ = try #require(slot.occurrence(on: testDate(year: 2026, month: 3, day: 5)))
         #expect(occ.isSaturated(checkIns: [before, atEnd, after, yesterday]) == false)
     }
 
@@ -93,13 +70,13 @@ final class SlotOccurrenceSaturationTests {
         let ctx = container.mainContext
         let (commitment, slot) = makeCommitmentAndSlot(cap: 2, start: 9, end: 11, in: ctx)
 
-        let inWindow1 = CheckIn(commitment: commitment, createdAt: date(2026, 3, 5, 9, 30))
-        let inWindow2 = CheckIn(commitment: commitment, createdAt: date(2026, 3, 5, 10, 0))
-        let inWindow3 = CheckIn(commitment: commitment, createdAt: date(2026, 3, 5, 10, 30))
-        let outside = CheckIn(commitment: commitment, createdAt: date(2026, 3, 5, 12))  // not counted
+        let inWindow1 = CheckIn(commitment: commitment, createdAt: testDate(year: 2026, month: 3, day: 5, hour: 9, minute: 30))
+        let inWindow2 = CheckIn(commitment: commitment, createdAt: testDate(year: 2026, month: 3, day: 5, hour: 10, minute: 0))
+        let inWindow3 = CheckIn(commitment: commitment, createdAt: testDate(year: 2026, month: 3, day: 5, hour: 10, minute: 30))
+        let outside = CheckIn(commitment: commitment, createdAt: testDate(year: 2026, month: 3, day: 5, hour: 12))  // not counted
         [inWindow1, inWindow2, inWindow3, outside].forEach { ctx.insert($0) }
 
-        let occ = try #require(slot.occurrence(on: date(2026, 3, 5)))
+        let occ = try #require(slot.occurrence(on: testDate(year: 2026, month: 3, day: 5)))
 
         // 1 in-window (< 2) → not saturated; the outside check-in must not push it over.
         #expect(occ.isSaturated(checkIns: [inWindow1, outside]) == false)
@@ -119,10 +96,10 @@ final class SlotOccurrenceSaturationTests {
         let (commitment, slot) = makeCommitmentAndSlot(cap: 1, start: 23, end: 1, in: ctx)
 
         // Check-in at 12:30am Jan 1 — past midnight, but inside the Dec 31 occurrence's window.
-        let postMidnight = CheckIn(commitment: commitment, createdAt: date(2026, 1, 1, 0, 30))
+        let postMidnight = CheckIn(commitment: commitment, createdAt: testDate(year: 2026, month: 1, day: 1, hour: 0, minute: 30))
         ctx.insert(postMidnight)
 
-        let occ = try #require(slot.occurrence(on: date(2025, 12, 31)))
+        let occ = try #require(slot.occurrence(on: testDate(year: 2025, month: 12, day: 31)))
         #expect(occ.isSaturated(checkIns: [postMidnight]) == true)
     }
 }

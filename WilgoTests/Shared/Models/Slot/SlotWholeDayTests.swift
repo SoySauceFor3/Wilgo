@@ -3,19 +3,6 @@ import Testing
 @testable import Wilgo
 
 // MARK: - Helpers
-
-/// Returns a Date for the given year/month/day at midnight.
-private func date(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 0) -> Date {
-    var comps = DateComponents()
-    comps.year = year
-    comps.month = month
-    comps.day = day
-    comps.hour = hour
-    comps.minute = minute
-    comps.second = 0
-    return Calendar.current.date(from: comps)!
-}
-
 /// A whole-day sentinel: same hour+minute for start and end.
 private func wholeDaySlot(recurrence: SlotRecurrence = .everyDay) -> Slot {
     let ref = Calendar.current.date(bySettingHour: 0, minute: 0, second: 0, of: .now)!

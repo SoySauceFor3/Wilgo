@@ -3,32 +3,6 @@ import Testing
 @testable import Wilgo
 
 // MARK: - Helpers
-
-/// A time-of-day reference date. Only hour and minute are meaningful — the same
-/// semantics `Slot` uses for its start/end fields.
-private func timeOfDay(hour: Int, minute: Int = 0) -> Date {
-    var comps = DateComponents()
-    comps.year = 2000
-    comps.month = 1
-    comps.day = 1
-    comps.hour = hour
-    comps.minute = minute
-    comps.second = 0
-    return Calendar.current.date(from: comps)!
-}
-
-/// A concrete datetime for the given year/month/day (optionally with time).
-private func date(year: Int, month: Int, day: Int, hour: Int = 0, minute: Int = 0) -> Date {
-    var comps = DateComponents()
-    comps.year = year
-    comps.month = month
-    comps.day = day
-    comps.hour = hour
-    comps.minute = minute
-    comps.second = 0
-    return Calendar.current.date(from: comps)!
-}
-
 /// `Slot.occurrences(from:until:softFrom:softUntil:)` — pure per-slot enumeration over a datetime
 /// window. No container/commitment needed: the method is deliberately independent of check-ins.
 extension SlotSuite {
@@ -39,20 +13,20 @@ struct SlotOccurrencesTests {
     @MainActor func fullyInside_returned() {
         // 9–11 daily slot; window 7–12 on Mar 5.
         let slot = Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))
-        let from = date(year: 2026, month: 3, day: 5, hour: 7)
-        let until = date(year: 2026, month: 3, day: 5, hour: 12)
+        let from = testDate(year: 2026, month: 3, day: 5, hour: 7)
+        let until = testDate(year: 2026, month: 3, day: 5, hour: 12)
 
         let occs = slot.occurrences(from: from, until: until)
 
-        #expect(occs.map(\.start) == [date(year: 2026, month: 3, day: 5, hour: 9)])
+        #expect(occs.map(\.start) == [testDate(year: 2026, month: 3, day: 5, hour: 9)])
     }
 
     @Test("occurrence fully outside the window is never built")
     @MainActor func fullyOutside_excluded() {
         // 9–11 slot; window 6–8 ends before the slot starts.
         let slot = Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))
-        let from = date(year: 2026, month: 3, day: 5, hour: 6)
-        let until = date(year: 2026, month: 3, day: 5, hour: 8)
+        let from = testDate(year: 2026, month: 3, day: 5, hour: 6)
+        let until = testDate(year: 2026, month: 3, day: 5, hour: 8)
 
         #expect(slot.occurrences(from: from, until: until).isEmpty)
     }
@@ -60,22 +34,22 @@ struct SlotOccurrencesTests {
     @Test("daily slot across several days yields one occurrence per day in window")
     @MainActor func multiDay_oneOccurrencePerDay() {
         let slot = Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))
-        let from = date(year: 2026, month: 3, day: 5, hour: 7)
-        let until = date(year: 2026, month: 3, day: 8)  // exclusive: Mar 5, 6, 7
+        let from = testDate(year: 2026, month: 3, day: 5, hour: 7)
+        let until = testDate(year: 2026, month: 3, day: 8)  // exclusive: Mar 5, 6, 7
 
         let starts = slot.occurrences(from: from, until: until).map(\.start)
 
         #expect(starts.count == 3)
-        #expect(starts.contains(date(year: 2026, month: 3, day: 5, hour: 9)))
-        #expect(starts.contains(date(year: 2026, month: 3, day: 6, hour: 9)))
-        #expect(starts.contains(date(year: 2026, month: 3, day: 7, hour: 9)))
+        #expect(starts.contains(testDate(year: 2026, month: 3, day: 5, hour: 9)))
+        #expect(starts.contains(testDate(year: 2026, month: 3, day: 6, hour: 9)))
+        #expect(starts.contains(testDate(year: 2026, month: 3, day: 7, hour: 9)))
     }
 
     @Test("occurrences are returned in day order")
     @MainActor func multiDay_dayOrder() {
         let slot = Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))
-        let from = date(year: 2026, month: 3, day: 5, hour: 7)
-        let until = date(year: 2026, month: 3, day: 8)
+        let from = testDate(year: 2026, month: 3, day: 5, hour: 7)
+        let until = testDate(year: 2026, month: 3, day: 8)
 
         let starts = slot.occurrences(from: from, until: until).map(\.start)
 
@@ -88,12 +62,12 @@ struct SlotOccurrencesTests {
     @MainActor func firstHalf_gatedBySoftFrom() {
         // `from` at 10 lands inside the 9–11 window → the occurrence starts before `from`.
         let slot = Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))
-        let from = date(year: 2026, month: 3, day: 5, hour: 10)
-        let until = date(year: 2026, month: 3, day: 5, hour: 12)
+        let from = testDate(year: 2026, month: 3, day: 5, hour: 10)
+        let until = testDate(year: 2026, month: 3, day: 5, hour: 12)
 
         #expect(
             slot.occurrences(from: from, until: until).map(\.start)
-                == [date(year: 2026, month: 3, day: 5, hour: 9)])
+                == [testDate(year: 2026, month: 3, day: 5, hour: 9)])
         #expect(slot.occurrences(from: from, until: until, softFrom: false).isEmpty)
     }
 
@@ -106,9 +80,9 @@ struct SlotOccurrencesTests {
         // exactly 01:00 would put `from == occ.end`, and the half-open overlap test `end > from`
         // would correctly exclude it — a distinct boundary case, not what we're testing here.)
         let slot = Slot(start: timeOfDay(hour: 23), end: timeOfDay(hour: 1))
-        let from = date(year: 2026, month: 3, day: 5, hour: 0, minute: 30)
-        let until = date(year: 2026, month: 3, day: 5, hour: 12)
-        let priorStart = date(year: 2026, month: 3, day: 4, hour: 23)
+        let from = testDate(year: 2026, month: 3, day: 5, hour: 0, minute: 30)
+        let until = testDate(year: 2026, month: 3, day: 5, hour: 12)
+        let priorStart = testDate(year: 2026, month: 3, day: 4, hour: 23)
 
         // The prior-day occurrence is a first-half straddler (starts before `from`).
         #expect(slot.occurrences(from: from, until: until).map(\.start).contains(priorStart))
@@ -124,12 +98,12 @@ struct SlotOccurrencesTests {
     @MainActor func secondHalf_gatedBySoftUntil() {
         // `until` at 10 lands inside the 9–11 window → the occurrence ends past `until`.
         let slot = Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))
-        let from = date(year: 2026, month: 3, day: 5, hour: 7)
-        let until = date(year: 2026, month: 3, day: 5, hour: 10)
+        let from = testDate(year: 2026, month: 3, day: 5, hour: 7)
+        let until = testDate(year: 2026, month: 3, day: 5, hour: 10)
 
         #expect(
             slot.occurrences(from: from, until: until).map(\.start)
-                == [date(year: 2026, month: 3, day: 5, hour: 9)])
+                == [testDate(year: 2026, month: 3, day: 5, hour: 9)])
         #expect(slot.occurrences(from: from, until: until, softUntil: false).isEmpty)
     }
 
@@ -138,12 +112,12 @@ struct SlotOccurrencesTests {
         // 9–11 slot; window ends exactly at 11. `end == until`, and `end` is exclusive, so the
         // occurrence occupies no time at or past `until` → fully inside, never a straddler.
         let slot = Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 11))
-        let from = date(year: 2026, month: 3, day: 5, hour: 7)
-        let until = date(year: 2026, month: 3, day: 5, hour: 11)
+        let from = testDate(year: 2026, month: 3, day: 5, hour: 7)
+        let until = testDate(year: 2026, month: 3, day: 5, hour: 11)
 
         #expect(
             slot.occurrences(from: from, until: until, softUntil: false).map(\.start)
-                == [date(year: 2026, month: 3, day: 5, hour: 9)])
+                == [testDate(year: 2026, month: 3, day: 5, hour: 9)])
     }
 
     // MARK: - Fully-covering occurrence (crosses both edges)
@@ -152,9 +126,9 @@ struct SlotOccurrencesTests {
     @MainActor func fullyCovering_needsBothSoft() {
         // A 9–17 occurrence engulfs the narrow 10–12 window: starts before `from`, ends after `until`.
         let slot = Slot(start: timeOfDay(hour: 9), end: timeOfDay(hour: 17))
-        let from = date(year: 2026, month: 3, day: 5, hour: 10)
-        let until = date(year: 2026, month: 3, day: 5, hour: 12)
-        let expected = date(year: 2026, month: 3, day: 5, hour: 9)
+        let from = testDate(year: 2026, month: 3, day: 5, hour: 10)
+        let until = testDate(year: 2026, month: 3, day: 5, hour: 12)
+        let expected = testDate(year: 2026, month: 3, day: 5, hour: 9)
 
         // Default (both soft): kept.
         #expect(slot.occurrences(from: from, until: until).map(\.start) == [expected])
@@ -171,12 +145,12 @@ struct SlotOccurrencesTests {
         let slot = Slot(
             start: timeOfDay(hour: 9), end: timeOfDay(hour: 11),
             recurrence: .specificWeekdays([7]))
-        let from = date(year: 2026, month: 3, day: 6)
-        let until = date(year: 2026, month: 3, day: 9)
+        let from = testDate(year: 2026, month: 3, day: 6)
+        let until = testDate(year: 2026, month: 3, day: 9)
 
         let starts = slot.occurrences(from: from, until: until).map(\.start)
 
-        #expect(starts == [date(year: 2026, month: 3, day: 7, hour: 9)])
+        #expect(starts == [testDate(year: 2026, month: 3, day: 7, hour: 9)])
     }
 
     @Test("recurrence that never matches in the window yields nothing")
@@ -185,8 +159,8 @@ struct SlotOccurrencesTests {
         let slot = Slot(
             start: timeOfDay(hour: 9), end: timeOfDay(hour: 11),
             recurrence: .specificMonthDays([25]))
-        let from = date(year: 2026, month: 3, day: 5)
-        let until = date(year: 2026, month: 3, day: 8)
+        let from = testDate(year: 2026, month: 3, day: 5)
+        let until = testDate(year: 2026, month: 3, day: 8)
 
         #expect(slot.occurrences(from: from, until: until).isEmpty)
     }
@@ -196,7 +170,7 @@ struct SlotOccurrencesTests {
 /// `SlotOccurrence: Comparable` — chronological `<` by `(start, end)`, distinct from identity `==`.
 extension SlotSuite {
 struct SlotOccurrenceComparableTests {
-    private let day = date(year: 2026, month: 3, day: 5)
+    private let day = testDate(year: 2026, month: 3, day: 5)
 
     @Test("earlier window start sorts first")
     @MainActor func earlierStart_ordersFirst() throws {

@@ -45,20 +45,9 @@ struct FinishedCycleReportPresentationStateTests {
 
     private func makeRequest() -> FinishedCycleReportRequest {
         FinishedCycleReportRequest(
-            startPsychDay: date(year: 2026, month: 5, day: 1),
-            endPsychDay: date(year: 2026, month: 5, day: 8)
+            startPsychDay: testDate(year: 2026, month: 5, day: 1),
+            endPsychDay: testDate(year: 2026, month: 5, day: 8)
         )
-    }
-
-    private func date(year: Int, month: Int, day: Int) -> Date {
-        var components = DateComponents()
-        components.year = year
-        components.month = month
-        components.day = day
-        components.hour = 0
-        components.minute = 0
-        components.second = 0
-        return Calendar.current.date(from: components)!
     }
 }
 }
