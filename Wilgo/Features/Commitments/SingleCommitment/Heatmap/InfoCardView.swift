@@ -2,73 +2,146 @@ import Foundation
 import SwiftData
 import SwiftUI
 
+/// A self-contained info card for a single period (a day, week, or month).
+///
+/// Given a `commitment` and a date `range`, it derives everything it renders —
+/// the live check-in list, the goal, and the "before tracking started" state —
+/// so it stays correct after a delete or backfill without any host involvement.
+/// It owns its own per-row delete (via `CheckIn.delete`) and its "Add check-in"
+/// backfill sheet. Because the check-in list is re-read from the commitment's
+/// live SwiftData relationship on every render, deleting a check-in makes its row
+/// disappear immediately with no stale-snapshot / tombstone crash.
 struct CommitmentHeatmapInfoCard: View {
-    let period: Heatmap.PeriodData
-    let heatmapKind: CycleKind
-    let targetKind: CycleKind
-    @Binding var selectedPeriod: Heatmap.PeriodData?
-    var onDelete: (CheckIn) -> Void = { _ in }
-    var onAddCheckIn: (() -> Void)?
+    let commitment: Commitment
+    /// Half-open psych-day range `[lowerBound, upperBound)` this card describes.
+    let range: Range<Date>
+    /// Period granularity — how to read `range` (day/week/month): drives label and
+    /// timestamp formatting and the goal derivation's `periodKind`.
+    let rangeKind: CycleKind
+    /// Whether to show heatmap-specific chrome — the leading color swatch and the
+    /// "N / goal · status" summary line. On in the heatmap (where they're the primary
+    /// signal); off in the FCR history section, where the card's header already shows
+    /// the count badge + status dot and the swatch/goal line would just duplicate them.
+    var showsHeatmapChrome: Bool = true
+    /// Called when the user taps the card to dismiss it. Hosts decide what that
+    /// means (heatmap clears its selection; FCR passes nil — dismiss is inert there).
+    var onDismiss: (() -> Void)?
+
+    @Environment(\.modelContext) private var modelContext
 
     @State private var pendingDeleteID: UUID? = nil
+    @State private var showingBackfill = false
+
+    /// The commitment's own target cycle kind. When it matches `rangeKind`, the
+    /// derived goal is the real goal and is surfaced; otherwise the goal is only a
+    /// color-scaling artifact and we show a plain check-in count instead.
+    private var targetKind: CycleKind { commitment.cycle.kind }
+
+    /// Live check-ins in this period, re-read from the commitment's relationship on
+    /// every render (so deletes/backfills reflect immediately). Same helper and
+    /// semantics the heatmap grid and FCR builder use, so counts stay consistent.
+    private var liveCheckIns: [CheckIn] {
+        commitment.checkInsInRange(
+            startPsychDay: range.lowerBound, endPsychDay: range.upperBound)
+    }
+
+    /// Expected goal for this period, or nil when the commitment has no meaningful target.
+    private var goal: Int? {
+        Heatmap.expectedGoalPerPeriod(
+            target: commitment.target, cycleKind: commitment.cycle.kind, periodKind: rangeKind)
+    }
+
+    private var isBeforeCreation: Bool {
+        Self.isBeforeCreation(rangeUpperBound: range.upperBound, commitment: commitment)
+    }
+
+    /// Whether a period ending at `rangeUpperBound` falls entirely before the
+    /// commitment started tracking. Extracted as a static helper so it is unit-testable
+    /// without rendering the view.
+    static func isBeforeCreation(rangeUpperBound: Date, commitment: Commitment) -> Bool {
+        rangeUpperBound <= Time.startOfDay(for: commitment.createdAt)
+    }
+
+    /// Whether to render the "N / goal · status" summary line. Only when heatmap chrome
+    /// is enabled, a goal exists, and this period's granularity matches the commitment's
+    /// target cycle kind (otherwise the goal is only a color-scaling artifact). Static so
+    /// it is unit-testable without rendering the view.
+    static func shouldShowGoalSummary(
+        showsHeatmapChrome: Bool, goal: Int?, targetKind: CycleKind, rangeKind: CycleKind
+    ) -> Bool {
+        showsHeatmapChrome && goal != nil && targetKind == rangeKind
+    }
 
     var body: some View {
-        let color = Heatmap.cellColor(for: period)
         HStack(alignment: .top, spacing: 10) {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(color.opacity(period.isBeforeCreation ? 0.7 : 1.0))
-                .frame(width: 9, height: 9)
-                .padding(.top, 3)
+            if showsHeatmapChrome {
+                // Leading color swatch echoing the tapped heatmap cell. Redundant in FCR
+                // (the card's header already carries a status dot), so gated off there.
+                let color = Heatmap.cellColor(
+                    for: Heatmap.PeriodData(
+                        id: range.lowerBound,
+                        periodStartPsychDay: range.lowerBound,
+                        periodEndPsychDay: range.upperBound,
+                        goal: goal,
+                        checkIns: liveCheckIns,
+                        isBeforeCreation: isBeforeCreation
+                    ))
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(color.opacity(isBeforeCreation ? 0.7 : 1.0))
+                    .frame(width: 9, height: 9)
+                    .padding(.top, 3)
+            }
 
             VStack(alignment: .leading, spacing: 4) {
-                Text(periodLabel(period))
+                Text(periodLabel)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.primary)
 
-                if period.isBeforeCreation {
+                if isBeforeCreation {
                     Text("Before tracking started")
                         .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                 } else {
-                    // Only show goal/comparison when this heatmap mode matches the
-                    // commitment's actual target cycle kind. In other modes the
-                    // goal is derived for color scaling only and shouldn't be
-                    // surfaced as a "goal" in the UI.
-                    if let goal = period.goal, targetKind == heatmapKind {
+                    // Goal summary is heatmap chrome that duplicates the FCR header, so it's
+                    // gated off there. When hidden, fall back to a plain check-in count.
+                    if let goal,
+                        Self.shouldShowGoalSummary(
+                            showsHeatmapChrome: showsHeatmapChrome, goal: goal,
+                            targetKind: targetKind, rangeKind: rangeKind)
+                    {
                         HStack(alignment: .firstTextBaseline, spacing: 6) {
-                            Text("\(period.checkIns.count) / \(goal)")
+                            Text("\(liveCheckIns.count) / \(goal)")
                                 .font(.system(size: 12, weight: .medium).monospacedDigit())
                                 .foregroundStyle(.primary)
-                            Text(statusLabel(count: period.checkIns.count, goal: goal))
+                            Text(statusLabel(count: liveCheckIns.count, goal: goal))
                                 .font(.system(size: 11))
                                 .foregroundStyle(.secondary)
                         }
                     } else {
                         Text(
-                            "\(period.checkIns.count) check-in\(period.checkIns.count == 1 ? "" : "s")"
+                            "\(liveCheckIns.count) check-in\(liveCheckIns.count == 1 ? "" : "s")"
                         )
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(.primary)
                     }
 
-                    if !period.checkIns.isEmpty {
-                        let sorted = period.checkIns.sorted { $0.createdAt < $1.createdAt }
-                        ForEach(sorted, id: \.id) { checkIn in
+                    if !liveCheckIns.isEmpty {
+                        ForEach(liveCheckIns, id: \.id) { checkIn in
                             checkInRow(checkIn)
+                                .transition(
+                                    .opacity.combined(with: .move(edge: .leading)))
                         }
                     }
 
-                    if let onAddCheckIn {
-                        Button {
-                            onAddCheckIn()
-                        } label: {
-                            Label("Add check-in", systemImage: "plus.circle")
-                                .font(.system(size: 11))
-                                .foregroundStyle(.secondary)
-                        }
-                        .buttonStyle(.plain)
-                        .padding(.top, 2)
+                    Button {
+                        showingBackfill = true
+                    } label: {
+                        Label("Add check-in", systemImage: "plus.circle")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
                     }
+                    .buttonStyle(.plain)
+                    .padding(.top, 2)
                 }
             }
 
@@ -78,7 +151,18 @@ struct CommitmentHeatmapInfoCard: View {
         .padding(.vertical, 9)
         .background(Color(.tertiarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 9))
-        .onTapGesture { selectedPeriod = nil }
+        // Animate rows in/out as check-ins are added (backfill) or deleted. Keyed on the
+        // id list so both insertions and removals trigger the row transitions above.
+        .animation(.easeInOut(duration: 0.2), value: liveCheckIns.map(\.id))
+        .onTapGesture { onDismiss?() }
+        .sheet(isPresented: $showingBackfill) {
+            BackfillSheet(
+                commitment: commitment,
+                dateRange: range.lowerBound...min(range.upperBound.addingTimeInterval(-1), .now)
+            )
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
+        }
     }
 
     @ViewBuilder
@@ -124,8 +208,10 @@ struct CommitmentHeatmapInfoCard: View {
 
     private func handleDeleteTap(_ checkIn: CheckIn) {
         if pendingDeleteID == checkIn.id {
-            // Second tap — confirm delete
-            onDelete(checkIn)
+            // Second tap — confirm delete. Reading liveCheckIns on the next render
+            // re-derives from the commitment's relationship, so the row disappears
+            // with no tombstone access.
+            CheckIn.delete(checkIn, from: modelContext)
             pendingDeleteID = nil
         } else {
             // First tap — arm pending state. No timeout; user must tap again to confirm or tap elsewhere to dismiss.
@@ -133,22 +219,22 @@ struct CommitmentHeatmapInfoCard: View {
         }
     }
 
-    private func periodLabel(_ period: Heatmap.PeriodData) -> String {
+    private var periodLabel: String {
         let fmt = DateFormatter()
-        switch heatmapKind {
+        switch rangeKind {
         case .daily:
             fmt.dateFormat = "EEE, MMM d"
-            return fmt.string(from: period.periodStartPsychDay)
+            return fmt.string(from: range.lowerBound)
         case .weekly:
             fmt.dateFormat = "MMM d"
             let end =
                 Time.calendar.date(
-                    byAdding: .day, value: -1, to: period.periodEndPsychDay)
-                ?? period.periodEndPsychDay
-            return "\(fmt.string(from: period.periodStartPsychDay)) – \(fmt.string(from: end))"
+                    byAdding: .day, value: -1, to: range.upperBound)
+                ?? range.upperBound
+            return "\(fmt.string(from: range.lowerBound)) – \(fmt.string(from: end))"
         case .monthly:
             fmt.dateFormat = "MMMM yyyy"
-            return fmt.string(from: period.periodStartPsychDay)
+            return fmt.string(from: range.lowerBound)
         }
     }
 
@@ -160,7 +246,7 @@ struct CommitmentHeatmapInfoCard: View {
     }
 
     private func checkInTimestamp(_ date: Date) -> String {
-        switch heatmapKind {
+        switch rangeKind {
         case .daily:
             return date.formatted(date: .omitted, time: .shortened)
         case .weekly:
@@ -189,33 +275,24 @@ struct CommitmentHeatmapInfoCard: View {
 // MARK: - Previews
 
 private struct CommitmentHeatmapInfoCardPreviewWrapper: View {
-    let heatmapKind: CycleKind
-    let period: Heatmap.PeriodData
-    @State private var selected: Heatmap.PeriodData?
-
-    init(heatmapKind: CycleKind, period: Heatmap.PeriodData) {
-        self.heatmapKind = heatmapKind
-        self.period = period
-        _selected = State(initialValue: period)
-    }
+    let commitment: Commitment
+    let range: Range<Date>
+    let rangeKind: CycleKind
+    var showsHeatmapChrome: Bool = true
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Tap card to dismiss (sets selectedPeriod = nil)")
+            Text("Tap card to dismiss (calls onDismiss)")
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
 
             CommitmentHeatmapInfoCard(
-                period: selected ?? period,
-                heatmapKind: heatmapKind,
-                targetKind: .daily,
-                selectedPeriod: $selected,
-                onDelete: { _ in }
+                commitment: commitment,
+                range: range,
+                rangeKind: rangeKind,
+                showsHeatmapChrome: showsHeatmapChrome,
+                onDismiss: {}
             )
-
-            Text("selectedPeriod: \(selected == nil ? "nil" : "set")")
-                .font(.system(size: 12).monospacedDigit())
-                .foregroundStyle(.tertiary)
         }
         .padding()
     }
@@ -226,53 +303,9 @@ private enum CommitmentHeatmapInfoCardPreviewData {
         Time.calendar.startOfDay(for: .now)
     }
 
-    static var dailyBeforeTracking: Heatmap.PeriodData {
-        let start =
-            Time.calendar.date(byAdding: .day, value: -14, to: todayStart)
-            ?? todayStart
-        let end = Time.calendar.date(byAdding: .day, value: 1, to: start) ?? start
-        return Heatmap.PeriodData(
-            id: start,
-            periodStartPsychDay: start,
-            periodEndPsychDay: end,
-            goal: 1,
-            checkIns: [],
-            isBeforeCreation: true
-        )
-    }
-
-    static var dailyGoalMissed: Heatmap.PeriodData {
-        let start =
-            Time.calendar.date(byAdding: .day, value: -1, to: todayStart)
-            ?? todayStart
-        let end = Time.calendar.date(byAdding: .day, value: 1, to: start) ?? start
-        return Heatmap.PeriodData(
-            id: start,
-            periodStartPsychDay: start,
-            periodEndPsychDay: end,
-            goal: 2,
-            checkIns: [],
-            isBeforeCreation: false
-        )
-    }
-
-    static var weeklyNoGoal: Heatmap.PeriodData {
-        let start =
-            Time.calendar.date(byAdding: .day, value: -7, to: todayStart)
-            ?? todayStart
-        let end = Time.calendar.date(byAdding: .day, value: 7, to: start) ?? start
-        return Heatmap.PeriodData(
-            id: start,
-            periodStartPsychDay: start,
-            periodEndPsychDay: end,
-            goal: nil,
-            checkIns: [],
-            isBeforeCreation: false
-        )
-    }
-
-    /// Container + period for previewing the per-row delete UI (check-ins with various sources).
-    static func dailyWithCheckInsContainer() -> (ModelContainer, Heatmap.PeriodData) {
+    /// Container + a commitment with three check-ins on `todayStart` (various sources),
+    /// for previewing the per-row delete UI and the goal line.
+    static func dailyWithCheckInsContainer() -> (ModelContainer, Commitment, Range<Date>) {
         let container = try! ModelContainer(
             for: Commitment.self, Slot.self, CheckIn.self,
             configurations: ModelConfiguration(isStoredInMemoryOnly: true)
@@ -290,69 +323,74 @@ private enum CommitmentHeatmapInfoCardPreviewData {
         let start = todayStart
         let end = Time.calendar.date(byAdding: .day, value: 1, to: start) ?? start
 
-        let ci1 = CheckIn(
-            commitment: commitment,
-            createdAt: start.addingTimeInterval(9 * 3600 + 3 * 60),  // 9:03 AM
-            source: .app
-        )
-        ctx.insert(ci1)
-        commitment.checkIns.append(ci1)
+        for (offset, source) in [
+            (9 * 3600 + 3 * 60, CheckInSource.app),  // 9:03 AM
+            (11 * 3600 + 45 * 60, CheckInSource.widget),  // 11:45 AM
+            (14 * 3600, CheckInSource.liveActivity),  // 2:00 PM
+        ] {
+            let ci = CheckIn(
+                commitment: commitment,
+                createdAt: start.addingTimeInterval(TimeInterval(offset)),
+                source: source
+            )
+            ctx.insert(ci)
+            commitment.checkIns.append(ci)
+        }
 
-        let ci2 = CheckIn(
-            commitment: commitment,
-            createdAt: start.addingTimeInterval(11 * 3600 + 45 * 60),  // 11:45 AM
-            source: .widget
-        )
-        ctx.insert(ci2)
-        commitment.checkIns.append(ci2)
+        return (container, commitment, start..<end)
+    }
 
-        let ci3 = CheckIn(
-            commitment: commitment,
-            createdAt: start.addingTimeInterval(14 * 3600),  // 2:00 PM
-            source: .liveActivity
+    /// Container + a commitment with an empty period one week ago (goal missed).
+    static func emptyDailyContainer() -> (ModelContainer, Commitment, Range<Date>) {
+        let container = try! ModelContainer(
+            for: Commitment.self, Slot.self, CheckIn.self,
+            configurations: ModelConfiguration(isStoredInMemoryOnly: true)
         )
-        ctx.insert(ci3)
-        commitment.checkIns.append(ci3)
-
-        let period = Heatmap.PeriodData(
-            id: start,
-            periodStartPsychDay: start,
-            periodEndPsychDay: end,
-            goal: 2,
-            checkIns: [ci1, ci2, ci3],
-            isBeforeCreation: false
+        let ctx = container.mainContext
+        let commitment = Commitment(
+            title: "Preview Commitment",
+            cycle: Cycle.makeDefault(.daily),
+            slots: [],
+            target: Target(count: 2)
         )
+        ctx.insert(commitment)
 
-        return (container, period)
+        let start = Time.calendar.date(byAdding: .day, value: -1, to: todayStart) ?? todayStart
+        let end = Time.calendar.date(byAdding: .day, value: 1, to: start) ?? start
+        return (container, commitment, start..<end)
     }
 }
 
-#Preview("Info card — before tracking") {
+#Preview("Info card — with check-ins (delete UI)") {
+    let (container, commitment, range) =
+        CommitmentHeatmapInfoCardPreviewData.dailyWithCheckInsContainer()
     CommitmentHeatmapInfoCardPreviewWrapper(
-        heatmapKind: .daily,
-        period: CommitmentHeatmapInfoCardPreviewData.dailyBeforeTracking
+        commitment: commitment,
+        range: range,
+        rangeKind: .daily
     )
+    .modelContainer(container)
 }
 
 #Preview("Info card — goal missed (0/2)") {
+    let (container, commitment, range) =
+        CommitmentHeatmapInfoCardPreviewData.emptyDailyContainer()
     CommitmentHeatmapInfoCardPreviewWrapper(
-        heatmapKind: .daily,
-        period: CommitmentHeatmapInfoCardPreviewData.dailyGoalMissed
+        commitment: commitment,
+        range: range,
+        rangeKind: .daily
     )
+    .modelContainer(container)
 }
 
-#Preview("Info card — no goal (weekly)") {
+#Preview("Info card — FCR (no chrome: no swatch/goal line)") {
+    let (container, commitment, range) =
+        CommitmentHeatmapInfoCardPreviewData.dailyWithCheckInsContainer()
     CommitmentHeatmapInfoCardPreviewWrapper(
-        heatmapKind: .weekly,
-        period: CommitmentHeatmapInfoCardPreviewData.weeklyNoGoal
-    )
-}
-
-#Preview("Info card — with check-ins (delete UI)") {
-    let (container, period) = CommitmentHeatmapInfoCardPreviewData.dailyWithCheckInsContainer()
-    CommitmentHeatmapInfoCardPreviewWrapper(
-        heatmapKind: .daily,
-        period: period
+        commitment: commitment,
+        range: range,
+        rangeKind: .daily,
+        showsHeatmapChrome: false
     )
     .modelContainer(container)
 }

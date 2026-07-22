@@ -160,11 +160,8 @@ extension Heatmap {
 struct CommitmentHeatmapView: View {
     let commitment: Commitment
 
-    @Environment(\.modelContext) private var modelContext
-
     @State private var heatmapKind: CycleKind = .daily
     @State private var selectedPeriod: Heatmap.PeriodData? = nil
-    @State private var backfillPeriod: Heatmap.PeriodData? = nil
     private var context: Heatmap.Context { Heatmap.Context(commitment: commitment) }
 
     var body: some View {
@@ -176,36 +173,19 @@ struct CommitmentHeatmapView: View {
             CommitmentHeatmapLegendView(commitment: commitment, heatmapKind: heatmapKind)
 
             if let selected = selectedPeriod {
+                // The card derives its check-ins/goal/etc. live from the commitment and
+                // range, and owns its own delete + backfill sheet.
                 CommitmentHeatmapInfoCard(
-                    period: selected,
-                    heatmapKind: heatmapKind,
-                    targetKind: context.target.kind,
-                    selectedPeriod: $selectedPeriod,
-                    onDelete: { checkIn in
-                        CheckIn.delete(checkIn, from: modelContext)
-                        // Dismiss the info card immediately — its PeriodData still holds
-                        // a reference to the now-deleted CheckIn, and accessing any property
-                        // on a SwiftData tombstone crashes.
-                        // And without this line, the info card does not refresh --- so the deleted line will still show there.
-                        selectedPeriod = nil
-                    },
-                    onAddCheckIn: { backfillPeriod = selectedPeriod }
+                    commitment: commitment,
+                    range: selected.periodStartPsychDay..<selected.periodEndPsychDay,
+                    rangeKind: heatmapKind,
+                    onDismiss: { selectedPeriod = nil }
                 )
                 .transition(.opacity.combined(with: .move(edge: .top)))
             }
         }
         .animation(.spring(duration: 0.22), value: selectedPeriod?.id)
         .animation(.spring(duration: 0.22), value: heatmapKind)
-        .sheet(item: $backfillPeriod) { period in
-            BackfillSheet(
-                commitment: commitment,
-                dateRange: period
-                    .periodStartPsychDay...min(
-                        period.periodEndPsychDay.addingTimeInterval(-1), Date.now)
-            )
-            .presentationDetents([.medium])
-            .presentationDragIndicator(.visible)
-        }
     }
 
     private var heatmapKindPicker: some View {

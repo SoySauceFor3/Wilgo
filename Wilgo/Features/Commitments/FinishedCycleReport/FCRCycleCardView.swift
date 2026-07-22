@@ -25,7 +25,6 @@ struct FCRCycleCardView: View {
 
     @State private var isExpanded: Bool
     @State private var isHistoryShown = false
-    @State private var showingBackfill = false
     @State private var showingHelp = false
 
     init(
@@ -44,17 +43,23 @@ struct FCRCycleCardView: View {
         _isExpanded = State(initialValue: !state.wrappedValue.isPassed)
     }
 
-    private var cycleRange: ClosedRange<Date> {
-        cycle.cycleStartPsychDay...cycle.cycleEndPsychDay.addingTimeInterval(-1)
-    }
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             header
 
             if isExpanded {
                 if isHistoryShown {
-                    historySection
+                    // The card derives its check-ins/goal/etc. live from the commitment and range,
+                    // and owns its own delete + backfill sheet. onDismiss is nil here — the FCR card
+                    // owns its own expand/collapse, so tap-to-dismiss is inert.
+                    CommitmentHeatmapInfoCard(
+                        commitment: commitment,
+                        range: cycle.cycleStartPsychDay..<cycle.cycleEndPsychDay,
+                        rangeKind: commitment.cycle.kind,
+                        showsHeatmapChrome: false,
+                        onDismiss: nil
+                    )
+                    .padding(.top, 8)
                 }
                 if let streakSummary, !state.isPassed {
                     streakBanner(streakSummary)
@@ -74,10 +79,6 @@ struct FCRCycleCardView: View {
             RoundedRectangle(cornerRadius: 14)
                 .stroke(borderColor, lineWidth: 1.5)
         )
-        .sheet(isPresented: $showingBackfill) {
-            BackfillSheet(commitment: commitment, dateRange: cycleRange)
-                .presentationDetents([.medium])
-        }
     }
 
     private var borderColor: Color {
@@ -140,27 +141,6 @@ struct FCRCycleCardView: View {
             .clipShape(Capsule())
     }
 
-    // MARK: - History (reused InfoCard)
-
-    private var historySection: some View {
-        let period = Heatmap.PeriodData(
-            id: cycle.cycleStartPsychDay,
-            periodStartPsychDay: cycle.cycleStartPsychDay,
-            periodEndPsychDay: cycle.cycleEndPsychDay,
-            goal: cycle.targetCheckIns,
-            checkIns: cycle.checkIns,
-            isBeforeCreation: false
-        )
-        return CommitmentHeatmapInfoCard(
-            period: period,
-            heatmapKind: commitment.cycle.kind,
-            targetKind: commitment.cycle.kind,
-            selectedPeriod: .constant(period),
-            onAddCheckIn: { showingBackfill = true }
-        )
-        .padding(.top, 8)
-    }
-
     private func streakBanner(_ text: String) -> some View {
         HStack(spacing: 5) {
             Image(systemName: "exclamationmark.triangle.fill")
@@ -195,9 +175,12 @@ struct FCRCycleCardView: View {
                 labelPills
             }
             VStack(alignment: .leading, spacing: 8) {
-                Text(state.isReflectionRequired ? "WRITE SOMETHING (REQUIRED)" : "WRITE SOMETHING (OPTIONAL)")
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(state.isReflectionRequired ? .orange : .secondary)
+                Text(
+                    state.isReflectionRequired
+                        ? "WRITE SOMETHING (REQUIRED)" : "WRITE SOMETHING (OPTIONAL)"
+                )
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(state.isReflectionRequired ? .orange : .secondary)
                 TextField(
                     state.isReflectionRequired ? "Why did you miss? (required)" : "Optional note",
                     text: $state.reflectionText,
@@ -217,7 +200,9 @@ struct FCRCycleCardView: View {
             helpRow(.intended, "You meant for this to fail (e.g. a test run). Nothing required.")
             helpRow(.excused, "A real reason got in the way. Nothing required.")
             helpRow(.moveOn, "No reason, no penalty. Jot down why, then move on. (note required)")
-            helpRow(.punished, "You took a consequence for the miss. Add a win to balance it. (PT required)")
+            helpRow(
+                .punished,
+                "You took a consequence for the miss. Add a win to balance it. (PT required)")
         }
         .padding(16)
         .frame(maxWidth: 320)
