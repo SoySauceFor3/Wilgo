@@ -17,19 +17,6 @@ private func applyFilter(
     }
 }
 
-// MARK: - Helpers
-
-private func makeCommitment(title: String = "Test") -> Commitment {
-    let anchor = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1))!
-    let cycle = Cycle(kind: .weekly, referencePsychDay: anchor)
-    return Commitment(
-        title: title,
-        cycle: cycle,
-        slots: [],
-        target: Target(count: 1)
-    )
-}
-
 // MARK: - Tests
 
 @Suite
@@ -43,13 +30,11 @@ struct CommitmentFilterTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let cA = makeCommitment(title: "Has A")
-        let cB = makeCommitment(title: "Has B")
+        let cA = makeCommitment(in: ctx, title: "Has A", cycleKind: .weekly)
+        let cB = makeCommitment(in: ctx, title: "Has B", cycleKind: .weekly)
         let tagA = Wilgo.Tag(name: "TagA", displayOrder: 0)
         let tagB = Wilgo.Tag(name: "TagB", displayOrder: 1)
 
-        ctx.insert(cA)
-        ctx.insert(cB)
         ctx.insert(tagA)
         ctx.insert(tagB)
         cA.tags.append(tagA)
@@ -70,13 +55,11 @@ struct CommitmentFilterTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let cA = makeCommitment(title: "Has A")
-        let cB = makeCommitment(title: "Has B")
+        let cA = makeCommitment(in: ctx, title: "Has A", cycleKind: .weekly)
+        let cB = makeCommitment(in: ctx, title: "Has B", cycleKind: .weekly)
         let tagA = Wilgo.Tag(name: "TagA", displayOrder: 0)
         let tagB = Wilgo.Tag(name: "TagB", displayOrder: 1)
 
-        ctx.insert(cA)
-        ctx.insert(cB)
         ctx.insert(tagA)
         ctx.insert(tagB)
         cA.tags.append(tagA)
@@ -96,12 +79,10 @@ struct CommitmentFilterTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let cTagged = makeCommitment(title: "Tagged")
-        let cUntagged = makeCommitment(title: "Untagged")
+        let cTagged = makeCommitment(in: ctx, title: "Tagged", cycleKind: .weekly)
+        _ = makeCommitment(in: ctx, title: "Untagged", cycleKind: .weekly)
         let tagA = Wilgo.Tag(name: "TagA", displayOrder: 0)
 
-        ctx.insert(cTagged)
-        ctx.insert(cUntagged)
         ctx.insert(tagA)
         cTagged.tags.append(tagA)
         try ctx.save()
@@ -119,12 +100,10 @@ struct CommitmentFilterTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let cTagged = makeCommitment(title: "Tagged")
-        let cUntagged = makeCommitment(title: "Untagged")
+        let cTagged = makeCommitment(in: ctx, title: "Tagged", cycleKind: .weekly)
+        _ = makeCommitment(in: ctx, title: "Untagged", cycleKind: .weekly)
         let tagA = Wilgo.Tag(name: "TagA", displayOrder: 0)
 
-        ctx.insert(cTagged)
-        ctx.insert(cUntagged)
         ctx.insert(tagA)
         cTagged.tags.append(tagA)
         try ctx.save()
@@ -143,15 +122,12 @@ struct CommitmentFilterTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let c1 = makeCommitment(title: "Alpha")
-        let c2 = makeCommitment(title: "Beta")
-        let c3 = makeCommitment(title: "Gamma")
+        let c1 = makeCommitment(in: ctx, title: "Alpha", cycleKind: .weekly)
+        let c2 = makeCommitment(in: ctx, title: "Beta", cycleKind: .weekly)
+        let c3 = makeCommitment(in: ctx, title: "Gamma", cycleKind: .weekly)
         let tagX = Wilgo.Tag(name: "X", displayOrder: 0)
         let tagY = Wilgo.Tag(name: "Y", displayOrder: 1)
 
-        ctx.insert(c1)
-        ctx.insert(c2)
-        ctx.insert(c3)
         ctx.insert(tagX)
         ctx.insert(tagY)
         c1.tags.append(tagX)

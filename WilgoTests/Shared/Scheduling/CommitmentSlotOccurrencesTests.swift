@@ -8,29 +8,6 @@ extension SchedulingSuite {
 final class CommitmentSlotOccurrencesTests {
     // MARK: - Helpers
     @MainActor
-    private func makeCommitment(
-        slots slotDefs: [(start: Int, end: Int, maxCheckIns: Int?)],
-        targetCount: Int = 3,
-        targetMode: TargetMode = .on,
-        cycleKind: CycleKind = .daily,
-        in ctx: ModelContext
-    ) -> Commitment {
-        let anchor = testDate(year: 2026, month: 1, day: 1)
-        let slots = slotDefs.map {
-            Slot(start: timeOfDay(hour: $0.start), end: timeOfDay(hour: $0.end), maxCheckIns: $0.maxCheckIns)
-        }
-        let c = Commitment(
-            title: "Draw",
-            cycle: Cycle(kind: cycleKind, referencePsychDay: anchor),
-            slots: slots,
-            target: Target(count: targetCount, mode: targetMode)
-        )
-        ctx.insert(c)
-        slots.forEach { ctx.insert($0) }
-        return c
-    }
-
-    @MainActor
     private func addCheckIn(to c: Commitment, at date: Date, in ctx: ModelContext) {
         let checkIn = CheckIn(commitment: c, createdAt: date)
         ctx.insert(checkIn)
@@ -47,7 +24,7 @@ final class CommitmentSlotOccurrencesTests {
     @Test("merges occurrences across all of the commitment's slots")
     @MainActor func mergesAcrossSlots() throws {
         let container = try makeTestContainer()
-        let c = makeCommitment(slots: [(9, 11, nil), (18, 20, nil)], in: container.mainContext)
+        let c = makeCommitment(in: container.mainContext, slots: [makeSlot(startHour: 9, endHour: 11), makeSlot(startHour: 18, endHour: 20)], targetCount: 3)
         let from = testDate(year: 2026, month: 3, day: 5, hour: 7)
         let to = testDate(year: 2026, month: 3, day: 6)
         // One occurrence from each slot on Mar 5 — build them directly and compare firings.
@@ -66,7 +43,7 @@ final class CommitmentSlotOccurrencesTests {
         // Two slots whose per-slot enumeration interleaves once merged: an 18–20 evening slot and a
         // 9–11 morning slot. `flatMap` visits them slot-by-slot (all evenings, then all mornings, or
         // vice versa), so only the final sort produces chronological order.
-        let c = makeCommitment(slots: [(18, 20, nil), (9, 11, nil)], in: container.mainContext)
+        let c = makeCommitment(in: container.mainContext, slots: [makeSlot(startHour: 18, endHour: 20), makeSlot(startHour: 9, endHour: 11)], targetCount: 3)
         let from = testDate(year: 2026, month: 3, day: 5, hour: 7)
         let to = testDate(year: 2026, month: 3, day: 7)  // two days: Mar 5, 6
 
@@ -89,7 +66,7 @@ final class CommitmentSlotOccurrencesTests {
         // maxCheckIns: 1 with a check-in inside the window makes the occurrence saturated →
         // unusable. (Whether unusability comes from saturation or snooze is SlotOccurrence's
         // concern; here we only assert the commitment applies the `isUsable` gate.)
-        let c = makeCommitment(slots: [(9, 11, 1)], targetCount: 3, in: ctx)
+        let c = makeCommitment(in: ctx, slots: [makeSlot(startHour: 9, endHour: 11, maxCheckIns: 1)], targetCount: 3)
         addCheckIn(to: c, at: testDate(year: 2026, month: 3, day: 5, hour: 9), in: ctx)
         let from = testDate(year: 2026, month: 3, day: 5, hour: 7)
         let to = testDate(year: 2026, month: 3, day: 6)

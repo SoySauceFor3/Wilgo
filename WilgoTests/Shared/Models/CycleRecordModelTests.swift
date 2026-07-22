@@ -3,17 +3,6 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
-private func makeCommitment(in ctx: ModelContext) -> Commitment {
-    let commitment = Commitment(
-        title: "Leetcode",
-        cycle: Cycle.makeDefault(.weekly),
-        slots: [],
-        target: Target(count: 3)
-    )
-    ctx.insert(commitment)
-    return commitment
-}
-
 private func makeCycleStart() -> Date {
     var comps = DateComponents()
     comps.year = 2026
@@ -37,7 +26,7 @@ struct CycleRecordModelTests {
     @Test func cycleRecordPersistsWithCorrectFields() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let commitment = makeCommitment(in: ctx)
+        let commitment = makeCommitment(in: ctx, title: "Leetcode", targetCount: 3, cycleKind: .weekly)
 
         let record = CycleRecord(
             commitment: commitment,
@@ -68,7 +57,7 @@ struct CycleRecordModelTests {
     @Test func passedCycleRecordPersists() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let commitment = makeCommitment(in: ctx)
+        let commitment = makeCommitment(in: ctx, title: "Leetcode", targetCount: 3, cycleKind: .weekly)
 
         let record = CycleRecord(
             commitment: commitment,
@@ -97,7 +86,7 @@ struct CycleRecordModelTests {
     @Test func snapshotTitleSurvivesCommitmentTitleChange() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let commitment = makeCommitment(in: ctx)
+        let commitment = makeCommitment(in: ctx, title: "Leetcode", targetCount: 3, cycleKind: .weekly)
 
         let record = CycleRecord(
             commitment: commitment,
@@ -127,7 +116,7 @@ struct CycleRecordModelTests {
     @Test func checkInCountDoesNotChangeWhenCheckInsAddedAfterFCR() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let commitment = makeCommitment(in: ctx)
+        let commitment = makeCommitment(in: ctx, title: "Leetcode", targetCount: 3, cycleKind: .weekly)
 
         let record = CycleRecord(
             commitment: commitment,
@@ -160,7 +149,7 @@ struct CycleRecordModelTests {
     @Test func deletingCommitmentCascadesToCycleRecords() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let commitment = makeCommitment(in: ctx)
+        let commitment = makeCommitment(in: ctx, title: "Leetcode", targetCount: 3, cycleKind: .weekly)
 
         let record = CycleRecord(
             commitment: commitment,
@@ -189,7 +178,7 @@ struct CycleRecordModelTests {
     @Test func deletingCycleRecordDoesNotDeleteCommitment() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let commitment = makeCommitment(in: ctx)
+        let commitment = makeCommitment(in: ctx, title: "Leetcode", targetCount: 3, cycleKind: .weekly)
 
         let record = CycleRecord(
             commitment: commitment,
@@ -220,7 +209,7 @@ struct CycleRecordModelTests {
     @Test func deletingCycleRecordNullifiesPTRelationship() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let commitment = makeCommitment(in: ctx)
+        let commitment = makeCommitment(in: ctx, title: "Leetcode", targetCount: 3, cycleKind: .weekly)
 
         let pt = PositivityToken(reason: "I shipped a PR this week")
         ctx.insert(pt)
@@ -255,7 +244,7 @@ struct CycleRecordModelTests {
     @Test func commitmentCycleRecordsRelationshipIsWiredUp() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let commitment = makeCommitment(in: ctx)
+        let commitment = makeCommitment(in: ctx, title: "Leetcode", targetCount: 3, cycleKind: .weekly)
 
         let r1 = CycleRecord(
             commitment: commitment,

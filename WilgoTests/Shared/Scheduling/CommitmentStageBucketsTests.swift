@@ -13,31 +13,6 @@ extension SchedulingSuite {
 final class CommitmentStageBucketsTests {
     // MARK: - Helpers
     @MainActor
-    private func makeCommitment(
-        title: String = "C",
-        slots slotDefs: [(start: Int, end: Int, maxCheckIns: Int?)],
-        targetCount: Int = 3,
-        cycleKind: CycleKind = .daily,
-        continueAfterGoalMet: Bool = false,
-        in ctx: ModelContext
-    ) -> Commitment {
-        let anchor = testDate(year: 2026, month: 1, day: 1)
-        let slots = slotDefs.map {
-            Slot(start: timeOfDay(hour: $0.start), end: timeOfDay(hour: $0.end), maxCheckIns: $0.maxCheckIns)
-        }
-        let c = Commitment(
-            title: title,
-            cycle: Cycle(kind: cycleKind, referencePsychDay: anchor),
-            slots: slots,
-            target: Target(count: targetCount),
-            continueRemindersAfterGoalMet: continueAfterGoalMet
-        )
-        ctx.insert(c)
-        slots.forEach { ctx.insert($0) }
-        return c
-    }
-
-    @MainActor
     private func addCheckIn(to c: Commitment, at date: Date, in ctx: ModelContext) {
         let checkIn = CheckIn(commitment: c, createdAt: date)
         ctx.insert(checkIn)
@@ -84,10 +59,10 @@ final class CommitmentStageBucketsTests {
         // now is 6am, before any slot today. All are behind (target 3, no check-ins).
         let now = testDate(year: 2026, month: 3, day: 5, hour: 6)
         // Slots at 8, 10, 12, 14 → ascending nearest starts.
-        let c8 = makeCommitment(title: "8", slots: [(8, 9, nil)], in: ctx)
-        let c10 = makeCommitment(title: "10", slots: [(10, 11, nil)], in: ctx)
-        let c12 = makeCommitment(title: "12", slots: [(12, 13, nil)], in: ctx)
-        let c14 = makeCommitment(title: "14", slots: [(14, 15, nil)], in: ctx)
+        let c8 = makeCommitment(in: ctx, title: "8", slots: [makeSlot(startHour: 8, endHour: 9)], targetCount: 3)
+        let c10 = makeCommitment(in: ctx, title: "10", slots: [makeSlot(startHour: 10, endHour: 11)], targetCount: 3)
+        let c12 = makeCommitment(in: ctx, title: "12", slots: [makeSlot(startHour: 12, endHour: 13)], targetCount: 3)
+        let c14 = makeCommitment(in: ctx, title: "14", slots: [makeSlot(startHour: 14, endHour: 15)], targetCount: 3)
 
         let buckets = buckets([c12, c8, c14, c10], now: now, n: 2)
 
@@ -104,8 +79,8 @@ final class CommitmentStageBucketsTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         let now = testDate(year: 2026, month: 3, day: 5, hour: 6)
-        let c8 = makeCommitment(title: "8", slots: [(8, 9, nil)], in: ctx)
-        let c10 = makeCommitment(title: "10", slots: [(10, 11, nil)], in: ctx)
+        let c8 = makeCommitment(in: ctx, title: "8", slots: [makeSlot(startHour: 8, endHour: 9)], targetCount: 3)
+        let c10 = makeCommitment(in: ctx, title: "10", slots: [makeSlot(startHour: 10, endHour: 11)], targetCount: 3)
 
         let buckets = buckets([c10, c8], now: now, n: 5)
 
@@ -119,8 +94,8 @@ final class CommitmentStageBucketsTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         let now = testDate(year: 2026, month: 3, day: 5, hour: 6)
-        let c8 = makeCommitment(title: "8", slots: [(8, 9, nil)], in: ctx)
-        let c10 = makeCommitment(title: "10", slots: [(10, 11, nil)], in: ctx)
+        let c8 = makeCommitment(in: ctx, title: "8", slots: [makeSlot(startHour: 8, endHour: 9)], targetCount: 3)
+        let c10 = makeCommitment(in: ctx, title: "10", slots: [makeSlot(startHour: 10, endHour: 11)], targetCount: 3)
 
         let buckets = buckets([c8, c10], now: now, n: 0)
 
@@ -134,10 +109,10 @@ final class CommitmentStageBucketsTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         let now = testDate(year: 2026, month: 3, day: 5, hour: 6)
-        let c8 = makeCommitment(title: "8", slots: [(8, 9, nil)], in: ctx)
-        let c10 = makeCommitment(title: "10", slots: [(10, 11, nil)], in: ctx)
+        let c8 = makeCommitment(in: ctx, title: "8", slots: [makeSlot(startHour: 8, endHour: 9)], targetCount: 3)
+        let c10 = makeCommitment(in: ctx, title: "10", slots: [makeSlot(startHour: 10, endHour: 11)], targetCount: 3)
         // c14 is behind (target 3, no check-ins) but ranks 3rd by slot start → beyond n=2.
-        let c14 = makeCommitment(title: "14", slots: [(14, 15, nil)], in: ctx)
+        let c14 = makeCommitment(in: ctx, title: "14", slots: [makeSlot(startHour: 14, endHour: 15)], targetCount: 3)
 
         let buckets = buckets([c8, c10, c14], now: now, n: 2)
 
@@ -151,13 +126,11 @@ final class CommitmentStageBucketsTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         let now = testDate(year: 2026, month: 3, day: 5, hour: 6)
-        let c8 = makeCommitment(title: "8", slots: [(8, 9, nil)], in: ctx)
-        let c10 = makeCommitment(title: "10", slots: [(10, 11, nil)], in: ctx)
+        let c8 = makeCommitment(in: ctx, title: "8", slots: [makeSlot(startHour: 8, endHour: 9)], targetCount: 3)
+        let c10 = makeCommitment(in: ctx, title: "10", slots: [makeSlot(startHour: 10, endHour: 11)], targetCount: 3)
         // c14: target 1, continue ON, and one check-in today → goal met but still active.
         // Because it has a remaining usable slot, leftToDo(=0) - remainingSlots makes behindCount 0.
-        let c14 = makeCommitment(
-            title: "14", slots: [(14, 15, nil)], targetCount: 1, continueAfterGoalMet: true, in: ctx
-        )
+        let c14 = makeCommitment(in: ctx, title: "14", slots: [makeSlot(startHour: 14, endHour: 15)], targetCount: 1, continueAfterGoalMet: true)
         addCheckIn(to: c14, at: testDate(year: 2026, month: 3, day: 5, hour: 5), in: ctx)
 
         // Sanity: c14 is active and NOT behind.
@@ -177,7 +150,7 @@ final class CommitmentStageBucketsTests {
         let ctx = container.mainContext
         let now = testDate(year: 2026, month: 3, day: 5, hour: 6)
         // c8 is behind but it is the nearest slot → in upcoming despite being behind.
-        let c8 = makeCommitment(title: "8", slots: [(8, 9, nil)], in: ctx)
+        let c8 = makeCommitment(in: ctx, title: "8", slots: [makeSlot(startHour: 8, endHour: 9)], targetCount: 3)
 
         let buckets = buckets([c8], now: now, n: 5)
 
@@ -193,8 +166,8 @@ final class CommitmentStageBucketsTests {
         let ctx = container.mainContext
         // now is 8:30, inside the 8-9 window → insideSlot.
         let now = testDate(year: 2026, month: 3, day: 5, hour: 8, minute: 30)
-        let cNow = makeCommitment(title: "now", slots: [(8, 9, nil)], in: ctx)
-        let cLater = makeCommitment(title: "later", slots: [(12, 13, nil)], in: ctx)
+        let cNow = makeCommitment(in: ctx, title: "now", slots: [makeSlot(startHour: 8, endHour: 9)], targetCount: 3)
+        let cLater = makeCommitment(in: ctx, title: "later", slots: [makeSlot(startHour: 12, endHour: 13)], targetCount: 3)
 
         let buckets = buckets([cNow, cLater], now: now, n: 5)
 
@@ -214,7 +187,7 @@ final class CommitmentStageBucketsTests {
         let inside = testDate(year: 2026, month: 3, day: 5, hour: 8, minute: 30)
         Time.now = { inside }
         // target 3, no check-ins → behind. Single slot 8-9, no later slot today.
-        let c = makeCommitment(title: "c", slots: [(8, 9, nil)], in: ctx)
+        let c = makeCommitment(in: ctx, title: "c", slots: [makeSlot(startHour: 8, endHour: 9)], targetCount: 3)
 
         // Inside the window (8:30): current, not catch-up.
         let insideBuckets = buckets([c], now: inside, n: 5)
@@ -237,10 +210,9 @@ final class CommitmentStageBucketsTests {
         let ctx = container.mainContext
         let now = testDate(year: 2026, month: 3, day: 5, hour: 6)
         // target 1, one check-in → goal met; continue OFF → not active.
-        let cMet = makeCommitment(
-            title: "met", slots: [(8, 9, nil)], targetCount: 1, in: ctx)
+        let cMet = makeCommitment(in: ctx, title: "met", slots: [makeSlot(startHour: 8, endHour: 9)], targetCount: 1)
         addCheckIn(to: cMet, at: testDate(year: 2026, month: 3, day: 5, hour: 5), in: ctx)
-        let cActive = makeCommitment(title: "active", slots: [(10, 11, nil)], in: ctx)
+        let cActive = makeCommitment(in: ctx, title: "active", slots: [makeSlot(startHour: 10, endHour: 11)], targetCount: 3)
 
         // Sanity: cMet is not active for reminders.
         #expect(!cMet.isActiveForReminders(now: now))
@@ -260,7 +232,7 @@ final class CommitmentStageBucketsTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         let now = testDate(year: 2026, month: 3, day: 5, hour: 6)
-        let c = makeCommitment(title: "today", slots: [(8, 9, nil)], in: ctx)
+        let c = makeCommitment(in: ctx, title: "today", slots: [makeSlot(startHour: 8, endHour: 9)], targetCount: 3)
 
         let buckets = buckets([c], now: now, n: 5)
 
@@ -278,7 +250,7 @@ final class CommitmentStageBucketsTests {
         // 11pm on a daily cycle: today's 7am slot has passed; nearest usable is tomorrow's 7am,
         // which falls in the NEXT daily cycle (next psych-day) → nearestUsableInCurrentCycle false.
         let now = testDate(year: 2026, month: 3, day: 5, hour: 23)
-        let c = makeCommitment(title: "7am", slots: [(7, 9, nil)], in: ctx)
+        let c = makeCommitment(in: ctx, title: "7am", slots: [makeSlot(startHour: 7, endHour: 9)], targetCount: 3)
 
         let buckets = buckets([c], now: now, n: 5)
 
@@ -297,7 +269,7 @@ final class CommitmentStageBucketsTests {
         let frozen = try #require(Calendar.current.date(
             bySettingHour: 8, minute: 30, second: 0, of: Date()))
         Time.now = { frozen }
-        let c = makeCommitment(title: "c", slots: [(8, 9, nil)], in: ctx)
+        let c = makeCommitment(in: ctx, title: "c", slots: [makeSlot(startHour: 8, endHour: 9)], targetCount: 3)
 
         func at(_ h: Int) throws -> Date {
             try #require(Calendar.current.date(bySettingHour: h, minute: 0, second: 0, of: Date()))
@@ -316,7 +288,7 @@ final class CommitmentStageBucketsTests {
         let ctx = container.mainContext
         // 10pm today; the only slot (8-9) already ended and does not fire again before midnight.
         let now = testDate(year: 2026, month: 3, day: 5, hour: 22)
-        let c = makeCommitment(title: "morning", slots: [(8, 9, nil)], in: ctx)
+        let c = makeCommitment(in: ctx, title: "morning", slots: [makeSlot(startHour: 8, endHour: 9)], targetCount: 3)
 
         // Slot-only primitive: next edge is tomorrow 8:00.
         #expect(
@@ -335,7 +307,7 @@ final class CommitmentStageBucketsTests {
         let ctx = container.mainContext
         // 8:30, inside the 8-9 slot → its end at 9:00 is before the next midnight.
         let now = testDate(year: 2026, month: 3, day: 5, hour: 8, minute: 30)
-        let c = makeCommitment(title: "open", slots: [(8, 9, nil)], in: ctx)
+        let c = makeCommitment(in: ctx, title: "open", slots: [makeSlot(startHour: 8, endHour: 9)], targetCount: 3)
 
         #expect(
             StageCharacterization.nextStageRefreshTime(commitments: [c], now: now)
@@ -347,7 +319,7 @@ final class CommitmentStageBucketsTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         let now = testDate(year: 2026, month: 3, day: 5, hour: 12)
-        let c = makeCommitment(title: "empty", slots: [], in: ctx)
+        let c = makeCommitment(in: ctx, title: "empty", slots: [], targetCount: 3)
 
         #expect(
             StageCharacterization.nextStageRefreshTime(commitments: [c], now: now)
@@ -370,7 +342,7 @@ final class CommitmentStageBucketsTests {
         let ctx = container.mainContext
         // 6am, before the 8am slot: behind (target 3, no check-ins) AND future-eligible (→ Upcoming).
         let now = testDate(year: 2026, month: 3, day: 5, hour: 6)
-        let c = makeCommitment(title: "8", slots: [(8, 9, nil)], targetCount: 3, in: ctx)
+        let c = makeCommitment(in: ctx, title: "8", slots: [makeSlot(startHour: 8, endHour: 9)], targetCount: 3)
 
         let cs = chars([c], now: now)
         // It lands in Upcoming (not catchUp), yet behindForReminder still includes it.
@@ -388,7 +360,7 @@ final class CommitmentStageBucketsTests {
         let ctx = container.mainContext
         // now is inside the 9–11 slot, and target 3 with no check-ins → behind, but currently open.
         let now = testDate(year: 2026, month: 3, day: 5, hour: 10)
-        let c = makeCommitment(title: "open", slots: [(9, 11, nil)], targetCount: 3, in: ctx)
+        let c = makeCommitment(in: ctx, title: "open", slots: [makeSlot(startHour: 9, endHour: 11)], targetCount: 3)
 
         let cs = chars([c], now: now)
         #expect(cs.first?.isBehind == true)
@@ -404,7 +376,7 @@ final class CommitmentStageBucketsTests {
         let ctx = container.mainContext
         // Same setup as the exclude case: behind AND currently in an open slot.
         let now = testDate(year: 2026, month: 3, day: 5, hour: 10)
-        let c = makeCommitment(title: "open", slots: [(9, 11, nil)], targetCount: 3, in: ctx)
+        let c = makeCommitment(in: ctx, title: "open", slots: [makeSlot(startHour: 9, endHour: 11)], targetCount: 3)
 
         let cs = chars([c], now: now)
         #expect(cs.first?.isBehind == true)
@@ -422,7 +394,7 @@ final class CommitmentStageBucketsTests {
         let ctx = container.mainContext
         let now = testDate(year: 2026, month: 3, day: 5, hour: 6)
         // target 1, one upcoming slot → leftToDo 1 - remaining 1 = behindCount 0 (on track).
-        let c = makeCommitment(title: "ok", slots: [(8, 9, nil)], targetCount: 1, in: ctx)
+        let c = makeCommitment(in: ctx, title: "ok", slots: [makeSlot(startHour: 8, endHour: 9)], targetCount: 1)
 
         let cs = chars([c], now: now)
         #expect(cs.first?.isBehind == false)

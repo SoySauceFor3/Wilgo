@@ -10,28 +10,6 @@ extension SchedulingSuite {
 @Suite(.serialized)
 final class CommitmentCharacteristicsTests {
     @MainActor
-    private func makeCommitment(
-        slots slotDefs: [(start: Int, end: Int, maxCheckIns: Int?)],
-        targetCount: Int = 3,
-        cycleKind: CycleKind = .daily,
-        in ctx: ModelContext
-    ) -> Commitment {
-        let anchor = testDate(year: 2026, month: 1, day: 1)
-        let slots = slotDefs.map {
-            Slot(start: timeOfDay(hour: $0.start), end: timeOfDay(hour: $0.end), maxCheckIns: $0.maxCheckIns)
-        }
-        let c = Commitment(
-            title: "Draw",
-            cycle: Cycle(kind: cycleKind, referencePsychDay: anchor),
-            slots: slots,
-            target: Target(count: targetCount)
-        )
-        ctx.insert(c)
-        slots.forEach { ctx.insert($0) }
-        return c
-    }
-
-    @MainActor
     private func addCheckIn(to c: Commitment, at date: Date, in ctx: ModelContext) {
         let checkIn = CheckIn(commitment: c, createdAt: date)
         ctx.insert(checkIn)
@@ -43,7 +21,7 @@ final class CommitmentCharacteristicsTests {
     @Test("open slot now → isCurrent true, currentOccurrence is the open slot")
     @MainActor func openSlotIsCurrent() throws {
         let container = try makeTestContainer()
-        let c = makeCommitment(slots: [(9, 11, nil)], in: container.mainContext)
+        let c = makeCommitment(in: container.mainContext, slots: [makeSlot(startHour: 9, endHour: 11)], targetCount: 3)
         let now = testDate(year: 2026, month: 3, day: 5, hour: 10)  // inside 9–11
 
         let snap = StageCharacterization.characteristics(of: c, now: now)
@@ -56,7 +34,7 @@ final class CommitmentCharacteristicsTests {
     @MainActor func remainingCount() throws {
         let container = try makeTestContainer()
         // Two slots; at 7am both are still ahead and usable → count 2.
-        let c = makeCommitment(slots: [(9, 11, nil), (18, 20, nil)], in: container.mainContext)
+        let c = makeCommitment(in: container.mainContext, slots: [makeSlot(startHour: 9, endHour: 11), makeSlot(startHour: 18, endHour: 20)], targetCount: 3)
         let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let snap = StageCharacterization.characteristics(of: c, now: now)
@@ -68,7 +46,7 @@ final class CommitmentCharacteristicsTests {
     @Test("remainingThisCycleCount INCLUDES the currently-open slot")
     @MainActor func remainingCountIncludesCurrent() throws {
         let container = try makeTestContainer()
-        let c = makeCommitment(slots: [(9, 11, nil), (18, 20, nil)], in: container.mainContext)
+        let c = makeCommitment(in: container.mainContext, slots: [makeSlot(startHour: 9, endHour: 11), makeSlot(startHour: 18, endHour: 20)], targetCount: 3)
         let now = testDate(year: 2026, month: 3, day: 5, hour: 10)  // inside the 9–11 slot
 
         let snap = StageCharacterization.characteristics(of: c, now: now)
@@ -81,7 +59,7 @@ final class CommitmentCharacteristicsTests {
     @Test("slot later today → not current, but has upcoming")
     @MainActor func laterSlotNotCurrentHasUpcoming() throws {
         let container = try makeTestContainer()
-        let c = makeCommitment(slots: [(9, 11, nil)], in: container.mainContext)
+        let c = makeCommitment(in: container.mainContext, slots: [makeSlot(startHour: 9, endHour: 11)], targetCount: 3)
         let now = testDate(year: 2026, month: 3, day: 5, hour: 7)  // before 9
 
         let snap = StageCharacterization.characteristics(of: c, now: now)
@@ -97,7 +75,7 @@ final class CommitmentCharacteristicsTests {
     @Test("nearestUsable in the current cycle → nearestUsableInCurrentCycle true")
     @MainActor func nearestInCurrentCycle() throws {
         let container = try makeTestContainer()
-        let c = makeCommitment(slots: [(9, 11, nil)], in: container.mainContext)
+        let c = makeCommitment(in: container.mainContext, slots: [makeSlot(startHour: 9, endHour: 11)], targetCount: 3)
         let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let snap = StageCharacterization.characteristics(of: c, now: now)
@@ -108,7 +86,7 @@ final class CommitmentCharacteristicsTests {
     @Test("nearestUsable crossing into next cycle → nearestUsableInCurrentCycle false")
     @MainActor func nearestInNextCycle() throws {
         let container = try makeTestContainer()
-        let c = makeCommitment(slots: [(7, 9, nil)], in: container.mainContext)
+        let c = makeCommitment(in: container.mainContext, slots: [makeSlot(startHour: 7, endHour: 9)], targetCount: 3)
         // 11pm: today's 7am passed; nearest usable is tomorrow 7am, in the next daily cycle.
         let now = testDate(year: 2026, month: 3, day: 5, hour: 23)
 
@@ -121,7 +99,7 @@ final class CommitmentCharacteristicsTests {
     @Test("no usable upcoming slot → nearestUsable nil, hasUpcoming false, nearestUsableInCurrentCycle false")
     @MainActor func noUpcoming() throws {
         let container = try makeTestContainer()
-        let c = makeCommitment(slots: [], in: container.mainContext)
+        let c = makeCommitment(in: container.mainContext, slots: [], targetCount: 3)
         let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let snap = StageCharacterization.characteristics(of: c, now: now)
@@ -139,7 +117,7 @@ final class CommitmentCharacteristicsTests {
         let ctx = container.mainContext
         // target 3, daily, single slot already passed and snoozed-out is complex; instead use a
         // single slot whose only occurrence today has passed by `now` and is the only one.
-        let c = makeCommitment(slots: [(9, 11, nil)], targetCount: 3, in: ctx)
+        let c = makeCommitment(in: ctx, slots: [makeSlot(startHour: 9, endHour: 11)], targetCount: 3)
         // now after the slot window → no remaining in-cycle slot; 0 check-ins; target 3.
         let now = testDate(year: 2026, month: 3, day: 5, hour: 12)
 
@@ -153,7 +131,7 @@ final class CommitmentCharacteristicsTests {
     @Test("on track: enough remaining slots to meet target → not behind")
     @MainActor func notBehindWhenSlotsCover() throws {
         let container = try makeTestContainer()
-        let c = makeCommitment(slots: [(9, 11, nil), (18, 20, nil)], targetCount: 1, in: container.mainContext)
+        let c = makeCommitment(in: container.mainContext, slots: [makeSlot(startHour: 9, endHour: 11), makeSlot(startHour: 18, endHour: 20)], targetCount: 1)
         let now = testDate(year: 2026, month: 3, day: 5, hour: 7)  // both slots still ahead
 
         let snap = StageCharacterization.characteristics(of: c, now: now)
@@ -166,7 +144,7 @@ final class CommitmentCharacteristicsTests {
     @MainActor func counts() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let c = makeCommitment(slots: [(9, 11, nil)], targetCount: 5, in: ctx)
+        let c = makeCommitment(in: ctx, slots: [makeSlot(startHour: 9, endHour: 11)], targetCount: 5)
         addCheckIn(to: c, at: testDate(year: 2026, month: 3, day: 5, hour: 9, minute: 30), in: ctx)
         addCheckIn(to: c, at: testDate(year: 2026, month: 3, day: 5, hour: 10), in: ctx)
         let now = testDate(year: 2026, month: 3, day: 5, hour: 12)

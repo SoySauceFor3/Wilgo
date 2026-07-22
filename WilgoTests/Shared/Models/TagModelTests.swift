@@ -3,24 +3,6 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
-// MARK: - Helpers
-
-/// Callers must keep the returned container alive for the entire test — `ModelContext` only
-/// weakly references its `ModelContainer`; releasing the container makes subsequent operations crash.
-
-private func makeCommitment(title: String = "Test") -> Commitment {
-    let anchor = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1))!
-    let cycle = Cycle(kind: .weekly, referencePsychDay: anchor)
-    return Commitment(
-        title: title,
-        cycle: cycle,
-        slots: [],
-        target: Target(count: 1)
-    )
-}
-
-// MARK: - Tests
-
 @Suite
 @MainActor
 struct TagModelTests {
@@ -48,8 +30,7 @@ struct TagModelTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let commitment = makeCommitment()
-        ctx.insert(commitment)
+        _ = makeCommitment(in: ctx, cycleKind: .weekly)
         try ctx.save()
 
         let fetched = try ctx.fetch(FetchDescriptor<Commitment>())
@@ -63,9 +44,8 @@ struct TagModelTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let commitment = makeCommitment()
+        let commitment = makeCommitment(in: ctx, cycleKind: .weekly)
         let tag = Tag(name: "Fitness", displayOrder: 0)
-        ctx.insert(commitment)
         ctx.insert(tag)
         commitment.tags.append(tag)
         try ctx.save()
@@ -87,11 +67,9 @@ struct TagModelTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let c1 = makeCommitment(title: "Commitment A")
-        let c2 = makeCommitment(title: "Commitment B")
+        let c1 = makeCommitment(in: ctx, title: "Commitment A", cycleKind: .weekly)
+        let c2 = makeCommitment(in: ctx, title: "Commitment B", cycleKind: .weekly)
         let tag = Tag(name: "Shared", displayOrder: 0)
-        ctx.insert(c1)
-        ctx.insert(c2)
         ctx.insert(tag)
         c1.tags.append(tag)
         c2.tags.append(tag)
@@ -115,9 +93,8 @@ struct TagModelTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let commitment = makeCommitment()
+        let commitment = makeCommitment(in: ctx, cycleKind: .weekly)
         let tag = Tag(name: "Resilient", displayOrder: 0)
-        ctx.insert(commitment)
         ctx.insert(tag)
         commitment.tags.append(tag)
         try ctx.save()
@@ -140,9 +117,8 @@ struct TagModelTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let commitment = makeCommitment()
+        let commitment = makeCommitment(in: ctx, cycleKind: .weekly)
         let tag = Tag(name: "Temporary", displayOrder: 0)
-        ctx.insert(commitment)
         ctx.insert(tag)
         commitment.tags.append(tag)
         try ctx.save()

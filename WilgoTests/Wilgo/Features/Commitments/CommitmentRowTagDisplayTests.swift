@@ -3,21 +3,6 @@ import SwiftData
 import Testing
 @testable import Wilgo
 
-// MARK: - Helpers
-
-private func makeCommitment(title: String = "Test") -> Commitment {
-    let anchor = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1))!
-    let cycle = Cycle(kind: .weekly, referencePsychDay: anchor)
-    return Commitment(
-        title: title,
-        cycle: cycle,
-        slots: [],
-        target: Target(count: 1)
-    )
-}
-
-// MARK: - Tests
-
 @Suite
 @MainActor
 struct CommitmentRowTagDisplayTests {
@@ -26,8 +11,7 @@ struct CommitmentRowTagDisplayTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let commitment = makeCommitment()
-        ctx.insert(commitment)
+        _ = makeCommitment(in: ctx, cycleKind: .weekly)
         try ctx.save()
 
         let fetched = try ctx.fetch(FetchDescriptor<Commitment>())
@@ -39,12 +23,11 @@ struct CommitmentRowTagDisplayTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let commitment = makeCommitment()
+        let commitment = makeCommitment(in: ctx, cycleKind: .weekly)
         let base = Date(timeIntervalSince1970: 1_000_000)
         let tagA = Wilgo.Tag(name: "Alpha", displayOrder: 0, createdAt: base)
         let tagB = Wilgo.Tag(name: "Beta", displayOrder: 1, createdAt: base.addingTimeInterval(1))
 
-        ctx.insert(commitment)
         ctx.insert(tagA)
         ctx.insert(tagB)
         commitment.tags.append(tagA)
@@ -67,12 +50,11 @@ struct CommitmentRowTagDisplayTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let commitment = makeCommitment()
+        let commitment = makeCommitment(in: ctx, cycleKind: .weekly)
         let base = Date(timeIntervalSince1970: 1_000_000)
         let tagHigh = Wilgo.Tag(name: "High", displayOrder: 10, createdAt: base)
         let tagLow = Wilgo.Tag(name: "Low", displayOrder: 1, createdAt: base.addingTimeInterval(1))
 
-        ctx.insert(commitment)
         ctx.insert(tagHigh)
         ctx.insert(tagLow)
         commitment.tags.append(tagHigh)
@@ -95,13 +77,12 @@ struct CommitmentRowTagDisplayTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let commitment = makeCommitment()
+        let commitment = makeCommitment(in: ctx, cycleKind: .weekly)
         let base = Date(timeIntervalSince1970: 1_000_000)
         let tagOlder = Wilgo.Tag(name: "Older", displayOrder: 5, createdAt: base)
         let tagNewer = Wilgo.Tag(
             name: "Newer", displayOrder: 5, createdAt: base.addingTimeInterval(60))
 
-        ctx.insert(commitment)
         ctx.insert(tagOlder)
         ctx.insert(tagNewer)
         commitment.tags.append(tagNewer)

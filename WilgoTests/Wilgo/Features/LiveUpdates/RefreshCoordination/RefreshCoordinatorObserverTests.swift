@@ -35,17 +35,6 @@ final class RefreshCoordinatorObserverTests {
         Date(timeIntervalSinceReferenceDate: 1_000_000 + offset)
     }
 
-    private func makeCommitment(in ctx: ModelContext) -> Commitment {
-        let c = Commitment(
-            title: "Test",
-            cycle: Cycle(kind: .daily, referencePsychDay: Date()),
-            slots: [],
-            target: Target(count: 1)
-        )
-        ctx.insert(c)
-        return c
-    }
-
     /// Yield the cooperative pool until `predicate` holds or we exhaust `maxYields`. Used to let a
     /// detached fire-and-forget `Task` run before asserting — no `Thread.sleep`.
     private func waitUntil(

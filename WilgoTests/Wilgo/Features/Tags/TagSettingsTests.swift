@@ -6,20 +6,6 @@ import Testing
 
 // MARK: - Helpers
 
-/// Callers must keep the returned container alive for the entire test — `ModelContext` only
-/// weakly references its `ModelContainer`; releasing the container makes subsequent operations crash.
-
-private func makeCommitment(title: String = "Test") -> Commitment {
-    let anchor = Calendar.current.date(from: DateComponents(year: 2026, month: 1, day: 1))!
-    let cycle = Cycle(kind: .weekly, referencePsychDay: anchor)
-    return Commitment(
-        title: title,
-        cycle: cycle,
-        slots: [],
-        target: Target(count: 1)
-    )
-}
-
 /// Applies the same reorder logic used in TagsSettingsView.onMove.
 private func applyMove(
     tags: inout [Wilgo.Tag], fromOffsets source: IndexSet, toOffset destination: Int
@@ -125,9 +111,8 @@ struct TagSettingsTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let commitment = makeCommitment(title: "My Commitment")
+        let commitment = makeCommitment(in: ctx, title: "My Commitment", cycleKind: .weekly)
         let tag = Wilgo.Tag(name: "ToDelete", displayOrder: 0)
-        ctx.insert(commitment)
         ctx.insert(tag)
         commitment.tags.append(tag)
         try ctx.save()
@@ -176,9 +161,8 @@ struct TagSettingsTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let commitment = makeCommitment()
+        let commitment = makeCommitment(in: ctx, cycleKind: .weekly)
         let tag = Wilgo.Tag(name: "Used", displayOrder: 0)
-        ctx.insert(commitment)
         ctx.insert(tag)
         commitment.tags.append(tag)
         try ctx.save()
@@ -197,11 +181,9 @@ struct TagSettingsTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
 
-        let c1 = makeCommitment(title: "C1")
-        let c2 = makeCommitment(title: "C2")
+        let c1 = makeCommitment(in: ctx, title: "C1", cycleKind: .weekly)
+        let c2 = makeCommitment(in: ctx, title: "C2", cycleKind: .weekly)
         let tag = Wilgo.Tag(name: "Popular", displayOrder: 0)
-        ctx.insert(c1)
-        ctx.insert(c2)
         ctx.insert(tag)
         c1.tags.append(tag)
         c2.tags.append(tag)

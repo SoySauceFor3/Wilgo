@@ -12,30 +12,6 @@ extension SchedulingSuite {
 final class CommitmentNearestSlotTests {
     // MARK: - Helpers
     @MainActor
-    private func makeCommitment(
-        slots slotDefs: [(start: Int, end: Int, maxCheckIns: Int?)],
-        targetCount: Int = 3,
-        cycleKind: CycleKind = .daily,
-        continueAfterGoalMet: Bool = false,
-        in ctx: ModelContext
-    ) -> Commitment {
-        let anchor = testDate(year: 2026, month: 1, day: 1)
-        let slots = slotDefs.map {
-            Slot(start: timeOfDay(hour: $0.start), end: timeOfDay(hour: $0.end), maxCheckIns: $0.maxCheckIns)
-        }
-        let c = Commitment(
-            title: "Draw",
-            cycle: Cycle(kind: cycleKind, referencePsychDay: anchor),
-            slots: slots,
-            target: Target(count: targetCount),
-            continueRemindersAfterGoalMet: continueAfterGoalMet
-        )
-        ctx.insert(c)
-        slots.forEach { ctx.insert($0) }
-        return c
-    }
-
-    @MainActor
     private func addCheckIn(to c: Commitment, at date: Date, in ctx: ModelContext) {
         let checkIn = CheckIn(commitment: c, createdAt: date)
         ctx.insert(checkIn)
@@ -52,7 +28,7 @@ final class CommitmentNearestSlotTests {
     @Test("future occurrence today is returned")
     @MainActor func futureToday_returned() throws {
         let container = try makeTestContainer()
-        let c = makeCommitment(slots: [(9, 11, nil)], in: container.mainContext)
+        let c = makeCommitment(in: container.mainContext, slots: [makeSlot(startHour: 9, endHour: 11)], targetCount: 3)
         let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let occ = c.nearestUsableUpcomingOccurrence(now: now)
@@ -63,7 +39,7 @@ final class CommitmentNearestSlotTests {
     @Test("min across multiple slots returns the soonest")
     @MainActor func minAcrossSlots() throws {
         let container = try makeTestContainer()
-        let c = makeCommitment(slots: [(18, 20, nil), (9, 11, nil)], in: container.mainContext)
+        let c = makeCommitment(in: container.mainContext, slots: [makeSlot(startHour: 18, endHour: 20), makeSlot(startHour: 9, endHour: 11)], targetCount: 3)
         let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         let occ = c.nearestUsableUpcomingOccurrence(now: now)
@@ -75,7 +51,7 @@ final class CommitmentNearestSlotTests {
     @Test("no cliff: at 11pm the nearest usable slot is tomorrow's 7am (next cycle)")
     @MainActor func crossesMidnightToNextCycle() throws {
         let container = try makeTestContainer()
-        let c = makeCommitment(slots: [(7, 9, nil)], in: container.mainContext)
+        let c = makeCommitment(in: container.mainContext, slots: [makeSlot(startHour: 7, endHour: 9)], targetCount: 3)
         // 11pm today — today's 7am slot has long passed; nearest is tomorrow 7am (next daily cycle).
         let now = testDate(year: 2026, month: 3, day: 5, hour: 23)
 
@@ -88,7 +64,7 @@ final class CommitmentNearestSlotTests {
     @MainActor func snoozedFallsThrough() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let c = makeCommitment(slots: [(9, 11, nil)], in: ctx)
+        let c = makeCommitment(in: ctx, slots: [makeSlot(startHour: 9, endHour: 11)], targetCount: 3)
         let slot = try #require(c.slots.first)
         // Snooze the 5th's 9am occurrence; nearest usable should be the 6th's 9am.
         addSnooze(to: slot, at: testDate(year: 2026, month: 3, day: 5, hour: 9), in: ctx)
@@ -103,7 +79,7 @@ final class CommitmentNearestSlotTests {
     @MainActor func saturatedFallsThrough() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let c = makeCommitment(slots: [(9, 11, 1)], in: ctx)  // capacity 1
+        let c = makeCommitment(in: ctx, slots: [makeSlot(startHour: 9, endHour: 11, maxCheckIns: 1)], targetCount: 3)  // capacity 1
         // A check-in inside the 5th's 9-11 window saturates that occurrence.
         addCheckIn(to: c, at: testDate(year: 2026, month: 3, day: 5, hour: 9, minute: 30), in: ctx)
         // now is before the slot start so the occurrence is still "upcoming" but saturated.
@@ -120,7 +96,7 @@ final class CommitmentNearestSlotTests {
         let container = try makeTestContainer()
         let ctx = container.mainContext
         // Daily cycle, capacity 1. A check-in saturates only its own day's occurrence.
-        let c = makeCommitment(slots: [(9, 11, 1)], in: ctx)
+        let c = makeCommitment(in: ctx, slots: [makeSlot(startHour: 9, endHour: 11, maxCheckIns: 1)], targetCount: 3)
         // Saturate the 5th's occurrence.
         addCheckIn(to: c, at: testDate(year: 2026, month: 3, day: 5, hour: 9, minute: 30), in: ctx)
         let now = testDate(year: 2026, month: 3, day: 5, hour: 8)
@@ -139,7 +115,7 @@ final class CommitmentNearestSlotTests {
         // Daily cycle, target 1, continue-after-met ON. One check-in today meets the goal, but the
         // slot itself has unlimited capacity (maxCheckIns nil) so its occurrence is not saturated.
         let c = makeCommitment(
-            slots: [(9, 11, nil)], targetCount: 1, continueAfterGoalMet: true, in: ctx
+            in: ctx, slots: [makeSlot(startHour: 9, endHour: 11)], targetCount: 1, continueAfterGoalMet: true
         )
         addCheckIn(to: c, at: testDate(year: 2026, month: 3, day: 5, hour: 9, minute: 30), in: ctx)
         // now is 7am; today's 9am slot is still upcoming. Goal met + continue → keep showing the
@@ -155,7 +131,7 @@ final class CommitmentNearestSlotTests {
     @MainActor func specificWeekdaysJumpsToNextMatch() throws {
         let container = try makeTestContainer()
         let ctx = container.mainContext
-        let c = makeCommitment(slots: [(9, 11, nil)], in: ctx)
+        let c = makeCommitment(in: ctx, slots: [makeSlot(startHour: 9, endHour: 11)], targetCount: 3)
         let slot = try #require(c.slots.first)
         // Restrict to Mondays only (Calendar weekday 2).
         slot.recurrence = .specificWeekdays([2])
@@ -175,7 +151,7 @@ final class CommitmentNearestSlotTests {
         // construct without recurrence; instead use a saturated slot whose every occurrence in
         // the lookahead is saturated. Simpler: capacity 0 means unlimited (not saturated), so use
         // a snooze-blanket approach is also awkward. Use the cleanest available: no slots.
-        let c = makeCommitment(slots: [], in: ctx)
+        let c = makeCommitment(in: ctx, slots: [], targetCount: 3)
         let now = testDate(year: 2026, month: 3, day: 5, hour: 7)
 
         #expect(c.nearestUsableUpcomingOccurrence(now: now) == nil)

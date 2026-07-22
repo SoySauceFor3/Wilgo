@@ -5,18 +5,6 @@ import Testing
 
 @Suite(.serialized)
 final class CommitmentArchiveTests {
-    @MainActor
-    private func makeCommitment(in ctx: ModelContext) -> Commitment {
-        let c = Commitment(
-            title: "Test",
-            cycle: Cycle(kind: .daily, referencePsychDay: Date()),
-            slots: [],
-            target: Target(count: 1)
-        )
-        ctx.insert(c)
-        return c
-    }
-
     @Test("new commitment has archivedAt == nil")
     @MainActor func defaultIsNil() throws {
         let container = try makeTestContainer()
