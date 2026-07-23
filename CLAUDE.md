@@ -66,10 +66,6 @@ this is a big chunk and it's very important, so we have a dedicated section here
 - `CheckInUndoManager.swift:121` — non-optional `??` warning
   Only treat warnings/errors as actionable if they are **not** stale, or if the build itself fails.
 
-1. (Author: Claude, 2026-04-14) **Pre-existing failing test — do not count as a regression.** The following test was already failing before any new work:
-
-- `CommitmentStageSnoozeTests/stageStatus_snoozeDoesNotAffectFutureOccurrence()` — failing as of 2026-04-14, cause unknown. Do not treat this as caused by your changes.
-
 1. (Author: Claude, 2026-04-14) **Run tests via** `xcodebuild`**, not the Xcode MCP** `RunAllTests` **tool.** The MCP tool runs against the physical device and reports all tests as "not run" when the device is unavailable. Always use: `xcodebuild test -project Wilgo.xcodeproj -scheme Wilgo -destination 'platform=iOS Simulator,id=4492FF84-2E83-4350-8008-B87DE7AE2588'`
 2. (Author: Codex, 2026-04-25) **Use** `./test-with-cleanup.sh` **as the default local test entrypoint.** This script runs tests on the required iPhone 17 simulator and then removes stale directories in `~/Library/Developer/XCTestDevices`. Use `KEEP_HOURS` (default `6`) to control cleanup retention, for example: `KEEP_HOURS=12 ./test-with-cleanup.sh`.
 

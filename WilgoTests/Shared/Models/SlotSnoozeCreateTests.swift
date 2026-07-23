@@ -1,0 +1,220 @@
+import Foundation
+import SwiftData
+import Testing
+@testable import Wilgo
+
+// MARK: - Helpers
+@MainActor
+private func makeSlotAndInsert(
+    startHour: Int, endHour: Int,
+    recurrence: SlotRecurrence = .everyDay,
+    in ctx: ModelContext
+) -> Slot {
+    let anchor = testDate(year: 2026, month: 1, day: 1)
+    let slot = Slot(
+        start: timeOfDay(hour: startHour), end: timeOfDay(hour: endHour), recurrence: recurrence)
+    let commitment = Commitment(
+        title: "Test",
+        cycle: Cycle(kind: .daily, referencePsychDay: anchor),
+        slots: [slot],
+        target: Target(count: 1)
+    )
+    ctx.insert(commitment)
+    ctx.insert(slot)
+    return slot
+}
+
+// MARK: - Tests
+
+@Suite
+struct SlotSnoozeCreateTests: ~Copyable {
+    // MARK: Happy path
+
+    @Test("create for an active slot → returns a SlotSnooze with correct psychDay")
+    @MainActor func create_activeSlot_returnsSnooze() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        let slot = makeSlotAndInsert(startHour: 9, endHour: 11, in: ctx)
+
+        let time = testDate(year: 2026, month: 3, day: 5, hour: 10)  // within 9–11am
+        let snooze = slot.snooze(at: time, in: ctx)
+
+        #expect(snooze != nil)
+        #expect(slot.snoozes.count == 1)
+
+        let expectedPsychDay = Time.startOfDay(for: time)
+        #expect(try Calendar.current.isDate(#require(snooze?.psychDay), inSameDayAs: expectedPsychDay))
+    }
+
+    // MARK: psychDay recording
+
+    @Test("cross-midnight slot: snooze tapped at 12am Jan 1 records psychDay = Dec 31")
+    @MainActor func create_crossMidnight_psychDayIsStartDay() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // Slot: 11pm–1am (crosses midnight)
+        let slot = makeSlotAndInsert(startHour: 23, endHour: 1, in: ctx)
+
+        // Snooze tapped at 12am Jan 1 (post-midnight portion of the Dec 31 slot occurrence)
+        let time = testDate(year: 2026, month: 1, day: 1, hour: 0, minute: 30)
+        let snooze = slot.snooze(at: time, in: ctx)
+
+        #expect(snooze != nil)
+
+        // psychDay should be Dec 31, not Jan 1, because the slot started at 11pm Dec 31
+        let dec31 = testDate(year: 2025, month: 12, day: 31)
+        #expect(try Calendar.current.isDate(#require(snooze?.psychDay), inSameDayAs: dec31))
+    }
+
+    @Test("normal slot: snooze records psychDay of time")
+    @MainActor func create_normalSlot_psychDayIsToday() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        let slot = makeSlotAndInsert(startHour: 9, endHour: 11, in: ctx)
+
+        let time = testDate(year: 2026, month: 6, day: 15, hour: 10)
+        let snooze = slot.snooze(at: time, in: ctx)
+
+        #expect(snooze != nil)
+        let expectedPsychDay = testDate(year: 2026, month: 6, day: 15)
+        #expect(try Calendar.current.isDate(#require(snooze?.psychDay), inSameDayAs: expectedPsychDay))
+    }
+
+    // MARK: Returns nil when outside window
+
+    @Test("create when time is after slot window → returns nil")
+    @MainActor func create_afterSlotWindow_returnsNil() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // Slot: 1–3am; time is 5am (slot has ended)
+        let slot = makeSlotAndInsert(startHour: 1, endHour: 3, in: ctx)
+        let time = testDate(year: 2026, month: 3, day: 5, hour: 5)
+
+        let snooze = slot.snooze(at: time, in: ctx)
+
+        #expect(snooze == nil)
+        #expect(slot.snoozes.isEmpty)
+    }
+
+    @Test("create when time is before slot window → returns nil")
+    @MainActor func create_beforeSlotWindow_returnsNil() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // Slot: 9–11am; time is 7am
+        let slot = makeSlotAndInsert(startHour: 9, endHour: 11, in: ctx)
+        let time = testDate(year: 2026, month: 3, day: 5, hour: 7)
+
+        let snooze = slot.snooze(at: time, in: ctx)
+
+        #expect(snooze == nil)
+        #expect(slot.snoozes.isEmpty)
+    }
+
+    @Test("create on wrong recurrence day → returns nil")
+    @MainActor func create_wrongRecurrenceDay_returnsNil() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // Monday-only slot (weekday 2 in 1=Sun…7=Sat calendar)
+        let slot = makeSlotAndInsert(
+            startHour: 9, endHour: 11, recurrence: .specificWeekdays([2]), in: ctx)
+
+        // Tuesday Jan 1 2026 (weekday = 5 = Thursday? let's use a ktimen Tuesday)
+        // Jan 6 2026 is a Tuesday. Weekday: 1=Sun,2=Mon,3=Tue
+        // We need a day that is NOT Monday. Jan 6 2026 = Tuesday.
+        let tuesday = testDate(year: 2026, month: 1, day: 6, hour: 10)  // Tuesday, within time window
+        let snooze = slot.snooze(at: tuesday, in: ctx)
+
+        #expect(snooze == nil)
+        #expect(slot.snoozes.isEmpty)
+    }
+
+    @Test("create on correct recurrence day → returns snooze")
+    @MainActor func create_correctRecurrenceDay_returnsSnooze() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // Monday-only slot
+        let slot = makeSlotAndInsert(
+            startHour: 9, endHour: 11, recurrence: .specificWeekdays([2]), in: ctx)
+
+        // Jan 5 2026 is a Monday
+        let monday = testDate(year: 2026, month: 1, day: 5, hour: 10)
+        let snooze = slot.snooze(at: monday, in: ctx)
+
+        #expect(snooze != nil)
+    }
+
+    // MARK: Stale cleanup
+
+    @Test("stale snooze (occurrence window closed) is deleted on next create call")
+    @MainActor func create_deletesStaleSnooze() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // Slot: 9–11am
+        let slot = makeSlotAndInsert(startHour: 9, endHour: 11, in: ctx)
+
+        // Insert a stale snooze for yesterday
+        let yesterday = testDate(year: 2026, month: 3, day: 4)
+        let stale = SlotSnooze(slot: slot, psychDay: yesterday, snoozedAt: yesterday)
+        ctx.insert(stale)
+        #expect(slot.snoozes.count == 1)
+
+        // Create a new snooze today — stale one should be cleaned up
+        let time = testDate(year: 2026, month: 3, day: 5, hour: 10)
+        slot.snooze(at: time, in: ctx)
+
+        // Only today's snooze should remain
+        #expect(slot.snoozes.count == 1)
+        #expect(
+            Calendar.current.isDate(
+                slot.snoozes[0].psychDay, inSameDayAs: testDate(year: 2026, month: 3, day: 5)))
+    }
+
+    @Test("cross-midnight: snoozing twice in the same firing keeps exactly one snooze (no duplicates)")
+    @MainActor func create_crossMidnight_noDuplicateSnoozeForSameFiring() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // Slot: 11pm–1am (crosses midnight)
+        let slot = makeSlotAndInsert(startHour: 23, endHour: 1, in: ctx)
+
+        // First snooze at 12am Jan 1 (slot is active: in 11pm Dec 31 – 1am Jan 1 window)
+        let snoozeTime = testDate(year: 2026, month: 1, day: 1, hour: 0)
+        let snooze = slot.snooze(at: snoozeTime, in: ctx)
+        #expect(snooze != nil)
+        #expect(slot.snoozes.count == 1)
+
+        // Snooze again at 12:30am Jan 1 — same Dec 31 firing. snooze(at:) clears all existing snoozes
+        // first, so there is still exactly one snooze (no duplicate for the same day).
+        let at1230 = testDate(year: 2026, month: 1, day: 1, hour: 0, minute: 30)
+        _ = slot.snooze(at: at1230, in: ctx)
+        #expect(slot.snoozes.count == 1)
+        // And it is still recorded against the Dec 31 firing.
+        #expect(
+            Calendar.current.isDate(
+                slot.snoozes[0].psychDay, inSameDayAs: testDate(year: 2025, month: 12, day: 31)))
+    }
+
+    @Test("cross-midnight stale cleanup: snooze IS deleted after slot ends at 1:30am")
+    @MainActor func create_crossMidnight_snoozeDeletedAfterSlotEnds() throws {
+        let container = try makeTestContainer()
+        let ctx = container.mainContext
+        // Slot: 11pm–1am (crosses midnight). We need a different active slot to trigger create.
+        let nightSlot = makeSlotAndInsert(startHour: 23, endHour: 1, in: ctx)
+
+        // Insert a stale cross-midnight snooze manually (for Dec 31, slot ended at 1am Jan 1)
+        let dec31 = testDate(year: 2025, month: 12, day: 31)
+        let staleSnooze = SlotSnooze(
+            slot: nightSlot, psychDay: dec31, snoozedAt: testDate(year: 2026, month: 1, day: 1, hour: 0)
+        )
+        ctx.insert(staleSnooze)
+        #expect(nightSlot.snoozes.count == 1)
+
+        // `Time` it's 1:30am Jan 1 — slot has ended (occurrence end = 1am Jan 1 < 1:30am)
+        // Trigger cleanup by attempting create (which will return nil since 1:30am is outside the 11pm-1am window)
+        let at130am = testDate(year: 2026, month: 1, day: 1, hour: 1, minute: 30)
+        let result = nightSlot.snooze(at: at130am, in: ctx)
+        #expect(result == nil)  // 1:30am is outside 11pm-1am window
+
+        // The stale snooze should have been deleted
+        #expect(nightSlot.snoozes.isEmpty)
+    }
+}

@@ -10,6 +10,12 @@ import Foundation
 import SwiftUI
 
 enum AppSettings {
+    /// The UserDefaults instance all reads go through. Defaults to `.standard` (what the
+    /// app and `@AppStorage` use). Task-local so each test can bind an isolated instance
+    /// within its own task — suites mutating the same keys no longer race across the
+    /// parallel test runner, and no shared global pointer is mutated.
+    @TaskLocal static var store: UserDefaults = .standard
+
     /// Monthly cap for positivity token usage (instead of creation). Default: 5.
     static let positivityTokenMonthlyCapKey = "positivityTokenMonthlyCap"
 
@@ -21,9 +27,9 @@ enum AppSettings {
 
     /// Reads the week-start preference from UserDefaults. Returns `true` (Monday) when the key is absent.
     static var weekStartsOnMonday: Bool {
-        UserDefaults.standard.object(forKey: weekStartsOnMondayKey) == nil
+        store.object(forKey: weekStartsOnMondayKey) == nil
             ? true
-            : UserDefaults.standard.bool(forKey: weekStartsOnMondayKey)
+            : store.bool(forKey: weekStartsOnMondayKey)
     }
 
     /// The Calendar weekday integer for the configured week-start day (1 = Sunday, 2 = Monday).
@@ -36,7 +42,7 @@ enum AppSettings {
     /// Reads the Upcoming commitment count from UserDefaults. Returns 3 when absent;
     /// clamps to a minimum of 0 (0 = user wants no Upcoming; negative would be meaningless).
     static var upcomingCommitmentCount: Int {
-        let raw = UserDefaults.standard.object(forKey: upcomingCommitmentCountKey) as? Int
+        let raw = store.object(forKey: upcomingCommitmentCountKey) as? Int
         return max(0, raw ?? 3)
     }
 
@@ -47,7 +53,7 @@ enum AppSettings {
 
     /// Reads the include-active-slots preference. Returns `false` (exclude) when the key is absent.
     static var includeActiveSlotsInCatchUp: Bool {
-        UserDefaults.standard.bool(forKey: includeActiveSlotsInCatchUpReminderKey)
+        store.bool(forKey: includeActiveSlotsInCatchUpReminderKey)
     }
 
     /// Whether slot-start notifications are enabled. Default: true.
@@ -68,7 +74,7 @@ enum AppSettings {
 
     /// Reads a Bool that defaults to `true` (enabled) when the key is absent.
     private static func enabledDefaultingTrue(_ key: String) -> Bool {
-        UserDefaults.standard.object(forKey: key) == nil ? true : UserDefaults.standard.bool(forKey: key)
+        store.object(forKey: key) == nil ? true : store.bool(forKey: key)
     }
 }
 

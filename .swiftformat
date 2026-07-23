@@ -43,6 +43,8 @@
 --disable consecutiveSpaces
 --disable docComments
 --disable redundantSelf
+--disable redundantSwiftTestingSuite
+--disable swiftTestingTestCaseNames
 --disable trailingCommas
 --disable wrap
 --disable wrapArguments
